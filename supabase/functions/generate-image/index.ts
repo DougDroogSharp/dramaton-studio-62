@@ -11,62 +11,116 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, referenceImageCloseUp, referenceImageFullBody, styleGuide } = await req.json();
+    const { 
+      prompt, 
+      referenceImageCloseUp, 
+      referenceImageFullBody, 
+      styleGuide,
+      referenceImage,      // Composition/layout reference for backgrounds
+      existingImage,       // Current image for editing
+      editMode,            // Whether we're editing vs generating
+    } = await req.json();
 
     // Build message content with multiple images
     const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
 
-    // Start with style guide instruction if provided
-    if (styleGuide) {
+    // EDIT MODE: Modify an existing image
+    if (editMode && existingImage) {
       content.push({
         type: "text",
-        text: "STYLE REFERENCE - Match this art style exactly:"
+        text: "CURRENT IMAGE - Edit this image according to the instructions that follow. Keep the overall scene but apply the requested modifications:"
       });
       content.push({
         type: "image_url",
-        image_url: { url: styleGuide }
+        image_url: { url: existingImage }
       });
-    }
-
-    // Add close-up reference if provided
-    if (referenceImageCloseUp) {
+      
+      // Add style reference if available
+      if (styleGuide) {
+        content.push({
+          type: "text",
+          text: "STYLE REFERENCE - Maintain this art style while editing:"
+        });
+        content.push({
+          type: "image_url",
+          image_url: { url: styleGuide }
+        });
+      }
+      
       content.push({
         type: "text",
-        text: "CHARACTER FACE REFERENCE - This is the character's face. Match these facial features exactly:"
+        text: `EDIT INSTRUCTIONS: ${prompt}`
       });
-      content.push({
-        type: "image_url",
-        image_url: { url: referenceImageCloseUp }
-      });
-    }
+    } 
+    // GENERATION MODE: Create new image
+    else {
+      // Start with style guide instruction if provided
+      if (styleGuide) {
+        content.push({
+          type: "text",
+          text: "STYLE REFERENCE - Match this art style exactly:"
+        });
+        content.push({
+          type: "image_url",
+          image_url: { url: styleGuide }
+        });
+      }
 
-    // Add full-body reference if provided
-    if (referenceImageFullBody) {
+      // Add composition/layout reference for backgrounds
+      if (referenceImage) {
+        content.push({
+          type: "text",
+          text: "COMPOSITION REFERENCE - Use this image as a guide for layout, perspective, and spatial arrangement. Match the general composition and camera angle:"
+        });
+        content.push({
+          type: "image_url",
+          image_url: { url: referenceImage }
+        });
+      }
+
+      // Add close-up reference if provided (for characters)
+      if (referenceImageCloseUp) {
+        content.push({
+          type: "text",
+          text: "CHARACTER FACE REFERENCE - This is the character's face. Match these facial features exactly:"
+        });
+        content.push({
+          type: "image_url",
+          image_url: { url: referenceImageCloseUp }
+        });
+      }
+
+      // Add full-body reference if provided (for characters)
+      if (referenceImageFullBody) {
+        content.push({
+          type: "text",
+          text: "CHARACTER BODY REFERENCE - This is the character's full body. Match body proportions and clothing:"
+        });
+        content.push({
+          type: "image_url",
+          image_url: { url: referenceImageFullBody }
+        });
+      }
+
+      // Add the main generation prompt
       content.push({
         type: "text",
-        text: "CHARACTER BODY REFERENCE - This is the character's full body. Match body proportions and clothing:"
-      });
-      content.push({
-        type: "image_url",
-        image_url: { url: referenceImageFullBody }
+        text: prompt
       });
     }
-
-    // Add the main generation prompt
-    content.push({
-      type: "text",
-      text: prompt
-    });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Generating image with prompt:", prompt);
+    console.log("Image operation mode:", editMode ? "EDIT" : "GENERATE");
+    console.log("Prompt:", prompt);
     console.log("Has style guide:", !!styleGuide);
+    console.log("Has composition reference:", !!referenceImage);
     console.log("Has close-up reference:", !!referenceImageCloseUp);
     console.log("Has full-body reference:", !!referenceImageFullBody);
+    console.log("Has existing image (for edit):", !!existingImage);
     console.log("Total content parts:", content.length);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
