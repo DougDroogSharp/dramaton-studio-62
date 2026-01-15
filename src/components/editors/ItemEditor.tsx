@@ -2,16 +2,22 @@ import { useState } from 'react';
 import { GameData, Item, ItemEffect, UnlockCondition, SelectionState, ItemCategory, AcquisitionType, Operator } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { ITEM_CATEGORIES, ACQUISITION_TYPES, OPERATORS } from '@/constants';
-import { Plus, Trash2, Package, ChevronRight, Upload } from 'lucide-react';
+import { Plus, Trash2, Package, ChevronRight, Upload, Lock, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ItemEditorProps {
   game: GameData;
   selection: SelectionState;
   onChange: (game: GameData) => void;
   onSelect: (type: SelectionState['type'], id: string | null) => void;
+  styleGuide?: string | null;
 }
 
-export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChange, onSelect }) => {
+export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
+  const [styleLock, setStyleLock] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationPrompt, setGenerationPrompt] = useState('');
+  
   const selectedItem = selection.id 
     ? game.items.find(i => i.id === selection.id) 
     : null;
@@ -78,6 +84,139 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
     reader.readAsDataURL(file);
   };
 
+  // Chroma-key background removal function
+  const removeBackgroundGlobal = (imageDataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Sample corner pixels to detect background color
+        const corners = [
+          { x: 0, y: 0 },
+          { x: canvas.width - 1, y: 0 },
+          { x: 0, y: canvas.height - 1 },
+          { x: canvas.width - 1, y: canvas.height - 1 }
+        ];
+        
+        let bgR = 0, bgG = 0, bgB = 0, count = 0;
+        for (const corner of corners) {
+          const idx = (corner.y * canvas.width + corner.x) * 4;
+          if (data[idx + 1] > data[idx] && data[idx + 1] > data[idx + 2]) {
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
+            count++;
+          }
+        }
+        
+        if (count > 0) {
+          bgR = Math.round(bgR / count);
+          bgG = Math.round(bgG / count);
+          bgB = Math.round(bgB / count);
+        } else {
+          bgR = 0; bgG = 255; bgB = 0;
+        }
+        
+        const tolerance = 80;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          const diffR = Math.abs(r - bgR);
+          const diffG = Math.abs(g - bgG);
+          const diffB = Math.abs(b - bgB);
+          
+          if (diffR < tolerance && diffG < tolerance && diffB < tolerance) {
+            if (g > r * 0.8 && g > b * 0.8) {
+              data[i + 3] = 0;
+            }
+          }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Failed to load image for background removal'));
+      img.src = imageDataUrl;
+    });
+  };
+
+  const generateItemImage = async (itemId: string) => {
+    const item = game.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const prompt = generationPrompt.trim() || `${item.name} - ${item.category} item`;
+    
+    setIsGenerating(true);
+    toast.info('Generating item image...');
+
+    try {
+      let fullPrompt = `Game item icon: ${prompt}. 
+      
+FRAMING: Centered object, square aspect ratio, suitable for inventory UI.
+
+CRITICAL BACKGROUND INSTRUCTION: The item MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the item.
+
+NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrounds.`;
+
+      if (styleLock) {
+        fullPrompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: fullPrompt,
+            styleGuide: styleGuide || undefined,
+            enforceStyleGuide: styleLock,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Generation failed');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        toast.info('Removing background...');
+        const transparentImage = await removeBackgroundGlobal(data.imageUrl);
+        updateItem(itemId, { visualAsset: transparentImage });
+        toast.success('Item image generated!');
+      } else {
+        throw new Error('No image returned from generation');
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+      toast.error(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Item List View
   if (!selectedItem) {
     return (
@@ -104,7 +243,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
             >
               <div className="w-10 h-10 bg-diesel-panel border border-diesel-border flex items-center justify-center">
                 {item.visualAsset ? (
-                  <img src={item.visualAsset} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={item.visualAsset} alt={item.name} className="w-full h-full object-contain" />
                 ) : (
                   <Package size={20} className="text-diesel-steel" />
                 )}
@@ -188,12 +327,35 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
         <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
           Visual
         </h3>
+        
+        {/* Style Lock Toggle */}
+        <button
+          onClick={() => setStyleLock(!styleLock)}
+          className={`flex items-center gap-2 w-full mb-4 py-2 px-3 border text-sm font-bold uppercase transition-colors ${
+            styleLock 
+              ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+              : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+          }`}
+        >
+          <Lock size={14} />
+          <span className="flex-1 text-left">Adhere to Style Guide</span>
+          <span className={`text-xs ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+            {styleLock ? 'ON' : 'OFF'}
+          </span>
+        </button>
+        {styleLock && (
+          <p className="text-xs text-diesel-gold/70 mb-4 -mt-2">
+            Bold black outline, simple fill colors, no shading, light interior detail lines
+          </p>
+        )}
+        
         {selectedItem.visualAsset ? (
-          <div className="relative group">
+          <div className="relative group mb-4">
             <img 
               src={selectedItem.visualAsset} 
               alt={selectedItem.name} 
               className="w-32 h-32 object-contain bg-diesel-panel border border-diesel-border"
+              style={{ imageRendering: 'auto' }}
             />
             <button
               onClick={() => updateItem(selectedItem.id, { visualAsset: undefined })}
@@ -203,7 +365,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
             </button>
           </div>
         ) : (
-          <label className="flex items-center justify-center gap-2 w-32 h-32 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+          <label className="flex items-center justify-center gap-2 w-32 h-32 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors mb-4">
             <Upload size={20} />
             <input
               type="file"
@@ -213,6 +375,29 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
             />
           </label>
         )}
+        
+        {/* AI Generation */}
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder={`Generation prompt (default: "${selectedItem.name} - ${selectedItem.category} item")`}
+            value={generationPrompt}
+            onChange={(e) => setGenerationPrompt(e.target.value)}
+            className="w-full bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+          />
+          <button
+            onClick={() => generateItemImage(selectedItem.id)}
+            disabled={isGenerating}
+            className="flex items-center justify-center gap-2 w-full py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green text-sm font-bold uppercase hover:bg-diesel-green/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isGenerating ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {isGenerating ? 'Generating...' : 'Generate with AI'}
+          </button>
+        </div>
       </section>
 
       {/* Effects */}

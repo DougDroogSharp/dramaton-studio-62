@@ -303,7 +303,7 @@ const Index = () => {
             <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
           )}
           {selection.type === 'item' && (
-            <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
           )}
           {selection.type === 'sfx' && (
             <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
