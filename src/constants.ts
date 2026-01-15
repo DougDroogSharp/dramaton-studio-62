@@ -1,6 +1,7 @@
 // Dramaton Editor Constants
 
 export const POSES = [
+  'Closeup',
   'Neutral',
   'Full Body',
   'Pointing',

@@ -171,30 +171,33 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
 
       {/* Stage Elements */}
       <section>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-diesel-rust uppercase tracking-widest border-b border-diesel-border pb-2 flex-1">
-            Stage ({selectedScene.stage?.length || 0} elements)
-          </h3>
-          <div className="flex gap-1">
-            <button
-              onClick={() => addStageElement(selectedScene.id, 'ACTOR')}
-              className="px-2 py-1 text-xs bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-            >
-              +Actor
-            </button>
-            <button
-              onClick={() => addStageElement(selectedScene.id, 'ITEM')}
-              className="px-2 py-1 text-xs bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-            >
-              +Item
-            </button>
-            <button
-              onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
-              className="px-2 py-1 text-xs bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-            >
-              +Balloon
-            </button>
-          </div>
+        <h3 className="text-sm font-bold text-diesel-rust uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Stage ({selectedScene.stage?.length || 0} elements)
+        </h3>
+        
+        {/* Add Element Buttons - Prominent */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <button
+            onClick={() => addStageElement(selectedScene.id, 'ACTOR')}
+            className="flex flex-col items-center gap-1 p-3 bg-diesel-gold/10 border-2 border-dashed border-diesel-gold/50 text-diesel-gold hover:bg-diesel-gold/20 hover:border-diesel-gold transition-colors"
+          >
+            <Plus size={20} />
+            <span className="text-xs font-bold uppercase">Add Actor</span>
+          </button>
+          <button
+            onClick={() => addStageElement(selectedScene.id, 'ITEM')}
+            className="flex flex-col items-center gap-1 p-3 bg-diesel-gold/10 border-2 border-dashed border-diesel-gold/50 text-diesel-gold hover:bg-diesel-gold/20 hover:border-diesel-gold transition-colors"
+          >
+            <Plus size={20} />
+            <span className="text-xs font-bold uppercase">Add Item</span>
+          </button>
+          <button
+            onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
+            className="flex flex-col items-center gap-1 p-3 bg-diesel-gold/10 border-2 border-dashed border-diesel-gold/50 text-diesel-gold hover:bg-diesel-gold/20 hover:border-diesel-gold transition-colors"
+          >
+            <Plus size={20} />
+            <span className="text-xs font-bold uppercase">Add Balloon</span>
+          </button>
         </div>
         
         <div className="space-y-3">
