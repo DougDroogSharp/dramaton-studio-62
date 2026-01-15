@@ -3,17 +3,19 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera } from 'lucide-react';
 
 interface ActorEditorProps {
   game: GameData;
   selection: SelectionState;
   onChange: (game: GameData) => void;
   onSelect: (type: SelectionState['type'], id: string | null) => void;
+  styleGuide?: string | null;
 }
 
-export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect }) => {
+export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
+  const [generatingGraphic, setGeneratingGraphic] = useState<string | null>(null);
   
   const selectedActor = selection.id 
     ? game.actors.find(a => a.id === selection.id) 
@@ -82,6 +84,64 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
       updateGraphic(actorId, graphicId, { image: ev.target?.result as string });
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleReferenceUpload = (actorId: string, field: 'referenceImageCloseUp' | 'referenceImageFullBody', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      updateActor(actorId, { [field]: ev.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const generateGraphic = async (actorId: string, graphicId: string) => {
+    const actor = game.actors.find(a => a.id === actorId);
+    const graphic = actor?.graphics.find(g => g.id === graphicId);
+    if (!actor || !graphic) return;
+
+    setGeneratingGraphic(graphicId);
+
+    try {
+      const prompt = `Generate a character portrait for "${actor.name}". 
+Pose: ${graphic.pose}
+Expression: ${graphic.expression}
+Camera angle: ${graphic.angle} degrees
+Style: Dieselpunk visual novel character art, clean lines, dramatic lighting, suitable for game sprite.
+The character should be on a transparent or simple background suitable for compositing.`;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt,
+            referenceImage: actor.referenceImageCloseUp || actor.referenceImageFullBody,
+            styleGuide,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Generation failed');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        updateGraphic(actorId, graphicId, { image: data.imageUrl });
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+    } finally {
+      setGeneratingGraphic(null);
+    }
   };
 
   // Actor List View
@@ -188,6 +248,79 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
         />
       )}
 
+      {/* Reference Images */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Reference Images (for AI Generation)
+        </h3>
+        <p className="text-xs text-diesel-steel mb-4">
+          Upload reference photos to help the AI generate consistent character graphics.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Close-up reference */}
+          <div>
+            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Face / Close-up</label>
+            {selectedActor.referenceImageCloseUp ? (
+              <div className="relative group aspect-square">
+                <img 
+                  src={selectedActor.referenceImageCloseUp} 
+                  alt="Close-up reference" 
+                  className="w-full h-full object-cover border border-diesel-border"
+                />
+                <button
+                  onClick={() => updateActor(selectedActor.id, { referenceImageCloseUp: undefined })}
+                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <Camera size={24} />
+                <span className="text-xs text-center">Upload Face<br/>Reference</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageCloseUp', e)}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Full body reference */}
+          <div>
+            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Full Body</label>
+            {selectedActor.referenceImageFullBody ? (
+              <div className="relative group aspect-square">
+                <img 
+                  src={selectedActor.referenceImageFullBody} 
+                  alt="Full body reference" 
+                  className="w-full h-full object-cover border border-diesel-border"
+                />
+                <button
+                  onClick={() => updateActor(selectedActor.id, { referenceImageFullBody: undefined })}
+                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <User size={24} />
+                <span className="text-xs text-center">Upload Body<br/>Reference</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageFullBody', e)}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Graphics */}
       <section>
         <div className="flex justify-between items-center mb-4">
@@ -243,8 +376,29 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
               {graphic.image ? (
                 <div className="relative group">
                   <img src={graphic.image} alt="Graphic" className="w-full h-32 object-contain bg-diesel-panel" />
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                    <span className="text-white text-sm">Replace Image</span>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <label className="px-2 py-1 bg-diesel-panel border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold">
+                      Replace
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
+                      className="px-2 py-1 bg-diesel-rust/50 border border-diesel-rust text-white text-xs hover:bg-diesel-rust"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 h-24 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                    <Image size={20} />
+                    <span className="text-sm">Upload</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -252,18 +406,24 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
                       className="hidden"
                     />
                   </label>
+                  <button
+                    onClick={() => generateGraphic(selectedActor.id, graphic.id)}
+                    disabled={generatingGraphic === graphic.id}
+                    className="flex-1 flex items-center justify-center gap-2 h-24 border border-diesel-green text-diesel-green hover:bg-diesel-green/20 transition-colors disabled:opacity-50"
+                  >
+                    {generatingGraphic === graphic.id ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" />
+                        <span className="text-sm">Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={20} />
+                        <span className="text-sm">Generate</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              ) : (
-                <label className="flex items-center justify-center gap-2 h-24 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                  <Image size={20} />
-                  <span className="text-sm">Upload Image</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
-                    className="hidden"
-                  />
-                </label>
               )}
             </div>
           ))}
