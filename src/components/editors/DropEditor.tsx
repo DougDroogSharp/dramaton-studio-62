@@ -448,9 +448,21 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
             {/* Edit History */}
             {selectedDrop.editHistory && selectedDrop.editHistory.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-diesel-steel">
-                  <RotateCcw size={12} />
-                  <span>Previous versions ({selectedDrop.editHistory.length})</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-diesel-steel">
+                    <RotateCcw size={12} />
+                    <span>Previous versions ({selectedDrop.editHistory.length})</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      updateDrop(selectedDrop.id, { editHistory: [] });
+                      toast.success('History cleared - image committed');
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-diesel-green/20 border border-diesel-green text-diesel-green hover:bg-diesel-green/30"
+                  >
+                    <Lock size={10} />
+                    Commit
+                  </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {selectedDrop.editHistory.map((histImg, idx) => (
