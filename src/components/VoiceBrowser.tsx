@@ -65,14 +65,14 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
     }
   };
 
-  const playPreview = async (voice: Voice) => {
+  const playPreview = async (voice: Voice, customText?: string) => {
     // Stop current audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
 
-    if (playingId === voice.voice_id) {
+    if (playingId === voice.voice_id && !customText) {
       setPlayingId(null);
       return;
     }
@@ -80,8 +80,8 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
     setPreviewLoading(voice.voice_id);
 
     try {
-      // Use ElevenLabs preview URL if available, otherwise generate
-      if (voice.preview_url) {
+      // Use custom text, or ElevenLabs preview URL if available, otherwise generate default
+      if (!customText && voice.preview_url) {
         audioRef.current = new Audio(voice.preview_url);
       } else {
         const response = await fetch(
@@ -93,7 +93,11 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
               'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
               'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ action: 'preview', voiceId: voice.voice_id }),
+            body: JSON.stringify({ 
+              action: 'preview', 
+              voiceId: voice.voice_id,
+              text: customText 
+            }),
           }
         );
 
@@ -114,6 +118,12 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
     } finally {
       setPreviewLoading(null);
     }
+  };
+
+  const handleSelect = async (voice: Voice) => {
+    // Play "Reporting for duty" when selected
+    await playPreview(voice, "Reporting for duty!");
+    onSelect(voice.voice_id, voice.name);
   };
 
   const filteredVoices = voices.filter(v => 
@@ -218,14 +228,15 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
 
                 {/* Select button */}
                 <button
-                  onClick={() => onSelect(voice.voice_id, voice.name)}
+                  onClick={() => handleSelect(voice)}
+                  disabled={previewLoading === voice.voice_id}
                   className={`px-3 py-1.5 text-xs font-bold uppercase ${
                     currentVoiceId === voice.voice_id
                       ? 'bg-diesel-gold/20 border border-diesel-gold text-diesel-gold'
                       : 'bg-diesel-panel border border-diesel-border text-diesel-steel hover:text-diesel-paper hover:border-diesel-paper'
-                  }`}
+                  } disabled:opacity-50`}
                 >
-                  {currentVoiceId === voice.voice_id ? 'Selected' : 'Select'}
+                  {previewLoading === voice.voice_id ? 'Loading...' : currentVoiceId === voice.voice_id ? 'Selected' : 'Select'}
                 </button>
               </div>
             ))}
