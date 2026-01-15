@@ -309,27 +309,52 @@ const Index = () => {
           })()}
           
           {/* Default preview */}
-          {!(selection.type === 'scene' && selection.id) && (
-            <div className="text-center text-diesel-steel">
-              <DramatonLogo className="w-32 h-32 mx-auto mb-6 opacity-20" />
-              <h1 className="text-3xl font-bold text-diesel-gold mb-2">{game.info.title}</h1>
-              <p className="text-sm">by {game.info.author}</p>
-              <div className="mt-8 grid grid-cols-3 gap-4 text-xs">
-                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
-                  <div className="text-2xl font-bold text-diesel-gold">{game.actors.length}</div>
-                  <div className="text-diesel-steel">Actors</div>
-                </div>
-                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
-                  <div className="text-2xl font-bold text-diesel-rust">{game.scenes.length}</div>
-                  <div className="text-diesel-steel">Scenes</div>
-                </div>
-                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
-                  <div className="text-2xl font-bold text-diesel-green">{game.items.length}</div>
-                  <div className="text-diesel-steel">Items</div>
+          {!(selection.type === 'scene' && selection.id) && (() => {
+            const titleScene = game.info.titleSceneId 
+              ? game.scenes.find(s => s.id === game.info.titleSceneId) 
+              : null;
+            const titleDrop = titleScene?.dropId 
+              ? game.drops.find(d => d.id === titleScene.dropId) 
+              : null;
+            
+            return (
+              <div className="w-full h-full relative">
+                {/* Title scene background */}
+                {titleDrop?.image ? (
+                  <img 
+                    src={titleDrop.image} 
+                    alt="Title Scene" 
+                    className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-b from-diesel-dark to-diesel-black" />
+                )}
+                
+                {/* Content overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center text-diesel-steel">
+                    <DramatonLogo className="w-32 h-32 mx-auto mb-6 opacity-20" />
+                    <h1 className="text-3xl font-bold text-diesel-gold mb-2 drop-shadow-lg">{game.info.title}</h1>
+                    <p className="text-sm drop-shadow-md">by {game.info.author}</p>
+                    <div className="mt-8 grid grid-cols-3 gap-4 text-xs">
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
+                        <div className="text-2xl font-bold text-diesel-gold">{game.actors.length}</div>
+                        <div className="text-diesel-steel">Actors</div>
+                      </div>
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
+                        <div className="text-2xl font-bold text-diesel-rust">{game.scenes.length}</div>
+                        <div className="text-diesel-steel">Scenes</div>
+                      </div>
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
+                        <div className="text-2xl font-bold text-diesel-green">{game.items.length}</div>
+                        <div className="text-diesel-steel">Items</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
