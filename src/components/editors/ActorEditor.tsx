@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
+import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
 import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play } from 'lucide-react';
 
@@ -12,7 +13,7 @@ interface ActorEditorProps {
 }
 
 export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect }) => {
-  const [previewVoice, setPreviewVoice] = useState<string | null>(null);
+  const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
   
   const selectedActor = selection.id 
     ? game.actors.find(a => a.id === selection.id) 
@@ -156,13 +157,36 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
           value={selectedActor.name}
           onChange={(e) => updateActor(selectedActor.id, { name: e.target.value })}
         />
-        <CyberInput
-          label="Voice ID (ElevenLabs)"
-          value={selectedActor.voiceId || ''}
-          onChange={(e) => updateActor(selectedActor.id, { voiceId: e.target.value })}
-          placeholder="Enter voice ID or use Voice Browser"
-        />
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <CyberInput
+              label="Voice ID (ElevenLabs)"
+              value={selectedActor.voiceId || ''}
+              onChange={(e) => updateActor(selectedActor.id, { voiceId: e.target.value })}
+              placeholder="Select from Voice Browser"
+            />
+          </div>
+          <button
+            onClick={() => setShowVoiceBrowser(true)}
+            className="mb-2 px-3 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 flex items-center gap-1"
+          >
+            <Mic size={14} />
+            Browse
+          </button>
+        </div>
       </section>
+
+      {/* Voice Browser Modal */}
+      {showVoiceBrowser && (
+        <VoiceBrowser
+          currentVoiceId={selectedActor.voiceId}
+          onSelect={(voiceId, voiceName) => {
+            updateActor(selectedActor.id, { voiceId });
+            setShowVoiceBrowser(false);
+          }}
+          onClose={() => setShowVoiceBrowser(false)}
+        />
+      )}
 
       {/* Graphics */}
       <section>
