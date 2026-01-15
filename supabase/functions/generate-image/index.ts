@@ -5,6 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// The enforced style description when styleLock is ON
+const ENFORCED_STYLE = "MANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details. Think clean vector illustration or cel-shaded animation style.";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +22,7 @@ serve(async (req) => {
       referenceImage,      // Composition/layout reference for backgrounds
       existingImage,       // Current image for editing
       editMode,            // Whether we're editing vs generating
+      enforceStyleGuide,   // Style lock toggle - adds strong style instructions
     } = await req.json();
 
     // Build message content with multiple images
@@ -39,11 +43,19 @@ serve(async (req) => {
       if (styleGuide) {
         content.push({
           type: "text",
-          text: "STYLE REFERENCE - Maintain this art style while editing:"
+          text: enforceStyleGuide 
+            ? `STYLE REFERENCE - YOU MUST MATCH THIS EXACT ART STYLE. ${ENFORCED_STYLE}`
+            : "STYLE REFERENCE - Match this art style while editing:"
         });
         content.push({
           type: "image_url",
           image_url: { url: styleGuide }
+        });
+      } else if (enforceStyleGuide) {
+        // No style guide image but style lock is on - add text-only style instruction
+        content.push({
+          type: "text",
+          text: ENFORCED_STYLE
         });
       }
       
@@ -58,11 +70,19 @@ serve(async (req) => {
       if (styleGuide) {
         content.push({
           type: "text",
-          text: "STYLE REFERENCE - Match this art style exactly:"
+          text: enforceStyleGuide
+            ? `CRITICAL STYLE REFERENCE - YOU MUST MATCH THIS EXACT ART STYLE WITH ABSOLUTE PRECISION. ${ENFORCED_STYLE} Do not deviate from this style under any circumstances:`
+            : "STYLE REFERENCE - Match this art style exactly:"
         });
         content.push({
           type: "image_url",
           image_url: { url: styleGuide }
+        });
+      } else if (enforceStyleGuide) {
+        // No style guide image but style lock is on - add text-only style instruction
+        content.push({
+          type: "text",
+          text: `CRITICAL STYLE REQUIREMENT: ${ENFORCED_STYLE}`
         });
       }
 
@@ -102,11 +122,18 @@ serve(async (req) => {
         });
       }
 
-      // Add the main generation prompt
-      content.push({
-        type: "text",
-        text: prompt
-      });
+      // Add the main generation prompt with style reminder if enforced
+      if (enforceStyleGuide) {
+        content.push({
+          type: "text",
+          text: `${prompt}\n\nREMINDER: ${ENFORCED_STYLE}`
+        });
+      } else {
+        content.push({
+          type: "text",
+          text: prompt
+        });
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -116,6 +143,7 @@ serve(async (req) => {
 
     console.log("Image operation mode:", editMode ? "EDIT" : "GENERATE");
     console.log("Prompt:", prompt);
+    console.log("Style lock enabled:", !!enforceStyleGuide);
     console.log("Has style guide:", !!styleGuide);
     console.log("Has composition reference:", !!referenceImage);
     console.log("Has close-up reference:", !!referenceImageCloseUp);

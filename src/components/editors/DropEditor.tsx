@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GameData, Drop, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
-import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers } from 'lucide-react';
+import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DropEditorProps {
@@ -70,6 +70,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
   const [isEditing, setIsEditing] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [showEditMode, setShowEditMode] = useState(false);
+  const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
   
   const selectedDrop = selection.id 
     ? game.drops.find(d => d.id === selection.id) 
@@ -144,6 +145,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
             prompt: `Background scene for a visual novel/game: ${drop.prompt}. Wide aspect ratio, suitable as a backdrop. No characters or text.`,
             styleGuide: styleGuide || undefined,
             referenceImage: drop.referenceImage || undefined,
+            enforceStyleGuide: styleLock,
           }),
         }
       );
@@ -205,6 +207,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
             existingImage: drop.image,
             editMode: true,
             styleGuide: styleGuide || undefined,
+            enforceStyleGuide: styleLock,
           }),
         }
       );
@@ -500,6 +503,28 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
         <h3 className="text-sm font-bold text-diesel-paper uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
           AI Generation
         </h3>
+        
+        {/* Style Lock Toggle */}
+        <button
+          onClick={() => setStyleLock(!styleLock)}
+          className={`flex items-center gap-2 w-full mb-3 py-2 px-3 border text-sm font-bold uppercase transition-colors ${
+            styleLock 
+              ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+              : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+          }`}
+        >
+          <Lock size={14} />
+          <span className="flex-1 text-left">Adhere to Style Guide</span>
+          <span className={`text-xs ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+            {styleLock ? 'ON' : 'OFF'}
+          </span>
+        </button>
+        {styleLock && (
+          <p className="text-xs text-diesel-gold/70 mb-3 -mt-1">
+            Bold black outline, simple fill colors, no shading, light interior detail lines
+          </p>
+        )}
+        
         <div className="flex flex-col gap-1 mb-3">
           <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Generation Prompt</label>
           <textarea
