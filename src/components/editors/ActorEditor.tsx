@@ -3,7 +3,7 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle, X, ZoomIn } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle, X, ZoomIn, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -19,6 +19,7 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
   const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
   const [generatingGraphic, setGeneratingGraphic] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
   
   const selectedActor = selection.id 
     ? game.actors.find(a => a.id === selection.id) 
@@ -309,6 +310,7 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
             referenceImageCloseUp: actor.referenceImageCloseUp,
             referenceImageFullBody: actor.referenceImageFullBody,
             styleGuide,
+            enforceStyleGuide: styleLock,
           }),
         }
       );
@@ -527,6 +529,27 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
             Add
           </button>
         </div>
+        
+        {/* Style Lock Toggle */}
+        <button
+          onClick={() => setStyleLock(!styleLock)}
+          className={`flex items-center gap-2 w-full mb-4 py-2 px-3 border text-sm font-bold uppercase transition-colors ${
+            styleLock 
+              ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+              : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+          }`}
+        >
+          <Lock size={14} />
+          <span className="flex-1 text-left">Adhere to Style Guide</span>
+          <span className={`text-xs ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+            {styleLock ? 'ON' : 'OFF'}
+          </span>
+        </button>
+        {styleLock && (
+          <p className="text-xs text-diesel-gold/70 mb-4 -mt-2">
+            Bold black outline, simple fill colors, no shading, light interior detail lines
+          </p>
+        )}
         
         <div className="space-y-4">
           {selectedActor.graphics.map((graphic, idx) => (
