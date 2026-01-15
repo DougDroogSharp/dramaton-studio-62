@@ -25,11 +25,11 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
   
   // Build full prompt for a graphic
   const buildGraphicPrompt = (actor: Actor, graphic: ActorGraphic): string => {
-    const fullBodyPoses = ['Jump', 'Run', 'Crouch', 'Wave', 'Pointing', 'Walk', 'Dance'];
-    const isFullBody = fullBodyPoses.includes(graphic.pose);
-    const frameInstruction = isFullBody 
-      ? 'FULL BODY SHOT from head to toe' 
-      : 'UPPER BODY SHOT from waist up';
+    // Closeup = face/shoulders shot, everything else = full body
+    const isCloseup = graphic.pose === 'Closeup';
+    const frameInstruction = isCloseup 
+      ? 'CLOSE-UP SHOT focusing on face and upper shoulders' 
+      : 'FULL BODY SHOT from head to toe';
     
     const angleDescription = getAngleDescription(graphic.angle);
     
