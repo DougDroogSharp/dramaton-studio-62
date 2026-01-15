@@ -47,6 +47,18 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Dieselpunk Custom Colors
+        diesel: {
+          black: "hsl(var(--diesel-black))",
+          dark: "hsl(var(--diesel-dark))",
+          panel: "hsl(var(--diesel-panel))",
+          border: "hsl(var(--diesel-border))",
+          gold: "hsl(var(--diesel-gold))",
+          rust: "hsl(var(--diesel-rust))",
+          steel: "hsl(var(--diesel-steel))",
+          paper: "hsl(var(--diesel-paper))",
+          green: "hsl(var(--diesel-green))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
