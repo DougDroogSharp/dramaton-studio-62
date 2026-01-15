@@ -250,37 +250,76 @@ const Index = () => {
         {/* Editor Panel */}
         <div className="w-full md:w-1/2 lg:w-2/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6">
           <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
-            {selection.type === 'settings' ? 'GAME SETTINGS' : selection.type.toUpperCase() + ' EDITOR'}
+            {selection.type === 'settings' && 'GAME SETTINGS'}
+            {selection.type === 'actor' && 'ACTOR EDITOR'}
+            {selection.type === 'scene' && 'SCENE EDITOR'}
+            {selection.type === 'drop' && 'DROP EDITOR'}
+            {selection.type === 'item' && 'ITEM EDITOR'}
+            {selection.type === 'sfx' && 'SFX EDITOR'}
           </h2>
           
           {selection.type === 'settings' && (
-            <div className="space-y-4">
-              <CyberInput
-                label="Game Title"
-                value={game.info.title}
-                onChange={(e) => setGame(prev => ({ ...prev, info: { ...prev.info, title: e.target.value } }))}
-              />
-              <CyberInput
-                label="Author"
-                value={game.info.author}
-                onChange={(e) => setGame(prev => ({ ...prev, info: { ...prev.info, author: e.target.value } }))}
-              />
-              <p className="text-xs text-diesel-steel mt-8">🎭 Phase 1 complete! Foundation ready. Say "continue" for full editors.</p>
-            </div>
+            <SettingsEditor game={game} onChange={setGame} />
           )}
-          
-          {selection.type !== 'settings' && (
-            <p className="text-diesel-steel text-sm">Full {selection.type} editor coming in next phase.</p>
+          {selection.type === 'actor' && (
+            <ActorEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+          )}
+          {selection.type === 'scene' && (
+            <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+          )}
+          {selection.type === 'drop' && (
+            <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+          )}
+          {selection.type === 'item' && (
+            <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+          )}
+          {selection.type === 'sfx' && (
+            <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
           )}
         </div>
         
         {/* Preview Panel */}
-        <div className="hidden md:flex flex-1 bg-diesel-black items-center justify-center">
-          <div className="text-center text-diesel-steel">
-            <DramatonLogo className="w-32 h-32 mx-auto mb-6 opacity-20" />
-            <h1 className="text-3xl font-bold text-diesel-gold mb-2">{game.info.title}</h1>
-            <p className="text-sm">by {game.info.author}</p>
-          </div>
+        <div className="hidden md:flex flex-1 bg-diesel-black items-center justify-center relative">
+          {/* Scene preview when a scene is selected */}
+          {selection.type === 'scene' && selection.id && (() => {
+            const scene = game.scenes.find(s => s.id === selection.id);
+            const drop = scene?.dropId ? game.drops.find(d => d.id === scene.dropId) : null;
+            return (
+              <div className="w-full h-full relative overflow-hidden">
+                {drop?.image ? (
+                  <img src={drop.image} alt={drop.name} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 bg-diesel-dark" />
+                )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-diesel-steel text-sm">Scene: {scene?.name}</p>
+                </div>
+              </div>
+            );
+          })()}
+          
+          {/* Default preview */}
+          {!(selection.type === 'scene' && selection.id) && (
+            <div className="text-center text-diesel-steel">
+              <DramatonLogo className="w-32 h-32 mx-auto mb-6 opacity-20" />
+              <h1 className="text-3xl font-bold text-diesel-gold mb-2">{game.info.title}</h1>
+              <p className="text-sm">by {game.info.author}</p>
+              <div className="mt-8 grid grid-cols-3 gap-4 text-xs">
+                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
+                  <div className="text-2xl font-bold text-diesel-gold">{game.actors.length}</div>
+                  <div className="text-diesel-steel">Actors</div>
+                </div>
+                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
+                  <div className="text-2xl font-bold text-diesel-rust">{game.scenes.length}</div>
+                  <div className="text-diesel-steel">Scenes</div>
+                </div>
+                <div className="bg-diesel-panel/50 p-3 border border-diesel-border">
+                  <div className="text-2xl font-bold text-diesel-green">{game.items.length}</div>
+                  <div className="text-diesel-steel">Items</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
