@@ -3,7 +3,8 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ActorEditorProps {
   game: GameData;
@@ -86,13 +87,24 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     reader.readAsDataURL(file);
   };
 
+  const MAX_REFERENCE_SIZE_KB = 500; // Max size in KB for reference images
+  
   const handleReferenceUpload = (actorId: string, field: 'referenceImageCloseUp' | 'referenceImageFullBody', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    const fileSizeKB = file.size / 1024;
+    
+    if (fileSizeKB > MAX_REFERENCE_SIZE_KB) {
+      toast.warning(`Image is ${Math.round(fileSizeKB)}KB - larger images may not work with AI generation. Consider using an image under ${MAX_REFERENCE_SIZE_KB}KB.`, {
+        duration: 5000,
+      });
+    }
+    
     const reader = new FileReader();
     reader.onload = (ev) => {
       updateActor(actorId, { [field]: ev.target?.result as string });
+      toast.success('Reference image uploaded');
     };
     reader.readAsDataURL(file);
   };
