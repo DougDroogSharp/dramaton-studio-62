@@ -89,26 +89,85 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     reader.readAsDataURL(file);
   };
 
-  const MAX_REFERENCE_SIZE_KB = 500; // Max size in KB for reference images
+  const MAX_REFERENCE_SIZE_KB = 100; // Target max size in KB for reference images
+  const MAX_DIMENSION = 512; // Max width/height for reference images
   
-  const handleReferenceUpload = (actorId: string, field: 'referenceImageCloseUp' | 'referenceImageFullBody', e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxSizeKB: number, maxDimension: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        
+        // Scale down if needed
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Start with high quality and reduce until size is acceptable
+        let quality = 0.8;
+        let result = canvas.toDataURL('image/jpeg', quality);
+        
+        while (result.length / 1024 > maxSizeKB && quality > 0.1) {
+          quality -= 0.1;
+          result = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        resolve(result);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  const handleReferenceUpload = async (actorId: string, field: 'referenceImageCloseUp' | 'referenceImageFullBody', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const fileSizeKB = file.size / 1024;
+    const originalSizeKB = file.size / 1024;
     
-    if (fileSizeKB > MAX_REFERENCE_SIZE_KB) {
-      toast.warning(`Image is ${Math.round(fileSizeKB)}KB - larger images may not work with AI generation. Consider using an image under ${MAX_REFERENCE_SIZE_KB}KB.`, {
-        duration: 5000,
-      });
+    try {
+      toast.info('Compressing image...');
+      const compressedImage = await compressImage(file, MAX_REFERENCE_SIZE_KB, MAX_DIMENSION);
+      const compressedSizeKB = compressedImage.length / 1024;
+      
+      updateActor(actorId, { [field]: compressedImage });
+      toast.success(`Reference image uploaded (${Math.round(originalSizeKB)}KB → ${Math.round(compressedSizeKB)}KB)`);
+    } catch (error) {
+      console.error('Compression error:', error);
+      // Fallback to original if compression fails
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        updateActor(actorId, { [field]: ev.target?.result as string });
+        toast.warning('Image uploaded without compression');
+      };
+      reader.readAsDataURL(file);
     }
-    
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      updateActor(actorId, { [field]: ev.target?.result as string });
-      toast.success('Reference image uploaded');
-    };
-    reader.readAsDataURL(file);
   };
 
   const generateGraphic = async (actorId: string, graphicId: string) => {
