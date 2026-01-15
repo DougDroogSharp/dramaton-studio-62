@@ -5,25 +5,37 @@ interface CyberSliderProps {
   label: string;
   value: number;
   onChange: (value: number) => void;
-  color?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  className?: string;
 }
 
-export const CyberSlider: React.FC<CyberSliderProps> = ({ label, value, onChange, color = 'text-diesel-gold' }) => {
+export const CyberSlider: React.FC<CyberSliderProps> = ({ 
+  label, 
+  value, 
+  onChange, 
+  min = 0, 
+  max = 100, 
+  step = 1,
+  className 
+}) => {
   return (
-    <div className="flex flex-col gap-1 mb-4">
-      <div className="flex justify-between items-end">
-        <label className={cn("text-xs uppercase tracking-widest font-bold", color)}>
+    <div className={cn("flex flex-col gap-1 mb-3", className)}>
+      <div className="flex justify-between items-center">
+        <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">
           {label}
         </label>
-        <span className={cn("text-sm font-mono", color)}>{value}%</span>
+        <span className="text-xs text-diesel-paper font-mono">{value.toFixed(step < 1 ? 1 : 0)}</span>
       </div>
       <input
         type="range"
-        min="0"
-        max="100"
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-diesel-black appearance-none cursor-pointer border border-diesel-border accent-diesel-gold"
+        className="w-full h-2 bg-diesel-black border border-diesel-border appearance-none cursor-pointer accent-diesel-gold"
       />
     </div>
   );
