@@ -280,7 +280,7 @@ const Index = () => {
       {/* Editor Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Editor Panel */}
-        <div className="w-full md:w-1/2 lg:w-2/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6">
+        <div className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6">
           <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
             {selection.type === 'settings' && 'GAME SETTINGS'}
             {selection.type === 'actor' && 'ACTOR EDITOR'}
@@ -310,8 +310,8 @@ const Index = () => {
           )}
         </div>
         
-        {/* Preview Panel */}
-        <div className="hidden md:flex flex-1 bg-diesel-black items-center justify-center relative">
+        {/* Preview Panel - Smaller */}
+        <div className="hidden md:flex md:w-2/5 lg:w-1/2 xl:w-2/5 bg-diesel-black items-center justify-center relative">
           {/* Scene preview when a scene is selected */}
           {selection.type === 'scene' && selection.id && (() => {
             const scene = game.scenes.find(s => s.id === selection.id);
@@ -355,9 +355,9 @@ const Index = () => {
                 {/* Content overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-diesel-steel">
-                    <DramatonLogo className="w-32 h-32 mx-auto mb-6 opacity-20" />
-                    <h1 className="text-3xl font-bold text-diesel-gold mb-2 drop-shadow-lg">{game.info.title}</h1>
-                    <p className="text-sm drop-shadow-md">by {game.info.author}</p>
+                    <DramatonLogo className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                    <h1 className="text-lg font-bold text-diesel-gold mb-1 drop-shadow-lg">{game.info.title}</h1>
+                    <p className="text-xs drop-shadow-md">by {game.info.author}</p>
                     <div className="mt-8 grid grid-cols-3 gap-4 text-xs">
                       <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
                         <div className="text-2xl font-bold text-diesel-gold">{game.actors.length}</div>

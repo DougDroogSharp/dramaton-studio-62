@@ -78,9 +78,12 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
     ? game.drops.find(d => d.id === selection.id) 
     : null;
     
+  // Standard resolution for all drops (16:9 aspect ratio)
+  const DROP_RESOLUTION = { width: 1280, height: 720 };
+  
   // Build the full prompt that will be sent to the AI
   const buildFullPrompt = (drop: Drop): string => {
-    let prompt = `Background scene for a visual novel/game: ${drop.prompt}. Wide aspect ratio, suitable as a backdrop. No characters or text.`;
+    let prompt = `Background scene for a visual novel/game: ${drop.prompt}. Resolution: ${DROP_RESOLUTION.width}x${DROP_RESOLUTION.height}. Wide 16:9 aspect ratio, suitable as a backdrop. No characters or text.`;
     if (styleLock) {
       prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details. Think clean vector illustration or cel-shaded animation style.';
     }
@@ -354,11 +357,14 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
         {selectedDrop.image ? (
           <div className="space-y-3">
             <div className="relative group">
-              <img 
-                src={selectedDrop.image} 
-                alt={selectedDrop.name} 
-                className="w-full aspect-video object-cover border border-diesel-border"
-              />
+              {/* Standard drop resolution: 1280x720 (16:9) */}
+              <div className="w-full max-w-[640px] mx-auto">
+                <img 
+                  src={selectedDrop.image} 
+                  alt={selectedDrop.name} 
+                  className="w-full aspect-video object-cover border border-diesel-border"
+                />
+              </div>
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <label className="px-3 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold">
                   Replace
@@ -586,13 +592,26 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
           )}
         </div>
         
-        {/* Show last generated prompt if available */}
+        {/* Show last generated prompt - editable */}
         {selectedDrop.generatedPrompt && !showFullPrompt && (
-          <div className="mb-3 p-2 bg-diesel-panel border border-diesel-border">
-            <div className="text-xs text-diesel-steel mb-1">Last generated with:</div>
-            <div className="text-xs text-diesel-paper font-mono max-h-16 overflow-y-auto">
-              {selectedDrop.generatedPrompt}
-            </div>
+          <div className="mb-3 p-2 bg-diesel-panel border border-diesel-border space-y-2">
+            <div className="text-xs text-diesel-steel">Last generated prompt (editable):</div>
+            <textarea
+              value={selectedDrop.generatedPrompt}
+              onChange={(e) => updateDrop(selectedDrop.id, { generatedPrompt: e.target.value })}
+              className="w-full h-20 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-xs font-mono resize-none focus:outline-none focus:border-diesel-gold"
+            />
+            <button
+              onClick={() => {
+                setFullPromptOverride(selectedDrop.generatedPrompt || '');
+                handleGenerate(selectedDrop.id);
+              }}
+              disabled={isGenerating}
+              className="flex items-center justify-center gap-2 w-full py-1.5 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 disabled:opacity-50 transition-colors"
+            >
+              {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              Regenerate with Edited Prompt
+            </button>
           </div>
         )}
         
