@@ -19,13 +19,14 @@ serve(async (req) => {
       fullPrompt = `Style reference: ${styleGuide}\n\n${prompt}`;
     }
 
-    // Build message content
+    // Build message content - only include text prompt, skip large reference images
+    // Reference images exceed token limits when passed as base64
     const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
       { type: "text", text: fullPrompt }
     ];
 
-    // Add reference image if provided
-    if (referenceImage) {
+    // Only add reference image if it's a URL (not base64) to avoid token limits
+    if (referenceImage && referenceImage.startsWith('http')) {
       content.push({
         type: "image_url",
         image_url: { url: referenceImage }
@@ -57,6 +58,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("AI API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status} - ${errorText}`);
     }
 
