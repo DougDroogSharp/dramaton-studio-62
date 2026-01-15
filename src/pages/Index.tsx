@@ -340,35 +340,35 @@ const Index = () => {
               : null;
             
             return (
-              <div className="w-full h-full relative">
-                {/* Title scene background */}
+              <div className="w-full h-full relative bg-diesel-black">
+                {/* Title scene background - preserve aspect ratio */}
                 {titleDrop?.image ? (
                   <img 
                     src={titleDrop.image} 
                     alt="Title Scene" 
-                    className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                    className="absolute inset-0 w-full h-full object-contain opacity-60" 
                   />
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-b from-diesel-dark to-diesel-black" />
                 )}
                 
-                {/* Content overlay */}
+                {/* Content overlay - smaller */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-diesel-steel">
-                    <DramatonLogo className="w-16 h-16 mx-auto mb-3 opacity-20" />
-                    <h1 className="text-lg font-bold text-diesel-gold mb-1 drop-shadow-lg">{game.info.title}</h1>
-                    <p className="text-xs drop-shadow-md">by {game.info.author}</p>
-                    <div className="mt-8 grid grid-cols-3 gap-4 text-xs">
-                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
-                        <div className="text-2xl font-bold text-diesel-gold">{game.actors.length}</div>
+                    <DramatonLogo className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <h1 className="text-sm font-bold text-diesel-gold mb-0.5 drop-shadow-lg">{game.info.title}</h1>
+                    <p className="text-[10px] drop-shadow-md">by {game.info.author}</p>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-2 border border-diesel-border">
+                        <div className="text-lg font-bold text-diesel-gold">{game.actors.length}</div>
                         <div className="text-diesel-steel">Actors</div>
                       </div>
-                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
-                        <div className="text-2xl font-bold text-diesel-rust">{game.scenes.length}</div>
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-2 border border-diesel-border">
+                        <div className="text-lg font-bold text-diesel-rust">{game.scenes.length}</div>
                         <div className="text-diesel-steel">Scenes</div>
                       </div>
-                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-3 border border-diesel-border">
-                        <div className="text-2xl font-bold text-diesel-green">{game.items.length}</div>
+                      <div className="bg-diesel-panel/70 backdrop-blur-sm p-2 border border-diesel-border">
+                        <div className="text-lg font-bold text-diesel-green">{game.items.length}</div>
                         <div className="text-diesel-steel">Items</div>
                       </div>
                     </div>

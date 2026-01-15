@@ -365,9 +365,22 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
                   className="w-full aspect-video object-cover border border-diesel-border"
                 />
               </div>
+              {/* Always visible upload indicator */}
+              <label className="absolute top-2 right-2 p-2 bg-diesel-panel/80 border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel transition-colors flex items-center gap-1">
+                <Upload size={12} />
+                <span>Upload</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(selectedDrop.id, e)}
+                  className="hidden"
+                />
+              </label>
+              {/* Hover overlay with larger buttons */}
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <label className="px-3 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold">
-                  Replace
+                <label className="flex items-center gap-2 px-4 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel/80">
+                  <Upload size={16} />
+                  Upload New
                   <input
                     type="file"
                     accept="image/*"
@@ -377,8 +390,9 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
                 </label>
                 <button
                   onClick={() => updateDrop(selectedDrop.id, { image: undefined })}
-                  className="px-3 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm hover:bg-diesel-rust/30"
+                  className="flex items-center gap-2 px-4 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm hover:bg-diesel-rust/30"
                 >
+                  <Trash2 size={16} />
                   Remove
                 </button>
               </div>

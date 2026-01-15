@@ -22,6 +22,10 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
   const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [promptOverride, setPromptOverride] = useState<Record<string, string>>({});
+
+  // Combine default poses/expressions with custom ones from settings
+  const allPoses = [...POSES, ...(game.info.customPoses || [])];
+  const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
   
   // Build full prompt for a graphic
   const buildGraphicPrompt = (actor: Actor, graphic: ActorGraphic): string => {
@@ -586,14 +590,14 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                   onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { pose: e.target.value })}
                   className="bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 focus:outline-none focus:border-diesel-gold"
                 >
-                  {POSES.map(p => <option key={p} value={p}>{p}</option>)}
+                  {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select
                   value={graphic.expression}
                   onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { expression: e.target.value })}
                   className="bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 focus:outline-none focus:border-diesel-gold"
                 >
-                  {EXPRESSIONS.map(e => <option key={e} value={e}>{e}</option>)}
+                  {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
                 <select
                   value={graphic.angle}
