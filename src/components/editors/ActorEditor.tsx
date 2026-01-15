@@ -170,20 +170,130 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     }
   };
 
+  // Helper to get angle description for prompts
+  const getAngleDescription = (angle: number): string => {
+    const descriptions: Record<number, string> = {
+      0: 'Front view (facing camera)',
+      45: 'Front-left three-quarter view',
+      90: 'Left profile view',
+      135: 'Back-left three-quarter view',
+      180: 'Back view (facing away)',
+      225: 'Back-right three-quarter view',
+      270: 'Right profile view',
+      315: 'Front-right three-quarter view'
+    };
+    return descriptions[angle] || `${angle} degrees rotation`;
+  };
+
+  // Chroma-key background removal function
+  const removeBackgroundGlobal = (imageDataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Sample corner pixels to detect background color
+        const corners = [
+          { x: 0, y: 0 },
+          { x: canvas.width - 1, y: 0 },
+          { x: 0, y: canvas.height - 1 },
+          { x: canvas.width - 1, y: canvas.height - 1 }
+        ];
+        
+        let bgR = 0, bgG = 0, bgB = 0, count = 0;
+        for (const corner of corners) {
+          const idx = (corner.y * canvas.width + corner.x) * 4;
+          // Check if it's a greenish pixel (likely background)
+          if (data[idx + 1] > data[idx] && data[idx + 1] > data[idx + 2]) {
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
+            count++;
+          }
+        }
+        
+        // If we found green corners, use average; otherwise default to bright green
+        if (count > 0) {
+          bgR = Math.round(bgR / count);
+          bgG = Math.round(bgG / count);
+          bgB = Math.round(bgB / count);
+        } else {
+          bgR = 0; bgG = 255; bgB = 0;
+        }
+        
+        // Tolerance for background matching
+        const tolerance = 80;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          // Check if pixel matches background color within tolerance
+          const diffR = Math.abs(r - bgR);
+          const diffG = Math.abs(g - bgG);
+          const diffB = Math.abs(b - bgB);
+          
+          if (diffR < tolerance && diffG < tolerance && diffB < tolerance) {
+            // Also check that green is dominant (for green screen)
+            if (g > r * 0.8 && g > b * 0.8) {
+              data[i + 3] = 0; // Set alpha to 0 (transparent)
+            }
+          }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Failed to load image for background removal'));
+      img.src = imageDataUrl;
+    });
+  };
+
   const generateGraphic = async (actorId: string, graphicId: string) => {
     const actor = game.actors.find(a => a.id === actorId);
     const graphic = actor?.graphics.find(g => g.id === graphicId);
     if (!actor || !graphic) return;
 
     setGeneratingGraphic(graphicId);
+    toast.info('Generating character graphic...');
 
     try {
-      const prompt = `Generate a character portrait for "${actor.name}". 
-Pose: ${graphic.pose}
-Expression: ${graphic.expression}
-Camera angle: ${graphic.angle} degrees
-Style: Dieselpunk visual novel character art, clean lines, dramatic lighting, suitable for game sprite.
-The character should be on a transparent or simple background suitable for compositing.`;
+      // Build structured prompt like original implementation
+      const fullBodyPoses = ['Jump', 'Run', 'Crouch', 'Wave', 'Pointing', 'Walk', 'Dance'];
+      const isFullBody = fullBodyPoses.includes(graphic.pose);
+      const frameInstruction = isFullBody 
+        ? 'FULL BODY SHOT from head to toe' 
+        : 'UPPER BODY SHOT from waist up';
+      
+      const angleDescription = getAngleDescription(graphic.angle);
+      
+      const structuredPrompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+
+POSE & EXPRESSION:
+- Pose: ${graphic.pose}
+- Expression: ${graphic.expression}
+- Camera Angle: ${angleDescription}
+
+FRAMING: ${frameInstruction}
+
+ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+
+CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
+
+NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
@@ -191,27 +301,36 @@ The character should be on a transparent or simple background suitable for compo
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            prompt,
-            referenceImage: actor.referenceImageCloseUp || actor.referenceImageFullBody,
+            prompt: structuredPrompt,
+            referenceImageCloseUp: actor.referenceImageCloseUp,
+            referenceImageFullBody: actor.referenceImageFullBody,
             styleGuide,
           }),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Generation failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Generation failed');
       }
 
       const data = await response.json();
       if (data.imageUrl) {
-        updateGraphic(actorId, graphicId, { image: data.imageUrl });
+        // Apply chroma-key background removal
+        toast.info('Removing background...');
+        const transparentImage = await removeBackgroundGlobal(data.imageUrl);
+        updateGraphic(actorId, graphicId, { image: transparentImage });
+        toast.success('Character graphic generated!');
+      } else {
+        throw new Error('No image returned from generation');
       }
     } catch (err) {
       console.error('Generation error:', err);
+      toast.error(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGeneratingGraphic(null);
     }
