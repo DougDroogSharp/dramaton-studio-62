@@ -11,37 +11,63 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, referenceImage, styleGuide } = await req.json();
+    const { prompt, referenceImageCloseUp, referenceImageFullBody, styleGuide } = await req.json();
 
-    // Helper to check if a string is base64 data
-    const isBase64 = (str: string) => str?.startsWith('data:');
+    // Build message content with multiple images
+    const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
 
-    // Build message content
-    const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-      { type: "text", text: prompt }
-    ];
-
-    // Add style guide as image if it's a URL (skip base64 - too large for token limits)
-    if (styleGuide && !isBase64(styleGuide)) {
+    // Start with style guide instruction if provided
+    if (styleGuide) {
+      content.push({
+        type: "text",
+        text: "STYLE REFERENCE - Match this art style exactly:"
+      });
       content.push({
         type: "image_url",
         image_url: { url: styleGuide }
       });
-      content[0].text = `Use this style reference for the following: ${prompt}`;
     }
 
-    // Add reference image if it's a URL (skip base64 - too large for token limits)
-    if (referenceImage && !isBase64(referenceImage)) {
+    // Add close-up reference if provided
+    if (referenceImageCloseUp) {
+      content.push({
+        type: "text",
+        text: "CHARACTER FACE REFERENCE - This is the character's face. Match these facial features exactly:"
+      });
       content.push({
         type: "image_url",
-        image_url: { url: referenceImage }
+        image_url: { url: referenceImageCloseUp }
       });
     }
+
+    // Add full-body reference if provided
+    if (referenceImageFullBody) {
+      content.push({
+        type: "text",
+        text: "CHARACTER BODY REFERENCE - This is the character's full body. Match body proportions and clothing:"
+      });
+      content.push({
+        type: "image_url",
+        image_url: { url: referenceImageFullBody }
+      });
+    }
+
+    // Add the main generation prompt
+    content.push({
+      type: "text",
+      text: prompt
+    });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    console.log("Generating image with prompt:", prompt);
+    console.log("Has style guide:", !!styleGuide);
+    console.log("Has close-up reference:", !!referenceImageCloseUp);
+    console.log("Has full-body reference:", !!referenceImageFullBody);
+    console.log("Total content parts:", content.length);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -64,6 +90,20 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required, please add funds to your workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       throw new Error(`AI API error: ${response.status} - ${errorText}`);
     }
 
@@ -74,8 +114,11 @@ serve(async (req) => {
     const textResponse = data.choices?.[0]?.message?.content;
 
     if (!imageUrl) {
+      console.error("No image in response:", JSON.stringify(data));
       throw new Error("No image generated");
     }
+
+    console.log("Image generated successfully, length:", imageUrl.length);
 
     return new Response(
       JSON.stringify({ imageUrl, message: textResponse }),
