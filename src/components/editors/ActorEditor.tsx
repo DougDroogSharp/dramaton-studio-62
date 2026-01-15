@@ -20,6 +20,40 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
   const [generatingGraphic, setGeneratingGraphic] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [promptOverride, setPromptOverride] = useState<Record<string, string>>({});
+  
+  // Build full prompt for a graphic
+  const buildGraphicPrompt = (actor: Actor, graphic: ActorGraphic): string => {
+    const fullBodyPoses = ['Jump', 'Run', 'Crouch', 'Wave', 'Pointing', 'Walk', 'Dance'];
+    const isFullBody = fullBodyPoses.includes(graphic.pose);
+    const frameInstruction = isFullBody 
+      ? 'FULL BODY SHOT from head to toe' 
+      : 'UPPER BODY SHOT from waist up';
+    
+    const angleDescription = getAngleDescription(graphic.angle);
+    
+    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+
+POSE & EXPRESSION:
+- Pose: ${graphic.pose}
+- Expression: ${graphic.expression}
+- Camera Angle: ${angleDescription}
+
+FRAMING: ${frameInstruction}
+
+ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+
+CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
+
+NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+
+    if (styleLock) {
+      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+    }
+    
+    return prompt;
+  };
   
   const selectedActor = selection.id 
     ? game.actors.find(a => a.id === selection.id) 
@@ -272,29 +306,8 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     toast.info('Generating character graphic...');
 
     try {
-      // Build structured prompt like original implementation
-      const fullBodyPoses = ['Jump', 'Run', 'Crouch', 'Wave', 'Pointing', 'Walk', 'Dance'];
-      const isFullBody = fullBodyPoses.includes(graphic.pose);
-      const frameInstruction = isFullBody 
-        ? 'FULL BODY SHOT from head to toe' 
-        : 'UPPER BODY SHOT from waist up';
-      
-      const angleDescription = getAngleDescription(graphic.angle);
-      
-      const structuredPrompt = `IDENTITY: Generate a character portrait of "${actor.name}".
-
-POSE & EXPRESSION:
-- Pose: ${graphic.pose}
-- Expression: ${graphic.expression}
-- Camera Angle: ${angleDescription}
-
-FRAMING: ${frameInstruction}
-
-ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
-
-CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
-
-NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+      // Use override prompt if provided, otherwise build from settings
+      const finalPrompt = promptOverride[graphicId]?.trim() || buildGraphicPrompt(actor, graphic);
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
@@ -306,11 +319,11 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            prompt: structuredPrompt,
+            prompt: finalPrompt,
             referenceImageCloseUp: actor.referenceImageCloseUp,
             referenceImageFullBody: actor.referenceImageFullBody,
             styleGuide,
-            enforceStyleGuide: styleLock,
+            enforceStyleGuide: styleLock && !promptOverride[graphicId]?.trim(),
           }),
         }
       );
@@ -325,7 +338,10 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
         // Apply chroma-key background removal
         toast.info('Removing background...');
         const transparentImage = await removeBackgroundGlobal(data.imageUrl);
-        updateGraphic(actorId, graphicId, { image: transparentImage });
+        updateGraphic(actorId, graphicId, { 
+          image: transparentImage,
+          generatedPrompt: finalPrompt, // Store the full prompt used
+        });
         toast.success('Character graphic generated!');
       } else {
         throw new Error('No image returned from generation');
@@ -588,6 +604,57 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                 </select>
               </div>
               
+              {/* Full Prompt Editor Toggle */}
+              <div className="mb-3">
+                <button
+                  onClick={() => {
+                    if (editingPromptId !== graphic.id) {
+                      setPromptOverride(prev => ({
+                        ...prev,
+                        [graphic.id]: buildGraphicPrompt(selectedActor, graphic)
+                      }));
+                      setEditingPromptId(graphic.id);
+                    } else {
+                      setEditingPromptId(null);
+                    }
+                  }}
+                  className="text-xs text-diesel-steel hover:text-diesel-paper flex items-center gap-1"
+                >
+                  {editingPromptId === graphic.id ? '▼' : '▶'} Full Prompt
+                </button>
+                
+                {editingPromptId === graphic.id && (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={promptOverride[graphic.id] || buildGraphicPrompt(selectedActor, graphic)}
+                      onChange={(e) => setPromptOverride(prev => ({ ...prev, [graphic.id]: e.target.value }))}
+                      className="w-full h-40 bg-diesel-black border border-diesel-gold/50 text-diesel-paper p-2 text-xs font-mono resize-none focus:outline-none focus:border-diesel-gold"
+                    />
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setPromptOverride(prev => ({ ...prev, [graphic.id]: buildGraphicPrompt(selectedActor, graphic) }))}
+                        className="text-xs text-diesel-steel hover:text-diesel-paper px-2 py-1 border border-diesel-border"
+                      >
+                        Reset
+                      </button>
+                      {promptOverride[graphic.id] && promptOverride[graphic.id] !== buildGraphicPrompt(selectedActor, graphic) && (
+                        <span className="text-xs text-diesel-gold">✓ Custom prompt</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show last generated prompt if available */}
+                {graphic.generatedPrompt && editingPromptId !== graphic.id && (
+                  <div className="mt-2 p-2 bg-diesel-panel border border-diesel-border">
+                    <div className="text-xs text-diesel-steel mb-1">Generated with:</div>
+                    <div className="text-xs text-diesel-paper font-mono max-h-12 overflow-y-auto">
+                      {graphic.generatedPrompt.slice(0, 150)}...
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               {graphic.image ? (
                 <div className="relative group">
                   <img 
@@ -613,6 +680,13 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                           className="hidden"
                         />
                       </label>
+                      <button
+                        onClick={() => generateGraphic(selectedActor.id, graphic.id)}
+                        disabled={generatingGraphic === graphic.id}
+                        className="px-2 py-1 bg-diesel-green/50 border border-diesel-green text-white text-xs hover:bg-diesel-green disabled:opacity-50"
+                      >
+                        {generatingGraphic === graphic.id ? 'Gen...' : 'Regen'}
+                      </button>
                       <button
                         onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
                         className="px-2 py-1 bg-diesel-rust/50 border border-diesel-rust text-white text-xs hover:bg-diesel-rust"

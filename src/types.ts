@@ -28,6 +28,7 @@ export interface ActorGraphic {
   expression: string;
   angle: number;
   image: string;
+  generatedPrompt?: string;  // Full prompt used to generate this graphic
 }
 
 export interface Actor {
@@ -75,6 +76,7 @@ export interface Drop {
   referenceImage?: string;      // Reference image for composition/layout
   editHistory?: string[];       // Track previous versions
   lastEditPrompt?: string;      // Last edit instruction used
+  generatedPrompt?: string;     // Full prompt used to generate this image
 }
 
 export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'key' | 'misc';

@@ -71,10 +71,21 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
   const [editPrompt, setEditPrompt] = useState('');
   const [showEditMode, setShowEditMode] = useState(false);
   const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
+  const [showFullPrompt, setShowFullPrompt] = useState(false);
+  const [fullPromptOverride, setFullPromptOverride] = useState('');
   
   const selectedDrop = selection.id 
     ? game.drops.find(d => d.id === selection.id) 
     : null;
+    
+  // Build the full prompt that will be sent to the AI
+  const buildFullPrompt = (drop: Drop): string => {
+    let prompt = `Background scene for a visual novel/game: ${drop.prompt}. Wide aspect ratio, suitable as a backdrop. No characters or text.`;
+    if (styleLock) {
+      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details. Think clean vector illustration or cel-shaded animation style.';
+    }
+    return prompt;
+  };
 
   const createDrop = () => {
     const newDrop: Drop = {
@@ -132,6 +143,9 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
     setIsGenerating(true);
     
     try {
+      // Use override prompt if provided, otherwise build from description
+      const finalPrompt = fullPromptOverride.trim() || buildFullPrompt(drop);
+      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
         {
@@ -142,10 +156,10 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            prompt: `Background scene for a visual novel/game: ${drop.prompt}. Wide aspect ratio, suitable as a backdrop. No characters or text.`,
+            prompt: finalPrompt,
             styleGuide: styleGuide || undefined,
             referenceImage: drop.referenceImage || undefined,
-            enforceStyleGuide: styleLock,
+            enforceStyleGuide: styleLock && !fullPromptOverride.trim(), // Only enforce if not using override
           }),
         }
       );
@@ -166,6 +180,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
         updateDrop(dropId, { 
           image: data.imageUrl,
           editHistory: history,
+          generatedPrompt: finalPrompt, // Store the full prompt used
         });
         toast.success('Background generated successfully!');
       } else {
@@ -526,14 +541,61 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
         )}
         
         <div className="flex flex-col gap-1 mb-3">
-          <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Generation Prompt</label>
+          <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Description</label>
           <textarea
             value={selectedDrop.prompt}
             onChange={(e) => updateDrop(selectedDrop.id, { prompt: e.target.value })}
-            placeholder="Describe the background you want to generate...&#10;&#10;Example: A dark industrial factory interior with rusted machinery, steam pipes, and dim amber lighting. Dieselpunk aesthetic."
-            className="w-full h-24 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm resize-none focus:outline-none focus:border-diesel-gold"
+            placeholder="Describe the background you want to generate..."
+            className="w-full h-16 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm resize-none focus:outline-none focus:border-diesel-gold"
           />
         </div>
+        
+        {/* Full Prompt Editor */}
+        <div className="mb-3">
+          <button
+            onClick={() => {
+              if (!showFullPrompt && selectedDrop.prompt) {
+                setFullPromptOverride(buildFullPrompt(selectedDrop));
+              }
+              setShowFullPrompt(!showFullPrompt);
+            }}
+            className="text-xs text-diesel-steel hover:text-diesel-paper mb-2 flex items-center gap-1"
+          >
+            {showFullPrompt ? '▼' : '▶'} Full Prompt {showFullPrompt ? '(editable)' : '(click to edit)'}
+          </button>
+          
+          {showFullPrompt && (
+            <div className="space-y-2">
+              <textarea
+                value={fullPromptOverride || buildFullPrompt(selectedDrop)}
+                onChange={(e) => setFullPromptOverride(e.target.value)}
+                className="w-full h-32 bg-diesel-black border border-diesel-gold/50 text-diesel-paper p-2 text-xs font-mono resize-none focus:outline-none focus:border-diesel-gold"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFullPromptOverride(buildFullPrompt(selectedDrop))}
+                  className="text-xs text-diesel-steel hover:text-diesel-paper px-2 py-1 border border-diesel-border"
+                >
+                  Reset to Default
+                </button>
+                {fullPromptOverride && (
+                  <span className="text-xs text-diesel-gold">✓ Using custom prompt</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Show last generated prompt if available */}
+        {selectedDrop.generatedPrompt && !showFullPrompt && (
+          <div className="mb-3 p-2 bg-diesel-panel border border-diesel-border">
+            <div className="text-xs text-diesel-steel mb-1">Last generated with:</div>
+            <div className="text-xs text-diesel-paper font-mono max-h-16 overflow-y-auto">
+              {selectedDrop.generatedPrompt}
+            </div>
+          </div>
+        )}
+        
         <button
           onClick={() => handleGenerate(selectedDrop.id)}
           disabled={!selectedDrop.prompt || isGenerating}
