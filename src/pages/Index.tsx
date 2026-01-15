@@ -25,9 +25,12 @@ const Index = () => {
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
+  // Pacing Protocol State
+  const [minutes, setMinutes] = useState(new Date().getMinutes());
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Check for autosave on mount
+  // Check for autosave on mount and start pacing protocol timer
   useEffect(() => {
     loadGameFromDB().then((saved) => {
       if (saved) {
@@ -36,15 +39,34 @@ const Index = () => {
         setStartAuthor(saved.info.author);
       }
     });
+    
+    // Pacing Protocol timer - check every 10 seconds
+    const timer = setInterval(() => {
+      setMinutes(new Date().getMinutes());
+    }, 10000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Autosave when editing
+  // Autosave when editing (respects Pacing Protocol)
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave) {
-      const timer = setTimeout(() => saveGameToDB(game), 2000);
+      const timer = setTimeout(() => {
+        // Check Pacing Protocol dynamically
+        const currentMinutes = new Date().getMinutes();
+        const isResting = currentMinutes > 30; // 31-59 is rest time
+        
+        if (!isResting) {
+          saveGameToDB(game);
+        } else {
+          console.log("Autosave skipped: Pacing Protocol Active");
+        }
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [game, isLoaded]);
+  
+  // Derive rest period status
+  const isRestPeriod = minutes > 30; // 31-59 is rest time
 
   const handleStartGame = () => {
     const newGame = createDefaultGame();
@@ -357,6 +379,29 @@ const Index = () => {
           })()}
         </div>
       </div>
+      
+      {/* Pacing Protocol Overlay */}
+      {isRestPeriod && (
+        <div className="fixed inset-0 z-50 bg-diesel-black/95 flex items-center justify-center backdrop-blur-sm">
+          <div className="text-center p-8 border border-diesel-rust bg-diesel-dark/90 max-w-lg">
+            <DramatonLogo className="w-24 h-24 mx-auto mb-6 text-diesel-rust animate-pulse" />
+            <h2 className="text-3xl font-bold text-diesel-rust mb-4 tracking-widest">
+              PACING PROTOCOL ACTIVE
+            </h2>
+            <p className="text-diesel-steel mb-6 leading-relaxed">
+              Mandatory rest period in effect.<br />
+              Editor access will resume at the top of the hour.
+            </p>
+            <div className="text-5xl font-mono text-diesel-gold mb-4">
+              {60 - minutes} min
+            </div>
+            <p className="text-diesel-steel/60 text-xs">
+              This 30-minute rest is enforced for medical necessity.<br />
+              Work resumes from :00 to :30 each hour.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
