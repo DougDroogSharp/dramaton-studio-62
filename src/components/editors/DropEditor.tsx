@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { GameData, Drop, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
-import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface DropEditorProps {
   game: GameData;
   selection: SelectionState;
   onChange: (game: GameData) => void;
   onSelect: (type: SelectionState['type'], id: string | null) => void;
+  styleGuide?: string | null;
 }
 
-export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChange, onSelect }) => {
+export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   
   const selectedDrop = selection.id 
@@ -52,15 +54,49 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
 
   const handleGenerate = async (dropId: string) => {
     const drop = game.drops.find(d => d.id === dropId);
-    if (!drop?.prompt) return;
+    if (!drop?.prompt) {
+      toast.error('Please enter a generation prompt first');
+      return;
+    }
     
     setIsGenerating(true);
-    // TODO: Integrate with Gemini API for image generation
-    // For now, just show a placeholder
-    setTimeout(() => {
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: `Background scene for a visual novel/game: ${drop.prompt}. Wide aspect ratio, suitable as a backdrop. No characters or text.`,
+            styleGuide: styleGuide || undefined,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate image');
+      }
+
+      const data = await response.json();
+      
+      if (data?.imageUrl) {
+        updateDrop(dropId, { image: data.imageUrl });
+        toast.success('Background generated successfully!');
+      } else {
+        throw new Error(data?.message || 'No image returned');
+      }
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate image');
+    } finally {
       setIsGenerating(false);
-      // Would update with generated image here
-    }, 2000);
+    }
   };
 
   // Drop List View
@@ -197,11 +233,15 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
           disabled={!selectedDrop.prompt || isGenerating}
           className="flex items-center justify-center gap-2 w-full py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green text-sm font-bold uppercase hover:bg-diesel-green/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <Sparkles size={16} />
+          {isGenerating ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Sparkles size={16} />
+          )}
           {isGenerating ? 'Generating...' : 'Generate with AI'}
         </button>
         <p className="text-xs text-diesel-steel mt-2">
-          Requires style guide upload in Settings for best results.
+          {styleGuide ? '✓ Style guide detected' : 'Tip: Add a style guide in Settings for consistent visuals'}
         </p>
       </section>
 
