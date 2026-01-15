@@ -13,20 +13,25 @@ serve(async (req) => {
   try {
     const { prompt, referenceImage, styleGuide } = await req.json();
 
-    // Build the prompt with style context
-    let fullPrompt = prompt;
-    if (styleGuide) {
-      fullPrompt = `Style reference: ${styleGuide}\n\n${prompt}`;
-    }
+    // Helper to check if a string is base64 data
+    const isBase64 = (str: string) => str?.startsWith('data:');
 
-    // Build message content - only include text prompt, skip large reference images
-    // Reference images exceed token limits when passed as base64
+    // Build message content
     const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-      { type: "text", text: fullPrompt }
+      { type: "text", text: prompt }
     ];
 
-    // Only add reference image if it's a URL (not base64) to avoid token limits
-    if (referenceImage && referenceImage.startsWith('http')) {
+    // Add style guide as image if it's a URL (skip base64 - too large for token limits)
+    if (styleGuide && !isBase64(styleGuide)) {
+      content.push({
+        type: "image_url",
+        image_url: { url: styleGuide }
+      });
+      content[0].text = `Use this style reference for the following: ${prompt}`;
+    }
+
+    // Add reference image if it's a URL (skip base64 - too large for token limits)
+    if (referenceImage && !isBase64(referenceImage)) {
       content.push({
         type: "image_url",
         image_url: { url: referenceImage }
