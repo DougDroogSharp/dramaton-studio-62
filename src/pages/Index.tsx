@@ -3,7 +3,13 @@ import { GameData, SelectionState, createDefaultGame } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, ChevronDown, Upload } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload } from 'lucide-react';
+import { SettingsEditor } from '@/components/editors/SettingsEditor';
+import { ActorEditor } from '@/components/editors/ActorEditor';
+import { SceneEditor } from '@/components/editors/SceneEditor';
+import { DropEditor } from '@/components/editors/DropEditor';
+import { ItemEditor } from '@/components/editors/ItemEditor';
+import { SfxEditor } from '@/components/editors/SfxEditor';
 
 const Index = () => {
   // Startup state

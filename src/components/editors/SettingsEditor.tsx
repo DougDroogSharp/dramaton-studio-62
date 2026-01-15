@@ -1,0 +1,211 @@
+import { GameData } from '@/types';
+import { CyberInput } from '@/components/CyberInput';
+import { CyberSlider } from '@/components/CyberSlider';
+import { Plus, Trash2, Upload, Key } from 'lucide-react';
+import { useState } from 'react';
+
+interface SettingsEditorProps {
+  game: GameData;
+  onChange: (game: GameData) => void;
+}
+
+export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }) => {
+  const [newVarKey, setNewVarKey] = useState('');
+  const [newVarValue, setNewVarValue] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  const updateInfo = (updates: Partial<GameData['info']>) => {
+    onChange({ ...game, info: { ...game.info, ...updates } });
+  };
+
+  const addWorldStateVar = () => {
+    if (!newVarKey.trim()) return;
+    const worldState = { ...game.info.worldState, [newVarKey]: newVarValue || '' };
+    updateInfo({ worldState });
+    setNewVarKey('');
+    setNewVarValue('');
+  };
+
+  const removeWorldStateVar = (key: string) => {
+    const worldState = { ...game.info.worldState };
+    delete worldState[key];
+    updateInfo({ worldState });
+  };
+
+  const handleStyleGuideUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      updateInfo({ styleGuide: ev.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Basic Info */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Project Info
+        </h3>
+        <CyberInput
+          label="Game Title"
+          value={game.info.title}
+          onChange={(e) => updateInfo({ title: e.target.value })}
+        />
+        <CyberInput
+          label="Author"
+          value={game.info.author}
+          onChange={(e) => updateInfo({ author: e.target.value })}
+        />
+        
+        <div className="flex gap-4 mt-4">
+          <label className="flex items-center gap-2 text-sm text-diesel-paper cursor-pointer">
+            <input
+              type="checkbox"
+              checked={game.info.enableAutosave}
+              onChange={(e) => updateInfo({ enableAutosave: e.target.checked })}
+              className="accent-diesel-gold"
+            />
+            Enable Autosave
+          </label>
+          <label className="flex items-center gap-2 text-sm text-diesel-paper cursor-pointer">
+            <input
+              type="radio"
+              name="gameMode"
+              checked={game.info.gameMode === 'INTERACTIVE'}
+              onChange={() => updateInfo({ gameMode: 'INTERACTIVE' })}
+              className="accent-diesel-gold"
+            />
+            Interactive
+          </label>
+          <label className="flex items-center gap-2 text-sm text-diesel-paper cursor-pointer">
+            <input
+              type="radio"
+              name="gameMode"
+              checked={game.info.gameMode === 'AUTO_PLAY'}
+              onChange={() => updateInfo({ gameMode: 'AUTO_PLAY' })}
+              className="accent-diesel-gold"
+            />
+            Auto-Play
+          </label>
+        </div>
+      </section>
+
+      {/* Style Guide */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          AI Style Guide
+        </h3>
+        <p className="text-xs text-diesel-steel mb-3">
+          Upload a reference image to teach the AI your visual style for generated assets.
+        </p>
+        
+        {game.info.styleGuide ? (
+          <div className="relative group">
+            <img
+              src={game.info.styleGuide}
+              alt="Style guide"
+              className="w-full max-w-[300px] h-auto border border-diesel-border"
+            />
+            <button
+              onClick={() => updateInfo({ styleGuide: null })}
+              className="absolute top-2 right-2 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 px-4 py-3 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+            <Upload size={16} />
+            <span className="text-sm">Upload Style Reference</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleStyleGuideUpload}
+              className="hidden"
+            />
+          </label>
+        )}
+      </section>
+
+      {/* ElevenLabs API Key */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Voice Integration
+        </h3>
+        <div className="relative">
+          <CyberInput
+            label="ElevenLabs API Key"
+            type={showApiKey ? 'text' : 'password'}
+            value={game.info.elevenLabsApiKey || ''}
+            onChange={(e) => updateInfo({ elevenLabsApiKey: e.target.value })}
+            placeholder="xi_xxxxxxxxxxxxxxxxxx"
+          />
+          <button
+            type="button"
+            onClick={() => setShowApiKey(!showApiKey)}
+            className="absolute right-2 top-7 text-diesel-steel hover:text-diesel-gold"
+          >
+            <Key size={14} />
+          </button>
+        </div>
+        <p className="text-xs text-diesel-steel mt-1">
+          Required for AI voice synthesis. Get your key at elevenlabs.io
+        </p>
+      </section>
+
+      {/* World State Variables */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          World State Variables
+        </h3>
+        <p className="text-xs text-diesel-steel mb-3">
+          Define global variables for game logic (flags, counters, states).
+        </p>
+        
+        {/* Existing variables */}
+        <div className="space-y-2 mb-4">
+          {Object.entries(game.info.worldState).map(([key, value]) => (
+            <div key={key} className="flex items-center gap-2 bg-diesel-black p-2 border border-diesel-border">
+              <span className="text-diesel-gold font-mono text-sm flex-1">{key}</span>
+              <span className="text-diesel-paper font-mono text-sm">{String(value)}</span>
+              <button
+                onClick={() => removeWorldStateVar(key)}
+                className="text-diesel-rust hover:text-red-400 p-1"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+        
+        {/* Add new variable */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Variable name"
+            value={newVarKey}
+            onChange={(e) => setNewVarKey(e.target.value)}
+            className="flex-1 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+          />
+          <input
+            type="text"
+            placeholder="Value"
+            value={newVarValue}
+            onChange={(e) => setNewVarValue(e.target.value)}
+            className="w-24 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+          />
+          <button
+            onClick={addWorldStateVar}
+            className="px-3 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+};
