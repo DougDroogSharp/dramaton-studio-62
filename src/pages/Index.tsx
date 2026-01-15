@@ -3,7 +3,7 @@ import { GameData, SelectionState, createDefaultGame } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -236,12 +236,22 @@ const Index = () => {
           <button onClick={handleSave} className="p-2 text-diesel-steel hover:text-white" title="Save to file">
             <Save size={16} />
           </button>
+          <button onClick={() => fileInputRef.current?.click()} className="p-2 text-diesel-steel hover:text-white" title="Load game">
+            <FolderOpen size={16} />
+          </button>
           <button onClick={handleUndo} disabled={history.length === 0} className="p-2 text-diesel-steel hover:text-white disabled:opacity-30" title="Undo">
             <Undo2 size={16} />
           </button>
           <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-2 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
             {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".dram,.json"
+            onChange={handleLoadFile}
+            className="hidden"
+          />
         </div>
       </div>
       
