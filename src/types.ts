@@ -72,6 +72,9 @@ export interface Drop {
   name: string;
   prompt: string;
   image?: string;
+  referenceImage?: string;      // Reference image for composition/layout
+  editHistory?: string[];       // Track previous versions
+  lastEditPrompt?: string;      // Last edit instruction used
 }
 
 export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'key' | 'misc';
