@@ -3,8 +3,9 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle, X, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface ActorEditorProps {
   game: GameData;
@@ -17,6 +18,7 @@ interface ActorEditorProps {
 export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
   const [generatingGraphic, setGeneratingGraphic] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   const selectedActor = selection.id 
     ? game.actors.find(a => a.id === selection.id) 
@@ -387,23 +389,36 @@ The character should be on a transparent or simple background suitable for compo
               
               {graphic.image ? (
                 <div className="relative group">
-                  <img src={graphic.image} alt="Graphic" className="w-full h-32 object-contain bg-diesel-panel" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <label className="px-2 py-1 bg-diesel-panel border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold">
-                      Replace
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
-                        className="hidden"
-                      />
-                    </label>
-                    <button
-                      onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
-                      className="px-2 py-1 bg-diesel-rust/50 border border-diesel-rust text-white text-xs hover:bg-diesel-rust"
-                    >
-                      Remove
-                    </button>
+                  <img 
+                    src={graphic.image} 
+                    alt="Graphic" 
+                    className="w-full h-32 object-contain bg-diesel-panel cursor-pointer" 
+                    onClick={() => setPreviewImage(graphic.image)}
+                  />
+                  <button
+                    onClick={() => setPreviewImage(graphic.image)}
+                    className="absolute top-1 left-1 p-1 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-gold opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+                    <div className="pointer-events-auto flex gap-2">
+                      <label className="px-2 py-1 bg-diesel-panel border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold">
+                        Replace
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
+                        className="px-2 py-1 bg-diesel-rust/50 border border-diesel-rust text-white text-xs hover:bg-diesel-rust"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -449,6 +464,25 @@ The character should be on a transparent or simple background suitable for compo
       >
         Delete Actor
       </button>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl bg-diesel-dark border-diesel-border p-0 overflow-hidden">
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-2 right-2 z-10 p-2 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-paper rounded-sm"
+          >
+            <X size={20} />
+          </button>
+          {previewImage && (
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="w-full h-auto max-h-[80vh] object-contain bg-diesel-black"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
