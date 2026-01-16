@@ -5,8 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// The enforced style description when styleLock is ON
-const ENFORCED_STYLE = "MANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details. Think clean vector illustration or cel-shaded animation style.";
+// The enforced style description when styleLock is ON - VERY EMPHATIC to override model tendencies
+const ENFORCED_STYLE = `MANDATORY ART STYLE REQUIREMENTS (STRICTLY ENFORCE):
+1. BOLD BLACK OUTLINES around all shapes and forms
+2. SIMPLE FLAT COLOR FILLS only - solid colors with NO variation within each area
+3. ABSOLUTELY NO SHADING - no gradients, no soft shadows, no lighting effects, no color transitions
+4. ABSOLUTELY NO 3D RENDERING or realistic lighting
+5. Only a FEW THIN INTERIOR DETAIL LINES for facial features, clothing folds, etc.
+6. Think: clean vector illustration, comic book style, or cel-shaded animation
+7. Each color area should be ONE SOLID COLOR with hard edges
+
+NEGATIVE: Do NOT add any shading, gradients, soft shadows, ambient occlusion, or realistic lighting effects.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
