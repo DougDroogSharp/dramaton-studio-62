@@ -345,10 +345,19 @@ const Index = () => {
       {/* Top Toolbar */}
       <div className="h-10 bg-diesel-dark border-b border-diesel-border flex items-center justify-between shrink-0">
         <div className="flex items-center h-full">
-          {/* Logo - compact */}
-          <div className="flex items-center px-2 h-full border-r border-diesel-border">
+          {/* Logo - clickable to return to title */}
+          <button 
+            onClick={() => {
+              if (confirm('Return to title screen? Make sure to save your work first!')) {
+                setIsStarted(false);
+                setIsLoaded(false);
+              }
+            }}
+            className="flex items-center px-2 h-full border-r border-diesel-border hover:bg-diesel-rust/20 transition-colors"
+            title="Return to Title"
+          >
             <DramatonLogo className="w-5 h-5 text-diesel-rust" />
-          </div>
+          </button>
           
           {/* Navigation tabs - compact */}
           {navItems.map(item => (
