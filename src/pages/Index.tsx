@@ -569,56 +569,66 @@ const Index = () => {
                     <circle cx="60" cy="60" r="56" fill="hsl(40 15% 15%)" stroke="hsl(40 15% 30%)" strokeWidth="4" />
                     <circle cx="60" cy="60" r="48" fill="hsl(24 8% 8%)" />
                     
-                    {/* Tick marks for 30 minutes - showing elapsed vs remaining */}
-                    {Array.from({ length: 30 }).map((_, i) => {
-                      const tickAngle = (-135 + i * 9) * Math.PI / 180;
+                    {/* Tick marks for 30 minutes - dial goes from 0 (left) to 30 (right) */}
+                    {Array.from({ length: 31 }).map((_, i) => {
+                      // i represents the minute value on the dial (0-30)
+                      const tickAngle = (-135 + (i / 30) * 270) * Math.PI / 180;
                       const isMajor = i % 5 === 0;
                       const x1 = 60 + Math.cos(tickAngle) * (isMajor ? 36 : 40);
                       const y1 = 60 + Math.sin(tickAngle) * (isMajor ? 36 : 40);
                       const x2 = 60 + Math.cos(tickAngle) * 46;
                       const y2 = 60 + Math.sin(tickAngle) * 46;
                       
-                      // Tick i represents "30-i" minutes remaining on the dial
-                      // A tick is elapsed if the dial position it represents > remaining minutes
                       const remainingMinutes = 60 - minutes;
-                      const dialPositionOfRemaining = 30 - remainingMinutes;
-                      const isElapsed = i < dialPositionOfRemaining;
+                      // Tick is "elapsed" (dimmed) if it represents more time than we have remaining
+                      const isElapsed = i > remainingMinutes;
+                      // Highlight danger zone (last 5 minutes)
+                      const isDanger = i <= 5 && i <= remainingMinutes;
                       
                       return (
                         <line 
                           key={i} 
                           x1={x1} y1={y1} x2={x2} y2={y2} 
-                          stroke={isElapsed ? 'hsl(40 15% 25%)' : (i > 24 ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)')} 
+                          stroke={isElapsed ? 'hsl(40 15% 25%)' : (isDanger ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)')} 
                           strokeWidth={isMajor ? 2.5 : 1.5} 
                           opacity={isElapsed ? 0.4 : 1}
                         />
                       );
                     })}
                     
-                    {/* Numbers at major positions */}
-                    {[0, 10, 20, 30].map((num) => {
-                      const tickAngle = (-135 + (num / 30) * 270) * Math.PI / 180;
+                    {/* Numbers at major positions - dial goes from 0 (left) to 30 (right) */}
+                    {[0, 10, 20, 30].map((displayValue) => {
+                      // Map display values to dial positions: 0→left(-135°), 30→right(+135°)
+                      const tickAngle = (-135 + (displayValue / 30) * 270) * Math.PI / 180;
                       const x = 60 + Math.cos(tickAngle) * 30;
                       const y = 60 + Math.sin(tickAngle) * 30 + 3;
                       return (
-                        <text key={num} x={x} y={y} textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="8" fontFamily="monospace">
-                          {30 - num}
+                        <text key={displayValue} x={x} y={y} textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="8" fontFamily="monospace">
+                          {displayValue}
                         </text>
                       );
                     })}
                     
-                    {/* Needle - points to remaining minutes with tick animation */}
-                    <g 
-                      transform={`rotate(${-135 + ((30 - (60 - minutes)) / 30) * 270} 60 60)`}
-                      style={{ 
-                        transformOrigin: '60px 60px',
-                        animation: 'needleTick 1s ease-out infinite'
-                      }}
-                    >
-                      <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" />
-                      {/* Needle glow */}
-                      <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" opacity="0.5" filter="url(#needleGlow)" />
-                    </g>
+                    {/* Needle - points to remaining minutes (0 at left, 30 at right) */}
+                    {(() => {
+                      const remainingMinutes = 60 - minutes;
+                      // Clamp to 0-30 range for the dial
+                      const clampedRemaining = Math.max(0, Math.min(30, remainingMinutes));
+                      // Map remaining minutes to angle: 0→-135°, 30→+135°
+                      const needleAngle = -135 + (clampedRemaining / 30) * 270;
+                      return (
+                        <g 
+                          transform={`rotate(${needleAngle} 60 60)`}
+                          style={{ 
+                            transformOrigin: '60px 60px',
+                          }}
+                        >
+                          <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" />
+                          {/* Needle glow */}
+                          <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" opacity="0.5" filter="url(#needleGlow)" />
+                        </g>
+                      );
+                    })()}
                     
                     {/* Glow filter for needle */}
                     <defs>
