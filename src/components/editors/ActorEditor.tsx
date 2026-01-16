@@ -498,45 +498,46 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
           </p>
         )}
         
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {selectedActor.graphics.map((graphic, idx) => (
-            <div key={graphic.id} className="bg-diesel-black border border-diesel-border p-4">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-xs text-diesel-steel font-mono">#{idx + 1}</span>
+            <div key={graphic.id} className="bg-diesel-black border border-diesel-border p-3">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] text-diesel-steel font-mono">#{idx + 1}</span>
                 <button
                   onClick={() => deleteGraphic(selectedActor.id, graphic.id)}
                   className="text-diesel-rust hover:text-red-400"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={12} />
                 </button>
               </div>
               
-              <div className="grid grid-cols-3 gap-2 mb-3">
+              {/* Compact dropdowns */}
+              <div className="grid grid-cols-3 gap-1 mb-2">
                 <select
                   value={graphic.pose}
                   onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { pose: e.target.value })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 focus:outline-none focus:border-diesel-gold"
+                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold truncate"
                 >
                   {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select
                   value={graphic.expression}
                   onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { expression: e.target.value })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 focus:outline-none focus:border-diesel-gold"
+                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold truncate"
                 >
                   {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
                 <select
                   value={graphic.angle}
                   onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { angle: Number(e.target.value) })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 focus:outline-none focus:border-diesel-gold"
+                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold"
                 >
                   {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
                 </select>
               </div>
               
-              {/* Full Prompt Editor Toggle */}
-              <div className="mb-3">
+              {/* Full Prompt Editor Toggle - collapsed by default */}
+              <div className="mb-2">
                 <button
                   onClick={() => {
                     if (editingPromptId !== graphic.id) {
@@ -549,61 +550,52 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                       setEditingPromptId(null);
                     }
                   }}
-                  className="text-xs text-diesel-steel hover:text-diesel-paper flex items-center gap-1"
+                  className="text-[10px] text-diesel-steel hover:text-diesel-paper flex items-center gap-1"
                 >
-                  {editingPromptId === graphic.id ? '▼' : '▶'} Full Prompt
+                  {editingPromptId === graphic.id ? '▼' : '▶'} Prompt
                 </button>
                 
                 {editingPromptId === graphic.id && (
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-1 space-y-1">
                     <textarea
                       value={promptOverride[graphic.id] || buildGraphicPrompt(selectedActor, graphic)}
                       onChange={(e) => setPromptOverride(prev => ({ ...prev, [graphic.id]: e.target.value }))}
-                      className="w-full h-40 bg-diesel-black border border-diesel-gold/50 text-diesel-paper p-2 text-xs font-mono resize-none focus:outline-none focus:border-diesel-gold"
+                      className="w-full h-24 bg-diesel-black border border-diesel-gold/50 text-diesel-paper p-1.5 text-[10px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
                     />
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => setPromptOverride(prev => ({ ...prev, [graphic.id]: buildGraphicPrompt(selectedActor, graphic) }))}
-                        className="text-xs text-diesel-steel hover:text-diesel-paper px-2 py-1 border border-diesel-border"
+                        className="text-[10px] text-diesel-steel hover:text-diesel-paper px-1.5 py-0.5 border border-diesel-border"
                       >
                         Reset
                       </button>
                       {promptOverride[graphic.id] && promptOverride[graphic.id] !== buildGraphicPrompt(selectedActor, graphic) && (
-                        <span className="text-xs text-diesel-gold">✓ Custom prompt</span>
+                        <span className="text-[10px] text-diesel-gold">✓ Custom</span>
                       )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Show last generated prompt if available */}
-                {graphic.generatedPrompt && editingPromptId !== graphic.id && (
-                  <div className="mt-2 p-2 bg-diesel-panel border border-diesel-border">
-                    <div className="text-xs text-diesel-steel mb-1">Generated with:</div>
-                    <div className="text-xs text-diesel-paper font-mono max-h-12 overflow-y-auto">
-                      {graphic.generatedPrompt.slice(0, 150)}...
                     </div>
                   </div>
                 )}
               </div>
               
               {graphic.image ? (
-                <div className="relative group">
+                <div className="relative group aspect-square">
                   <img 
                     src={graphic.image} 
                     alt="Graphic" 
-                    className="w-full h-32 object-contain bg-diesel-panel cursor-pointer" 
+                    className="w-full h-full object-contain bg-diesel-panel cursor-pointer" 
                     onClick={() => setPreviewImage(graphic.image)}
                   />
-                  <button
-                    onClick={() => setPreviewImage(graphic.image)}
-                    className="absolute top-1 left-1 p-1 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-gold opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ZoomIn size={14} />
-                  </button>
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
-                    <div className="pointer-events-auto flex gap-2">
-                      <label className="px-2 py-1 bg-diesel-panel border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold">
-                        Replace
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 pointer-events-none">
+                    <div className="pointer-events-auto flex gap-1">
+                      <button
+                        onClick={() => setPreviewImage(graphic.image)}
+                        className="p-1.5 bg-diesel-panel border border-diesel-border text-diesel-paper hover:border-diesel-gold"
+                        title="Zoom"
+                      >
+                        <ZoomIn size={12} />
+                      </button>
+                      <label className="p-1.5 bg-diesel-panel border border-diesel-border text-diesel-paper cursor-pointer hover:border-diesel-gold" title="Replace">
+                        <Upload size={12} />
                         <input
                           type="file"
                           accept="image/*"
@@ -614,24 +606,26 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                       <button
                         onClick={() => generateGraphic(selectedActor.id, graphic.id)}
                         disabled={generatingGraphic === graphic.id}
-                        className="px-2 py-1 bg-diesel-green/50 border border-diesel-green text-white text-xs hover:bg-diesel-green disabled:opacity-50"
+                        className="p-1.5 bg-diesel-green/50 border border-diesel-green text-white hover:bg-diesel-green disabled:opacity-50"
+                        title="Regenerate"
                       >
-                        {generatingGraphic === graphic.id ? 'Gen...' : 'Regen'}
+                        {generatingGraphic === graphic.id ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                       </button>
                       <button
                         onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
-                        className="px-2 py-1 bg-diesel-rust/50 border border-diesel-rust text-white text-xs hover:bg-diesel-rust"
+                        className="p-1.5 bg-diesel-rust/50 border border-diesel-rust text-white hover:bg-diesel-rust"
+                        title="Remove"
                       >
-                        Remove
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 h-24 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                    <Image size={20} />
-                    <span className="text-sm">Upload</span>
+                <div className="flex gap-1 aspect-square">
+                  <label className="flex-1 flex flex-col items-center justify-center gap-1 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                    <Image size={16} />
+                    <span className="text-[10px]">Upload</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -642,17 +636,17 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                   <button
                     onClick={() => generateGraphic(selectedActor.id, graphic.id)}
                     disabled={generatingGraphic === graphic.id}
-                    className="flex-1 flex items-center justify-center gap-2 h-24 border border-diesel-green text-diesel-green hover:bg-diesel-green/20 transition-colors disabled:opacity-50"
+                    className="flex-1 flex flex-col items-center justify-center gap-1 border border-diesel-green text-diesel-green hover:bg-diesel-green/20 transition-colors disabled:opacity-50"
                   >
                     {generatingGraphic === graphic.id ? (
                       <>
-                        <Loader2 size={20} className="animate-spin" />
-                        <span className="text-sm">Generating...</span>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span className="text-[10px]">...</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles size={20} />
-                        <span className="text-sm">Generate</span>
+                        <Sparkles size={16} />
+                        <span className="text-[10px]">Generate</span>
                       </>
                     )}
                   </button>
