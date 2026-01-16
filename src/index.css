@@ -184,3 +184,26 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* Dieselpunk Loader Animations */
+@keyframes pistonPump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes steamPuff {
+  0% { 
+    opacity: 0.8; 
+    transform: translateX(0) translateY(-50%) scale(1); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateX(20px) translateY(-50%) scale(2); 
+  }
+}
+
+@keyframes progressPulse {
+  0% { width: 0%; opacity: 1; }
+  50% { width: 100%; opacity: 0.8; }
+  100% { width: 0%; opacity: 1; }
+}
