@@ -3,36 +3,59 @@ import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic } fr
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Loader2, Wand2, Check, Lock, ZoomIn } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface SceneEditorProps {
   game: GameData;
   selection: SelectionState;
   onChange: (game: GameData) => void;
   onSelect: (type: SelectionState['type'], id: string | null) => void;
+  styleGuide?: string | null;
 }
 
-// Graphic picker dialog state
-interface GraphicPickerState {
-  open: boolean;
+// Actor generator state for scene editor
+interface ActorGeneratorState {
+  active: boolean;
   actorId: string | null;
   elementId: string | null; // null when adding new, set when editing existing
+  dropX: number;
+  dropY: number;
 }
 
-export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onChange, onSelect }) => {
+export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showScript, setShowScript] = useState(false);
-  const [graphicPicker, setGraphicPicker] = useState<GraphicPickerState>({ open: false, actorId: null, elementId: null });
   const canvasRef = useRef<HTMLDivElement>(null);
+  
+  // Actor generator state
+  const [actorGenerator, setActorGenerator] = useState<ActorGeneratorState>({
+    active: false, actorId: null, elementId: null, dropX: 50, dropY: 50
+  });
+  const [genPose, setGenPose] = useState('Neutral');
+  const [genExpression, setGenExpression] = useState('Neutral');
+  const [genAngle, setGenAngle] = useState(0);
+  const [genPrompt, setGenPrompt] = useState('');
+  const [generatedPreview, setGeneratedPreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [styleLock, setStyleLock] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // Combine default poses/expressions with custom ones from settings
+  const allPoses = [...POSES, ...(game.info.customPoses || [])];
+  const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
 
   const selectedScene = selection.id 
     ? game.scenes.find(s => s.id === selection.id) 
     : null;
   
   const selectedElement = selectedScene?.stage?.find(e => e.id === selectedElementId);
+  const generatorActor = actorGenerator.actorId ? game.actors.find(a => a.id === actorGenerator.actorId) : null;
 
   const createScene = () => {
     const newScene: Scene = {
@@ -58,21 +81,35 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     onSelect('scene', null);
   };
 
-  // Opens graphic picker instead of immediately adding
-  const handleAddActor = (actorId: string) => {
-    setGraphicPicker({ open: true, actorId, elementId: null });
+  const updateActor = (actorId: string, updates: Partial<Actor>) => {
+    onChange({
+      ...game,
+      actors: game.actors.map(a => a.id === actorId ? { ...a, ...updates } : a),
+    });
   };
 
-  // Called when user selects a graphic from the picker
-  const confirmGraphicSelection = (graphic: ActorGraphic | null) => {
-    if (!graphicPicker.actorId || !selectedScene) return;
+  // Opens actor generator instead of immediately adding
+  const handleAddActor = (actorId: string) => {
+    const actor = game.actors.find(a => a.id === actorId);
+    if (!actor) return;
+    
+    // If actor has graphics, show picker mode; otherwise go to generator
+    setActorGenerator({ active: true, actorId, elementId: null, dropX: 50, dropY: 50 });
+    setGenPrompt('');
+    setGeneratedPreview(null);
+    setSelectedElementId(null);
+  };
 
-    if (graphicPicker.elementId) {
+  // Called when user selects a graphic from the library or commits a generated one
+  const addActorWithGraphic = (graphic: ActorGraphic) => {
+    if (!actorGenerator.actorId || !selectedScene) return;
+
+    if (actorGenerator.elementId) {
       // Editing existing element
-      updateStageElement(selectedScene.id, graphicPicker.elementId, {
-        pose: graphic?.pose,
-        expression: graphic?.expression,
-        spriteAngle: graphic?.angle,
+      updateStageElement(selectedScene.id, actorGenerator.elementId, {
+        pose: graphic.pose,
+        expression: graphic.expression,
+        spriteAngle: graphic.angle,
       });
     } else {
       // Adding new element
@@ -81,22 +118,29 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
       
       const newElement: StageElement = {
         id: `element_${Date.now()}`,
-        assetId: graphicPicker.actorId,
+        assetId: actorGenerator.actorId,
         type: 'ACTOR',
-        x: 50,
-        y: 50,
+        x: actorGenerator.dropX,
+        y: actorGenerator.dropY,
         scale: 1,
         zIndex: (scene.stage?.length || 0) + 1,
         rotation: 0,
-        pose: graphic?.pose,
-        expression: graphic?.expression,
-        spriteAngle: graphic?.angle,
+        pose: graphic.pose,
+        expression: graphic.expression,
+        spriteAngle: graphic.angle,
       };
       updateScene(selectedScene.id, { stage: [...(scene.stage || []), newElement] });
       setSelectedElementId(newElement.id);
     }
     
-    setGraphicPicker({ open: false, actorId: null, elementId: null });
+    closeGenerator();
+  };
+
+  const closeGenerator = () => {
+    setActorGenerator({ active: false, actorId: null, elementId: null, dropX: 50, dropY: 50 });
+    setGeneratedPreview(null);
+    setGenPrompt('');
+    setEditPrompt('');
   };
 
   const addStageElement = (sceneId: string, type: StageElement['type'], assetId?: string) => {
@@ -137,12 +181,248 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     setSelectedElementId(null);
   };
 
+  // Helper to get angle description for prompts
+  const getAngleDescription = (angle: number): string => {
+    const descriptions: Record<number, string> = {
+      0: 'Front view (facing camera)',
+      45: 'Front-left three-quarter view',
+      90: 'Left profile view',
+      135: 'Back-left three-quarter view',
+      180: 'Back view (facing away)',
+      225: 'Back-right three-quarter view',
+      270: 'Right profile view',
+      315: 'Front-right three-quarter view'
+    };
+    return descriptions[angle] || `${angle} degrees rotation`;
+  };
+
+  // Build prompt for generator
+  const buildGeneratorPrompt = (actor: Actor): string => {
+    const isCloseup = genPose === 'Closeup';
+    const frameInstruction = isCloseup 
+      ? 'CLOSE-UP SHOT focusing on face and upper shoulders' 
+      : 'FULL BODY SHOT from head to toe';
+    
+    const angleDescription = getAngleDescription(genAngle);
+    
+    let prompt = `IDENTITY: Generate a character portrait of \"${actor.name}\".\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+
+    if (styleLock) {
+      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+    }
+    
+    return prompt;
+  };
+
+  // Chroma-key background removal
+  const removeBackgroundGlobal = (imageDataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        const corners = [
+          { x: 0, y: 0 },
+          { x: canvas.width - 1, y: 0 },
+          { x: 0, y: canvas.height - 1 },
+          { x: canvas.width - 1, y: canvas.height - 1 }
+        ];
+        
+        let bgR = 0, bgG = 0, bgB = 0, count = 0;
+        for (const corner of corners) {
+          const idx = (corner.y * canvas.width + corner.x) * 4;
+          if (data[idx + 1] > data[idx] && data[idx + 1] > data[idx + 2]) {
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
+            count++;
+          }
+        }
+        if (count > 0) {
+          bgR = Math.round(bgR / count);
+          bgG = Math.round(bgG / count);
+          bgB = Math.round(bgB / count);
+        } else {
+          bgR = 0; bgG = 255; bgB = 0;
+        }
+        
+        const tolerance = 80;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          const diffR = Math.abs(r - bgR);
+          const diffG = Math.abs(g - bgG);
+          const diffB = Math.abs(b - bgB);
+          
+          if (diffR < tolerance && diffG < tolerance && diffB < tolerance) {
+            if (g > r * 0.8 && g > b * 0.8) {
+              data[i + 3] = 0;
+            }
+          }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = imageDataUrl;
+    });
+  };
+
+  // Generate a new pose preview
+  const handleGeneratePreview = async () => {
+    if (!generatorActor) return;
+    
+    setIsGenerating(true);
+    toast.info('Generating character graphic...');
+    
+    const finalPrompt = genPrompt.trim() || buildGeneratorPrompt(generatorActor);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: finalPrompt,
+            referenceImageCloseUp: generatorActor.referenceImageCloseUp,
+            referenceImageFullBody: generatorActor.referenceImageFullBody,
+            styleGuide,
+            enforceStyleGuide: styleLock && !genPrompt.trim(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Generation failed');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        toast.info('Removing background...');
+        const transparentImage = await removeBackgroundGlobal(data.imageUrl);
+        setGeneratedPreview(transparentImage);
+        toast.success('Preview generated!');
+      } else {
+        throw new Error('No image returned');
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+      toast.error(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Edit the current preview with AI
+  const handleEditPreview = async () => {
+    if (!generatedPreview || !editPrompt.trim()) {
+      toast.error('Enter edit instructions');
+      return;
+    }
+    
+    setIsEditing(true);
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: editPrompt,
+            existingImage: generatedPreview,
+            editMode: true,
+            styleGuide,
+            enforceStyleGuide: styleLock,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Edit failed');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        toast.info('Removing background...');
+        const transparentImage = await removeBackgroundGlobal(data.imageUrl);
+        setGeneratedPreview(transparentImage);
+        setEditPrompt('');
+        toast.success('Image edited!');
+      }
+    } catch (err) {
+      console.error('Edit error:', err);
+      toast.error(err instanceof Error ? err.message : 'Edit failed');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Commit preview to library AND add to stage
+  const handleCommitToStage = () => {
+    if (!generatorActor || !generatedPreview) return;
+    
+    const newGraphic: ActorGraphic = {
+      id: `graphic_${Date.now()}`,
+      pose: genPose,
+      expression: genExpression,
+      angle: genAngle,
+      image: generatedPreview,
+      generatedPrompt: genPrompt.trim() || buildGeneratorPrompt(generatorActor),
+    };
+    
+    // Add to actor's library
+    updateActor(generatorActor.id, { 
+      graphics: [...generatorActor.graphics, newGraphic] 
+    });
+    
+    // Add to stage
+    addActorWithGraphic(newGraphic);
+    
+    toast.success('Pose added to library and stage!');
+  };
+
+  // Reset prompt to auto-generated
+  const resetPrompt = () => {
+    if (generatorActor) {
+      setGenPrompt(buildGeneratorPrompt(generatorActor));
+    }
+  };
+
   // Drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
     e.preventDefault();
     setSelectedElementId(elementId);
     setDragging(elementId);
+    closeGenerator();
 
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -175,6 +455,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
       setSelectedElementId(null);
+      closeGenerator();
     }
   }, []);
 
@@ -246,246 +527,432 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           Back to Scenes
         </button>
 
-        {/* Scene Info */}
-        <section className="bg-diesel-black border border-diesel-border p-3">
-          <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Scene Info</h3>
-          <CyberInput
-            label="Name"
-            value={selectedScene.name}
-            onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
-          />
-          <div className="flex flex-col gap-1 mb-3">
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Type</label>
-            <select
-              value={selectedScene.sceneType || 'Dialogue'}
-              onChange={(e) => updateScene(selectedScene.id, { sceneType: e.target.value })}
-              className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
-            >
-              {SCENE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background</label>
-            <select
-              value={selectedScene.dropId || ''}
-              onChange={(e) => updateScene(selectedScene.id, { dropId: e.target.value || undefined })}
-              className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
-            >
-              <option value="">No background</option>
-              {game.drops.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </div>
-        </section>
-
-        {/* Asset Palette */}
-        <section className="bg-diesel-black border border-diesel-border p-3">
-          <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Add to Stage</h3>
-          
-          {/* Actors */}
-          <div className="mb-3">
-            <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
-              <User size={12} />
-              <span className="uppercase tracking-wider">Actors</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {game.actors.map(actor => (
-                <button
-                  key={actor.id}
-                  onClick={() => handleAddActor(actor.id)}
-                  className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
-                >
-                  {actor.graphics[0]?.image && (
-                    <img src={actor.graphics[0].image} alt="" className="w-4 h-4 rounded object-cover" />
-                  )}
-                  {actor.name}
-                </button>
-              ))}
-              {game.actors.length === 0 && (
-                <span className="text-xs text-diesel-steel italic">No actors</span>
-              )}
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="mb-3">
-            <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
-              <Package size={12} />
-              <span className="uppercase tracking-wider">Items</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {game.items.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => addStageElement(selectedScene.id, 'ITEM', item.id)}
-                  className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
-                >
-                  {item.visualAsset && (
-                    <img src={item.visualAsset} alt="" className="w-4 h-4 rounded object-contain" />
-                  )}
-                  {item.name}
-                </button>
-              ))}
-              {game.items.length === 0 && (
-                <span className="text-xs text-diesel-steel italic">No items</span>
-              )}
-            </div>
-          </div>
-
-          {/* Balloon */}
-          <button
-            onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
-            className="w-full flex items-center justify-center gap-1 px-2 py-2 bg-diesel-gold/10 border border-dashed border-diesel-gold/50 text-diesel-gold text-xs uppercase font-bold hover:bg-diesel-gold/20 transition-colors"
-          >
-            <MessageSquare size={14} />
-            Add Balloon
-          </button>
-        </section>
-
-        {/* Selected Element Properties */}
-        {selectedElement && (
+        {/* Actor Generator Panel - Shows when adding/editing actor */}
+        {actorGenerator.active && generatorActor && (
           <section className="bg-diesel-black border-2 border-diesel-gold p-3">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest">
-                {selectedElement.type === 'ACTOR' ? 'Actor' : selectedElement.type === 'ITEM' ? 'Item' : 'Balloon'}
+              <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest flex items-center gap-1">
+                <Sparkles size={12} />
+                Generate: {generatorActor.name}
               </h3>
-              <button
-                onClick={() => deleteStageElement(selectedScene.id, selectedElement.id)}
-                className="p-1 text-diesel-rust hover:bg-diesel-rust/20 transition-colors"
-              >
-                <Trash2 size={14} />
+              <button onClick={closeGenerator} className="p-1 text-diesel-steel hover:text-diesel-paper">
+                <X size={14} />
               </button>
             </div>
-
-            {/* Type-specific properties */}
-            {selectedElement.type === 'ACTOR' && (
+            
+            {/* Existing Graphics */}
+            {generatorActor.graphics.length > 0 && (
               <div className="mb-3">
-                <label className="text-xs text-diesel-steel">Actor</label>
-                <select
-                  value={selectedElement.assetId || ''}
-                  onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
-                >
-                  <option value="">Select Actor</option>
-                  {game.actors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {selectedElement.type === 'ITEM' && (
-              <div className="mb-3">
-                <label className="text-xs text-diesel-steel">Item</label>
-                <select
-                  value={selectedElement.assetId || ''}
-                  onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
-                >
-                  <option value="">Select Item</option>
-                  {game.items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {selectedElement.type === 'BALLOON' && (
-              <div className="space-y-2 mb-3">
-                <div>
-                  <label className="text-xs text-diesel-steel">Type</label>
-                  <select
-                    value={selectedElement.balloonType || 'SPEECH'}
-                    onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { balloonType: e.target.value as 'SPEECH' | 'THOUGHT' })}
-                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
-                  >
-                    <option value="SPEECH">Speech</option>
-                    <option value="THOUGHT">Thought</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-diesel-steel">Text</label>
-                  <textarea
-                    value={selectedElement.text || ''}
-                    onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { text: e.target.value })}
-                    placeholder="Balloon text..."
-                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1 h-16 resize-none"
-                  />
+                <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Existing Poses</label>
+                <div className="grid grid-cols-4 gap-1 max-h-24 overflow-y-auto">
+                  {generatorActor.graphics.map(graphic => (
+                    <button
+                      key={graphic.id}
+                      onClick={() => addActorWithGraphic(graphic)}
+                      className="aspect-square bg-diesel-panel border border-diesel-border hover:border-diesel-gold overflow-hidden"
+                      title={`${graphic.pose} • ${graphic.expression}`}
+                    >
+                      {graphic.image ? (
+                        <img src={graphic.image} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <User size={12} className="w-full h-full p-1 text-diesel-steel" />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
-
-            {/* Common properties */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            
+            {/* Divider */}
+            <div className="border-t border-diesel-border my-3" />
+            
+            {/* Style Lock */}
+            <button
+              onClick={() => setStyleLock(!styleLock)}
+              className={`flex items-center gap-2 w-full mb-2 py-1.5 px-2 border text-[10px] font-bold uppercase transition-colors ${
+                styleLock 
+                  ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+                  : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+              }`}
+            >
+              <Lock size={10} />
+              <span className="flex-1 text-left">Style Lock</span>
+              <span>{styleLock ? 'ON' : 'OFF'}</span>
+            </button>
+            
+            {/* Parameter Selectors */}
+            <div className="grid grid-cols-3 gap-1 mb-2">
               <div>
-                <label className="text-xs text-diesel-steel">X %</label>
-                <input
-                  type="number"
-                  value={selectedElement.x.toFixed(1)}
-                  onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { x: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
-                />
+                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Pose</label>
+                <select
+                  value={genPose}
+                  onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
+                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
+                >
+                  {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-xs text-diesel-steel">Y %</label>
-                <input
-                  type="number"
-                  value={selectedElement.y.toFixed(1)}
-                  onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { y: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
-                />
+                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Expression</label>
+                <select
+                  value={genExpression}
+                  onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
+                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
+                >
+                  {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Angle</label>
+                <select
+                  value={genAngle}
+                  onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
+                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
+                >
+                  {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
+                </select>
               </div>
             </div>
-            <CyberSlider
-              label="Scale"
-              value={selectedElement.scale}
-              min={0.1}
-              max={3}
-              step={0.1}
-              onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { scale: v })}
-            />
-            <CyberSlider
-              label="Rotation"
-              value={selectedElement.rotation}
-              min={-180}
-              max={180}
-              step={1}
-              onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { rotation: v })}
-            />
-            <div>
-              <label className="text-xs text-diesel-steel">Z-Index</label>
-              <input
-                type="number"
-                value={selectedElement.zIndex}
-                onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { zIndex: parseInt(e.target.value) || 0 })}
-                className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+            
+            {/* Prompt Editor */}
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[9px] text-diesel-gold uppercase">Prompt to Nano Banana</label>
+                <button onClick={resetPrompt} className="text-[9px] text-diesel-steel hover:text-diesel-paper">
+                  Reset
+                </button>
+              </div>
+              <textarea
+                value={genPrompt || buildGeneratorPrompt(generatorActor)}
+                onChange={(e) => setGenPrompt(e.target.value)}
+                className="w-full h-20 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[9px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
               />
             </div>
+            
+            {/* Generate Button */}
+            <button
+              onClick={handleGeneratePreview}
+              disabled={isGenerating}
+              className="w-full py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={12} />
+                  Generate Preview
+                </>
+              )}
+            </button>
+            
+            {/* Preview & Edit Area */}
+            {generatedPreview && (
+              <div className="mt-3 border-t border-diesel-border pt-3">
+                {/* Preview Image */}
+                <div className="aspect-square bg-diesel-panel border border-diesel-border relative group mb-2">
+                  <img 
+                    src={generatedPreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={() => setPreviewImage(generatedPreview)}
+                  />
+                  <button
+                    onClick={() => setPreviewImage(generatedPreview)}
+                    className="absolute top-1 right-1 p-1 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-gold opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <ZoomIn size={10} />
+                  </button>
+                </div>
+                
+                {/* Edit Controls */}
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[9px] text-diesel-gold uppercase mb-0.5 block">Fine-tune with AI</label>
+                    <textarea
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      placeholder="e.g., Make the eyes bigger..."
+                      className="w-full h-12 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[10px] resize-none focus:outline-none focus:border-diesel-gold"
+                    />
+                  </div>
+                  <button
+                    onClick={handleEditPreview}
+                    disabled={isEditing || !editPrompt.trim()}
+                    className="w-full py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-[10px] font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {isEditing ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
+                    {isEditing ? 'Editing...' : 'Edit'}
+                  </button>
+                  
+                  {/* Commit Button */}
+                  <button
+                    onClick={handleCommitToStage}
+                    className="w-full py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
+                  >
+                    <Check size={12} />
+                    Commit to Library & Stage
+                  </button>
+                  
+                  {/* Discard */}
+                  <button
+                    onClick={() => { setGeneratedPreview(null); setEditPrompt(''); }}
+                    className="w-full py-1 text-diesel-rust text-[10px] hover:underline"
+                  >
+                    Discard Preview
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
-        {/* Script Section */}
-        <section className="bg-diesel-black border border-diesel-border p-3">
-          <button
-            onClick={() => setShowScript(!showScript)}
-            className="flex items-center justify-between w-full text-xs font-bold text-diesel-rust uppercase tracking-widest"
-          >
-            Script
-            {showScript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {showScript && (
-            <textarea
-              value={selectedScene.script || ''}
-              onChange={(e) => updateScene(selectedScene.id, { script: e.target.value })}
-              placeholder="Write your scene script here..."
-              className="mt-2 w-full h-32 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 font-mono resize-none focus:outline-none focus:border-diesel-rust"
-            />
-          )}
-        </section>
+        {/* Scene Info - Only show when not in generator mode */}
+        {!actorGenerator.active && (
+          <>
+            <section className="bg-diesel-black border border-diesel-border p-3">
+              <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Scene Info</h3>
+              <CyberInput
+                label="Name"
+                value={selectedScene.name}
+                onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
+              />
+              <div className="flex flex-col gap-1 mb-3">
+                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Type</label>
+                <select
+                  value={selectedScene.sceneType || 'Dialogue'}
+                  onChange={(e) => updateScene(selectedScene.id, { sceneType: e.target.value })}
+                  className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+                >
+                  {SCENE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background</label>
+                <select
+                  value={selectedScene.dropId || ''}
+                  onChange={(e) => updateScene(selectedScene.id, { dropId: e.target.value || undefined })}
+                  className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+                >
+                  <option value="">No background</option>
+                  {game.drops.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+            </section>
 
-        {/* Delete Scene */}
-        <button
-          onClick={() => deleteScene(selectedScene.id)}
-          className="flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-        >
-          <Trash2 size={14} />
-          Delete Scene
-        </button>
+            {/* Asset Palette */}
+            <section className="bg-diesel-black border border-diesel-border p-3">
+              <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Add to Stage</h3>
+              
+              {/* Actors */}
+              <div className="mb-3">
+                <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
+                  <User size={12} />
+                  <span className="uppercase tracking-wider">Actors</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {game.actors.map(actor => (
+                    <button
+                      key={actor.id}
+                      onClick={() => handleAddActor(actor.id)}
+                      className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
+                    >
+                      {actor.graphics[0]?.image && (
+                        <img src={actor.graphics[0].image} alt="" className="w-4 h-4 rounded object-cover" />
+                      )}
+                      {actor.name}
+                    </button>
+                  ))}
+                  {game.actors.length === 0 && (
+                    <span className="text-xs text-diesel-steel italic">No actors</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="mb-3">
+                <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
+                  <Package size={12} />
+                  <span className="uppercase tracking-wider">Items</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {game.items.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => addStageElement(selectedScene.id, 'ITEM', item.id)}
+                      className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
+                    >
+                      {item.visualAsset && (
+                        <img src={item.visualAsset} alt="" className="w-4 h-4 rounded object-contain" />
+                      )}
+                      {item.name}
+                    </button>
+                  ))}
+                  {game.items.length === 0 && (
+                    <span className="text-xs text-diesel-steel italic">No items</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Balloon */}
+              <button
+                onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
+                className="w-full flex items-center justify-center gap-1 px-2 py-2 bg-diesel-gold/10 border border-dashed border-diesel-gold/50 text-diesel-gold text-xs uppercase font-bold hover:bg-diesel-gold/20 transition-colors"
+              >
+                <MessageSquare size={14} />
+                Add Balloon
+              </button>
+            </section>
+
+            {/* Selected Element Properties */}
+            {selectedElement && (
+              <section className="bg-diesel-black border-2 border-diesel-gold p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest">
+                    {selectedElement.type === 'ACTOR' ? 'Actor' : selectedElement.type === 'ITEM' ? 'Item' : 'Balloon'}
+                  </h3>
+                  <button
+                    onClick={() => deleteStageElement(selectedScene.id, selectedElement.id)}
+                    className="p-1 text-diesel-rust hover:bg-diesel-rust/20 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {/* Type-specific properties */}
+                {selectedElement.type === 'ACTOR' && (
+                  <div className="mb-3">
+                    <label className="text-xs text-diesel-steel">Actor</label>
+                    <select
+                      value={selectedElement.assetId || ''}
+                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
+                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
+                    >
+                      <option value="">Select Actor</option>
+                      {game.actors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {selectedElement.type === 'ITEM' && (
+                  <div className="mb-3">
+                    <label className="text-xs text-diesel-steel">Item</label>
+                    <select
+                      value={selectedElement.assetId || ''}
+                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
+                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
+                    >
+                      <option value="">Select Item</option>
+                      {game.items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {selectedElement.type === 'BALLOON' && (
+                  <div className="space-y-2 mb-3">
+                    <div>
+                      <label className="text-xs text-diesel-steel">Type</label>
+                      <select
+                        value={selectedElement.balloonType || 'SPEECH'}
+                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { balloonType: e.target.value as 'SPEECH' | 'THOUGHT' })}
+                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
+                      >
+                        <option value="SPEECH">Speech</option>
+                        <option value="THOUGHT">Thought</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-diesel-steel">Text</label>
+                      <textarea
+                        value={selectedElement.text || ''}
+                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { text: e.target.value })}
+                        placeholder="Balloon text..."
+                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1 h-16 resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Common properties */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label className="text-xs text-diesel-steel">X %</label>
+                    <input
+                      type="number"
+                      value={selectedElement.x.toFixed(1)}
+                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { x: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-diesel-steel">Y %</label>
+                    <input
+                      type="number"
+                      value={selectedElement.y.toFixed(1)}
+                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { y: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+                    />
+                  </div>
+                </div>
+                <CyberSlider
+                  label="Scale"
+                  value={selectedElement.scale}
+                  min={0.1}
+                  max={3}
+                  step={0.1}
+                  onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { scale: v })}
+                />
+                <CyberSlider
+                  label="Rotation"
+                  value={selectedElement.rotation}
+                  min={-180}
+                  max={180}
+                  step={1}
+                  onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { rotation: v })}
+                />
+                <div>
+                  <label className="text-xs text-diesel-steel">Z-Index</label>
+                  <input
+                    type="number"
+                    value={selectedElement.zIndex}
+                    onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { zIndex: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Script Section */}
+            <section className="bg-diesel-black border border-diesel-border p-3">
+              <button
+                onClick={() => setShowScript(!showScript)}
+                className="flex items-center justify-between w-full text-xs font-bold text-diesel-rust uppercase tracking-widest"
+              >
+                Script
+                {showScript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              {showScript && (
+                <textarea
+                  value={selectedScene.script || ''}
+                  onChange={(e) => updateScene(selectedScene.id, { script: e.target.value })}
+                  placeholder="Write your scene script here..."
+                  className="mt-2 w-full h-32 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 font-mono resize-none focus:outline-none focus:border-diesel-rust"
+                />
+              )}
+            </section>
+
+            {/* Delete Scene */}
+            <button
+              onClick={() => deleteScene(selectedScene.id)}
+              className="flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+            >
+              <Trash2 size={14} />
+              Delete Scene
+            </button>
+          </>
+        )}
       </div>
 
       {/* Right Panel - Visual Stage Canvas */}
@@ -540,7 +1007,17 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   onMouseDown={(e) => handleMouseDown(e, element.id)}
                   onDoubleClick={() => {
                     if (element.type === 'ACTOR' && actor) {
-                      setGraphicPicker({ open: true, actorId: actor.id, elementId: element.id });
+                      // Double-click opens generator for editing
+                      setActorGenerator({ 
+                        active: true, 
+                        actorId: actor.id, 
+                        elementId: element.id,
+                        dropX: element.x,
+                        dropY: element.y
+                      });
+                      setGenPrompt('');
+                      setGeneratedPreview(null);
+                      setSelectedElementId(null);
                     }
                   }}
                 >
@@ -594,102 +1071,24 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
         </div>
       </div>
 
-      {/* Graphic Picker Dialog */}
-      <Dialog open={graphicPicker.open} onOpenChange={(open) => !open && setGraphicPicker({ open: false, actorId: null, elementId: null })}>
-        <DialogContent className="max-w-2xl bg-diesel-dark border-diesel-border p-0 overflow-hidden">
-          <GraphicPickerContent
-            actor={game.actors.find(a => a.id === graphicPicker.actorId) || null}
-            game={game}
-            onSelect={confirmGraphicSelection}
-            onClose={() => setGraphicPicker({ open: false, actorId: null, elementId: null })}
-          />
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl bg-diesel-dark border-diesel-border p-0 overflow-hidden">
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-2 right-2 z-10 p-2 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-paper rounded-sm"
+          >
+            <X size={20} />
+          </button>
+          {previewImage && (
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="w-full h-auto max-h-[80vh] object-contain bg-diesel-black"
+            />
+          )}
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
-
-// Graphic Picker Dialog Content
-interface GraphicPickerContentProps {
-  actor: Actor | null;
-  game: GameData;
-  onSelect: (graphic: ActorGraphic | null) => void;
-  onClose: () => void;
-}
-
-const GraphicPickerContent: React.FC<GraphicPickerContentProps> = ({ actor, game, onSelect, onClose }) => {
-  const allPoses = [...POSES, ...(game.info.customPoses || [])];
-  const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
-  
-  if (!actor) return null;
-
-  const hasGraphics = actor.graphics.length > 0;
-
-  return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-diesel-gold uppercase tracking-widest">
-          Select Graphic for {actor.name}
-        </h2>
-        <button onClick={onClose} className="p-1 text-diesel-steel hover:text-diesel-paper">
-          <X size={20} />
-        </button>
-      </div>
-
-      {!hasGraphics ? (
-        <div className="text-center py-8 text-diesel-steel">
-          <Sparkles size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="mb-2">No graphics generated for this actor yet.</p>
-          <p className="text-sm">Go to the Actor Editor to create graphics first.</p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper hover:border-diesel-gold"
-          >
-            Close
-          </button>
-        </div>
-      ) : (
-        <>
-          <p className="text-sm text-diesel-steel mb-4">
-            Click a graphic to add it to the stage, or use dropdowns to filter.
-          </p>
-
-          {/* Graphics Grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-96 overflow-y-auto custom-scrollbar">
-            {actor.graphics.map(graphic => (
-              <button
-                key={graphic.id}
-                onClick={() => onSelect(graphic)}
-                className="group relative aspect-square bg-diesel-panel border border-diesel-border hover:border-diesel-gold transition-colors overflow-hidden"
-              >
-                {graphic.image ? (
-                  <img 
-                    src={graphic.image} 
-                    alt={`${graphic.pose} - ${graphic.expression}`}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-diesel-steel">
-                    <User size={32} />
-                  </div>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-diesel-black/80 px-1 py-0.5 text-[10px] text-diesel-paper text-center truncate">
-                  {graphic.pose} • {graphic.expression}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-diesel-steel hover:text-diesel-paper"
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 };
