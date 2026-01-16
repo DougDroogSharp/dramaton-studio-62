@@ -3,7 +3,8 @@ import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic } fr
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Loader2, Wand2, Check, Lock, ZoomIn } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn } from 'lucide-react';
+import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -635,21 +636,19 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               disabled={isGenerating}
               className="w-full py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={12} />
-                  Generate Preview
-                </>
-              )}
+              <Sparkles size={12} />
+              Generate Preview
             </button>
             
+            {/* Loading State */}
+            {isGenerating && (
+              <div className="mt-4 flex justify-center">
+                <DieselpunkLoader size="sm" message="GENERATING..." />
+              </div>
+            )}
+            
             {/* Preview & Edit Area */}
-            {generatedPreview && (
+            {generatedPreview && !isGenerating && (
               <div className="mt-3 border-t border-diesel-border pt-3">
                 {/* Preview Image */}
                 <div className="aspect-square bg-diesel-panel border border-diesel-border relative group mb-2">
@@ -678,19 +677,28 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                       className="w-full h-12 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[10px] resize-none focus:outline-none focus:border-diesel-gold"
                     />
                   </div>
-                  <button
-                    onClick={handleEditPreview}
-                    disabled={isEditing || !editPrompt.trim()}
-                    className="w-full py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-[10px] font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    {isEditing ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
-                    {isEditing ? 'Editing...' : 'Edit'}
-                  </button>
+                  
+                  {/* Editing Loading State */}
+                  {isEditing ? (
+                    <div className="flex justify-center py-2">
+                      <DieselpunkLoader size="sm" message="EDITING..." />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleEditPreview}
+                      disabled={!editPrompt.trim()}
+                      className="w-full py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-[10px] font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      <Wand2 size={10} />
+                      Edit
+                    </button>
+                  )}
                   
                   {/* Commit Button */}
                   <button
                     onClick={handleCommitToStage}
-                    className="w-full py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
+                    disabled={isEditing}
+                    className="w-full py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 disabled:opacity-50 flex items-center justify-center gap-1"
                   >
                     <Check size={12} />
                     Commit to Library & Stage
@@ -699,7 +707,8 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   {/* Discard */}
                   <button
                     onClick={() => { setGeneratedPreview(null); setEditPrompt(''); }}
-                    className="w-full py-1 text-diesel-rust text-[10px] hover:underline"
+                    disabled={isEditing}
+                    className="w-full py-1 text-diesel-rust text-[10px] hover:underline disabled:opacity-50"
                   >
                     Discard Preview
                   </button>

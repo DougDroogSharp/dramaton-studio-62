@@ -3,7 +3,8 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Loader2, Camera, X, ZoomIn, Lock, Wand2, Check } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera, X, ZoomIn, Lock, Wand2, Check } from 'lucide-react';
+import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -618,22 +619,20 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
             disabled={isGenerating}
             className="flex-1 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isGenerating ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles size={14} />
-                Generate
-              </>
-            )}
+            <Sparkles size={14} />
+            Generate
           </button>
         </div>
         
+        {/* Loading State */}
+        {isGenerating && (
+          <div className="border-t border-diesel-border pt-4 flex justify-center">
+            <DieselpunkLoader size="md" message="GENERATING..." />
+          </div>
+        )}
+        
         {/* Preview & Edit Area */}
-        {generatedPreview && (
+        {generatedPreview && !isGenerating && (
           <div className="border-t border-diesel-border pt-3">
             <div className="flex gap-3">
               {/* Preview Image */}
@@ -662,19 +661,28 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                   placeholder="Fine-tune: e.g., bigger eyes, add scar..."
                   className="flex-1 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-xs resize-none focus:outline-none focus:border-diesel-gold"
                 />
-                <button
-                  onClick={handleEditPreview}
-                  disabled={isEditing || !editPrompt.trim()}
-                  className="py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-xs font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
-                >
-                  {isEditing ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                  {isEditing ? 'Editing...' : 'Edit'}
-                </button>
+                
+                {/* Editing Loading State */}
+                {isEditing ? (
+                  <div className="flex justify-center py-2">
+                    <DieselpunkLoader size="sm" message="EDITING..." />
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleEditPreview}
+                    disabled={!editPrompt.trim()}
+                    className="py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-xs font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    <Wand2 size={12} />
+                    Edit
+                  </button>
+                )}
                 
                 {/* Commit Button */}
                 <button
                   onClick={handleCommitToLibrary}
-                  className="py-1.5 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
+                  disabled={isEditing}
+                  className="py-1.5 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 disabled:opacity-50 flex items-center justify-center gap-1"
                 >
                   <Check size={12} />
                   Commit
@@ -683,7 +691,8 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                 {/* Discard */}
                 <button
                   onClick={() => { setGeneratedPreview(null); setEditPrompt(''); }}
-                  className="py-1 text-diesel-rust text-[10px] hover:underline"
+                  disabled={isEditing}
+                  className="py-1 text-diesel-rust text-[10px] hover:underline disabled:opacity-50"
                 >
                   Discard
                 </button>
