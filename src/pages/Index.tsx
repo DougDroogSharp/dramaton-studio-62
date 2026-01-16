@@ -3,7 +3,7 @@ import { GameData, SelectionState, createDefaultGame } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2 } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -81,12 +81,40 @@ const Index = () => {
   const isRestPeriod = minutes > 30; // 31-59 is rest time
 
   const handleStartGame = () => {
+    // Validate title and author are not default/empty
+    if (!startTitle.trim() || startTitle === 'Untitled Protocol') {
+      alert('Please enter a unique game title before starting.');
+      return;
+    }
+    if (!startAuthor.trim() || startAuthor === 'Unknown Architect') {
+      alert('Please enter your name or studio as the author.');
+      return;
+    }
+    
     const newGame = createDefaultGame();
-    newGame.info.title = startTitle;
-    newGame.info.author = startAuthor;
+    newGame.info.title = startTitle.trim();
+    newGame.info.author = startAuthor.trim();
     setGame(newGame);
     setIsStarted(true);
     setIsLoaded(true);
+    // Save immediately so autosave works
+    saveGameToDB(newGame);
+  };
+
+  const handleNewGame = () => {
+    if (confirm('Start a new game? You will be prompted to save the current game.')) {
+      // Offer to save current game
+      if (confirm('Would you like to save the current game to a file before starting new?')) {
+        handleSave();
+      }
+      // Reset to splash screen
+      setIsStarted(false);
+      setIsLoaded(false);
+      setStartTitle('');
+      setStartAuthor('');
+      setHasAutoSave(false);
+      setHistory([]);
+    }
   };
 
   const handleResumeGame = async () => {
@@ -345,18 +373,19 @@ const Index = () => {
       {/* Top Toolbar */}
       <div className="h-10 bg-diesel-dark border-b border-diesel-border flex items-center justify-between shrink-0">
         <div className="flex items-center h-full">
-          {/* Logo - clickable to return to title */}
-          <button 
-            onClick={() => {
-              if (confirm('Return to title screen? Make sure to save your work first!')) {
-                setIsStarted(false);
-                setIsLoaded(false);
-              }
-            }}
-            className="flex items-center px-2 h-full border-r border-diesel-border hover:bg-diesel-rust/20 transition-colors"
-            title="Return to Title"
-          >
+          {/* Logo */}
+          <div className="flex items-center px-2 h-full border-r border-diesel-border">
             <DramatonLogo className="w-5 h-5 text-diesel-rust" />
+          </div>
+          
+          {/* New Game button */}
+          <button 
+            onClick={handleNewGame}
+            className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-green hover:bg-diesel-green/20"
+            title="New Game"
+          >
+            <FilePlus2 size={12} />
+            <span className="hidden sm:inline">New</span>
           </button>
           
           {/* Navigation tabs - compact */}
