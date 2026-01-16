@@ -191,13 +191,27 @@ serve(async (req) => {
 
     const data = await response.json();
     
+    // Check for content policy violations
+    const finishReason = data.choices?.[0]?.native_finish_reason || data.choices?.[0]?.finish_reason;
+    if (finishReason === "IMAGE_PROHIBITED_CONTENT" || finishReason === "SAFETY") {
+      console.error("Content policy violation:", finishReason);
+      return new Response(
+        JSON.stringify({ 
+          error: "Image generation blocked by content policy. Try a different pose, expression, or angle. Certain combinations (like 'Crouch' from behind) may trigger safety filters." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     // Extract the generated image
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const textResponse = data.choices?.[0]?.message?.content;
 
     if (!imageUrl) {
       console.error("No image in response:", JSON.stringify(data));
-      throw new Error("No image generated");
+      // Check if there's a specific reason
+      const reason = data.choices?.[0]?.finish_reason || "unknown";
+      throw new Error(`No image generated (reason: ${reason}). Try adjusting the pose or expression.`);
     }
 
     console.log("Image generated successfully, length:", imageUrl.length);
