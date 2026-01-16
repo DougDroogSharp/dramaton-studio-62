@@ -3,7 +3,7 @@ import { GameData, Sfx, SfxType, SfxCategory, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SFX_TYPES } from '@/constants';
-import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square } from 'lucide-react';
+import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square, Upload } from 'lucide-react';
 
 interface SfxEditorProps {
   game: GameData;
@@ -52,6 +52,16 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
     onSelect('sfx', null);
   };
 
+  // Convert blob to data URL for persistence
+  const blobToDataUrl = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
   // Audio generation using ElevenLabs
   const generateAudio = async (sfx: Sfx) => {
     const prompt = sfx.params.audioPrompt || `${sfx.type} sound effect, ${sfx.name}`;
@@ -80,24 +90,61 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
       }
 
       const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
+      // Convert to data URL for persistence in game file
+      const audioDataUrl = await blobToDataUrl(audioBlob);
       
       // Update the SFX with the generated audio
       updateSfx(sfx.id, { 
         params: { 
           ...sfx.params, 
-          audioUrl,
+          audioUrl: audioDataUrl,
           audioPrompt: prompt,
         } 
       });
       
       // Play the generated audio
-      playAudio(audioUrl, sfx.id);
+      playAudio(audioDataUrl, sfx.id);
     } catch (error) {
       console.error('Audio generation failed:', error);
       alert(error instanceof Error ? error.message : 'Failed to generate audio');
     } finally {
       setGeneratingAudio(false);
+    }
+  };
+
+  // Handle audio file upload
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>, sfx: Sfx) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('audio/')) {
+      alert('Please upload an audio file (MP3, WAV, OGG, etc.)');
+      return;
+    }
+    
+    // Validate file size (max 5MB for embedded audio)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Audio file must be under 5MB for game file embedding');
+      return;
+    }
+    
+    try {
+      const audioDataUrl = await blobToDataUrl(file);
+      
+      updateSfx(sfx.id, { 
+        params: { 
+          ...sfx.params, 
+          audioUrl: audioDataUrl,
+          audioPrompt: `Uploaded: ${file.name}`,
+        } 
+      });
+      
+      // Play the uploaded audio
+      playAudio(audioDataUrl, sfx.id);
+    } catch (error) {
+      console.error('Audio upload failed:', error);
+      alert('Failed to process audio file');
     }
   };
 
@@ -369,6 +416,22 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
           Sound Effect
         </h3>
         
+        {/* Upload or Generate options */}
+        <div className="flex gap-2 mb-4">
+          <label className={`flex-1 py-2 flex items-center justify-center gap-2 bg-diesel-panel border border-diesel-border text-diesel-steel text-sm font-bold uppercase hover:border-${accentColor} hover:text-${accentColor} transition-colors cursor-pointer`}>
+            <Upload size={14} />
+            Upload Audio
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={(e) => handleAudioUpload(e, selectedSfx)}
+              className="hidden"
+            />
+          </label>
+        </div>
+        
+        <div className="text-center text-xs text-diesel-steel mb-4">— or generate with AI —</div>
+        
         <CyberInput
           label="Audio Prompt"
           value={selectedSfx.params.audioPrompt || ''}
@@ -419,7 +482,20 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
         </div>
         
         {selectedSfx.params.audioUrl && (
-          <p className="text-xs text-diesel-green mt-2">✓ Audio generated</p>
+          <div className="mt-3 p-2 bg-diesel-black border border-diesel-green/30">
+            <p className="text-xs text-diesel-green">✓ Audio ready</p>
+            <p className="text-xs text-diesel-steel mt-1 truncate">
+              {selectedSfx.params.audioPrompt?.startsWith('Uploaded:') 
+                ? selectedSfx.params.audioPrompt 
+                : `Prompt: ${selectedSfx.params.audioPrompt}`}
+            </p>
+            <button
+              onClick={() => updateSfx(selectedSfx.id, { params: { ...selectedSfx.params, audioUrl: undefined, audioPrompt: undefined } })}
+              className="text-xs text-diesel-rust hover:text-red-400 mt-1"
+            >
+              Remove audio
+            </button>
+          </div>
         )}
       </section>
 
