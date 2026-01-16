@@ -521,48 +521,89 @@ const Index = () => {
               <div className="flex flex-col items-center gap-4 mb-6">
                 {/* Countdown Gauge - shows remaining time to :00 */}
                 <div className="relative">
-                  <svg viewBox="0 0 120 120" style={{ width: 120, height: 120 }}>
+                  {/* Tick sound indicator - subtle pulse ring */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-28 h-28 rounded-full border border-diesel-rust/30 animate-[ping_2s_ease-out_infinite]" />
+                  </div>
+                  
+                  <svg viewBox="0 0 120 120" style={{ width: 140, height: 140 }}>
                     {/* Outer ring */}
                     <circle cx="60" cy="60" r="56" fill="hsl(40 15% 15%)" stroke="hsl(40 15% 30%)" strokeWidth="4" />
                     <circle cx="60" cy="60" r="48" fill="hsl(24 8% 8%)" />
                     
-                    {/* Tick marks for 30 minutes (one per minute) */}
+                    {/* Tick marks for 30 minutes - showing elapsed vs remaining */}
                     {Array.from({ length: 30 }).map((_, i) => {
                       const tickAngle = (-135 + i * 9) * Math.PI / 180;
                       const isMajor = i % 5 === 0;
-                      const x1 = 60 + Math.cos(tickAngle) * (isMajor ? 38 : 42);
-                      const y1 = 60 + Math.sin(tickAngle) * (isMajor ? 38 : 42);
+                      const x1 = 60 + Math.cos(tickAngle) * (isMajor ? 36 : 40);
+                      const y1 = 60 + Math.sin(tickAngle) * (isMajor ? 36 : 40);
                       const x2 = 60 + Math.cos(tickAngle) * 46;
                       const y2 = 60 + Math.sin(tickAngle) * 46;
+                      
+                      // Calculate elapsed minutes since rest started (at :31)
+                      const elapsedMinutes = minutes - 31;
+                      // Tick is "used up" if its index is less than elapsed time
+                      const isElapsed = i <= elapsedMinutes;
+                      
                       return (
                         <line 
                           key={i} 
                           x1={x1} y1={y1} x2={x2} y2={y2} 
-                          stroke={i < (60 - minutes) ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)'} 
+                          stroke={isElapsed ? 'hsl(40 15% 25%)' : (i > 24 ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)')} 
                           strokeWidth={isMajor ? 2.5 : 1.5} 
+                          opacity={isElapsed ? 0.4 : 1}
                         />
                       );
                     })}
                     
-                    {/* Needle - points to remaining minutes */}
-                    <g transform={`rotate(${-135 + ((60 - minutes) / 30) * 270} 60 60)`}>
-                      <polygon points="60,18 57,60 60,68 63,60" fill="hsl(15 70% 50%)" />
+                    {/* Numbers at major positions */}
+                    {[0, 10, 20, 30].map((num) => {
+                      const tickAngle = (-135 + (num / 30) * 270) * Math.PI / 180;
+                      const x = 60 + Math.cos(tickAngle) * 30;
+                      const y = 60 + Math.sin(tickAngle) * 30 + 3;
+                      return (
+                        <text key={num} x={x} y={y} textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="8" fontFamily="monospace">
+                          {30 - num}
+                        </text>
+                      );
+                    })}
+                    
+                    {/* Needle - points to remaining minutes with tick animation */}
+                    <g 
+                      transform={`rotate(${-135 + ((30 - (60 - minutes)) / 30) * 270} 60 60)`}
+                      style={{ 
+                        transformOrigin: '60px 60px',
+                        animation: 'needleTick 1s ease-out infinite'
+                      }}
+                    >
+                      <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" />
+                      {/* Needle glow */}
+                      <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" opacity="0.5" filter="url(#needleGlow)" />
                     </g>
+                    
+                    {/* Glow filter for needle */}
+                    <defs>
+                      <filter id="needleGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2" result="blur" />
+                      </filter>
+                    </defs>
                     
                     {/* Center cap */}
                     <circle cx="60" cy="60" r="8" fill="hsl(40 15% 35%)" />
                     <circle cx="60" cy="60" r="5" fill="hsl(40 15% 45%)" />
+                    <circle cx="60" cy="60" r="2" fill="hsl(15 70% 45%)" className="animate-pulse" />
                     
                     {/* Label */}
-                    <text x="60" y="90" textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="10" fontFamily="monospace">
-                      REMAINING
+                    <text x="60" y="95" textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="9" fontFamily="monospace">
+                      MIN REMAINING
                     </text>
                   </svg>
                 </div>
                 
                 {/* Digital countdown */}
-                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums">
-                  {String(60 - minutes).padStart(2, '0')}<span className="text-2xl text-diesel-steel ml-1">min</span>
+                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums flex items-baseline">
+                  <span className="animate-[pulse_2s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
+                  <span className="text-2xl text-diesel-steel ml-2">min</span>
                 </div>
               </div>
               

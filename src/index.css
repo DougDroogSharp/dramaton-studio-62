@@ -207,3 +207,11 @@
   50% { width: 100%; opacity: 0.8; }
   100% { width: 0%; opacity: 1; }
 }
+
+/* Needle tick animation */
+@keyframes needleTick {
+  0%, 85% { transform: rotate(0deg); }
+  90% { transform: rotate(-1deg); }
+  95% { transform: rotate(0.5deg); }
+  100% { transform: rotate(0deg); }
+}
