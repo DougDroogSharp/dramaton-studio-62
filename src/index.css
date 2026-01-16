@@ -80,15 +80,22 @@
 }
 
 @layer utilities {
-  /* Scrollbar Styling */
+  /* Scrollbar Styling - Visible and always shown */
+  .custom-scrollbar {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--diesel-border)) hsl(var(--diesel-black));
+  }
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 12px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: hsl(var(--diesel-black));
+    background: hsl(var(--diesel-dark));
+    border-left: 1px solid hsl(var(--diesel-border));
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--diesel-border));
+    background: hsl(var(--diesel-steel));
+    border: 2px solid hsl(var(--diesel-dark));
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--diesel-gold));
