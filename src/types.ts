@@ -58,6 +58,15 @@ export interface StageElement {
   balloonType?: 'SPEECH' | 'THOUGHT';
 }
 
+export interface SceneAudio {
+  id: string;
+  name: string;
+  type: 'bgm' | 'ambience' | 'sfx';
+  url: string;  // URL to audio file (stored in blob storage)
+  loop: boolean;
+  volume: number;
+}
+
 export interface Scene {
   id: string;
   name: string;
@@ -65,6 +74,7 @@ export interface Scene {
   dropId?: string;
   stage?: StageElement[];
   script?: string;
+  audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
 }
 
