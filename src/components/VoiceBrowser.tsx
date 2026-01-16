@@ -186,58 +186,55 @@ export const VoiceBrowser: React.FC<VoiceBrowserProps> = ({ currentVoiceId, onSe
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2">
             {filteredVoices.map(voice => (
               <div
                 key={voice.voice_id}
-                className={`flex items-center gap-3 p-3 bg-diesel-black border transition-colors ${
+                className={`flex flex-col p-2 bg-diesel-black border transition-colors ${
                   currentVoiceId === voice.voice_id 
                     ? 'border-diesel-gold' 
                     : 'border-diesel-border hover:border-diesel-steel'
                 }`}
               >
-                {/* Play button */}
-                <button
-                  onClick={() => playPreview(voice)}
-                  disabled={previewLoading === voice.voice_id}
-                  className="w-10 h-10 flex items-center justify-center bg-diesel-panel border border-diesel-border hover:border-diesel-gold transition-colors"
-                >
-                  {previewLoading === voice.voice_id ? (
-                    <Loader2 size={16} className="animate-spin text-diesel-gold" />
-                  ) : playingId === voice.voice_id ? (
-                    <Square size={14} className="text-diesel-rust" />
-                  ) : (
-                    <Play size={14} className="text-diesel-green ml-0.5" />
-                  )}
-                </button>
-
                 {/* Voice info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-diesel-paper font-bold truncate">{voice.name}</span>
-                    {currentVoiceId === voice.voice_id && (
-                      <Check size={14} className="text-diesel-green shrink-0" />
-                    )}
-                  </div>
-                  <div className="text-xs text-diesel-steel capitalize">
-                    {voice.category}
-                    {voice.labels?.accent && ` • ${voice.labels.accent}`}
-                    {voice.labels?.gender && ` • ${voice.labels.gender}`}
-                  </div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  {currentVoiceId === voice.voice_id && (
+                    <Check size={12} className="text-diesel-green shrink-0" />
+                  )}
+                  <span className="text-diesel-paper text-xs font-bold truncate flex-1">{voice.name}</span>
+                </div>
+                <div className="text-[10px] text-diesel-steel capitalize truncate mb-2">
+                  {voice.category}
+                  {voice.labels?.accent && ` • ${voice.labels.accent}`}
                 </div>
 
-                {/* Select button */}
-                <button
-                  onClick={() => handleSelect(voice)}
-                  disabled={previewLoading === voice.voice_id}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase ${
-                    currentVoiceId === voice.voice_id
-                      ? 'bg-diesel-gold/20 border border-diesel-gold text-diesel-gold'
-                      : 'bg-diesel-panel border border-diesel-border text-diesel-steel hover:text-diesel-paper hover:border-diesel-paper'
-                  } disabled:opacity-50`}
-                >
-                  {previewLoading === voice.voice_id ? 'Loading...' : currentVoiceId === voice.voice_id ? 'Selected' : 'Select'}
-                </button>
+                {/* Buttons row */}
+                <div className="flex gap-1 mt-auto">
+                  <button
+                    onClick={() => playPreview(voice)}
+                    disabled={previewLoading === voice.voice_id}
+                    className="flex-1 h-7 flex items-center justify-center gap-1 bg-diesel-panel border border-diesel-border hover:border-diesel-gold transition-colors text-[10px]"
+                  >
+                    {previewLoading === voice.voice_id ? (
+                      <Loader2 size={12} className="animate-spin text-diesel-gold" />
+                    ) : playingId === voice.voice_id ? (
+                      <Square size={10} className="text-diesel-rust" />
+                    ) : (
+                      <Play size={10} className="text-diesel-green" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleSelect(voice)}
+                    disabled={previewLoading === voice.voice_id}
+                    className={`flex-1 h-7 text-[10px] font-bold uppercase ${
+                      currentVoiceId === voice.voice_id
+                        ? 'bg-diesel-gold/20 border border-diesel-gold text-diesel-gold'
+                        : 'bg-diesel-panel border border-diesel-border text-diesel-steel hover:text-diesel-paper hover:border-diesel-paper'
+                    } disabled:opacity-50`}
+                  >
+                    {currentVoiceId === voice.voice_id ? '✓' : 'Select'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
