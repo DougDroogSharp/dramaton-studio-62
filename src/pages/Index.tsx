@@ -167,11 +167,11 @@ const Index = () => {
 
   const navItems = [
     { type: 'settings' as const, icon: Settings, label: 'Settings', color: 'text-diesel-gold' },
-    { type: 'actor' as const, icon: User, label: 'Actors', color: 'text-diesel-gold', count: game.actors.length },
-    { type: 'scene' as const, icon: Video, label: 'Scenes', color: 'text-diesel-rust', count: game.scenes.length },
-    { type: 'drop' as const, icon: Monitor, label: 'Drops', color: 'text-diesel-paper', count: game.drops.length },
-    { type: 'item' as const, icon: Package, label: 'Items', color: 'text-diesel-gold', count: game.items.length },
-    { type: 'sfx' as const, icon: Music, label: 'SFX', color: 'text-diesel-green', count: game.sfx.length },
+    { type: 'actor' as const, icon: User, label: 'Actors', color: 'text-diesel-gold', count: game?.actors?.length ?? 0 },
+    { type: 'scene' as const, icon: Video, label: 'Scenes', color: 'text-diesel-rust', count: game?.scenes?.length ?? 0 },
+    { type: 'drop' as const, icon: Monitor, label: 'Drops', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
+    { type: 'item' as const, icon: Package, label: 'Items', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
+    { type: 'sfx' as const, icon: Music, label: 'SFX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
   ];
 
   // ═══════════════════════════════════════════════════════════════
