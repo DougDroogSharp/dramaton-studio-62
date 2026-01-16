@@ -4,6 +4,46 @@ import { CyberSlider } from '@/components/CyberSlider';
 import { Plus, Trash2, Upload, Key, X } from 'lucide-react';
 import { useState } from 'react';
 import { POSES, EXPRESSIONS } from '@/constants';
+import { toast } from 'sonner';
+
+// Compress image to reduce AI token usage
+const compressImage = (file: File, maxDimension: number = 512): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        
+        // Scale down if needed
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Use JPEG for smaller file size
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 
 interface SettingsEditorProps {
   game: GameData;
@@ -35,15 +75,28 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
     updateInfo({ worldState });
   };
 
-  const handleStyleGuideUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStyleGuideUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      updateInfo({ styleGuide: ev.target?.result as string });
-    };
-    reader.readAsDataURL(file);
+    const originalSizeKB = file.size / 1024;
+    
+    try {
+      toast.info('Compressing style guide...');
+      const compressed = await compressImage(file, 512);
+      const compressedSizeKB = compressed.length * 0.75 / 1024; // base64 overhead
+      
+      updateInfo({ styleGuide: compressed });
+      toast.success(`Style guide uploaded (${Math.round(originalSizeKB)}KB → ~${Math.round(compressedSizeKB)}KB)`);
+    } catch (err) {
+      console.error('Compression failed:', err);
+      // Fallback to uncompressed
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        updateInfo({ styleGuide: ev.target?.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
