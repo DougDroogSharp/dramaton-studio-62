@@ -272,12 +272,21 @@ NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrou
   // Item Detail View
   return (
     <div className="space-y-6">
-      <button
-        onClick={() => onSelect('item', null)}
-        className="text-sm text-diesel-steel hover:text-diesel-gold flex items-center gap-1"
-      >
-        ← Back to Items
-      </button>
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => onSelect('item', null)}
+          className="text-sm text-diesel-steel hover:text-diesel-gold flex items-center gap-1"
+        >
+          ← Back to Items
+        </button>
+        <button
+          onClick={createItem}
+          className="flex items-center gap-2 px-3 py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 transition-colors"
+        >
+          <Plus size={12} />
+          Add Item
+        </button>
+      </div>
       
       {/* Basic Info */}
       <section>
