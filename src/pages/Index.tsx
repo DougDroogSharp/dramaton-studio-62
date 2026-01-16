@@ -495,38 +495,38 @@ const Index = () => {
         )}
       </div>
       
-      {/* Pacing Protocol Overlay */}
+      {/* Pacing Protocol Overlay - Restful blue theme */}
       {isRestPeriod && (
-        <div className="fixed inset-0 z-50 bg-diesel-black/95 flex items-center justify-center backdrop-blur-sm overflow-hidden">
-          {/* Background gears */}
+        <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden">
+          {/* Background gears - slow, calming rotation */}
           <Gear 
             size={400} 
             teeth={20} 
-            className="absolute -top-32 -left-32 text-diesel-rust opacity-10 animate-[spin_120s_linear_infinite]" 
+            className="absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]" 
           />
           <Gear 
             size={350} 
             teeth={18} 
-            className="absolute -bottom-32 -right-32 text-diesel-rust opacity-10 animate-[spin_100s_linear_infinite_reverse]" 
+            className="absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]" 
           />
           
-          <IndustrialPanel className="max-w-md" glowing>
+          <IndustrialPanel className="max-w-md border-[hsl(210,40%,30%)] bg-[hsl(220,25%,12%)]/90" glowing>
             <div className="text-center">
-              {/* Compact header */}
+              {/* Compact header - cool blue tones */}
               <div className="flex items-center justify-center gap-3 mb-3">
                 <div className="relative">
-                  <div className="absolute inset-0 blur-xl bg-diesel-rust/40 rounded-full animate-pulse" />
-                  <DramatonLogo className="relative w-16 h-16 text-diesel-rust animate-pulse drop-shadow-[0_0_20px_hsl(15,70%,45%,0.6)]" />
+                  <div className="absolute inset-0 blur-xl bg-[hsl(210,50%,45%)]/30 rounded-full animate-[pulse_4s_ease-in-out_infinite]" />
+                  <DramatonLogo className="relative w-16 h-16 text-[hsl(210,50%,55%)] animate-[pulse_4s_ease-in-out_infinite] drop-shadow-[0_0_20px_hsl(210,50%,50%,0.4)]" />
                 </div>
-                <h2 className="text-2xl font-bold text-diesel-rust tracking-widest glitch-text">
-                  PACING PROTOCOL
+                <h2 className="text-2xl font-bold text-[hsl(210,40%,65%)] tracking-widest">
+                  REST PERIOD
                 </h2>
               </div>
               
-              <ArtDecoDivider width={250} className="text-diesel-rust mx-auto mb-3" />
+              <ArtDecoDivider width={250} className="text-[hsl(210,40%,40%)] mx-auto mb-3" />
               
-              <p className="text-diesel-steel text-sm mb-4">
-                Mandatory rest period. Resume at top of hour.
+              <p className="text-[hsl(210,20%,60%)] text-sm mb-4">
+                Take a moment to breathe. Resume at top of hour.
               </p>
               
               {/* Timer display - hourglass beside countdown */}
@@ -534,21 +534,21 @@ const Index = () => {
                 {/* Hourglass */}
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-24 h-36 bg-diesel-gold/10 blur-xl rounded-full animate-pulse" />
+                    <div className="w-24 h-36 bg-[hsl(210,50%,50%)]/10 blur-xl rounded-full animate-[pulse_5s_ease-in-out_infinite]" />
                   </div>
                   <Hourglass remainingMinutes={Math.max(0, Math.min(30, 60 - minutes))} />
                 </div>
                 
-                {/* Digital countdown */}
+                {/* Digital countdown - calm blue */}
                 <div className="flex flex-col items-start">
-                  <div className="text-7xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums">
-                    <span className="animate-[pulse_2s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
+                  <div className="text-7xl font-mono text-[hsl(210,50%,65%)] drop-shadow-[0_0_20px_hsl(210,50%,55%,0.4)] tabular-nums">
+                    <span className="animate-[pulse_4s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
                   </div>
-                  <span className="text-lg text-diesel-steel font-mono uppercase tracking-wider">minutes</span>
+                  <span className="text-lg text-[hsl(210,20%,55%)] font-mono uppercase tracking-wider">minutes</span>
                 </div>
               </div>
               
-              <p className="text-diesel-steel/60 text-xs font-mono">
+              <p className="text-[hsl(210,20%,45%)] text-xs font-mono">
                 Work window: :00 to :30 each hour
               </p>
             </div>
