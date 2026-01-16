@@ -517,13 +517,53 @@ const Index = () => {
                 Editor access will resume at the top of the hour.
               </p>
               
-              {/* Timer display with gauges */}
-              <div className="flex items-center justify-center gap-6 mb-6">
-                <Gauge value={(60 - minutes) / 30} label="TIME" className="opacity-80" />
-                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)]">
-                  {60 - minutes}<span className="text-2xl text-diesel-steel">min</span>
+              {/* Timer display - single countdown gauge */}
+              <div className="flex flex-col items-center gap-4 mb-6">
+                {/* Countdown Gauge - shows remaining time to :00 */}
+                <div className="relative">
+                  <svg viewBox="0 0 120 120" style={{ width: 120, height: 120 }}>
+                    {/* Outer ring */}
+                    <circle cx="60" cy="60" r="56" fill="hsl(40 15% 15%)" stroke="hsl(40 15% 30%)" strokeWidth="4" />
+                    <circle cx="60" cy="60" r="48" fill="hsl(24 8% 8%)" />
+                    
+                    {/* Tick marks for 30 minutes (one per minute) */}
+                    {Array.from({ length: 30 }).map((_, i) => {
+                      const tickAngle = (-135 + i * 9) * Math.PI / 180;
+                      const isMajor = i % 5 === 0;
+                      const x1 = 60 + Math.cos(tickAngle) * (isMajor ? 38 : 42);
+                      const y1 = 60 + Math.sin(tickAngle) * (isMajor ? 38 : 42);
+                      const x2 = 60 + Math.cos(tickAngle) * 46;
+                      const y2 = 60 + Math.sin(tickAngle) * 46;
+                      return (
+                        <line 
+                          key={i} 
+                          x1={x1} y1={y1} x2={x2} y2={y2} 
+                          stroke={i < (60 - minutes) ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)'} 
+                          strokeWidth={isMajor ? 2.5 : 1.5} 
+                        />
+                      );
+                    })}
+                    
+                    {/* Needle - points to remaining minutes */}
+                    <g transform={`rotate(${-135 + ((60 - minutes) / 30) * 270} 60 60)`}>
+                      <polygon points="60,18 57,60 60,68 63,60" fill="hsl(15 70% 50%)" />
+                    </g>
+                    
+                    {/* Center cap */}
+                    <circle cx="60" cy="60" r="8" fill="hsl(40 15% 35%)" />
+                    <circle cx="60" cy="60" r="5" fill="hsl(40 15% 45%)" />
+                    
+                    {/* Label */}
+                    <text x="60" y="90" textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="10" fontFamily="monospace">
+                      REMAINING
+                    </text>
+                  </svg>
                 </div>
-                <Gauge value={0.1} label="WORK" className="opacity-80" />
+                
+                {/* Digital countdown */}
+                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums">
+                  {String(60 - minutes).padStart(2, '0')}<span className="text-2xl text-diesel-steel ml-1">min</span>
+                </div>
               </div>
               
               <p className="text-diesel-steel/60 text-xs font-mono">
