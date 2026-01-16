@@ -498,19 +498,19 @@ const Index = () => {
       {/* Pacing Protocol Overlay - Restful blue theme */}
       {isRestPeriod && (
         <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden">
-          {/* Background gears - slow, calming rotation */}
+          {/* Background gears - hidden on mobile */}
           <Gear 
             size={400} 
             teeth={20} 
-            className="absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]" 
+            className="hidden md:block absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]" 
           />
           <Gear 
             size={350} 
             teeth={18} 
-            className="absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]" 
+            className="hidden md:block absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]" 
           />
           
-          <IndustrialPanel className="max-w-md border-[hsl(210,40%,30%)] bg-[hsl(220,25%,12%)]/90" glowing>
+          <div className="max-w-md mx-4 p-6 bg-[hsl(220,25%,12%)]/95 border border-[hsl(210,40%,30%)] rounded-sm shadow-[0_0_40px_hsl(210,50%,30%,0.2)]">
             <div className="text-center">
               {/* Compact header - cool blue tones */}
               <div className="flex items-center justify-center gap-3 mb-3">
@@ -552,7 +552,7 @@ const Index = () => {
                 Work window: :00 to :30 each hour
               </p>
             </div>
-          </IndustrialPanel>
+          </div>
         </div>
       )}
     </div>
