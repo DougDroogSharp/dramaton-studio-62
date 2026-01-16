@@ -41,6 +41,7 @@ const Index = () => {
   
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
+  const [didSaveOnProtocolStart, setDidSaveOnProtocolStart] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +62,9 @@ const Index = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Derive rest period status
+  const isRestPeriod = minutes > 30; // 31-59 is rest time
+
   // Autosave when editing (respects Pacing Protocol)
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave) {
@@ -71,6 +75,7 @@ const Index = () => {
         
         if (!isResting) {
           saveGameToDB(game);
+          setDidSaveOnProtocolStart(false); // Reset flag when not resting
         } else {
           console.log("Autosave skipped: Pacing Protocol Active");
         }
@@ -79,8 +84,18 @@ const Index = () => {
     }
   }, [game, isLoaded]);
   
-  // Derive rest period status
-  const isRestPeriod = minutes > 30; // 31-59 is rest time
+  // Save once when Pacing Protocol starts
+  useEffect(() => {
+    if (isLoaded && game.info.enableAutosave && isRestPeriod && !didSaveOnProtocolStart) {
+      saveGameToDB(game);
+      setDidSaveOnProtocolStart(true);
+      console.log("Auto-saved on Pacing Protocol start");
+    }
+    // Reset flag when rest period ends
+    if (!isRestPeriod && didSaveOnProtocolStart) {
+      setDidSaveOnProtocolStart(false);
+    }
+  }, [isRestPeriod, isLoaded, game, didSaveOnProtocolStart]);
 
   const handleStartGame = () => {
     // Validate title and author are not default/empty
