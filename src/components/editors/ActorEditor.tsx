@@ -3,7 +3,7 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Play, Sparkles, Loader2, Camera, AlertTriangle, X, ZoomIn, Lock } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Loader2, Camera, X, ZoomIn, Lock, Wand2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -17,11 +17,18 @@ interface ActorEditorProps {
 
 export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
-  const [generatingGraphic, setGeneratingGraphic] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
-  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
-  const [promptOverride, setPromptOverride] = useState<Record<string, string>>({});
+  const [styleLock, setStyleLock] = useState(true);
+  
+  // Generator state
+  const [genPose, setGenPose] = useState('Neutral');
+  const [genExpression, setGenExpression] = useState('Neutral');
+  const [genAngle, setGenAngle] = useState(0);
+  const [genPrompt, setGenPrompt] = useState('');
+  const [generatedPreview, setGeneratedPreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
 
   // Combine default poses/expressions with custom ones from settings
   const allPoses = [...POSES, ...(game.info.customPoses || [])];
@@ -301,18 +308,48 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
     });
   };
 
-  const generateGraphic = async (actorId: string, graphicId: string) => {
-    const actor = game.actors.find(a => a.id === actorId);
-    const graphic = actor?.graphics.find(g => g.id === graphicId);
-    if (!actor || !graphic) return;
+  // Build prompt for generator (uses generator state, not a stored graphic)
+  const buildGeneratorPrompt = (actor: Actor): string => {
+    const isCloseup = genPose === 'Closeup';
+    const frameInstruction = isCloseup 
+      ? 'CLOSE-UP SHOT focusing on face and upper shoulders' 
+      : 'FULL BODY SHOT from head to toe';
+    
+    const angleDescription = getAngleDescription(genAngle);
+    
+    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
 
-    setGeneratingGraphic(graphicId);
+POSE & EXPRESSION:
+- Pose: ${genPose}
+- Expression: ${genExpression}
+- Camera Angle: ${angleDescription}
+
+FRAMING: ${frameInstruction}
+
+ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+
+CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
+
+NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+
+    if (styleLock) {
+      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+    }
+    
+    return prompt;
+  };
+
+  // Generate a new pose preview (doesn't add to library yet)
+  const handleGeneratePreview = async () => {
+    if (!selectedActor) return;
+    
+    setIsGenerating(true);
     toast.info('Generating character graphic...');
+    
+    // Use custom prompt if edited, otherwise build from parameters
+    const finalPrompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
 
     try {
-      // Use override prompt if provided, otherwise build from settings
-      const finalPrompt = promptOverride[graphicId]?.trim() || buildGraphicPrompt(actor, graphic);
-
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
         {
@@ -324,10 +361,10 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
           },
           body: JSON.stringify({
             prompt: finalPrompt,
-            referenceImageCloseUp: actor.referenceImageCloseUp,
-            referenceImageFullBody: actor.referenceImageFullBody,
+            referenceImageCloseUp: selectedActor.referenceImageCloseUp,
+            referenceImageFullBody: selectedActor.referenceImageFullBody,
             styleGuide,
-            enforceStyleGuide: styleLock && !promptOverride[graphicId]?.trim(),
+            enforceStyleGuide: styleLock && !genPrompt.trim(),
           }),
         }
       );
@@ -339,22 +376,99 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
 
       const data = await response.json();
       if (data.imageUrl) {
-        // Apply chroma-key background removal
         toast.info('Removing background...');
         const transparentImage = await removeBackgroundGlobal(data.imageUrl);
-        updateGraphic(actorId, graphicId, { 
-          image: transparentImage,
-          generatedPrompt: finalPrompt, // Store the full prompt used
-        });
-        toast.success('Character graphic generated!');
+        setGeneratedPreview(transparentImage);
+        toast.success('Preview generated! Edit or commit to library.');
       } else {
-        throw new Error('No image returned from generation');
+        throw new Error('No image returned');
       }
     } catch (err) {
       console.error('Generation error:', err);
       toast.error(err instanceof Error ? err.message : 'Generation failed');
     } finally {
-      setGeneratingGraphic(null);
+      setIsGenerating(false);
+    }
+  };
+
+  // Edit the current preview with AI
+  const handleEditPreview = async () => {
+    if (!generatedPreview || !editPrompt.trim()) {
+      toast.error('Enter edit instructions');
+      return;
+    }
+    
+    setIsEditing(true);
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: editPrompt,
+            existingImage: generatedPreview,
+            editMode: true,
+            styleGuide,
+            enforceStyleGuide: styleLock,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Edit failed');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        toast.info('Removing background...');
+        const transparentImage = await removeBackgroundGlobal(data.imageUrl);
+        setGeneratedPreview(transparentImage);
+        setEditPrompt('');
+        toast.success('Image edited!');
+      }
+    } catch (err) {
+      console.error('Edit error:', err);
+      toast.error(err instanceof Error ? err.message : 'Edit failed');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Commit the preview to the pose library
+  const handleCommitToLibrary = () => {
+    if (!selectedActor || !generatedPreview) return;
+    
+    const newGraphic: ActorGraphic = {
+      id: `graphic_${Date.now()}`,
+      pose: genPose,
+      expression: genExpression,
+      angle: genAngle,
+      image: generatedPreview,
+      generatedPrompt: genPrompt.trim() || buildGeneratorPrompt(selectedActor),
+    };
+    
+    updateActor(selectedActor.id, { 
+      graphics: [...selectedActor.graphics, newGraphic] 
+    });
+    
+    // Reset generator
+    setGeneratedPreview(null);
+    setGenPrompt('');
+    setEditPrompt('');
+    toast.success('Pose added to library!');
+  };
+
+  // Reset prompt to auto-generated
+  const resetPrompt = () => {
+    if (selectedActor) {
+      setGenPrompt(buildGeneratorPrompt(selectedActor));
     }
   };
 
@@ -462,199 +576,210 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
         />
       )}
 
-      {/* Graphics */}
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest border-b border-diesel-border pb-2 flex-1">
-            Graphics ({selectedActor.graphics.length})
-          </h3>
-          <button
-            onClick={() => addGraphic(selectedActor.id)}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-          >
-            <Plus size={12} />
-            Add
-          </button>
-        </div>
+      {/* Pose Generator */}
+      <section className="bg-diesel-black border border-diesel-gold/50 p-4">
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-gold/30 pb-2">
+          <Sparkles size={14} className="inline mr-2" />
+          Pose Generator
+        </h3>
         
         {/* Style Lock Toggle */}
         <button
           onClick={() => setStyleLock(!styleLock)}
-          className={`flex items-center gap-2 w-full mb-4 py-2 px-3 border text-sm font-bold uppercase transition-colors ${
+          className={`flex items-center gap-2 w-full mb-3 py-2 px-3 border text-xs font-bold uppercase transition-colors ${
             styleLock 
               ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
               : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
           }`}
         >
-          <Lock size={14} />
-          <span className="flex-1 text-left">Adhere to Style Guide</span>
-          <span className={`text-xs ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+          <Lock size={12} />
+          <span className="flex-1 text-left">Style Lock</span>
+          <span className={`text-[10px] ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
             {styleLock ? 'ON' : 'OFF'}
           </span>
         </button>
-        {styleLock && (
-          <p className="text-xs text-diesel-gold/70 mb-4 -mt-2">
-            Bold black outline, simple fill colors, no shading, light interior detail lines
-          </p>
-        )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {selectedActor.graphics.map((graphic, idx) => (
-            <div key={graphic.id} className="bg-diesel-black border border-diesel-border p-3">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] text-diesel-steel font-mono">#{idx + 1}</span>
-                <button
-                  onClick={() => deleteGraphic(selectedActor.id, graphic.id)}
-                  className="text-diesel-rust hover:text-red-400"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-              
-              {/* Compact dropdowns */}
-              <div className="grid grid-cols-3 gap-1 mb-2">
-                <select
-                  value={graphic.pose}
-                  onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { pose: e.target.value })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold truncate"
-                >
-                  {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <select
-                  value={graphic.expression}
-                  onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { expression: e.target.value })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold truncate"
-                >
-                  {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-                <select
-                  value={graphic.angle}
-                  onChange={(e) => updateGraphic(selectedActor.id, graphic.id, { angle: Number(e.target.value) })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-1.5 focus:outline-none focus:border-diesel-gold"
-                >
-                  {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
-                </select>
-              </div>
-              
-              {/* Full Prompt Editor Toggle - collapsed by default */}
-              <div className="mb-2">
-                <button
-                  onClick={() => {
-                    if (editingPromptId !== graphic.id) {
-                      setPromptOverride(prev => ({
-                        ...prev,
-                        [graphic.id]: buildGraphicPrompt(selectedActor, graphic)
-                      }));
-                      setEditingPromptId(graphic.id);
-                    } else {
-                      setEditingPromptId(null);
-                    }
-                  }}
-                  className="text-[10px] text-diesel-steel hover:text-diesel-paper flex items-center gap-1"
-                >
-                  {editingPromptId === graphic.id ? '▼' : '▶'} Prompt
-                </button>
-                
-                {editingPromptId === graphic.id && (
-                  <div className="mt-1 space-y-1">
-                    <textarea
-                      value={promptOverride[graphic.id] || buildGraphicPrompt(selectedActor, graphic)}
-                      onChange={(e) => setPromptOverride(prev => ({ ...prev, [graphic.id]: e.target.value }))}
-                      className="w-full h-24 bg-diesel-black border border-diesel-gold/50 text-diesel-paper p-1.5 text-[10px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
-                    />
-                    <div className="flex gap-1 flex-wrap">
-                      <button
-                        onClick={() => setPromptOverride(prev => ({ ...prev, [graphic.id]: buildGraphicPrompt(selectedActor, graphic) }))}
-                        className="text-[10px] text-diesel-steel hover:text-diesel-paper px-1.5 py-0.5 border border-diesel-border"
-                      >
-                        Reset
-                      </button>
-                      {promptOverride[graphic.id] && promptOverride[graphic.id] !== buildGraphicPrompt(selectedActor, graphic) && (
-                        <span className="text-[10px] text-diesel-gold">✓ Custom</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {graphic.image ? (
-                <div className="relative group aspect-square">
+        {/* Parameter Selectors */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div>
+            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Pose</label>
+            <select
+              value={genPose}
+              onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
+              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
+            >
+              {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Expression</label>
+            <select
+              value={genExpression}
+              onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
+              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
+            >
+              {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Angle</label>
+            <select
+              value={genAngle}
+              onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
+              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
+            >
+              {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
+            </select>
+          </div>
+        </div>
+        
+        {/* Prompt Editor */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] text-diesel-gold uppercase">Prompt to Nano Banana</label>
+            <button 
+              onClick={resetPrompt}
+              className="text-[10px] text-diesel-steel hover:text-diesel-paper"
+            >
+              Reset
+            </button>
+          </div>
+          <textarea
+            value={genPrompt || buildGeneratorPrompt(selectedActor)}
+            onChange={(e) => setGenPrompt(e.target.value)}
+            className="w-full h-28 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-[10px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
+          />
+        </div>
+        
+        {/* Generate Button */}
+        <button
+          onClick={handleGeneratePreview}
+          disabled={isGenerating}
+          className="w-full py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              Generate Preview
+            </>
+          )}
+        </button>
+        
+        {/* Preview & Edit Area */}
+        {generatedPreview && (
+          <div className="mt-4 border-t border-diesel-border pt-4">
+            <div className="flex gap-4">
+              {/* Preview Image */}
+              <div className="w-1/2">
+                <div className="aspect-square bg-diesel-panel border border-diesel-border relative group">
                   <img 
-                    src={graphic.image} 
-                    alt="Graphic" 
-                    className="w-full h-full object-contain bg-diesel-panel cursor-pointer" 
-                    onClick={() => setPreviewImage(graphic.image)}
+                    src={generatedPreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={() => setPreviewImage(generatedPreview)}
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 pointer-events-none">
-                    <div className="pointer-events-auto flex gap-1">
-                      <button
-                        onClick={() => setPreviewImage(graphic.image)}
-                        className="p-1.5 bg-diesel-panel border border-diesel-border text-diesel-paper hover:border-diesel-gold"
-                        title="Zoom"
-                      >
-                        <ZoomIn size={12} />
-                      </button>
-                      <label className="p-1.5 bg-diesel-panel border border-diesel-border text-diesel-paper cursor-pointer hover:border-diesel-gold" title="Replace">
-                        <Upload size={12} />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
-                          className="hidden"
-                        />
-                      </label>
-                      <button
-                        onClick={() => generateGraphic(selectedActor.id, graphic.id)}
-                        disabled={generatingGraphic === graphic.id}
-                        className="p-1.5 bg-diesel-green/50 border border-diesel-green text-white hover:bg-diesel-green disabled:opacity-50"
-                        title="Regenerate"
-                      >
-                        {generatingGraphic === graphic.id ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                      </button>
-                      <button
-                        onClick={() => updateGraphic(selectedActor.id, graphic.id, { image: '' })}
-                        className="p-1.5 bg-diesel-rust/50 border border-diesel-rust text-white hover:bg-diesel-rust"
-                        title="Remove"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-1 aspect-square">
-                  <label className="flex-1 flex flex-col items-center justify-center gap-1 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                    <Image size={16} />
-                    <span className="text-[10px]">Upload</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(selectedActor.id, graphic.id, e)}
-                      className="hidden"
-                    />
-                  </label>
                   <button
-                    onClick={() => generateGraphic(selectedActor.id, graphic.id)}
-                    disabled={generatingGraphic === graphic.id}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 border border-diesel-green text-diesel-green hover:bg-diesel-green/20 transition-colors disabled:opacity-50"
+                    onClick={() => setPreviewImage(generatedPreview)}
+                    className="absolute top-1 right-1 p-1 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-gold opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    {generatingGraphic === graphic.id ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        <span className="text-[10px]">...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        <span className="text-[10px]">Generate</span>
-                      </>
-                    )}
+                    <ZoomIn size={12} />
                   </button>
                 </div>
-              )}
+              </div>
+              
+              {/* Edit Controls */}
+              <div className="w-1/2 flex flex-col gap-2">
+                <label className="text-[10px] text-diesel-gold uppercase">Fine-tune with AI</label>
+                <textarea
+                  value={editPrompt}
+                  onChange={(e) => setEditPrompt(e.target.value)}
+                  placeholder="e.g., Make the eyes bigger, add a scar..."
+                  className="flex-1 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-xs resize-none focus:outline-none focus:border-diesel-gold"
+                />
+                <button
+                  onClick={handleEditPreview}
+                  disabled={isEditing || !editPrompt.trim()}
+                  className="py-2 bg-diesel-panel border border-diesel-paper text-diesel-paper text-xs font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  {isEditing ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                  {isEditing ? 'Editing...' : 'Edit'}
+                </button>
+                
+                {/* Commit Button */}
+                <button
+                  onClick={handleCommitToLibrary}
+                  className="py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
+                >
+                  <Check size={12} />
+                  Commit to Library
+                </button>
+                
+                {/* Discard */}
+                <button
+                  onClick={() => { setGeneratedPreview(null); setEditPrompt(''); }}
+                  className="py-1 text-diesel-rust text-[10px] hover:underline"
+                >
+                  Discard
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+      </section>
+
+      {/* Pose Library */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Pose Library ({selectedActor.graphics.length})
+        </h3>
+        
+        {selectedActor.graphics.length === 0 ? (
+          <div className="text-center py-8 text-diesel-steel">
+            <User size={32} className="mx-auto mb-2 opacity-30" />
+            <p className="text-xs">No poses yet. Use the generator above!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+            {selectedActor.graphics.map((graphic) => (
+              <div key={graphic.id} className="bg-diesel-black border border-diesel-border group relative">
+                {/* Label */}
+                <div className="absolute top-0 left-0 right-0 bg-diesel-black/80 px-1 py-0.5 text-[9px] text-diesel-paper z-10 truncate">
+                  {graphic.pose} • {graphic.expression} • {graphic.angle}°
+                </div>
+                
+                {/* Image */}
+                <div className="aspect-square pt-4">
+                  {graphic.image ? (
+                    <img 
+                      src={graphic.image} 
+                      alt={`${graphic.pose} ${graphic.expression}`}
+                      className="w-full h-full object-contain cursor-pointer"
+                      onClick={() => setPreviewImage(graphic.image)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-diesel-steel">
+                      <User size={24} />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Delete on hover */}
+                <button
+                  onClick={() => deleteGraphic(selectedActor.id, graphic.id)}
+                  className="absolute top-5 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete"
+                >
+                  <Trash2 size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Reference Images */}
