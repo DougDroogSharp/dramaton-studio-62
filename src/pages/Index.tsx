@@ -10,6 +10,17 @@ import { SceneEditor } from '@/components/editors/SceneEditor';
 import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
+import { 
+  Gear, 
+  Rivet, 
+  PipeHorizontal, 
+  PipeVertical, 
+  SteamVent, 
+  CornerBracket, 
+  Gauge, 
+  ArtDecoDivider,
+  IndustrialPanel 
+} from '@/components/DieselpunkDecorations';
 
 const Index = () => {
   // Startup state
@@ -138,47 +149,128 @@ const Index = () => {
   if (!isStarted) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-diesel-black overflow-hidden relative">
+        {/* Background gears - slow rotating */}
+        <Gear 
+          size={300} 
+          teeth={16} 
+          className="absolute -top-20 -left-20 text-diesel-border opacity-20 animate-[spin_60s_linear_infinite]" 
+        />
+        <Gear 
+          size={200} 
+          teeth={12} 
+          className="absolute top-40 -left-10 text-diesel-border opacity-15 animate-[spin_45s_linear_infinite_reverse]" 
+        />
+        <Gear 
+          size={250} 
+          teeth={14} 
+          className="absolute -bottom-20 -right-20 text-diesel-border opacity-20 animate-[spin_50s_linear_infinite]" 
+        />
+        <Gear 
+          size={180} 
+          teeth={10} 
+          className="absolute bottom-40 -right-10 text-diesel-border opacity-15 animate-[spin_40s_linear_infinite_reverse]" 
+        />
+        
+        {/* Pipes */}
+        <div className="absolute top-0 left-20">
+          <PipeVertical height={200} className="opacity-40" />
+        </div>
+        <div className="absolute top-0 right-24">
+          <PipeVertical height={150} className="opacity-40" />
+        </div>
+        <div className="absolute bottom-0 left-32">
+          <PipeVertical height={180} className="opacity-40" />
+        </div>
+        <div className="absolute bottom-0 right-16">
+          <PipeVertical height={220} className="opacity-40" />
+        </div>
+        
+        {/* Steam vents */}
+        <div className="absolute top-20 left-16 opacity-60">
+          <SteamVent />
+        </div>
+        <div className="absolute top-32 right-20 opacity-60">
+          <SteamVent />
+        </div>
+        
+        {/* Gauges */}
+        <div className="absolute top-8 left-1/4 opacity-70">
+          <Gauge value={0.75} label="STEAM" />
+        </div>
+        <div className="absolute top-8 right-1/4 opacity-70">
+          <Gauge value={0.45} label="FLUX" />
+        </div>
+        
+        {/* Corner rivets pattern */}
+        <div className="absolute top-4 left-4 flex gap-8">
+          <Rivet size={16} />
+          <Rivet size={16} />
+          <Rivet size={16} />
+        </div>
+        <div className="absolute top-4 right-4 flex gap-8">
+          <Rivet size={16} />
+          <Rivet size={16} />
+          <Rivet size={16} />
+        </div>
+        <div className="absolute bottom-4 left-4 flex gap-8">
+          <Rivet size={16} />
+          <Rivet size={16} />
+          <Rivet size={16} />
+        </div>
+        <div className="absolute bottom-4 right-4 flex gap-8">
+          <Rivet size={16} />
+          <Rivet size={16} />
+          <Rivet size={16} />
+        </div>
+        
         {/* Scanline overlay */}
-        <div className="absolute inset-0 pointer-events-none z-10 opacity-20"
+        <div className="absolute inset-0 pointer-events-none z-10 opacity-10"
           style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
           }}
         />
         
         {/* Main content */}
         <div className="relative z-20 flex flex-col items-center">
-          {/* Logo */}
-          <DramatonLogo className="w-32 h-32 text-diesel-rust mb-6 animate-pulse" />
+          {/* Logo with glow */}
+          <div className="relative">
+            <div className="absolute inset-0 blur-xl bg-diesel-rust/30 rounded-full" />
+            <DramatonLogo className="relative w-36 h-36 text-diesel-rust mb-4 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
+          </div>
           
-          {/* Title */}
-          <h1 className="text-4xl md:text-5xl font-bold text-diesel-paper tracking-wider mb-2">
-            DRAMA<span className="text-diesel-rust">TON</span> 2.0
+          {/* Art deco divider */}
+          <ArtDecoDivider width={400} className="text-diesel-gold mb-4" />
+          
+          {/* Title with glitch effect */}
+          <h1 className="text-5xl md:text-6xl font-bold text-diesel-paper tracking-widest mb-2 glitch-text">
+            DRAMA<span className="text-diesel-rust drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">TON</span>
           </h1>
-          <p className="text-diesel-steel text-sm tracking-[0.3em] mb-10 uppercase">
-            Dieselpunk Narrative Architect v2.5
+          <p className="text-diesel-steel text-xs tracking-[0.4em] mb-8 uppercase font-mono">
+            ▸ Dieselpunk Narrative Architect v2.5 ◂
           </p>
           
-          {/* Startup Panel */}
-          <div className="bg-diesel-panel border border-diesel-border p-8 w-[400px] max-w-[90vw] shadow-diesel-glow">
-            {/* Resume button - only if autosave exists */}
+          {/* Industrial Panel */}
+          <IndustrialPanel className="w-[420px] max-w-[90vw]" glowing>
+            {/* Resume button */}
             {hasAutoSave && (
               <button
                 onClick={handleResumeGame}
-                className="w-full py-3 mb-6 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase tracking-widest hover:bg-diesel-green/30 transition-colors"
+                className="w-full py-3 mb-5 bg-diesel-green/20 border-2 border-diesel-green text-diesel-green font-bold uppercase tracking-widest hover:bg-diesel-green/30 transition-all hover:shadow-[0_0_20px_hsl(120,50%,45%,0.3)] flex items-center justify-center gap-3"
               >
+                <span className="text-xl">▶</span>
                 Resume Session
               </button>
             )}
             
             {/* New game inputs */}
             <CyberInput
-              label="Game Title"
+              label="Protocol Designation"
               value={startTitle}
               onChange={(e) => setStartTitle(e.target.value)}
               placeholder="Enter your game title..."
             />
             <CyberInput
-              label="Creator's Name"
+              label="Architect Identity"
               value={startAuthor}
               onChange={(e) => setStartAuthor(e.target.value)}
               placeholder="Your name or studio..."
@@ -187,18 +279,22 @@ const Index = () => {
             {/* Create button */}
             <button
               onClick={handleStartGame}
-              className="w-full py-3 mt-4 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-colors"
+              className="w-full py-3 mt-4 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-all hover:shadow-[0_0_20px_hsl(15,70%,45%,0.3)] flex items-center justify-center gap-2"
             >
-              Create New Game
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+              Initialize New Protocol
             </button>
             
             {/* Load button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-3 mt-3 bg-diesel-panel border border-diesel-border text-diesel-steel font-bold uppercase tracking-widest hover:text-diesel-paper hover:border-diesel-paper transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 mt-3 bg-diesel-panel border-2 border-diesel-border text-diesel-steel font-bold uppercase tracking-widest hover:text-diesel-paper hover:border-diesel-paper transition-all flex items-center justify-center gap-2"
             >
-              <Upload size={16} />
-              Load Game (.dram)
+              <Upload size={18} />
+              Load Archive (.dram)
             </button>
             <input
               ref={fileInputRef}
@@ -207,12 +303,20 @@ const Index = () => {
               onChange={handleLoadFile}
               className="hidden"
             />
-          </div>
+          </IndustrialPanel>
           
-          {/* Footer */}
-          <p className="text-diesel-steel/50 text-xs mt-8 tracking-widest">
-            SYSTEM STATUS: <span className="text-diesel-green">OPERATIONAL</span>
-          </p>
+          {/* Footer with blinking status */}
+          <div className="mt-8 flex items-center gap-4 text-diesel-steel/60 text-xs tracking-widest font-mono">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-diesel-green rounded-full animate-pulse" />
+              CORE: ONLINE
+            </span>
+            <span className="text-diesel-border">│</span>
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-diesel-gold rounded-full animate-pulse" />
+              NARRATIVE ENGINE: READY
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -366,24 +470,53 @@ const Index = () => {
       
       {/* Pacing Protocol Overlay */}
       {isRestPeriod && (
-        <div className="fixed inset-0 z-50 bg-diesel-black/95 flex items-center justify-center backdrop-blur-sm">
-          <div className="text-center p-8 border border-diesel-rust bg-diesel-dark/90 max-w-lg">
-            <DramatonLogo className="w-24 h-24 mx-auto mb-6 text-diesel-rust animate-pulse" />
-            <h2 className="text-3xl font-bold text-diesel-rust mb-4 tracking-widest">
-              PACING PROTOCOL ACTIVE
-            </h2>
-            <p className="text-diesel-steel mb-6 leading-relaxed">
-              Mandatory rest period in effect.<br />
-              Editor access will resume at the top of the hour.
-            </p>
-            <div className="text-5xl font-mono text-diesel-gold mb-4">
-              {60 - minutes} min
+        <div className="fixed inset-0 z-50 bg-diesel-black/95 flex items-center justify-center backdrop-blur-sm overflow-hidden">
+          {/* Background gears */}
+          <Gear 
+            size={400} 
+            teeth={20} 
+            className="absolute -top-32 -left-32 text-diesel-rust opacity-10 animate-[spin_120s_linear_infinite]" 
+          />
+          <Gear 
+            size={350} 
+            teeth={18} 
+            className="absolute -bottom-32 -right-32 text-diesel-rust opacity-10 animate-[spin_100s_linear_infinite_reverse]" 
+          />
+          
+          <IndustrialPanel className="max-w-lg" glowing>
+            <div className="text-center">
+              {/* Warning symbol */}
+              <div className="relative inline-block mb-4">
+                <div className="absolute inset-0 blur-2xl bg-diesel-rust/40 rounded-full animate-pulse" />
+                <DramatonLogo className="relative w-28 h-28 mx-auto text-diesel-rust animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.6)]" />
+              </div>
+              
+              <ArtDecoDivider width={300} className="text-diesel-rust mx-auto mb-4" />
+              
+              <h2 className="text-3xl font-bold text-diesel-rust mb-4 tracking-widest glitch-text">
+                ⚠ PACING PROTOCOL ⚠
+              </h2>
+              
+              <p className="text-diesel-steel mb-6 leading-relaxed">
+                Mandatory rest period in effect.<br />
+                Editor access will resume at the top of the hour.
+              </p>
+              
+              {/* Timer display with gauges */}
+              <div className="flex items-center justify-center gap-6 mb-6">
+                <Gauge value={(60 - minutes) / 30} label="TIME" className="opacity-80" />
+                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)]">
+                  {60 - minutes}<span className="text-2xl text-diesel-steel">min</span>
+                </div>
+                <Gauge value={0.1} label="WORK" className="opacity-80" />
+              </div>
+              
+              <p className="text-diesel-steel/60 text-xs font-mono">
+                ▸ REST ENFORCED FOR MEDICAL NECESSITY ◂<br />
+                Work window: :00 to :30 each hour
+              </p>
             </div>
-            <p className="text-diesel-steel/60 text-xs">
-              This 30-minute rest is enforced for medical necessity.<br />
-              Work resumes from :00 to :30 each hour.
-            </p>
-          </div>
+          </IndustrialPanel>
         </div>
       )}
     </div>
