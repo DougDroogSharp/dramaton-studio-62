@@ -614,14 +614,18 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
         <div className="flex gap-2 mb-3">
           <button
             onClick={() => setStyleLock(!styleLock)}
-            className={`flex items-center gap-1 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
               styleLock 
                 ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
                 : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
             }`}
+            title="When ON, generated images follow the project style guide"
           >
             <Lock size={12} />
-            {styleLock ? 'ON' : 'OFF'}
+            <span>Style Lock</span>
+            <span className={`text-[10px] ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+              {styleLock ? 'ON' : 'OFF'}
+            </span>
           </button>
           <button
             onClick={handleGeneratePreview}
