@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, SelectionState } from '@/types';
+import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
-import { SCENE_TYPES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package } from 'lucide-react';
+import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface SceneEditorProps {
   game: GameData;
@@ -12,11 +13,19 @@ interface SceneEditorProps {
   onSelect: (type: SelectionState['type'], id: string | null) => void;
 }
 
+// Graphic picker dialog state
+interface GraphicPickerState {
+  open: boolean;
+  actorId: string | null;
+  elementId: string | null; // null when adding new, set when editing existing
+}
+
 export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onChange, onSelect }) => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showScript, setShowScript] = useState(false);
+  const [graphicPicker, setGraphicPicker] = useState<GraphicPickerState>({ open: false, actorId: null, elementId: null });
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const selectedScene = selection.id 
@@ -47,6 +56,47 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const deleteScene = (id: string) => {
     onChange({ ...game, scenes: game.scenes.filter(s => s.id !== id) });
     onSelect('scene', null);
+  };
+
+  // Opens graphic picker instead of immediately adding
+  const handleAddActor = (actorId: string) => {
+    setGraphicPicker({ open: true, actorId, elementId: null });
+  };
+
+  // Called when user selects a graphic from the picker
+  const confirmGraphicSelection = (graphic: ActorGraphic | null) => {
+    if (!graphicPicker.actorId || !selectedScene) return;
+
+    if (graphicPicker.elementId) {
+      // Editing existing element
+      updateStageElement(selectedScene.id, graphicPicker.elementId, {
+        pose: graphic?.pose,
+        expression: graphic?.expression,
+        spriteAngle: graphic?.angle,
+      });
+    } else {
+      // Adding new element
+      const scene = game.scenes.find(s => s.id === selectedScene.id);
+      if (!scene) return;
+      
+      const newElement: StageElement = {
+        id: `element_${Date.now()}`,
+        assetId: graphicPicker.actorId,
+        type: 'ACTOR',
+        x: 50,
+        y: 50,
+        scale: 1,
+        zIndex: (scene.stage?.length || 0) + 1,
+        rotation: 0,
+        pose: graphic?.pose,
+        expression: graphic?.expression,
+        spriteAngle: graphic?.angle,
+      };
+      updateScene(selectedScene.id, { stage: [...(scene.stage || []), newElement] });
+      setSelectedElementId(newElement.id);
+    }
+    
+    setGraphicPicker({ open: false, actorId: null, elementId: null });
   };
 
   const addStageElement = (sceneId: string, type: StageElement['type'], assetId?: string) => {
@@ -241,11 +291,11 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               {game.actors.map(actor => (
                 <button
                   key={actor.id}
-                  onClick={() => addStageElement(selectedScene.id, 'ACTOR', actor.id)}
+                  onClick={() => handleAddActor(actor.id)}
                   className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
                 >
-                  {actor.image && (
-                    <img src={actor.image} alt="" className="w-4 h-4 rounded object-cover" />
+                  {actor.graphics[0]?.image && (
+                    <img src={actor.graphics[0].image} alt="" className="w-4 h-4 rounded object-cover" />
                   )}
                   {actor.name}
                 </button>
@@ -467,6 +517,13 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             {selectedScene.stage?.map(element => {
               const actor = element.type === 'ACTOR' ? game.actors.find(a => a.id === element.assetId) : null;
               const item = element.type === 'ITEM' ? game.items.find(i => i.id === element.assetId) : null;
+              
+              // Find the matching graphic based on pose/expression/angle stored on the element
+              const actorGraphic = actor?.graphics.find(g => 
+                g.pose === element.pose && 
+                g.expression === element.expression && 
+                g.angle === element.spriteAngle
+              ) || actor?.graphics[0]; // Fallback to first graphic
 
               return (
                 <div
@@ -481,12 +538,17 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                     zIndex: dragging === element.id ? 1000 : element.zIndex,
                   }}
                   onMouseDown={(e) => handleMouseDown(e, element.id)}
+                  onDoubleClick={() => {
+                    if (element.type === 'ACTOR' && actor) {
+                      setGraphicPicker({ open: true, actorId: actor.id, elementId: element.id });
+                    }
+                  }}
                 >
                   {element.type === 'ACTOR' && (
-                    actor?.image ? (
+                    actorGraphic?.image ? (
                       <img
-                        src={actor.image}
-                        alt={actor.name}
+                        src={actorGraphic.image}
+                        alt={actor?.name}
                         className="max-w-32 max-h-40 object-contain pointer-events-none"
                         draggable={false}
                       />
@@ -531,6 +593,103 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           </div>
         </div>
       </div>
+
+      {/* Graphic Picker Dialog */}
+      <Dialog open={graphicPicker.open} onOpenChange={(open) => !open && setGraphicPicker({ open: false, actorId: null, elementId: null })}>
+        <DialogContent className="max-w-2xl bg-diesel-dark border-diesel-border p-0 overflow-hidden">
+          <GraphicPickerContent
+            actor={game.actors.find(a => a.id === graphicPicker.actorId) || null}
+            game={game}
+            onSelect={confirmGraphicSelection}
+            onClose={() => setGraphicPicker({ open: false, actorId: null, elementId: null })}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// Graphic Picker Dialog Content
+interface GraphicPickerContentProps {
+  actor: Actor | null;
+  game: GameData;
+  onSelect: (graphic: ActorGraphic | null) => void;
+  onClose: () => void;
+}
+
+const GraphicPickerContent: React.FC<GraphicPickerContentProps> = ({ actor, game, onSelect, onClose }) => {
+  const allPoses = [...POSES, ...(game.info.customPoses || [])];
+  const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
+  
+  if (!actor) return null;
+
+  const hasGraphics = actor.graphics.length > 0;
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold text-diesel-gold uppercase tracking-widest">
+          Select Graphic for {actor.name}
+        </h2>
+        <button onClick={onClose} className="p-1 text-diesel-steel hover:text-diesel-paper">
+          <X size={20} />
+        </button>
+      </div>
+
+      {!hasGraphics ? (
+        <div className="text-center py-8 text-diesel-steel">
+          <Sparkles size={48} className="mx-auto mb-4 opacity-30" />
+          <p className="mb-2">No graphics generated for this actor yet.</p>
+          <p className="text-sm">Go to the Actor Editor to create graphics first.</p>
+          <button
+            onClick={onClose}
+            className="mt-4 px-4 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper hover:border-diesel-gold"
+          >
+            Close
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-diesel-steel mb-4">
+            Click a graphic to add it to the stage, or use dropdowns to filter.
+          </p>
+
+          {/* Graphics Grid */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-96 overflow-y-auto custom-scrollbar">
+            {actor.graphics.map(graphic => (
+              <button
+                key={graphic.id}
+                onClick={() => onSelect(graphic)}
+                className="group relative aspect-square bg-diesel-panel border border-diesel-border hover:border-diesel-gold transition-colors overflow-hidden"
+              >
+                {graphic.image ? (
+                  <img 
+                    src={graphic.image} 
+                    alt={`${graphic.pose} - ${graphic.expression}`}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-diesel-steel">
+                    <User size={32} />
+                  </div>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-diesel-black/80 px-1 py-0.5 text-[10px] text-diesel-paper text-center truncate">
+                  {graphic.pose} • {graphic.expression}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-diesel-steel hover:text-diesel-paper"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
