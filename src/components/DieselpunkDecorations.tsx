@@ -248,6 +248,151 @@ export const ArtDecoDivider: React.FC<{ className?: string; width?: number }> = 
   </svg>
 );
 
+// Vacuum Tube / Electronic Valve - Glowing glass tube
+export const VacuumTube: React.FC<{ 
+  className?: string; 
+  size?: number;
+  glowColor?: 'orange' | 'green' | 'blue';
+  pulseSpeed?: number;
+}> = ({ 
+  className = '', 
+  size = 80,
+  glowColor = 'orange',
+  pulseSpeed = 2
+}) => {
+  const colors = {
+    orange: { glow: 'hsl(25 90% 55%)', inner: 'hsl(35 100% 65%)', filament: 'hsl(40 100% 70%)' },
+    green: { glow: 'hsl(120 60% 45%)', inner: 'hsl(120 70% 55%)', filament: 'hsl(120 80% 65%)' },
+    blue: { glow: 'hsl(200 80% 50%)', inner: 'hsl(200 90% 60%)', filament: 'hsl(200 100% 70%)' },
+  };
+  const c = colors[glowColor];
+  
+  const height = size * 1.8;
+  const width = size;
+  
+  return (
+    <svg 
+      viewBox={`0 0 ${width} ${height}`} 
+      className={className} 
+      style={{ width, height }}
+    >
+      <defs>
+        {/* Glass gradient */}
+        <linearGradient id={`tubeGlass-${glowColor}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(200 10% 40%)" stopOpacity="0.3" />
+          <stop offset="20%" stopColor="hsl(200 10% 60%)" stopOpacity="0.15" />
+          <stop offset="50%" stopColor="hsl(200 10% 70%)" stopOpacity="0.1" />
+          <stop offset="80%" stopColor="hsl(200 10% 60%)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(200 10% 40%)" stopOpacity="0.3" />
+        </linearGradient>
+        
+        {/* Inner glow */}
+        <radialGradient id={`tubeGlow-${glowColor}`} cx="50%" cy="40%" r="50%">
+          <stop offset="0%" stopColor={c.inner} stopOpacity="0.8" />
+          <stop offset="40%" stopColor={c.glow} stopOpacity="0.4" />
+          <stop offset="100%" stopColor={c.glow} stopOpacity="0" />
+        </radialGradient>
+        
+        {/* Filament glow filter */}
+        <filter id={`filamentGlow-${glowColor}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      
+      {/* Base / Socket */}
+      <rect x={width * 0.2} y={height * 0.78} width={width * 0.6} height={height * 0.22} fill="hsl(40 15% 20%)" />
+      <rect x={width * 0.15} y={height * 0.75} width={width * 0.7} height={height * 0.06} fill="hsl(40 15% 30%)" />
+      <rect x={width * 0.25} y={height * 0.82} width={width * 0.5} height={height * 0.03} fill="hsl(40 15% 25%)" />
+      
+      {/* Pin contacts at bottom */}
+      {[0.3, 0.4, 0.5, 0.6, 0.7].map((xPos, i) => (
+        <rect key={i} x={width * xPos - 2} y={height * 0.95} width={4} height={height * 0.05} fill="hsl(40 30% 50%)" />
+      ))}
+      
+      {/* Glass envelope - dome top */}
+      <ellipse cx={width / 2} cy={height * 0.15} rx={width * 0.35} ry={height * 0.12} fill={`url(#tubeGlass-${glowColor})`} stroke="hsl(200 10% 50%)" strokeWidth="1" />
+      
+      {/* Glass envelope - body */}
+      <rect x={width * 0.15} y={height * 0.15} width={width * 0.7} height={height * 0.6} fill={`url(#tubeGlass-${glowColor})`} stroke="hsl(200 10% 50%)" strokeWidth="1" />
+      
+      {/* Inner glow - animated pulse */}
+      <ellipse 
+        cx={width / 2} 
+        cy={height * 0.35} 
+        rx={width * 0.25} 
+        ry={height * 0.2} 
+        fill={`url(#tubeGlow-${glowColor})`}
+        style={{ animation: `tubePulse ${pulseSpeed}s ease-in-out infinite` }}
+      />
+      
+      {/* Internal plates/grids */}
+      <rect x={width * 0.35} y={height * 0.2} width={width * 0.3} height={height * 0.35} fill="none" stroke="hsl(40 15% 35%)" strokeWidth="1.5" />
+      <rect x={width * 0.38} y={height * 0.23} width={width * 0.24} height={height * 0.29} fill="none" stroke="hsl(40 15% 30%)" strokeWidth="1" />
+      
+      {/* Grid wires */}
+      {[0.28, 0.33, 0.38, 0.43, 0.48].map((yPos, i) => (
+        <line key={i} x1={width * 0.38} y1={height * yPos} x2={width * 0.62} y2={height * yPos} stroke="hsl(40 15% 40%)" strokeWidth="0.5" />
+      ))}
+      
+      {/* Filament - glowing heater element */}
+      <path 
+        d={`M ${width * 0.42} ${height * 0.55} 
+            Q ${width * 0.45} ${height * 0.5} ${width * 0.5} ${height * 0.52}
+            Q ${width * 0.55} ${height * 0.54} ${width * 0.58} ${height * 0.5}
+            Q ${width * 0.55} ${height * 0.46} ${width * 0.5} ${height * 0.48}
+            Q ${width * 0.45} ${height * 0.5} ${width * 0.42} ${height * 0.55}`}
+        fill="none"
+        stroke={c.filament}
+        strokeWidth="2"
+        filter={`url(#filamentGlow-${glowColor})`}
+        style={{ animation: `filamentFlicker ${pulseSpeed * 0.5}s ease-in-out infinite` }}
+      />
+      
+      {/* Support wires from base */}
+      <line x1={width * 0.35} y1={height * 0.55} x2={width * 0.35} y2={height * 0.75} stroke="hsl(40 20% 45%)" strokeWidth="1" />
+      <line x1={width * 0.65} y1={height * 0.55} x2={width * 0.65} y2={height * 0.75} stroke="hsl(40 20% 45%)" strokeWidth="1" />
+      <line x1={width * 0.5} y1={height * 0.57} x2={width * 0.5} y2={height * 0.75} stroke="hsl(40 20% 45%)" strokeWidth="1" />
+      
+      {/* Glass highlight/reflection */}
+      <ellipse cx={width * 0.3} cy={height * 0.3} rx={width * 0.05} ry={height * 0.1} fill="white" opacity="0.15" />
+      
+      {/* Outer glow effect */}
+      <ellipse 
+        cx={width / 2} 
+        cy={height * 0.4} 
+        rx={width * 0.45} 
+        ry={height * 0.35} 
+        fill="none"
+        stroke={c.glow}
+        strokeWidth="1"
+        opacity="0.3"
+        style={{ animation: `tubeGlowOuter ${pulseSpeed}s ease-in-out infinite` }}
+      />
+      
+      <style>{`
+        @keyframes tubePulse {
+          0%, 100% { opacity: 0.8; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        @keyframes filamentFlicker {
+          0%, 100% { opacity: 1; }
+          25% { opacity: 0.85; }
+          50% { opacity: 1; }
+          75% { opacity: 0.9; }
+        }
+        @keyframes tubeGlowOuter {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+    </svg>
+  );
+};
+
 // Industrial Panel Border
 export const IndustrialPanel: React.FC<{ 
   children: React.ReactNode; 
