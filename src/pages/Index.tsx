@@ -224,48 +224,44 @@ const Index = () => {
   return (
     <div className="h-screen w-screen flex flex-col bg-diesel-black overflow-hidden">
       {/* Top Toolbar */}
-      <div className="h-12 bg-diesel-dark border-b border-diesel-border flex items-center justify-between px-2 shrink-0">
-        <div className="flex items-center h-full gap-1">
-          {/* Logo */}
-          <div className="flex items-center gap-2 px-3 h-full border-r border-diesel-border">
-            <DramatonLogo className="w-6 h-6 text-diesel-rust" />
-            <div className="hidden md:flex flex-col">
-              <span className="text-xs font-bold text-diesel-paper leading-none">DRAMATON</span>
-              <span className="text-[10px] text-diesel-gold font-mono leading-none">v2.5</span>
-            </div>
+      <div className="h-10 bg-diesel-dark border-b border-diesel-border flex items-center justify-between shrink-0">
+        <div className="flex items-center h-full">
+          {/* Logo - compact */}
+          <div className="flex items-center px-2 h-full border-r border-diesel-border">
+            <DramatonLogo className="w-5 h-5 text-diesel-rust" />
           </div>
           
-          {/* Navigation tabs */}
+          {/* Navigation tabs - compact */}
           {navItems.map(item => (
             <button
               key={item.type}
               onClick={() => handleSelect(item.type, null)}
-              className={`h-full px-3 flex items-center gap-1.5 text-xs font-bold uppercase transition-colors border-r border-diesel-border ${
+              className={`h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border ${
                 selection.type === item.type 
                   ? `bg-diesel-panel ${item.color}` 
                   : 'text-diesel-steel hover:text-white hover:bg-white/5'
               }`}
             >
-              <item.icon size={14} />
-              <span className="hidden lg:inline">{item.label}</span>
-              {item.count !== undefined && <span className="text-[10px] opacity-60">({item.count})</span>}
+              <item.icon size={12} />
+              <span className="hidden sm:inline">{item.label}</span>
+              {item.count !== undefined && <span className="text-[9px] opacity-60 hidden md:inline">({item.count})</span>}
             </button>
           ))}
         </div>
         
-        {/* Toolbar actions */}
-        <div className="flex items-center h-full gap-2 px-2">
-          <button onClick={handleSave} className="p-2 text-diesel-steel hover:text-white" title="Save to file">
-            <Save size={16} />
+        {/* Toolbar actions - compact */}
+        <div className="flex items-center h-full">
+          <button onClick={handleSave} className="p-1.5 text-diesel-steel hover:text-white" title="Save to file">
+            <Save size={14} />
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="p-2 text-diesel-steel hover:text-white" title="Load game">
-            <FolderOpen size={16} />
+          <button onClick={() => fileInputRef.current?.click()} className="p-1.5 text-diesel-steel hover:text-white" title="Load game">
+            <FolderOpen size={14} />
           </button>
-          <button onClick={handleUndo} disabled={history.length === 0} className="p-2 text-diesel-steel hover:text-white disabled:opacity-30" title="Undo">
-            <Undo2 size={16} />
+          <button onClick={handleUndo} disabled={history.length === 0} className="p-1.5 text-diesel-steel hover:text-white disabled:opacity-30" title="Undo">
+            <Undo2 size={14} />
           </button>
-          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-2 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
-            {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-1.5 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
+            {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
           <input
             ref={fileInputRef}
