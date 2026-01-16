@@ -279,54 +279,19 @@ const Index = () => {
       
       {/* Editor Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Check if we're in scene detail view (full-width mode) */}
-        {selection.type === 'scene' && selection.id ? (
-          /* Full-width Scene Editor */
-          <div className="w-full bg-diesel-panel overflow-hidden p-6">
-            <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
-              SCENE EDITOR
-            </h2>
-            <div className="h-[calc(100%-4rem)]">
-              <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
-            </div>
-          </div>
-        ) : (
-          /* Two-panel layout for other editors */
+        {/* Settings page: Two-panel layout with preview */}
+        {selection.type === 'settings' ? (
           <>
             {/* Editor Panel */}
             <div className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6">
               <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
-                {selection.type === 'settings' && 'GAME SETTINGS'}
-                {selection.type === 'actor' && 'ACTOR EDITOR'}
-                {selection.type === 'scene' && 'SCENE EDITOR'}
-                {selection.type === 'drop' && 'DROP EDITOR'}
-                {selection.type === 'item' && 'ITEM EDITOR'}
-                {selection.type === 'sfx' && 'SFX EDITOR'}
+                GAME SETTINGS
               </h2>
-              
-              {selection.type === 'settings' && (
-                <SettingsEditor game={game} onChange={setGame} />
-              )}
-              {selection.type === 'actor' && (
-                <ActorEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
-              )}
-              {selection.type === 'scene' && (
-                <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
-              )}
-              {selection.type === 'drop' && (
-                <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
-              )}
-              {selection.type === 'item' && (
-                <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
-              )}
-              {selection.type === 'sfx' && (
-                <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
-              )}
+              <SettingsEditor game={game} onChange={setGame} />
             </div>
             
-            {/* Preview Panel - Smaller */}
+            {/* Preview Panel */}
             <div className="hidden md:flex md:w-2/5 lg:w-1/2 xl:w-2/5 bg-diesel-black items-center justify-center relative">
-              {/* Default preview */}
               {(() => {
                 const titleScene = game.info.titleSceneId 
                   ? game.scenes.find(s => s.id === game.info.titleSceneId) 
@@ -337,7 +302,6 @@ const Index = () => {
                 
                 return (
                   <div className="w-full h-full relative bg-diesel-black">
-                    {/* Title scene background - preserve aspect ratio */}
                     {titleDrop?.image ? (
                       <img 
                         src={titleDrop.image} 
@@ -348,7 +312,6 @@ const Index = () => {
                       <div className="absolute inset-0 bg-gradient-to-b from-diesel-dark to-diesel-black" />
                     )}
                     
-                    {/* Content overlay - smaller */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center text-diesel-steel">
                         <DramatonLogo className="w-10 h-10 mx-auto mb-2 opacity-20" />
@@ -375,6 +338,33 @@ const Index = () => {
               })()}
             </div>
           </>
+        ) : (
+          /* Full-width layout for all other editors */
+          <div className="w-full bg-diesel-panel overflow-y-auto custom-scrollbar p-6">
+            <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
+              {selection.type === 'actor' && 'ACTOR EDITOR'}
+              {selection.type === 'scene' && 'SCENE EDITOR'}
+              {selection.type === 'drop' && 'DROP EDITOR'}
+              {selection.type === 'item' && 'ITEM EDITOR'}
+              {selection.type === 'sfx' && 'SFX EDITOR'}
+            </h2>
+            
+            {selection.type === 'actor' && (
+              <ActorEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            )}
+            {selection.type === 'scene' && (
+              <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === 'drop' && (
+              <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            )}
+            {selection.type === 'item' && (
+              <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            )}
+            {selection.type === 'sfx' && (
+              <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+          </div>
         )}
       </div>
       
