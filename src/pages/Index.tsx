@@ -578,10 +578,11 @@ const Index = () => {
                       const x2 = 60 + Math.cos(tickAngle) * 46;
                       const y2 = 60 + Math.sin(tickAngle) * 46;
                       
-                      // Calculate elapsed minutes since rest started (at :31)
-                      const elapsedMinutes = minutes - 31;
-                      // Tick is "used up" if its index is less than elapsed time
-                      const isElapsed = i <= elapsedMinutes;
+                      // Tick i represents "30-i" minutes remaining on the dial
+                      // A tick is elapsed if the dial position it represents > remaining minutes
+                      const remainingMinutes = 60 - minutes;
+                      const dialPositionOfRemaining = 30 - remainingMinutes;
+                      const isElapsed = i < dialPositionOfRemaining;
                       
                       return (
                         <line 
