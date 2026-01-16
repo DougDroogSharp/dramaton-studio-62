@@ -529,12 +529,21 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
   // Actor Detail View
   return (
     <div className="space-y-6">
-      <button
-        onClick={() => onSelect('actor', null)}
-        className="text-sm text-diesel-steel hover:text-diesel-gold flex items-center gap-1"
-      >
-        ← Back to Actors
-      </button>
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => onSelect('actor', null)}
+          className="text-sm text-diesel-steel hover:text-diesel-gold flex items-center gap-1"
+        >
+          ← Back to Actors
+        </button>
+        <button
+          onClick={createActor}
+          className="flex items-center gap-2 px-3 py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 transition-colors"
+        >
+          <Plus size={12} />
+          Add Actor
+        </button>
+      </div>
       
       {/* Basic Info */}
       <section>
