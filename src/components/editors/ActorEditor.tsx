@@ -462,79 +462,6 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
         />
       )}
 
-      {/* Reference Images */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Reference Images (for AI Generation)
-        </h3>
-        <p className="text-xs text-diesel-steel mb-4">
-          Upload reference photos to help the AI generate consistent character graphics.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          {/* Close-up reference */}
-          <div>
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Face / Close-up</label>
-            {selectedActor.referenceImageCloseUp ? (
-              <div className="relative group aspect-square">
-                <img 
-                  src={selectedActor.referenceImageCloseUp} 
-                  alt="Close-up reference" 
-                  className="w-full h-full object-cover border border-diesel-border"
-                />
-                <button
-                  onClick={() => updateActor(selectedActor.id, { referenceImageCloseUp: undefined })}
-                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                <Camera size={24} />
-                <span className="text-xs text-center">Upload Face<br/>Reference</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageCloseUp', e)}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
-
-          {/* Full body reference */}
-          <div>
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Full Body</label>
-            {selectedActor.referenceImageFullBody ? (
-              <div className="relative group aspect-square">
-                <img 
-                  src={selectedActor.referenceImageFullBody} 
-                  alt="Full body reference" 
-                  className="w-full h-full object-cover border border-diesel-border"
-                />
-                <button
-                  onClick={() => updateActor(selectedActor.id, { referenceImageFullBody: undefined })}
-                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                <User size={24} />
-                <span className="text-xs text-center">Upload Body<br/>Reference</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageFullBody', e)}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* Graphics */}
       <section>
         <div className="flex justify-between items-center mb-4">
@@ -733,6 +660,79 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Reference Images */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Reference Images (for AI Generation)
+        </h3>
+        <p className="text-xs text-diesel-steel mb-4">
+          Upload reference photos to help the AI generate consistent character graphics.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Close-up reference */}
+          <div>
+            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Face / Close-up</label>
+            {selectedActor.referenceImageCloseUp ? (
+              <div className="relative group aspect-square">
+                <img 
+                  src={selectedActor.referenceImageCloseUp} 
+                  alt="Close-up reference" 
+                  className="w-full h-full object-cover border border-diesel-border"
+                />
+                <button
+                  onClick={() => updateActor(selectedActor.id, { referenceImageCloseUp: undefined })}
+                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <Camera size={24} />
+                <span className="text-xs text-center">Upload Face<br/>Reference</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageCloseUp', e)}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Full body reference */}
+          <div>
+            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Full Body</label>
+            {selectedActor.referenceImageFullBody ? (
+              <div className="relative group aspect-square">
+                <img 
+                  src={selectedActor.referenceImageFullBody} 
+                  alt="Full body reference" 
+                  className="w-full h-full object-cover border border-diesel-border"
+                />
+                <button
+                  onClick={() => updateActor(selectedActor.id, { referenceImageFullBody: undefined })}
+                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <User size={24} />
+                <span className="text-xs text-center">Upload Body<br/>Reference</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleReferenceUpload(selectedActor.id, 'referenceImageFullBody', e)}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
         </div>
       </section>
 
