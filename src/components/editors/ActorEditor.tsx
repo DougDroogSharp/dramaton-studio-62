@@ -61,7 +61,15 @@ CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGH
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
     if (styleLock) {
-      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+      prompt += `
+
+MANDATORY ART STYLE (STRICTLY ENFORCE):
+- BOLD BLACK OUTLINES around all shapes
+- SIMPLE FLAT COLOR FILLS only - solid colors, NO variation within each area
+- ABSOLUTELY NO SHADING, NO gradients, NO soft shadows, NO lighting effects
+- Only a FEW THIN INTERIOR DETAIL LINES for features
+- Each color area = ONE SOLID COLOR with hard edges
+NEGATIVE: No shading, no gradients, no 3D lighting.`;
     }
     
     return prompt;
@@ -334,7 +342,15 @@ CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGH
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
     if (styleLock) {
-      prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
+      prompt += `
+
+MANDATORY ART STYLE (STRICTLY ENFORCE):
+- BOLD BLACK OUTLINES around all shapes
+- SIMPLE FLAT COLOR FILLS only - solid colors, NO variation within each area
+- ABSOLUTELY NO SHADING, NO gradients, NO soft shadows, NO lighting effects
+- Only a FEW THIN INTERIOR DETAIL LINES for features
+- Each color area = ONE SOLID COLOR with hard edges
+NEGATIVE: No shading, no gradients, no 3D lighting.`;
     }
     
     return prompt;
