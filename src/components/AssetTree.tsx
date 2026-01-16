@@ -92,11 +92,11 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
     
     const q = searchQuery.toLowerCase();
     return {
-      scenes: game.scenes.filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
-      actors: game.actors.filter(a => a.name.toLowerCase().includes(q)).map(a => a.id),
-      drops: game.drops.filter(d => d.name.toLowerCase().includes(q)).map(d => d.id),
-      items: game.items.filter(i => i.name.toLowerCase().includes(q)).map(i => i.id),
-      sfx: game.sfx.filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
+      scenes: (game?.scenes ?? []).filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
+      actors: (game?.actors ?? []).filter(a => a.name.toLowerCase().includes(q)).map(a => a.id),
+      drops: (game?.drops ?? []).filter(d => d.name.toLowerCase().includes(q)).map(d => d.id),
+      items: (game?.items ?? []).filter(i => i.name.toLowerCase().includes(q)).map(i => i.id),
+      sfx: (game?.sfx ?? []).filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
     };
   }, [searchQuery, game]);
   
@@ -197,13 +197,13 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
           <TreeNode
             label="Scenes"
             icon={<Video size={12} />}
-            count={game.scenes.length}
+            count={game?.scenes?.length ?? 0}
             depth={1}
-            defaultOpen={game.scenes.length <= 5 || searchMatches.scenes.length > 0}
+            defaultOpen={(game?.scenes?.length ?? 0) <= 5 || searchMatches.scenes.length > 0}
             color="text-diesel-rust"
             highlight={searchMatches.scenes.length > 0}
           >
-            {game.scenes.map(scene => (
+            {(game?.scenes ?? []).map(scene => (
               <TreeNode
                 key={scene.id}
                 label={scene.name}
@@ -251,13 +251,13 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
           <TreeNode
             label="Actors"
             icon={<User size={12} />}
-            count={game.actors.length}
+            count={game?.actors?.length ?? 0}
             depth={1}
-            defaultOpen={game.actors.length <= 5 || searchMatches.actors.length > 0}
+            defaultOpen={(game?.actors?.length ?? 0) <= 5 || searchMatches.actors.length > 0}
             color="text-diesel-gold"
             highlight={searchMatches.actors.length > 0}
           >
-            {game.actors.map(actor => (
+            {(game?.actors ?? []).map(actor => (
               <TreeNode
                 key={actor.id}
                 label={actor.name}
@@ -295,13 +295,13 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
           <TreeNode
             label="Drops"
             icon={<Monitor size={12} />}
-            count={game.drops.length}
+            count={game?.drops?.length ?? 0}
             depth={1}
-            defaultOpen={game.drops.length <= 5 || searchMatches.drops.length > 0}
+            defaultOpen={(game?.drops?.length ?? 0) <= 5 || searchMatches.drops.length > 0}
             color="text-diesel-paper"
             highlight={searchMatches.drops.length > 0}
           >
-            {game.drops.map(drop => (
+            {(game?.drops ?? []).map(drop => (
               <TreeNode
                 key={drop.id}
                 label={drop.name}
@@ -328,13 +328,13 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
           <TreeNode
             label="Items"
             icon={<Package size={12} />}
-            count={game.items.length}
+            count={game?.items?.length ?? 0}
             depth={1}
-            defaultOpen={game.items.length <= 5 || searchMatches.items.length > 0}
+            defaultOpen={(game?.items?.length ?? 0) <= 5 || searchMatches.items.length > 0}
             color="text-diesel-gold"
             highlight={searchMatches.items.length > 0}
           >
-            {game.items.map(item => (
+            {(game?.items ?? []).map(item => (
               <TreeNode
                 key={item.id}
                 label={item.name}
@@ -359,13 +359,13 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
           <TreeNode
             label="SFX"
             icon={<Music size={12} />}
-            count={game.sfx.length}
+            count={game?.sfx?.length ?? 0}
             depth={1}
-            defaultOpen={game.sfx.length <= 5 || searchMatches.sfx.length > 0}
+            defaultOpen={(game?.sfx?.length ?? 0) <= 5 || searchMatches.sfx.length > 0}
             color="text-diesel-green"
             highlight={searchMatches.sfx.length > 0}
           >
-            {game.sfx.map(sfx => (
+            {(game?.sfx ?? []).map(sfx => (
               <TreeNode
                 key={sfx.id}
                 label={sfx.name}
