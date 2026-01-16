@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic } from '@/types';
+import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2 } from 'lucide-react';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -30,7 +30,11 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showScript, setShowScript] = useState(false);
+  const [showAudio, setShowAudio] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   
   // Actor generator state
   const [actorGenerator, setActorGenerator] = useState<ActorGeneratorState>({
@@ -87,6 +91,78 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
       ...game,
       actors: game.actors.map(a => a.id === actorId ? { ...a, ...updates } : a),
     });
+  };
+
+  // Audio track handlers
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedScene) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const newAudio: SceneAudio = {
+        id: `audio_${Date.now()}`,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        type: 'bgm',
+        url: ev.target?.result as string,
+        loop: true,
+        volume: 0.7,
+      };
+      
+      updateScene(selectedScene.id, { 
+        audioTracks: [...(selectedScene.audioTracks || []), newAudio] 
+      });
+      toast.success(`Added audio: ${newAudio.name}`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const updateAudioTrack = (trackId: string, updates: Partial<SceneAudio>) => {
+    if (!selectedScene) return;
+    updateScene(selectedScene.id, {
+      audioTracks: selectedScene.audioTracks?.map(t => 
+        t.id === trackId ? { ...t, ...updates } : t
+      ),
+    });
+  };
+
+  const deleteAudioTrack = (trackId: string) => {
+    if (!selectedScene) return;
+    stopAudio();
+    updateScene(selectedScene.id, {
+      audioTracks: selectedScene.audioTracks?.filter(t => t.id !== trackId),
+    });
+  };
+
+  const playAudio = (track: SceneAudio) => {
+    stopAudio();
+    const audio = new Audio(track.url);
+    audio.loop = track.loop;
+    audio.volume = track.volume;
+    audio.play();
+    audioRef.current = audio;
+    setPlayingAudioId(track.id);
+    
+    audio.onended = () => {
+      if (!track.loop) {
+        setPlayingAudioId(null);
+      }
+    };
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPlayingAudioId(null);
+  };
+
+  // Generate DRAM script command for audio
+  const getAudioScriptCommand = (track: SceneAudio): string => {
+    const loopFlag = track.loop ? ' loop' : '';
+    return `[${track.type.toUpperCase()}: "${track.name}"${loopFlag} vol=${Math.round(track.volume * 100)}%]`;
   };
 
   // Opens actor generator instead of immediately adding
@@ -933,6 +1009,121 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               </section>
             )}
 
+            {/* Audio Section */}
+            <section className="bg-diesel-black border border-diesel-green/50 p-3">
+              <button
+                onClick={() => setShowAudio(!showAudio)}
+                className="flex items-center justify-between w-full text-xs font-bold text-diesel-green uppercase tracking-widest"
+              >
+                <span className="flex items-center gap-2">
+                  <Music size={14} />
+                  Audio Tracks
+                  {selectedScene.audioTracks?.length ? ` (${selectedScene.audioTracks.length})` : ''}
+                </span>
+                {showAudio ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              
+              {showAudio && (
+                <div className="mt-3 space-y-3">
+                  {/* Audio Track List */}
+                  {selectedScene.audioTracks?.map(track => (
+                    <div key={track.id} className="bg-diesel-panel border border-diesel-border p-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <input
+                          value={track.name}
+                          onChange={(e) => updateAudioTrack(track.id, { name: e.target.value })}
+                          className="flex-1 bg-transparent text-diesel-paper text-sm font-bold focus:outline-none"
+                        />
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => playingAudioId === track.id ? stopAudio() : playAudio(track)}
+                            className={`p-1 ${playingAudioId === track.id ? 'text-diesel-green' : 'text-diesel-steel hover:text-diesel-green'}`}
+                          >
+                            {playingAudioId === track.id ? <Pause size={14} /> : <Play size={14} />}
+                          </button>
+                          <button
+                            onClick={() => deleteAudioTrack(track.id)}
+                            className="p-1 text-diesel-rust hover:bg-diesel-rust/20"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={track.type}
+                          onChange={(e) => updateAudioTrack(track.id, { type: e.target.value as SceneAudio['type'] })}
+                          className="bg-diesel-dark border border-diesel-border text-diesel-paper text-xs p-1"
+                        >
+                          <option value="bgm">BGM</option>
+                          <option value="ambience">Ambience</option>
+                          <option value="sfx">SFX</option>
+                        </select>
+                        
+                        <label className="flex items-center gap-1 text-xs text-diesel-steel">
+                          <input
+                            type="checkbox"
+                            checked={track.loop}
+                            onChange={(e) => updateAudioTrack(track.id, { loop: e.target.checked })}
+                            className="accent-diesel-green"
+                          />
+                          Loop
+                        </label>
+                        
+                        <div className="flex items-center gap-1 flex-1">
+                          <Volume2 size={12} className="text-diesel-steel" />
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.1}
+                            value={track.volume}
+                            onChange={(e) => updateAudioTrack(track.id, { volume: parseFloat(e.target.value) })}
+                            className="flex-1 accent-diesel-green"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Script command preview */}
+                      <div className="bg-diesel-dark border border-diesel-border p-1.5 font-mono text-[10px] text-diesel-gold">
+                        {getAudioScriptCommand(track)}
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(getAudioScriptCommand(track));
+                            toast.success('Copied to clipboard');
+                          }}
+                          className="ml-2 text-diesel-steel hover:text-diesel-paper"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!selectedScene.audioTracks || selectedScene.audioTracks.length === 0) && (
+                    <p className="text-xs text-diesel-steel/50 italic">No audio tracks</p>
+                  )}
+                  
+                  {/* Add Audio Button */}
+                  <button
+                    onClick={() => audioInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-diesel-green/10 border border-dashed border-diesel-green/50 text-diesel-green text-xs uppercase font-bold hover:bg-diesel-green/20"
+                  >
+                    <Upload size={14} />
+                    Add Audio File
+                  </button>
+                  <input
+                    ref={audioInputRef}
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleAudioUpload}
+                    className="hidden"
+                  />
+                </div>
+              )}
+            </section>
+
             {/* Script Section */}
             <section className="bg-diesel-black border border-diesel-border p-3">
               <button
@@ -943,12 +1134,33 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                 {showScript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
               {showScript && (
-                <textarea
-                  value={selectedScene.script || ''}
-                  onChange={(e) => updateScene(selectedScene.id, { script: e.target.value })}
-                  placeholder="Write your scene script here..."
-                  className="mt-2 w-full h-32 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 font-mono resize-none focus:outline-none focus:border-diesel-rust"
-                />
+                <>
+                  {/* Quick insert audio commands */}
+                  {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
+                    <div className="mt-2 mb-2 flex flex-wrap gap-1">
+                      <span className="text-[10px] text-diesel-steel">Insert:</span>
+                      {selectedScene.audioTracks.map(track => (
+                        <button
+                          key={track.id}
+                          onClick={() => {
+                            const cmd = getAudioScriptCommand(track);
+                            const currentScript = selectedScene.script || '';
+                            updateScene(selectedScene.id, { script: currentScript + (currentScript ? '\n' : '') + cmd });
+                          }}
+                          className="px-1.5 py-0.5 bg-diesel-green/20 border border-diesel-green/50 text-diesel-green text-[10px] hover:bg-diesel-green/30"
+                        >
+                          {track.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <textarea
+                    value={selectedScene.script || ''}
+                    onChange={(e) => updateScene(selectedScene.id, { script: e.target.value })}
+                    placeholder="Write your scene script here...&#10;Use [BGM: &quot;track_name&quot; loop vol=70%] for audio"
+                    className="w-full h-32 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 font-mono resize-none focus:outline-none focus:border-diesel-rust"
+                  />
+                </>
               )}
             </section>
 
