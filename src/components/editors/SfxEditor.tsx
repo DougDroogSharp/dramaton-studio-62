@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { GameData, Sfx, SfxType, SfxCategory, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SFX_TYPES } from '@/constants';
-import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square } from 'lucide-react';
 
 interface SfxEditorProps {
   game: GameData;
@@ -14,6 +14,9 @@ interface SfxEditorProps {
 
 export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange, onSelect }) => {
   const [previewingSfx, setPreviewingSfx] = useState<string | null>(null);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const selectedSfx = selection.id 
     ? game.sfx.find(s => s.id === selection.id) 
@@ -44,8 +47,78 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
   };
 
   const deleteSfx = (id: string) => {
+    stopAudio();
     onChange({ ...game, sfx: game.sfx.filter(s => s.id !== id) });
     onSelect('sfx', null);
+  };
+
+  // Audio generation using ElevenLabs
+  const generateAudio = async (sfx: Sfx) => {
+    const prompt = sfx.params.audioPrompt || `${sfx.type} sound effect, ${sfx.name}`;
+    
+    setGeneratingAudio(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-sfx`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            prompt,
+            duration: sfx.params.duration || 2,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate audio');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Update the SFX with the generated audio
+      updateSfx(sfx.id, { 
+        params: { 
+          ...sfx.params, 
+          audioUrl,
+          audioPrompt: prompt,
+        } 
+      });
+      
+      // Play the generated audio
+      playAudio(audioUrl, sfx.id);
+    } catch (error) {
+      console.error('Audio generation failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate audio');
+    } finally {
+      setGeneratingAudio(false);
+    }
+  };
+
+  const playAudio = (url: string, sfxId: string) => {
+    stopAudio();
+    const audio = new Audio(url);
+    audio.play();
+    audioRef.current = audio;
+    setPlayingAudio(sfxId);
+    
+    audio.onended = () => {
+      setPlayingAudio(null);
+    };
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPlayingAudio(null);
   };
 
   const getAnimationStyle = (sfx: Sfx): React.CSSProperties => {
@@ -286,6 +359,67 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
               className="w-full h-10 bg-diesel-black border border-diesel-border cursor-pointer"
             />
           </div>
+        )}
+      </section>
+
+      {/* Audio Section */}
+      <section>
+        <h3 className={`text-sm font-bold text-${accentColor} uppercase tracking-widest mb-4 border-b border-diesel-border pb-2 flex items-center gap-2`}>
+          <Volume2 size={14} />
+          Sound Effect
+        </h3>
+        
+        <CyberInput
+          label="Audio Prompt"
+          value={selectedSfx.params.audioPrompt || ''}
+          onChange={(e) => updateSfx(selectedSfx.id, { params: { ...selectedSfx.params, audioPrompt: e.target.value } })}
+          placeholder={`${selectedSfx.type} sound effect...`}
+        />
+        <p className="text-xs text-diesel-steel mb-3">
+          Describe the sound you want (e.g., "electric zap", "magical shimmer", "mechanical clunk")
+        </p>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateAudio(selectedSfx)}
+            disabled={generatingAudio}
+            className={`flex-1 py-2 flex items-center justify-center gap-2 bg-${accentColor}/20 border border-${accentColor} text-${accentColor} text-sm font-bold uppercase hover:bg-${accentColor}/30 transition-colors disabled:opacity-50`}
+          >
+            {generatingAudio ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Volume2 size={14} />
+                Generate Audio
+              </>
+            )}
+          </button>
+          
+          {selectedSfx.params.audioUrl && (
+            <button
+              onClick={() => {
+                if (playingAudio === selectedSfx.id) {
+                  stopAudio();
+                } else {
+                  playAudio(selectedSfx.params.audioUrl!, selectedSfx.id);
+                }
+              }}
+              className={`px-4 py-2 flex items-center justify-center gap-2 border text-sm font-bold uppercase transition-colors ${
+                playingAudio === selectedSfx.id 
+                  ? 'bg-diesel-rust/20 border-diesel-rust text-diesel-rust' 
+                  : `bg-${accentColor}/20 border-${accentColor} text-${accentColor} hover:bg-${accentColor}/30`
+              }`}
+            >
+              {playingAudio === selectedSfx.id ? <Square size={14} /> : <Play size={14} />}
+            </button>
+          )}
+        </div>
+        
+        {selectedSfx.params.audioUrl && (
+          <p className="text-xs text-diesel-green mt-2">✓ Audio generated</p>
         )}
       </section>
 
