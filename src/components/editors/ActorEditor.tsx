@@ -545,23 +545,6 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
           value={selectedActor.name}
           onChange={(e) => updateActor(selectedActor.id, { name: e.target.value })}
         />
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <CyberInput
-              label="Voice ID (ElevenLabs)"
-              value={selectedActor.voiceId || ''}
-              onChange={(e) => updateActor(selectedActor.id, { voiceId: e.target.value })}
-              placeholder="Select from Voice Browser"
-            />
-          </div>
-          <button
-            onClick={() => setShowVoiceBrowser(true)}
-            className="mb-2 px-3 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 flex items-center gap-1"
-          >
-            <Mic size={14} />
-            Browse
-          </button>
-        </div>
       </section>
 
       {/* Voice Browser Modal */}
@@ -578,26 +561,10 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
 
       {/* Pose Generator */}
       <section className="bg-diesel-black border border-diesel-gold/50 p-4">
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-gold/30 pb-2">
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2">
           <Sparkles size={14} className="inline mr-2" />
           Pose Generator
         </h3>
-        
-        {/* Style Lock Toggle */}
-        <button
-          onClick={() => setStyleLock(!styleLock)}
-          className={`flex items-center gap-2 w-full mb-3 py-2 px-3 border text-xs font-bold uppercase transition-colors ${
-            styleLock 
-              ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
-              : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
-          }`}
-        >
-          <Lock size={12} />
-          <span className="flex-1 text-left">Style Lock</span>
-          <span className={`text-[10px] ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
-            {styleLock ? 'ON' : 'OFF'}
-          </span>
-        </button>
         
         {/* Parameter Selectors */}
         <div className="grid grid-cols-3 gap-2 mb-3">
@@ -633,47 +600,42 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
           </div>
         </div>
         
-        {/* Prompt Editor */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-[10px] text-diesel-gold uppercase">Prompt to Nano Banana</label>
-            <button 
-              onClick={resetPrompt}
-              className="text-[10px] text-diesel-steel hover:text-diesel-paper"
-            >
-              Reset
-            </button>
-          </div>
-          <textarea
-            value={genPrompt || buildGeneratorPrompt(selectedActor)}
-            onChange={(e) => setGenPrompt(e.target.value)}
-            className="w-full h-28 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-[10px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
-          />
+        {/* Style Lock + Generate Button Row */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setStyleLock(!styleLock)}
+            className={`flex items-center gap-1 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
+              styleLock 
+                ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+                : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+            }`}
+          >
+            <Lock size={12} />
+            {styleLock ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={handleGeneratePreview}
+            disabled={isGenerating}
+            className="flex-1 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles size={14} />
+                Generate
+              </>
+            )}
+          </button>
         </div>
-        
-        {/* Generate Button */}
-        <button
-          onClick={handleGeneratePreview}
-          disabled={isGenerating}
-          className="w-full py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles size={16} />
-              Generate Preview
-            </>
-          )}
-        </button>
         
         {/* Preview & Edit Area */}
         {generatedPreview && (
-          <div className="mt-4 border-t border-diesel-border pt-4">
-            <div className="flex gap-4">
+          <div className="border-t border-diesel-border pt-3">
+            <div className="flex gap-3">
               {/* Preview Image */}
               <div className="w-1/2">
                 <div className="aspect-square bg-diesel-panel border border-diesel-border relative group">
@@ -694,17 +656,16 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
               
               {/* Edit Controls */}
               <div className="w-1/2 flex flex-col gap-2">
-                <label className="text-[10px] text-diesel-gold uppercase">Fine-tune with AI</label>
                 <textarea
                   value={editPrompt}
                   onChange={(e) => setEditPrompt(e.target.value)}
-                  placeholder="e.g., Make the eyes bigger, add a scar..."
+                  placeholder="Fine-tune: e.g., bigger eyes, add scar..."
                   className="flex-1 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-xs resize-none focus:outline-none focus:border-diesel-gold"
                 />
                 <button
                   onClick={handleEditPreview}
                   disabled={isEditing || !editPrompt.trim()}
-                  className="py-2 bg-diesel-panel border border-diesel-paper text-diesel-paper text-xs font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                  className="py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-xs font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
                 >
                   {isEditing ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
                   {isEditing ? 'Editing...' : 'Edit'}
@@ -713,10 +674,10 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
                 {/* Commit Button */}
                 <button
                   onClick={handleCommitToLibrary}
-                  className="py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
+                  className="py-1.5 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 flex items-center justify-center gap-1"
                 >
                   <Check size={12} />
-                  Commit to Library
+                  Commit
                 </button>
                 
                 {/* Discard */}
@@ -730,6 +691,23 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
             </div>
           </div>
         )}
+        
+        {/* Prompt Editor - Below Preview */}
+        <div className="mt-3 border-t border-diesel-border pt-3">
+          <div className="flex items-center justify-end mb-1">
+            <button 
+              onClick={resetPrompt}
+              className="text-[10px] text-diesel-steel hover:text-diesel-paper"
+            >
+              Reset Prompt
+            </button>
+          </div>
+          <textarea
+            value={genPrompt || buildGeneratorPrompt(selectedActor)}
+            onChange={(e) => setGenPrompt(e.target.value)}
+            className="w-full h-24 bg-diesel-dark border border-diesel-border text-diesel-paper p-2 text-[10px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
+          />
+        </div>
       </section>
 
       {/* Pose Library */}
@@ -852,6 +830,30 @@ NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds
               </label>
             )}
           </div>
+        </div>
+      </section>
+
+      {/* Voice Assignment */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Voice
+        </h3>
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <CyberInput
+              label="Voice ID (ElevenLabs)"
+              value={selectedActor.voiceId || ''}
+              onChange={(e) => updateActor(selectedActor.id, { voiceId: e.target.value })}
+              placeholder="Select from Voice Browser"
+            />
+          </div>
+          <button
+            onClick={() => setShowVoiceBrowser(true)}
+            className="mb-2 px-3 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 flex items-center gap-1"
+          >
+            <Mic size={14} />
+            Browse
+          </button>
         </div>
       </section>
 
