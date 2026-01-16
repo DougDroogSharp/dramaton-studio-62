@@ -123,6 +123,8 @@ export interface SfxParams {
   speed?: number;
   color?: string;
   duration?: number;
+  audioUrl?: string;       // Generated sound effect audio URL (blob or data URL)
+  audioPrompt?: string;    // Text prompt used to generate the audio
 }
 
 export interface Sfx {
