@@ -11,6 +11,7 @@ import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
 import { AssetTree } from '@/components/AssetTree';
+import Hourglass from '@/components/Hourglass';
 import {
   Gear, 
   Rivet, 
@@ -513,98 +514,16 @@ const Index = () => {
                 Editor access will resume at the top of the hour.
               </p>
               
-              {/* Timer display - single countdown gauge */}
+              {/* Timer display - hourglass */}
               <div className="flex flex-col items-center gap-4 mb-6">
-                {/* Countdown Gauge - shows remaining time to :00 */}
+                {/* Hourglass countdown */}
                 <div className="relative">
-                  {/* Tick sound indicator - subtle pulse ring */}
+                  {/* Ambient glow behind hourglass */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-28 h-28 rounded-full border border-diesel-rust/30 animate-[ping_2s_ease-out_infinite]" />
+                    <div className="w-32 h-48 bg-diesel-gold/10 blur-2xl rounded-full animate-pulse" />
                   </div>
                   
-                  <svg viewBox="0 0 120 120" style={{ width: 140, height: 140 }}>
-                    {/* Outer ring */}
-                    <circle cx="60" cy="60" r="56" fill="hsl(40 15% 15%)" stroke="hsl(40 15% 30%)" strokeWidth="4" />
-                    <circle cx="60" cy="60" r="48" fill="hsl(24 8% 8%)" />
-                    
-                    {/* Tick marks for 30 minutes - dial goes from 0 (left) to 30 (right) */}
-                    {Array.from({ length: 31 }).map((_, i) => {
-                      // i represents the minute value on the dial (0-30)
-                      const tickAngle = (-135 + (i / 30) * 270) * Math.PI / 180;
-                      const isMajor = i % 5 === 0;
-                      const x1 = 60 + Math.cos(tickAngle) * (isMajor ? 36 : 40);
-                      const y1 = 60 + Math.sin(tickAngle) * (isMajor ? 36 : 40);
-                      const x2 = 60 + Math.cos(tickAngle) * 46;
-                      const y2 = 60 + Math.sin(tickAngle) * 46;
-                      
-                      const remainingMinutes = 60 - minutes;
-                      // Tick is "elapsed" (dimmed) if it represents more time than we have remaining
-                      const isElapsed = i > remainingMinutes;
-                      // Highlight danger zone (last 5 minutes)
-                      const isDanger = i <= 5 && i <= remainingMinutes;
-                      
-                      return (
-                        <line 
-                          key={i} 
-                          x1={x1} y1={y1} x2={x2} y2={y2} 
-                          stroke={isElapsed ? 'hsl(40 15% 25%)' : (isDanger ? 'hsl(15 70% 45%)' : 'hsl(40 50% 55%)')} 
-                          strokeWidth={isMajor ? 2.5 : 1.5} 
-                          opacity={isElapsed ? 0.4 : 1}
-                        />
-                      );
-                    })}
-                    
-                    {/* Numbers at major positions - dial goes from 0 (left) to 30 (right) */}
-                    {[0, 10, 20, 30].map((displayValue) => {
-                      // Map display values to dial positions: 0→left(-135°), 30→right(+135°)
-                      const tickAngle = (-135 + (displayValue / 30) * 270) * Math.PI / 180;
-                      const x = 60 + Math.cos(tickAngle) * 30;
-                      const y = 60 + Math.sin(tickAngle) * 30 + 3;
-                      return (
-                        <text key={displayValue} x={x} y={y} textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="8" fontFamily="monospace">
-                          {displayValue}
-                        </text>
-                      );
-                    })}
-                    
-                    {/* Needle - points to remaining minutes (0 at left, 30 at right) */}
-                    {(() => {
-                      const remainingMinutes = 60 - minutes;
-                      // Clamp to 0-30 range for the dial
-                      const clampedRemaining = Math.max(0, Math.min(30, remainingMinutes));
-                      // Map remaining minutes to angle: 0→-135°, 30→+135°
-                      const needleAngle = -135 + (clampedRemaining / 30) * 270;
-                      return (
-                        <g 
-                          transform={`rotate(${needleAngle} 60 60)`}
-                          style={{ 
-                            transformOrigin: '60px 60px',
-                          }}
-                        >
-                          <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" />
-                          {/* Needle glow */}
-                          <polygon points="60,16 57,55 60,62 63,55" fill="hsl(15 70% 50%)" opacity="0.5" filter="url(#needleGlow)" />
-                        </g>
-                      );
-                    })()}
-                    
-                    {/* Glow filter for needle */}
-                    <defs>
-                      <filter id="needleGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2" result="blur" />
-                      </filter>
-                    </defs>
-                    
-                    {/* Center cap */}
-                    <circle cx="60" cy="60" r="8" fill="hsl(40 15% 35%)" />
-                    <circle cx="60" cy="60" r="5" fill="hsl(40 15% 45%)" />
-                    <circle cx="60" cy="60" r="2" fill="hsl(15 70% 45%)" className="animate-pulse" />
-                    
-                    {/* Label */}
-                    <text x="60" y="95" textAnchor="middle" fill="hsl(40 50% 55%)" fontSize="9" fontFamily="monospace">
-                      MIN REMAINING
-                    </text>
-                  </svg>
+                  <Hourglass remainingMinutes={Math.max(0, Math.min(30, 60 - minutes))} />
                 </div>
                 
                 {/* Digital countdown */}
