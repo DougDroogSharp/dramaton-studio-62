@@ -495,46 +495,45 @@ const Index = () => {
             className="absolute -bottom-32 -right-32 text-diesel-rust opacity-10 animate-[spin_100s_linear_infinite_reverse]" 
           />
           
-          <IndustrialPanel className="max-w-lg" glowing>
+          <IndustrialPanel className="max-w-md" glowing>
             <div className="text-center">
-              {/* Warning symbol */}
-              <div className="relative inline-block mb-4">
-                <div className="absolute inset-0 blur-2xl bg-diesel-rust/40 rounded-full animate-pulse" />
-                <DramatonLogo className="relative w-28 h-28 mx-auto text-diesel-rust animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.6)]" />
+              {/* Compact header */}
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <div className="relative">
+                  <div className="absolute inset-0 blur-xl bg-diesel-rust/40 rounded-full animate-pulse" />
+                  <DramatonLogo className="relative w-16 h-16 text-diesel-rust animate-pulse drop-shadow-[0_0_20px_hsl(15,70%,45%,0.6)]" />
+                </div>
+                <h2 className="text-2xl font-bold text-diesel-rust tracking-widest glitch-text">
+                  PACING PROTOCOL
+                </h2>
               </div>
               
-              <ArtDecoDivider width={300} className="text-diesel-rust mx-auto mb-4" />
+              <ArtDecoDivider width={250} className="text-diesel-rust mx-auto mb-3" />
               
-              <h2 className="text-3xl font-bold text-diesel-rust mb-4 tracking-widest glitch-text">
-                ⚠ PACING PROTOCOL ⚠
-              </h2>
-              
-              <p className="text-diesel-steel mb-6 leading-relaxed">
-                Mandatory rest period in effect.<br />
-                Editor access will resume at the top of the hour.
+              <p className="text-diesel-steel text-sm mb-4">
+                Mandatory rest period. Resume at top of hour.
               </p>
               
-              {/* Timer display - hourglass */}
-              <div className="flex flex-col items-center gap-4 mb-6">
-                {/* Hourglass countdown */}
+              {/* Timer display - hourglass beside countdown */}
+              <div className="flex items-center justify-center gap-6 mb-4">
+                {/* Hourglass */}
                 <div className="relative">
-                  {/* Ambient glow behind hourglass */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-32 h-48 bg-diesel-gold/10 blur-2xl rounded-full animate-pulse" />
+                    <div className="w-24 h-36 bg-diesel-gold/10 blur-xl rounded-full animate-pulse" />
                   </div>
-                  
                   <Hourglass remainingMinutes={Math.max(0, Math.min(30, 60 - minutes))} />
                 </div>
                 
                 {/* Digital countdown */}
-                <div className="text-6xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums flex items-baseline">
-                  <span className="animate-[pulse_2s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
-                  <span className="text-2xl text-diesel-steel ml-2">min</span>
+                <div className="flex flex-col items-start">
+                  <div className="text-7xl font-mono text-diesel-gold drop-shadow-[0_0_20px_hsl(40,50%,55%,0.5)] tabular-nums">
+                    <span className="animate-[pulse_2s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
+                  </div>
+                  <span className="text-lg text-diesel-steel font-mono uppercase tracking-wider">minutes</span>
                 </div>
               </div>
               
               <p className="text-diesel-steel/60 text-xs font-mono">
-                ▸ REST ENFORCED FOR MEDICAL NECESSITY ◂<br />
                 Work window: :00 to :30 each hour
               </p>
             </div>
