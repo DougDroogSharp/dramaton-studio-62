@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { GameData, Drop, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { estimateGenerationTokens } from '@/utils/tokenEstimate';
+import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 
 interface DropEditorProps {
   game: GameData;
@@ -590,6 +592,22 @@ This is a background scene with no characters or text.`;
               {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
               Regenerate with Edited Prompt
             </button>
+          </div>
+        )}
+        
+        {/* Token Estimate */}
+        {selectedDrop.prompt && (
+          <div className="mb-3">
+            {(() => {
+              const prompt = fullPromptOverride || buildFullPrompt(selectedDrop);
+              const estimate = estimateGenerationTokens({
+                prompt,
+                styleGuide: styleLock ? styleGuide : null,
+                referenceImage: selectedDrop.referenceImage,
+                styleLock,
+              });
+              return <TokenEstimateDisplay estimate={estimate} />;
+            })()}
           </div>
         )}
         

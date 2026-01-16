@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
@@ -7,6 +7,8 @@ import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera,
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { estimateGenerationTokens } from '@/utils/tokenEstimate';
+import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 
 interface ActorEditorProps {
   game: GameData;
@@ -627,7 +629,20 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         </div>
         
         {/* Style Lock + Generate Button Row */}
-        <div className="flex gap-2 mb-3">
+        {/* Token Estimate */}
+        {(() => {
+          const prompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
+          const estimate = estimateGenerationTokens({
+            prompt,
+            styleGuide: styleLock ? styleGuide : null,
+            referenceImageCloseUp: selectedActor.referenceImageCloseUp,
+            referenceImageFullBody: selectedActor.referenceImageFullBody,
+            styleLock,
+          });
+          return <TokenEstimateDisplay estimate={estimate} />;
+        })()}
+        
+        <div className="flex gap-2 mb-3 mt-2">
           <button
             onClick={() => setStyleLock(!styleLock)}
             className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
