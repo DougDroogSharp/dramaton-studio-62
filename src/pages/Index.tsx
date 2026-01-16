@@ -19,7 +19,8 @@ import {
   CornerBracket, 
   Gauge, 
   ArtDecoDivider,
-  IndustrialPanel 
+  IndustrialPanel,
+  VacuumTube
 } from '@/components/DieselpunkDecorations';
 
 const Index = () => {
@@ -198,6 +199,20 @@ const Index = () => {
           <Gauge value={0.75} label="STEAM" />
         </div>
         <div className="absolute top-8 right-1/4 opacity-70">
+        
+        {/* Vacuum Tubes */}
+        <div className="absolute left-8 top-1/3 -translate-y-1/2">
+          <VacuumTube size={60} glowColor="orange" pulseSpeed={2.5} />
+        </div>
+        <div className="absolute left-20 top-1/3 -translate-y-1/2 mt-8">
+          <VacuumTube size={50} glowColor="orange" pulseSpeed={3} />
+        </div>
+        <div className="absolute right-8 top-1/3 -translate-y-1/2">
+          <VacuumTube size={60} glowColor="green" pulseSpeed={2} />
+        </div>
+        <div className="absolute right-20 top-1/3 -translate-y-1/2 mt-10">
+          <VacuumTube size={45} glowColor="green" pulseSpeed={2.8} />
+        </div>
           <Gauge value={0.45} label="FLUX" />
         </div>
         
