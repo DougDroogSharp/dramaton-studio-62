@@ -48,21 +48,23 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
 
   return (
     <div className="space-y-6">
-      {/* Basic Info */}
+      {/* Basic Info - Title and Author are READ-ONLY */}
       <section>
         <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
           Project Info
         </h3>
-        <CyberInput
-          label="Game Title"
-          value={game.info.title}
-          onChange={(e) => updateInfo({ title: e.target.value })}
-        />
-        <CyberInput
-          label="Author"
-          value={game.info.author}
-          onChange={(e) => updateInfo({ author: e.target.value })}
-        />
+        
+        {/* Read-only title and author display */}
+        <div className="mb-4 p-3 bg-diesel-black/50 border border-diesel-border">
+          <div className="mb-2">
+            <span className="text-xs uppercase tracking-widest text-diesel-steel">Game Title</span>
+            <p className="text-lg font-bold text-diesel-gold">{game.info.title}</p>
+          </div>
+          <div>
+            <span className="text-xs uppercase tracking-widest text-diesel-steel">Author</span>
+            <p className="text-sm text-diesel-paper">{game.info.author}</p>
+          </div>
+        </div>
         
         <div className="flex gap-4 mt-4">
           <label className="flex items-center gap-2 text-sm text-diesel-paper cursor-pointer">
