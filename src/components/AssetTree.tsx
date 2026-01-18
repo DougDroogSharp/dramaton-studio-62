@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Settings, User, Video, Monitor, Package, Music, Image, Wand2, FileText, Mic, Palette, Layers, Search, X } from 'lucide-react';
 import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
-
+import { getCategoryStatus, getCategoryColor } from '@/utils/statusPromotion';
 interface AssetTreeProps {
   game: GameData;
   onNavigate: (type: SelectionState['type'], id: string | null, subId?: string) => void;
@@ -232,7 +232,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             count={game?.scenes?.length ?? 0}
             depth={1}
             defaultOpen={(game?.scenes?.length ?? 0) <= 5 || searchMatches.scenes.length > 0}
-            color="text-diesel-rust"
+            color={getCategoryColor(getCategoryStatus(game?.scenes ?? []))}
             highlight={searchMatches.scenes.length > 0}
           >
             {(game?.scenes ?? []).map(scene => (
@@ -288,7 +288,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             count={game?.actors?.length ?? 0}
             depth={1}
             defaultOpen={(game?.actors?.length ?? 0) <= 5 || searchMatches.actors.length > 0}
-            color="text-diesel-gold"
+            color={getCategoryColor(getCategoryStatus(game?.actors ?? []))}
             highlight={searchMatches.actors.length > 0}
           >
             {(game?.actors ?? []).map(actor => (
@@ -334,7 +334,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             count={game?.drops?.length ?? 0}
             depth={1}
             defaultOpen={(game?.drops?.length ?? 0) <= 5 || searchMatches.drops.length > 0}
-            color="text-diesel-paper"
+            color={getCategoryColor(getCategoryStatus(game?.drops ?? []))}
             highlight={searchMatches.drops.length > 0}
           >
             {(game?.drops ?? []).map(drop => (
@@ -369,7 +369,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             count={game?.items?.length ?? 0}
             depth={1}
             defaultOpen={(game?.items?.length ?? 0) <= 5 || searchMatches.items.length > 0}
-            color="text-diesel-gold"
+            color={getCategoryColor(getCategoryStatus(game?.items ?? []))}
             highlight={searchMatches.items.length > 0}
           >
             {(game?.items ?? []).map(item => (
@@ -402,7 +402,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             count={game?.sfx?.length ?? 0}
             depth={1}
             defaultOpen={(game?.sfx?.length ?? 0) <= 5 || searchMatches.sfx.length > 0}
-            color="text-diesel-green"
+            color={getCategoryColor(getCategoryStatus(game?.sfx ?? []))}
             highlight={searchMatches.sfx.length > 0}
           >
             {(game?.sfx ?? []).map(sfx => (

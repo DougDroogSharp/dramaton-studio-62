@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSfxToLibrary } from '@/utils/library';
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
-
+import { computeSfxStatus, promoteStatus } from '@/utils/statusPromotion';
 interface SfxEditorProps {
   game: GameData;
   selection: SelectionState;
@@ -46,9 +46,16 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
   };
 
   const updateSfx = (id: string, updates: Partial<Sfx>) => {
+    const currentSfx = game.sfx.find(s => s.id === id);
+    if (!currentSfx) return;
+    
+    const updatedSfx = { ...currentSfx, ...updates };
+    const computedStatus = computeSfxStatus(updatedSfx);
+    const newStatus = promoteStatus(currentSfx.status || 'new', computedStatus);
+    
     onChange({
       ...game,
-      sfx: game.sfx.map(s => s.id === id ? { ...s, ...updates } : s),
+      sfx: game.sfx.map(s => s.id === id ? { ...updatedSfx, status: newStatus } : s),
     });
   };
 

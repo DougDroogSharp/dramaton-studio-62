@@ -12,6 +12,7 @@ import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
+import { computeSceneStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface SceneEditorProps {
   game: GameData;
@@ -82,9 +83,16 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   };
 
   const updateScene = (id: string, updates: Partial<Scene>) => {
+    const currentScene = game.scenes.find(s => s.id === id);
+    if (!currentScene) return;
+    
+    const updatedScene = { ...currentScene, ...updates };
+    const computedStatus = computeSceneStatus(updatedScene);
+    const newStatus = promoteStatus(currentScene.status || 'new', computedStatus);
+    
     onChange({
       ...game,
-      scenes: game.scenes.map(s => s.id === id ? { ...s, ...updates } : s),
+      scenes: game.scenes.map(s => s.id === id ? { ...updatedScene, status: newStatus } : s),
     });
   };
 
