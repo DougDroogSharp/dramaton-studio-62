@@ -3,7 +3,6 @@ import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { Plus, Trash2, Upload, Key, X } from 'lucide-react';
 import { useState } from 'react';
-import { POSES, EXPRESSIONS } from '@/constants';
 import { toast } from 'sonner';
 
 // Compress image to reduce AI token usage
@@ -54,8 +53,6 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
   const [newVarKey, setNewVarKey] = useState('');
   const [newVarValue, setNewVarValue] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [newPose, setNewPose] = useState('');
-  const [newExpression, setNewExpression] = useState('');
 
   const updateInfo = (updates: Partial<GameData['info']>) => {
     onChange({ ...game, info: { ...game.info, ...updates } });
@@ -213,116 +210,6 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
         <p className="text-xs text-diesel-steel mt-1">
           Required for AI voice synthesis. Get your key at elevenlabs.io
         </p>
-      </section>
-
-      {/* Custom Poses */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Custom Poses
-        </h3>
-        <p className="text-xs text-diesel-steel mb-3">
-          Add custom poses beyond the defaults: {POSES.join(', ')}
-        </p>
-        
-        {/* Existing custom poses */}
-        {game.info.customPoses && game.info.customPoses.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {game.info.customPoses.map((pose) => (
-              <div key={pose} className="flex items-center gap-1 bg-diesel-black px-2 py-1 border border-diesel-border text-sm text-diesel-paper">
-                <span>{pose}</span>
-                <button
-                  onClick={() => updateInfo({ customPoses: game.info.customPoses?.filter(p => p !== pose) })}
-                  className="text-diesel-rust hover:text-red-400 ml-1"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Add new pose */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="New pose name"
-            value={newPose}
-            onChange={(e) => setNewPose(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newPose.trim()) {
-                updateInfo({ customPoses: [...(game.info.customPoses || []), newPose.trim()] });
-                setNewPose('');
-              }
-            }}
-            className="flex-1 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
-          />
-          <button
-            onClick={() => {
-              if (newPose.trim()) {
-                updateInfo({ customPoses: [...(game.info.customPoses || []), newPose.trim()] });
-                setNewPose('');
-              }
-            }}
-            className="px-3 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </section>
-
-      {/* Custom Expressions */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Custom Expressions
-        </h3>
-        <p className="text-xs text-diesel-steel mb-3">
-          Add custom expressions beyond the defaults: {EXPRESSIONS.join(', ')}
-        </p>
-        
-        {/* Existing custom expressions */}
-        {game.info.customExpressions && game.info.customExpressions.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {game.info.customExpressions.map((expr) => (
-              <div key={expr} className="flex items-center gap-1 bg-diesel-black px-2 py-1 border border-diesel-border text-sm text-diesel-paper">
-                <span>{expr}</span>
-                <button
-                  onClick={() => updateInfo({ customExpressions: game.info.customExpressions?.filter(e => e !== expr) })}
-                  className="text-diesel-rust hover:text-red-400 ml-1"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Add new expression */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="New expression name"
-            value={newExpression}
-            onChange={(e) => setNewExpression(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newExpression.trim()) {
-                updateInfo({ customExpressions: [...(game.info.customExpressions || []), newExpression.trim()] });
-                setNewExpression('');
-              }
-            }}
-            className="flex-1 bg-diesel-black border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
-          />
-          <button
-            onClick={() => {
-              if (newExpression.trim()) {
-                updateInfo({ customExpressions: [...(game.info.customExpressions || []), newExpression.trim()] });
-                setNewExpression('');
-              }
-            }}
-            className="px-3 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold hover:bg-diesel-gold/30"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
       </section>
 
       {/* World State Variables */}
