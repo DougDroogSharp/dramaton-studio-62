@@ -4,7 +4,7 @@ import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/type
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -469,6 +469,15 @@ const Index = () => {
           >
             <Archive size={12} />
             <span className="hidden sm:inline">Library</span>
+          </Link>
+          
+          {/* Play in Theater */}
+          <Link 
+            to="/theater"
+            className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-green hover:bg-diesel-green/20"
+          >
+            <Play size={12} />
+            <span className="hidden sm:inline">Play</span>
           </Link>
         </div>
         
