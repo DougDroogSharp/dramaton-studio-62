@@ -17,6 +17,12 @@ interface StageProps {
   onMouseUp?: () => void;
   onCanvasClick?: (e: React.MouseEvent) => void;
   canvasRef?: React.RefObject<HTMLDivElement>;
+  // Button editor props
+  selectedButtonId?: string | null;
+  draggingButtonId?: string | null;
+  onButtonSelect?: (id: string | null) => void;
+  onButtonMouseDown?: (e: React.MouseEvent, buttonId: string) => void;
+  onButtonUpdate?: (buttonId: string, updates: Partial<Button>) => void;
   // Theater mode props
   animatingElements?: Map<string, { x: number; y: number }>;
   activeEffects?: Map<string, string[]>; // element id -> active sfx ids
@@ -39,6 +45,13 @@ export const Stage: React.FC<StageProps> = ({
   onMouseUp,
   onCanvasClick,
   canvasRef: externalCanvasRef,
+  // Button editor props
+  selectedButtonId,
+  draggingButtonId,
+  onButtonSelect,
+  onButtonMouseDown,
+  onButtonUpdate,
+  // Theater mode props
   animatingElements,
   activeEffects,
   hideElement,
@@ -173,27 +186,44 @@ export const Stage: React.FC<StageProps> = ({
 
   const renderButton = (button: Button) => {
     const isActive = activeButtons?.includes(button.id);
+    const isSelected = selectedButtonId === button.id;
+    const isDragging = draggingButtonId === button.id;
+    
+    // In editor mode, show all buttons; in theater mode, only show active ones
     if (!isActive && !editable) return null;
     
     return (
       <div
         key={button.id}
-        className={`absolute flex items-center justify-center font-bold text-sm uppercase cursor-pointer transition-all ${
+        className={`absolute flex items-center justify-center font-bold text-sm uppercase transition-all ${
+          editable ? 'cursor-move' : 'cursor-pointer'
+        } ${
+          isSelected ? 'ring-2 ring-diesel-cyan ring-offset-2 ring-offset-transparent' : ''
+        } ${
+          isDragging ? 'z-[1000]' : ''
+        } ${
           button.style === 'primary'
-            ? 'bg-diesel-gold/90 text-diesel-black hover:bg-diesel-gold hover:scale-105'
+            ? 'bg-diesel-gold/90 text-diesel-black hover:bg-diesel-gold'
             : button.style === 'danger'
-            ? 'bg-diesel-rust/90 text-diesel-paper hover:bg-diesel-rust hover:scale-105'
-            : 'bg-diesel-panel/95 text-diesel-paper border border-diesel-border hover:bg-diesel-panel hover:border-diesel-paper hover:scale-105'
-        }`}
+            ? 'bg-diesel-rust/90 text-diesel-paper hover:bg-diesel-rust'
+            : 'bg-diesel-panel/95 text-diesel-paper border border-diesel-border hover:bg-diesel-panel hover:border-diesel-paper'
+        } ${!editable ? 'hover:scale-105' : ''}`}
         style={{
           left: `${button.x}%`,
           top: `${button.y}%`,
           width: `${button.width}%`,
           height: `${button.height}%`,
           transform: 'translate(-50%, -50%)',
-          zIndex: 100,
+          zIndex: isDragging ? 1000 : 100,
         }}
-        onClick={() => onButtonClick?.(button)}
+        onMouseDown={editable ? (e) => {
+          e.stopPropagation();
+          onButtonMouseDown?.(e, button.id);
+        } : undefined}
+        onClick={editable ? (e) => {
+          e.stopPropagation();
+          onButtonSelect?.(button.id);
+        } : () => onButtonClick?.(button)}
       >
         {button.label}
       </div>
