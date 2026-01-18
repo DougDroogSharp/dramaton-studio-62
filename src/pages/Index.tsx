@@ -403,8 +403,8 @@ const Index = () => {
           {/* Art deco divider */}
           <ArtDecoDivider width={400} className="text-diesel-gold mb-4" />
           
-          {/* Title with glitch effect */}
-          <h1 className="text-5xl md:text-6xl font-bold text-diesel-rust tracking-widest mb-2 glitch-text drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
+          {/* Title */}
+          <h1 className="text-5xl md:text-6xl font-bold text-diesel-rust tracking-widest mb-2 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
             DRAMATON
           </h1>
           <p className="text-diesel-steel text-xs tracking-[0.4em] mb-8 uppercase font-mono">
@@ -425,13 +425,20 @@ const Index = () => {
                 <p className="text-diesel-steel/70 text-xs text-center mb-4">
                   by {startAuthor}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
                     onClick={handlePlayGame}
                     className="flex-1 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-all hover:shadow-[0_0_20px_hsl(15,70%,45%,0.3)] flex items-center justify-center gap-2"
                   >
                     <Play size={18} />
                     Play
+                  </button>
+                  <button
+                    onClick={handleLoadFile}
+                    className="flex-1 py-3 bg-diesel-gold/20 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/30 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
+                  >
+                    <FolderOpen size={18} />
+                    Load
                   </button>
                   <button
                     onClick={handleResumeGame}
