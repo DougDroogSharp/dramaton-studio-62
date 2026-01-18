@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      game_versions: {
+        Row: {
+          created_at: string
+          game_data: Json
+          game_id: string
+          id: string
+          is_live: boolean
+          notes: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          game_data: Json
+          game_id: string
+          id?: string
+          is_live?: boolean
+          notes?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          game_data?: Json
+          game_id?: string
+          id?: string
+          is_live?: boolean
+          notes?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_versions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          author: string | null
+          created_at: string
+          id: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
