@@ -70,7 +70,9 @@ serve(async (req) => {
       
       content.push({
         type: "text",
-        text: `EDIT INSTRUCTIONS: ${prompt}`
+        text: `EDIT INSTRUCTIONS: ${prompt}
+
+CRITICAL BACKGROUND INSTRUCTION: After making the edits, the character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). Replace any existing background with pure solid green (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background.`
       });
     } 
     // GENERATION MODE: Create new image
