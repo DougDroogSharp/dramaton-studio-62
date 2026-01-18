@@ -4,7 +4,7 @@ import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { Plus, Trash2, MousePointer2, ChevronRight, Link, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { StatusSelector } from '@/components/StatusBadge';
+import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 
 interface ButtonEditorProps {
@@ -40,19 +40,37 @@ export const ButtonEditor: React.FC<ButtonEditorProps> = ({ game, selection, onC
     onSelect('button', newButton.id);
   };
 
+  // Update button with auto-promotion to 'work' when content changes
   const updateButton = (id: string, updates: Partial<Button>) => {
     const currentButton = game.buttons?.find(b => b.id === id);
     if (!currentButton) return;
     
     const updatedButton = { ...currentButton, ...updates };
-    // Auto-promote status from 'new' to 'work' on any edit
-    if (updatedButton.status === 'new') {
-      updatedButton.status = 'work';
+    
+    // Auto-promote to 'work' if currently 'new' and content is being edited
+    let newStatus = updatedButton.status || 'new';
+    if (!('status' in updates) && newStatus === 'new') {
+      const hasContent = 
+        updatedButton.name !== 'New Button' ||
+        updatedButton.label !== 'Click Me' ||
+        updatedButton.targetSceneId ||
+        updatedButton.pageUrl;
+      if (hasContent) {
+        newStatus = 'work';
+      }
     }
     
     onChange({
       ...game,
-      buttons: game.buttons?.map(b => b.id === id ? updatedButton : b) || [],
+      buttons: game.buttons?.map(b => b.id === id ? { ...updatedButton, status: newStatus } : b) || [],
+    });
+  };
+
+  // Manual status change - allows setting any status directly
+  const setButtonStatus = (id: string, status: AssetStatus) => {
+    onChange({
+      ...game,
+      buttons: game.buttons?.map(b => b.id === id ? { ...b, status } : b) || [],
     });
   };
 
@@ -82,20 +100,29 @@ export const ButtonEditor: React.FC<ButtonEditorProps> = ({ game, selection, onC
         </div>
         
         <div className="space-y-2">
-          {game.buttons?.map(button => (
-            <button
-              key={button.id}
-              onClick={() => onSelect('button', button.id)}
-              className="w-full flex items-center gap-3 p-3 bg-diesel-black border border-diesel-border hover:border-diesel-paper transition-colors text-left"
-            >
-              <MousePointer2 size={18} className="text-diesel-gold shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-diesel-paper font-bold text-sm truncate">{button.name}</div>
-                <div className="text-diesel-steel text-xs truncate">"{button.label}"</div>
-              </div>
-              <ChevronRight size={14} className="text-diesel-steel" />
-            </button>
-          ))}
+          {game.buttons?.map(button => {
+            const statusBorderColor = button.status === 'done' 
+              ? 'border-diesel-green/50 hover:border-diesel-green' 
+              : button.status === 'work' 
+                ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                : 'border-diesel-border hover:border-diesel-paper';
+            
+            return (
+              <button
+                key={button.id}
+                onClick={() => onSelect('button', button.id)}
+                className={`w-full flex items-center gap-3 p-3 bg-diesel-black border ${statusBorderColor} transition-colors text-left`}
+              >
+                <MousePointer2 size={18} className="text-diesel-gold shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-diesel-paper font-bold text-sm truncate">{button.name}</div>
+                  <div className="text-diesel-steel text-xs truncate">"{button.label}"</div>
+                </div>
+                <StatusBadge status={button.status || 'new'} size="sm" />
+                <ChevronRight size={14} className="text-diesel-steel" />
+              </button>
+            );
+          })}
         </div>
         
         {(!game.buttons || game.buttons.length === 0) && (
@@ -129,7 +156,7 @@ export const ButtonEditor: React.FC<ButtonEditorProps> = ({ game, selection, onC
           </h3>
           <StatusSelector 
             status={selectedButton.status || 'new'} 
-            onChange={(status) => updateButton(selectedButton.id, { status })} 
+            onChange={(status) => setButtonStatus(selectedButton.id, status)} 
           />
         </div>
         <CyberInput

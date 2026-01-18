@@ -6,9 +6,8 @@ import { SFX_TYPES } from '@/constants';
 import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square, Upload, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSfxToLibrary } from '@/utils/library';
-import { StatusSelector } from '@/components/StatusBadge';
+import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
-import { computeSfxStatus, promoteStatus } from '@/utils/statusPromotion';
 interface SfxEditorProps {
   game: GameData;
   selection: SelectionState;
@@ -45,17 +44,35 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
     onSelect('sfx', newSfx.id);
   };
 
+  // Update SFX with auto-promotion to 'work' when content changes
   const updateSfx = (id: string, updates: Partial<Sfx>) => {
     const currentSfx = game.sfx.find(s => s.id === id);
     if (!currentSfx) return;
     
     const updatedSfx = { ...currentSfx, ...updates };
-    const computedStatus = computeSfxStatus(updatedSfx);
-    const newStatus = promoteStatus(currentSfx.status || 'new', computedStatus);
+    
+    // Auto-promote to 'work' if currently 'new' and content is being edited
+    let newStatus = updatedSfx.status || 'new';
+    if (!('status' in updates) && newStatus === 'new') {
+      const hasContent = 
+        updatedSfx.params.audioUrl ||
+        (updatedSfx.params.audioPrompt && updatedSfx.params.audioPrompt.trim().length > 0);
+      if (hasContent) {
+        newStatus = 'work';
+      }
+    }
     
     onChange({
       ...game,
       sfx: game.sfx.map(s => s.id === id ? { ...updatedSfx, status: newStatus } : s),
+    });
+  };
+
+  // Manual status change - allows setting any status directly
+  const setSfxStatus = (id: string, status: AssetStatus) => {
+    onChange({
+      ...game,
+      sfx: game.sfx.map(s => s.id === id ? { ...s, status } : s),
     });
   };
 
@@ -257,25 +274,34 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
             Persistent effects that stay on elements (glow, pulse, etc.)
           </p>
           <div className="space-y-2">
-            {attachSfx.map(sfx => (
-              <button
-                key={sfx.id}
-                onClick={() => onSelect('sfx', sfx.id)}
-                className="w-full flex items-center gap-3 p-3 bg-diesel-black border border-diesel-border hover:border-diesel-green transition-colors text-left"
-              >
-                <div 
-                  className="w-8 h-8 bg-diesel-panel border border-diesel-green/50 flex items-center justify-center"
-                  style={previewingSfx === sfx.id ? getAnimationStyle(sfx) : {}}
+            {attachSfx.map(sfx => {
+              const statusBorderColor = sfx.status === 'done' 
+                ? 'border-diesel-green/50 hover:border-diesel-green' 
+                : sfx.status === 'work' 
+                  ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                  : 'border-diesel-border hover:border-diesel-green';
+              
+              return (
+                <button
+                  key={sfx.id}
+                  onClick={() => onSelect('sfx', sfx.id)}
+                  className={`w-full flex items-center gap-3 p-3 bg-diesel-black border ${statusBorderColor} transition-colors text-left`}
                 >
-                  <Sparkles size={16} className="text-diesel-green" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-diesel-paper font-bold">{sfx.name}</div>
-                  <div className="text-xs text-diesel-steel capitalize">{sfx.type}</div>
-                </div>
-                <ChevronRight size={16} className="text-diesel-steel" />
-              </button>
-            ))}
+                  <div 
+                    className="w-8 h-8 bg-diesel-panel border border-diesel-green/50 flex items-center justify-center"
+                    style={previewingSfx === sfx.id ? getAnimationStyle(sfx) : {}}
+                  >
+                    <Sparkles size={16} className="text-diesel-green" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-diesel-paper font-bold">{sfx.name}</div>
+                    <div className="text-xs text-diesel-steel capitalize">{sfx.type}</div>
+                  </div>
+                  <StatusBadge status={sfx.status || 'new'} size="sm" />
+                  <ChevronRight size={16} className="text-diesel-steel" />
+                </button>
+              );
+            })}
             {attachSfx.length === 0 && (
               <p className="text-sm text-diesel-steel/50 italic">No attach effects yet</p>
             )}
@@ -292,22 +318,31 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
             One-time triggered effects (shake, fade, etc.)
           </p>
           <div className="space-y-2">
-            {doSfx.map(sfx => (
-              <button
-                key={sfx.id}
-                onClick={() => onSelect('sfx', sfx.id)}
-                className="w-full flex items-center gap-3 p-3 bg-diesel-black border border-diesel-border hover:border-diesel-gold transition-colors text-left"
-              >
-                <div className="w-8 h-8 bg-diesel-panel border border-diesel-gold/50 flex items-center justify-center">
-                  <Zap size={16} className="text-diesel-gold" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-diesel-paper font-bold">{sfx.name}</div>
-                  <div className="text-xs text-diesel-steel capitalize">{sfx.type}</div>
-                </div>
-                <ChevronRight size={16} className="text-diesel-steel" />
-              </button>
-            ))}
+            {doSfx.map(sfx => {
+              const statusBorderColor = sfx.status === 'done' 
+                ? 'border-diesel-green/50 hover:border-diesel-green' 
+                : sfx.status === 'work' 
+                  ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                  : 'border-diesel-border hover:border-diesel-gold';
+              
+              return (
+                <button
+                  key={sfx.id}
+                  onClick={() => onSelect('sfx', sfx.id)}
+                  className={`w-full flex items-center gap-3 p-3 bg-diesel-black border ${statusBorderColor} transition-colors text-left`}
+                >
+                  <div className="w-8 h-8 bg-diesel-panel border border-diesel-gold/50 flex items-center justify-center">
+                    <Zap size={16} className="text-diesel-gold" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-diesel-paper font-bold">{sfx.name}</div>
+                    <div className="text-xs text-diesel-steel capitalize">{sfx.type}</div>
+                  </div>
+                  <StatusBadge status={sfx.status || 'new'} size="sm" />
+                  <ChevronRight size={16} className="text-diesel-steel" />
+                </button>
+              );
+            })}
             {doSfx.length === 0 && (
               <p className="text-sm text-diesel-steel/50 italic">No do effects yet</p>
             )}
@@ -366,7 +401,7 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
           </h3>
           <StatusSelector 
             status={selectedSfx.status || 'new'} 
-            onChange={(status) => updateSfx(selectedSfx.id, { status })} 
+            onChange={(status) => setSfxStatus(selectedSfx.id, status)} 
           />
         </div>
         <CyberInput
