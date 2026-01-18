@@ -10,9 +10,9 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
-import { StatusSelector } from '@/components/StatusBadge';
+import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
-import { computeActorStatus, promoteStatus } from '@/utils/statusPromotion';
+
 
 interface ActorEditorProps {
   game: GameData;
@@ -101,17 +101,40 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     onSelect('actor', newActor.id);
   };
 
+  // Update actor with auto-promotion to 'work' when content changes
   const updateActor = (id: string, updates: Partial<Actor>) => {
     const currentActor = game.actors.find(a => a.id === id);
     if (!currentActor) return;
     
     const updatedActor = { ...currentActor, ...updates };
-    const computedStatus = computeActorStatus(updatedActor);
-    const newStatus = promoteStatus(currentActor.status || 'new', computedStatus);
+    
+    // Auto-promote to 'work' if currently 'new' and content is being edited
+    // (but not if status is explicitly being set)
+    let newStatus = updatedActor.status || 'new';
+    if (!('status' in updates) && newStatus === 'new') {
+      // Check if any real content is being added
+      const hasContent = 
+        updatedActor.name !== 'New Actor' ||
+        updatedActor.referenceImageCloseUp ||
+        updatedActor.referenceImageFullBody ||
+        updatedActor.voiceId ||
+        updatedActor.graphics.length > 0;
+      if (hasContent) {
+        newStatus = 'work';
+      }
+    }
     
     onChange({
       ...game,
       actors: game.actors.map(a => a.id === id ? { ...updatedActor, status: newStatus } : a),
+    });
+  };
+
+  // Manual status change - allows setting any status directly
+  const setActorStatus = (id: string, status: AssetStatus) => {
+    onChange({
+      ...game,
+      actors: game.actors.map(a => a.id === id ? { ...a, status } : a),
     });
   };
 
@@ -526,29 +549,38 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         </div>
         
         <div className="space-y-2">
-          {game.actors.map(actor => (
-            <button
-              key={actor.id}
-              onClick={() => onSelect('actor', actor.id)}
-              className="w-full flex items-center gap-3 p-3 bg-diesel-black border border-diesel-border hover:border-diesel-gold transition-colors text-left"
-            >
-              <div className="w-10 h-10 bg-diesel-panel border border-diesel-border flex items-center justify-center">
-                {actor.image ? (
-                  <img src={actor.image} alt={actor.name} className="w-full h-full object-cover" />
-                ) : (
-                  <User size={20} className="text-diesel-steel" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="text-diesel-paper font-bold">{actor.name}</div>
-                <div className="text-xs text-diesel-steel">
-                  {actor.graphics.length} graphic{actor.graphics.length !== 1 ? 's' : ''}
-                  {actor.voiceId && ' • Voice assigned'}
+          {game.actors.map(actor => {
+            const statusBorderColor = actor.status === 'done' 
+              ? 'border-diesel-green/50 hover:border-diesel-green' 
+              : actor.status === 'work' 
+                ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                : 'border-diesel-border hover:border-diesel-gold';
+            
+            return (
+              <button
+                key={actor.id}
+                onClick={() => onSelect('actor', actor.id)}
+                className={`w-full flex items-center gap-3 p-3 bg-diesel-black border ${statusBorderColor} transition-colors text-left`}
+              >
+                <div className="w-10 h-10 bg-diesel-panel border border-diesel-border flex items-center justify-center">
+                  {actor.image ? (
+                    <img src={actor.image} alt={actor.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={20} className="text-diesel-steel" />
+                  )}
                 </div>
-              </div>
-              <ChevronRight size={16} className="text-diesel-steel" />
-            </button>
-          ))}
+                <div className="flex-1">
+                  <div className="text-diesel-paper font-bold">{actor.name}</div>
+                  <div className="text-xs text-diesel-steel">
+                    {actor.graphics.length} graphic{actor.graphics.length !== 1 ? 's' : ''}
+                    {actor.voiceId && ' • Voice assigned'}
+                  </div>
+                </div>
+                <StatusBadge status={actor.status || 'new'} size="sm" />
+                <ChevronRight size={16} className="text-diesel-steel" />
+              </button>
+            );
+          })}
         </div>
         
         {game.actors.length === 0 && (
@@ -588,7 +620,7 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           </h3>
           <StatusSelector 
             status={selectedActor.status || 'new'} 
-            onChange={(status) => updateActor(selectedActor.id, { status })} 
+            onChange={(status) => setActorStatus(selectedActor.id, status)} 
           />
         </div>
         <CyberInput
