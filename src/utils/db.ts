@@ -1,4 +1,4 @@
-import { set, get } from 'idb-keyval';
+import { set, get, del } from 'idb-keyval';
 import { GameData } from '@/types';
 
 const DB_KEY = 'dramaton_save_v2';
@@ -20,5 +20,15 @@ export const loadGameFromDB = async (): Promise<GameData | null> => {
   } catch (error) {
     console.error("Failed to load from IndexedDB", error);
     return null;
+  }
+};
+
+export const clearGameFromDB = async () => {
+  try {
+    await del(DB_KEY);
+    return true;
+  } catch (error) {
+    console.error("Failed to clear IndexedDB", error);
+    return false;
   }
 };

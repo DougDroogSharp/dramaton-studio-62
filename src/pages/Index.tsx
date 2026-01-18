@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
-import { loadGameFromDB, saveGameToDB } from '@/utils/db';
+import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
 import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
@@ -120,19 +120,22 @@ const Index = () => {
     saveGameToDB(newGame);
   };
 
-  const handleNewGame = () => {
+  const handleNewGame = async () => {
     if (confirm('Start a new game? You will be prompted to save the current game.')) {
       // Offer to save current game
       if (confirm('Would you like to save the current game to a file before starting new?')) {
         handleSave();
       }
-      // Reset to splash screen
+      // Clear IndexedDB so old game doesn't persist
+      await clearGameFromDB();
+      // Reset to splash screen with default placeholder values
       setIsStarted(false);
       setIsLoaded(false);
-      setStartTitle('');
-      setStartAuthor('');
+      setStartTitle('Untitled Protocol');
+      setStartAuthor('Unknown Architect');
       setHasAutoSave(false);
       setHistory([]);
+      setGame(createDefaultGame());
     }
   };
 
