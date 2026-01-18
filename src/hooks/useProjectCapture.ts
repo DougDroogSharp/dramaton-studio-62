@@ -29,6 +29,9 @@ interface CapturedScreen {
   height: number;
 }
 
+// Viewport height for capture segments (pixels)
+const SEGMENT_HEIGHT = 800;
+
 export function useProjectCapture(
   setSelection: (selection: { type: EditorType; id: string | null }) => void,
   projectTitle: string,
@@ -37,6 +40,14 @@ export function useProjectCapture(
 ) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
+
+  const waitForRender = useCallback((ms: number = 300) => {
+    return new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, ms);
+      });
+    });
+  }, []);
 
   const captureElement = useCallback(async (selector: string): Promise<CapturedScreen | null> => {
     const element = document.querySelector(selector) as HTMLElement;
@@ -67,13 +78,61 @@ export function useProjectCapture(
     }
   }, []);
 
-  const waitForRender = useCallback((ms: number = 300) => {
-    return new Promise<void>(resolve => {
-      requestAnimationFrame(() => {
-        setTimeout(resolve, ms);
-      });
-    });
-  }, []);
+  // Capture scrollable content in segments
+  const captureScrollableElement = useCallback(async (
+    selector: string,
+    label: string,
+    type: string
+  ): Promise<CapturedScreen[]> => {
+    const element = document.querySelector(selector) as HTMLElement;
+    if (!element) {
+      console.warn(`Element not found: ${selector}`);
+      return [];
+    }
+
+    // Find the scrollable container within the element
+    const scrollContainer = element.querySelector('[data-scroll-area]') as HTMLElement || element;
+    
+    const totalHeight = scrollContainer.scrollHeight;
+    const viewportHeight = Math.min(scrollContainer.clientHeight, SEGMENT_HEIGHT);
+    const segments = Math.max(1, Math.ceil(totalHeight / viewportHeight));
+    
+    const captures: CapturedScreen[] = [];
+    
+    // Store original scroll position
+    const originalScroll = scrollContainer.scrollTop;
+    
+    for (let i = 0; i < segments; i++) {
+      // Scroll to segment position
+      scrollContainer.scrollTop = i * viewportHeight;
+      await waitForRender(250);
+      
+      try {
+        const canvas = await html2canvas(element, {
+          backgroundColor: '#121212',
+          scale: 1.5,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+        });
+
+        captures.push({
+          type,
+          label: segments > 1 ? `${label} (${i + 1}/${segments})` : label,
+          dataUrl: canvas.toDataURL('image/png'),
+          width: canvas.width,
+          height: canvas.height,
+        });
+      } catch (error) {
+        console.error(`Failed to capture segment ${i + 1}:`, error);
+      }
+    }
+    
+    // Reset scroll position
+    scrollContainer.scrollTop = originalScroll;
+    
+    return captures;
+  }, [waitForRender]);
 
   const captureAllViews = useCallback(async (includeSplash: boolean = false) => {
     if (isCapturing) return;
@@ -106,23 +165,24 @@ export function useProjectCapture(
         }
       }
       
-      // Capture each editor view
+      // Capture each editor view with scrolling support
       for (let i = 0; i < EDITOR_VIEWS.length; i++) {
         const view = EDITOR_VIEWS[i];
         
         setSelection({ type: view.type, id: null });
-        await waitForRender();
+        await waitForRender(400); // Extra time for editor to render
         
         const progress = Math.round(((splashStep + i + 1) / totalSteps) * 100);
         setCaptureProgress(progress);
         toast.loading(`Capturing ${view.label}... (${progress}%)`, { id: toastId });
         
-        const capture = await captureElement('[data-capture-area="editor"]');
-        if (capture) {
-          capture.type = view.type;
-          capture.label = view.label;
-          captures.push(capture);
-        }
+        // Use segmented capture for scrollable content
+        const segmentCaptures = await captureScrollableElement(
+          '[data-capture-area="editor"]',
+          view.label,
+          view.type
+        );
+        captures.push(...segmentCaptures);
       }
       
       // Capture rest period screen (fake it)
@@ -159,7 +219,7 @@ export function useProjectCapture(
       setCaptureProgress(0);
       if (setShowRestPeriod) setShowRestPeriod(false);
     }
-  }, [isCapturing, setSelection, captureElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor]);
+  }, [isCapturing, setSelection, captureElement, captureScrollableElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor]);
 
   return {
     isCapturing,
