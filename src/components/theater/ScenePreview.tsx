@@ -12,9 +12,20 @@ interface ScenePreviewProps {
   onClose: () => void;
 }
 
+// Generate a fingerprint of scene data to detect changes
+const getSceneFingerprint = (scene: Scene): string => {
+  return JSON.stringify({
+    script: scene.script,
+    dropId: scene.dropId,
+    stage: scene.stage,
+    audioTracks: scene.audioTracks,
+  });
+};
+
 export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose }) => {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevFingerprintRef = useRef<string>(getSceneFingerprint(scene));
 
   // Handle audio commands
   const handleAudioCommand = useCallback((
@@ -58,6 +69,15 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
     startSceneId: scene.id,
     onAudioCommand: handleAudioCommand,
   });
+
+  // Auto-restart when scene data changes
+  const sceneFingerprint = getSceneFingerprint(scene);
+  useEffect(() => {
+    if (sceneFingerprint !== prevFingerprintRef.current) {
+      prevFingerprintRef.current = sceneFingerprint;
+      scriptRunner.goToScene(scene.id);
+    }
+  }, [sceneFingerprint, scene.id, scriptRunner]);
 
   // Get background
   const background = scene.dropId 

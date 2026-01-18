@@ -150,6 +150,13 @@ This is a background scene with no characters or text.`;
       const compressed = await compressImage(file);
       updateDrop(dropId, { referenceImage: compressed });
       toast.success('Reference image uploaded');
+      
+      // Auto-regenerate if there's a prompt
+      const drop = game.drops.find(d => d.id === dropId);
+      if (drop?.prompt) {
+        toast.info('Regenerating with new reference...');
+        setTimeout(() => handleGenerate(dropId), 100);
+      }
     } catch (error) {
       toast.error('Failed to process reference image');
     }
@@ -530,26 +537,24 @@ This is a background scene with no characters or text.`;
           AI Generation
         </h3>
         
-        {/* Style Lock Toggle */}
-        <button
-          onClick={() => setStyleLock(!styleLock)}
-          className={`flex items-center gap-2 w-full mb-3 py-2 px-3 border text-sm font-bold uppercase transition-colors ${
-            styleLock 
-              ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
-              : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
-          }`}
-        >
-          <Lock size={14} />
-          <span className="flex-1 text-left">Adhere to Style Guide</span>
-          <span className={`text-xs ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
-            {styleLock ? 'ON' : 'OFF'}
-          </span>
-        </button>
-        {styleLock && (
-          <p className="text-xs text-diesel-gold/70 mb-3 -mt-1">
-            Bold black outline, simple fill colors, no shading, light interior detail lines
-          </p>
-        )}
+        {/* Style Lock Toggle - compact */}
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={() => setStyleLock(!styleLock)}
+            className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
+              styleLock 
+                ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+                : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+            }`}
+            title="When ON, generated images follow the project style guide"
+          >
+            <Lock size={12} />
+            <span>Style Lock</span>
+            <span className={`text-[10px] ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
+              {styleLock ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
         
         <div className="flex flex-col gap-1 mb-3">
           <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Description</label>
