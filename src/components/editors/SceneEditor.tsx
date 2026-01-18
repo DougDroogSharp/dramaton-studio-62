@@ -11,6 +11,7 @@ import { loadLibraryFromDB, saveLibraryToDB, addSceneToLibrary } from '@/utils/l
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
+import { Stage } from '@/components/Stage';
 
 interface SceneEditorProps {
   game: GameData;
@@ -1222,115 +1223,35 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
       {/* Right Panel - Visual Stage Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 flex items-center justify-center bg-diesel-dark/50 border border-diesel-border overflow-hidden">
-          <div
-            ref={canvasRef}
-            className="relative w-full max-w-4xl bg-diesel-panel cursor-crosshair"
-            style={{ aspectRatio: '16/9' }}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onClick={handleCanvasClick}
-          >
-            {/* Background Drop */}
-            {backgroundDrop?.image ? (
-              <img
-                src={backgroundDrop.image}
-                alt={backgroundDrop.name}
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-diesel-steel text-sm bg-diesel-black">
-                <span className="opacity-50">No background selected</span>
-              </div>
-            )}
-
-            {/* Stage Elements */}
-            {selectedScene.stage?.map(element => {
-              const actor = element.type === 'ACTOR' ? game.actors.find(a => a.id === element.assetId) : null;
-              const item = element.type === 'ITEM' ? game.items.find(i => i.id === element.assetId) : null;
-              
-              // Find the matching graphic based on pose/expression/angle stored on the element
-              const actorGraphic = actor?.graphics.find(g => 
-                g.pose === element.pose && 
-                g.expression === element.expression && 
-                g.angle === element.spriteAngle
-              ) || actor?.graphics[0]; // Fallback to first graphic
-
-              return (
-                <div
-                  key={element.id}
-                  className={`absolute cursor-move select-none transition-shadow ${
-                    selectedElementId === element.id ? 'ring-2 ring-diesel-gold ring-offset-2 ring-offset-transparent' : ''
-                  } ${dragging === element.id ? 'z-50' : ''}`}
-                  style={{
-                    left: `${element.x}%`,
-                    top: `${element.y}%`,
-                    transform: `translate(-50%, -50%) scale(${element.scale}) rotate(${element.rotation}deg)`,
-                    zIndex: dragging === element.id ? 1000 : element.zIndex,
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, element.id)}
-                  onDoubleClick={() => {
-                    if (element.type === 'ACTOR' && actor) {
-                      // Double-click opens generator for editing
-                      setActorGenerator({ 
-                        active: true, 
-                        actorId: actor.id, 
-                        elementId: element.id,
-                        dropX: element.x,
-                        dropY: element.y
-                      });
-                      setGenPrompt('');
-                      setGeneratedPreview(null);
-                      setSelectedElementId(null);
-                    }
-                  }}
-                >
-                  {element.type === 'ACTOR' && (
-                    actorGraphic?.image ? (
-                      <img
-                        src={actorGraphic.image}
-                        alt={actor?.name}
-                        className="max-w-32 max-h-40 object-contain pointer-events-none"
-                        draggable={false}
-                      />
-                    ) : (
-                      <div className="w-16 h-20 bg-diesel-gold/20 border-2 border-diesel-gold/50 flex items-center justify-center">
-                        <User size={24} className="text-diesel-gold/70" />
-                      </div>
-                    )
-                  )}
-
-                  {element.type === 'ITEM' && (
-                    item?.visualAsset ? (
-                      <img
-                        src={item.visualAsset}
-                        alt={item.name}
-                        className="max-w-24 max-h-24 object-contain pointer-events-none"
-                        draggable={false}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-diesel-gold/20 border-2 border-diesel-gold/50 flex items-center justify-center">
-                        <Package size={20} className="text-diesel-gold/70" />
-                      </div>
-                    )
-                  )}
-
-                  {element.type === 'BALLOON' && (
-                    <div
-                      className={`px-3 py-2 max-w-48 text-sm ${
-                        element.balloonType === 'THOUGHT'
-                          ? 'bg-diesel-paper/90 rounded-full border-2 border-dashed border-diesel-steel text-diesel-black'
-                          : 'bg-diesel-paper/90 border-2 border-diesel-steel text-diesel-black'
-                      }`}
-                    >
-                      {element.text || (
-                        <span className="text-diesel-steel italic">Empty balloon</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="w-full max-w-4xl">
+            <Stage
+              scene={selectedScene}
+              game={game}
+              background={backgroundDrop}
+              editable={true}
+              selectedElementId={selectedElementId}
+              draggingId={dragging}
+              onElementSelect={setSelectedElementId}
+              onElementMouseDown={handleMouseDown}
+              onElementDoubleClick={(element, actor) => {
+                if (element.type === 'ACTOR' && actor) {
+                  setActorGenerator({ 
+                    active: true, 
+                    actorId: actor.id, 
+                    elementId: element.id,
+                    dropX: element.x,
+                    dropY: element.y
+                  });
+                  setGenPrompt('');
+                  setGeneratedPreview(null);
+                  setSelectedElementId(null);
+                }
+              }}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onCanvasClick={handleCanvasClick}
+              canvasRef={canvasRef}
+            />
           </div>
         </div>
       </div>
