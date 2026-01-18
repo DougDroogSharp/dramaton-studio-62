@@ -3,13 +3,14 @@ import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, Sce
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2, Archive } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2, Archive, Eye } from 'lucide-react';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSceneToLibrary } from '@/utils/library';
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { ScenePreview } from '@/components/theater/ScenePreview';
 
 interface SceneEditorProps {
   game: GameData;
@@ -53,7 +54,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const [editPrompt, setEditPrompt] = useState('');
   const [styleLock, setStyleLock] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
+  const [showScenePreview, setShowScenePreview] = useState(false);
   // Combine default poses/expressions with custom ones from settings
   const allPoses = [...POSES, ...(game.info.customPoses || [])];
   const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
@@ -600,14 +601,25 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     <div className="flex h-full gap-4">
       {/* Left Panel - Controls */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-        {/* Back Button */}
-        <button
-          onClick={() => onSelect('scene', null)}
-          className="flex items-center gap-2 text-sm text-diesel-steel hover:text-diesel-rust transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back to Scenes
-        </button>
+        {/* Back Button & Preview */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => onSelect('scene', null)}
+            className="flex items-center gap-2 text-sm text-diesel-steel hover:text-diesel-rust transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to Scenes
+          </button>
+          
+          <button
+            onClick={() => setShowScenePreview(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
+            title="Preview this scene"
+          >
+            <Eye size={14} />
+            Preview
+          </button>
+        </div>
 
         {/* Actor Generator Panel - Shows when adding/editing actor */}
         {actorGenerator.active && generatorActor && (
@@ -1341,6 +1353,15 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Scene Preview Modal */}
+      {showScenePreview && selectedScene && (
+        <ScenePreview
+          scene={selectedScene}
+          game={game}
+          onClose={() => setShowScenePreview(false)}
+        />
+      )}
     </div>
   );
 };
