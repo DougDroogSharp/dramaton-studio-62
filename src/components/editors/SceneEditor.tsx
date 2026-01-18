@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react'; // Scene Editor
 import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
@@ -658,13 +658,33 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     );
   }
 
-  // Scene Detail View - Full-Width Stage Builder
+  // Generate script header comment
+  const generateScriptHeader = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const statusLabel = selectedScene.status === 'done' ? 'COMPLETE' : selectedScene.status === 'work' ? 'IN PROGRESS' : 'DRAFT';
+    return `# Scene: ${selectedScene.name}\n# Last edited: ${dateStr} at ${timeStr}\n# Status: ${statusLabel}\n\n`;
+  };
+
+  // Initialize script with header if empty
+  const handleScriptChange = (value: string) => {
+    updateScene(selectedScene.id, { script: value });
+  };
+
+  // Ensure script has header
+  const ensureScriptHeader = () => {
+    if (!selectedScene.script || selectedScene.script.trim() === '') {
+      updateScene(selectedScene.id, { script: generateScriptHeader() });
+    }
+  };
+
+  // Scene Detail View - Redesigned Layout
   return (
-    <div className="flex h-full gap-4">
-      {/* Left Panel - Controls */}
-      <div className="w-72 flex-shrink-0 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-        {/* Back Button & Preview */}
-        <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full gap-3">
+      {/* Top Section - Stage Preview spanning full width */}
+      <div className="flex-shrink-0">
+        <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => onSelect('scene', null)}
             className="flex items-center gap-2 text-sm text-diesel-steel hover:text-diesel-rust transition-colors"
@@ -673,663 +693,432 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             Back to Scenes
           </button>
           
-          <button
-            onClick={() => setShowScenePreview(true)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
-            title="Preview this scene"
-          >
-            <Eye size={14} />
-            Preview
-          </button>
-        </div>
-
-        {/* Actor Generator Panel - Shows when adding/editing actor */}
-        {actorGenerator.active && generatorActor && (
-          <section className="bg-diesel-black border-2 border-diesel-gold p-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest flex items-center gap-1">
-                <Sparkles size={12} />
-                Generate: {generatorActor.name}
-              </h3>
-              <button onClick={closeGenerator} className="p-1 text-diesel-steel hover:text-diesel-paper">
-                <X size={14} />
-              </button>
-            </div>
-            
-            {/* Existing Graphics */}
-            {generatorActor.graphics.length > 0 && (
-              <div className="mb-3">
-                <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Existing Poses</label>
-                <div className="grid grid-cols-4 gap-1 max-h-24 overflow-y-auto">
-                  {generatorActor.graphics.map(graphic => (
-                    <button
-                      key={graphic.id}
-                      onClick={() => addActorWithGraphic(graphic)}
-                      className="aspect-square bg-diesel-panel border border-diesel-border hover:border-diesel-gold overflow-hidden"
-                      title={`${graphic.pose} • ${graphic.expression}`}
-                    >
-                      {graphic.image ? (
-                        <img src={graphic.image} alt="" className="w-full h-full object-contain" />
-                      ) : (
-                        <User size={12} className="w-full h-full p-1 text-diesel-steel" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Divider */}
-            <div className="border-t border-diesel-border my-3" />
-            
-            {/* Style Lock */}
+          <div className="flex items-center gap-2">
+            <span className="text-diesel-paper font-bold">{selectedScene.name}</span>
+            <StatusSelector 
+              status={selectedScene.status || 'new'} 
+              onChange={(status) => updateScene(selectedScene.id, { status })} 
+            />
             <button
-              onClick={() => setStyleLock(!styleLock)}
-              className={`flex items-center gap-2 w-full mb-2 py-1.5 px-2 border text-[10px] font-bold uppercase transition-colors ${
-                styleLock 
-                  ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
-                  : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
-              }`}
+              onClick={() => setShowScenePreview(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
+              title="Preview this scene"
             >
-              <Lock size={10} />
-              <span className="flex-1 text-left">Style Lock</span>
-              <span>{styleLock ? 'ON' : 'OFF'}</span>
+              <Eye size={14} />
+              Preview
             </button>
-            
-            {/* Parameter Selectors */}
-            <div className="grid grid-cols-3 gap-1 mb-2">
-              <div>
-                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Pose</label>
-                <select
-                  value={genPose}
-                  onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
-                >
-                  {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Expression</label>
-                <select
-                  value={genExpression}
-                  onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
-                >
-                  {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Angle</label>
-                <select
-                  value={genAngle}
-                  onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
-                  className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
-                >
-                  {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
-                </select>
-              </div>
-            </div>
-            
-            {/* Prompt Editor */}
-            <div className="mb-2">
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[9px] text-diesel-gold uppercase">Prompt to Nano Banana</label>
-                <button onClick={resetPrompt} className="text-[9px] text-diesel-steel hover:text-diesel-paper">
-                  Reset
+          </div>
+        </div>
+        
+        <div className="bg-diesel-dark/50 border border-diesel-border">
+          <Stage
+            scene={selectedScene}
+            game={game}
+            background={backgroundDrop}
+            editable={true}
+            selectedElementId={selectedElementId}
+            draggingId={dragging}
+            onElementSelect={setSelectedElementId}
+            onElementMouseDown={handleMouseDown}
+            onElementDoubleClick={(element, actor) => {
+              if (element.type === 'ACTOR' && actor) {
+                setActorGenerator({ 
+                  active: true, 
+                  actorId: actor.id, 
+                  elementId: element.id,
+                  dropX: element.x,
+                  dropY: element.y
+                });
+                setGenPrompt('');
+                setGeneratedPreview(null);
+                setSelectedElementId(null);
+              }
+            }}
+            onMouseMove={handleCombinedMouseMove}
+            onMouseUp={handleMouseUp}
+            onCanvasClick={handleCanvasClick}
+            canvasRef={canvasRef}
+            selectedButtonId={selectedButtonId}
+            draggingButtonId={draggingButton}
+            onButtonSelect={setSelectedButtonId}
+            onButtonMouseDown={handleButtonMouseDown}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Section - Two columns */}
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Left Column - Controls */}
+        <div className="w-72 flex-shrink-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar">
+          {/* Actor Generator Panel - Shows when adding/editing actor */}
+          {actorGenerator.active && generatorActor && (
+            <section className="bg-diesel-black border-2 border-diesel-gold p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest flex items-center gap-1">
+                  <Sparkles size={12} />
+                  Generate: {generatorActor.name}
+                </h3>
+                <button onClick={closeGenerator} className="p-1 text-diesel-steel hover:text-diesel-paper">
+                  <X size={14} />
                 </button>
               </div>
-              <textarea
-                value={genPrompt || buildGeneratorPrompt(generatorActor)}
-                onChange={(e) => setGenPrompt(e.target.value)}
-                className="w-full h-20 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[9px] font-mono resize-none focus:outline-none focus:border-diesel-gold"
-              />
-            </div>
-            
-            {/* Generate Button */}
-            <button
-              onClick={handleGeneratePreview}
-              disabled={isGenerating}
-              className="w-full py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
-            >
-              <Sparkles size={12} />
-              Generate Preview
-            </button>
-            
-            {/* Loading State */}
-            {isGenerating && (
-              <div className="mt-4 flex justify-center">
-                <DieselpunkLoader size="sm" message="GENERATING..." />
-              </div>
-            )}
-            
-            {/* Preview & Edit Area */}
-            {generatedPreview && !isGenerating && (
-              <div className="mt-3 border-t border-diesel-border pt-3">
-                {/* Preview Image */}
-                <div className="aspect-square bg-diesel-panel border border-diesel-border relative group mb-2">
-                  <img 
-                    src={generatedPreview} 
-                    alt="Preview" 
-                    className="w-full h-full object-contain cursor-pointer"
-                    onClick={() => setPreviewImage(generatedPreview)}
-                  />
-                  <button
-                    onClick={() => setPreviewImage(generatedPreview)}
-                    className="absolute top-1 right-1 p-1 bg-diesel-panel/80 border border-diesel-border text-diesel-steel hover:text-diesel-gold opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ZoomIn size={10} />
-                  </button>
-                </div>
-                
-                {/* Edit Controls */}
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-[9px] text-diesel-gold uppercase mb-0.5 block">Fine-tune with AI</label>
-                    <textarea
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="e.g., Make the eyes bigger..."
-                      className="w-full h-12 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[10px] resize-none focus:outline-none focus:border-diesel-gold"
-                    />
-                  </div>
-                  
-                  {/* Editing Loading State */}
-                  {isEditing ? (
-                    <div className="flex justify-center py-2">
-                      <DieselpunkLoader size="sm" message="EDITING..." />
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleEditPreview}
-                      disabled={!editPrompt.trim()}
-                      className="w-full py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-[10px] font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
-                    >
-                      <Wand2 size={10} />
-                      Edit
-                    </button>
-                  )}
-                  
-                  {/* Commit Button */}
-                  <button
-                    onClick={handleCommitToStage}
-                    disabled={isEditing}
-                    className="w-full py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    <Check size={12} />
-                    Commit to Library & Stage
-                  </button>
-                  
-                  {/* Discard */}
-                  <button
-                    onClick={() => { setGeneratedPreview(null); setEditPrompt(''); }}
-                    disabled={isEditing}
-                    className="w-full py-1 text-diesel-rust text-[10px] hover:underline disabled:opacity-50"
-                  >
-                    Discard Preview
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Scene Info - Only show when not in generator mode */}
-        {!actorGenerator.active && (
-          <>
-            <section className="bg-diesel-black border border-diesel-border p-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest">Scene Info</h3>
-                <StatusSelector 
-                  status={selectedScene.status || 'new'} 
-                  onChange={(status) => updateScene(selectedScene.id, { status })} 
-                />
-              </div>
-              <CyberInput
-                label="Name"
-                value={selectedScene.name}
-                onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
-              />
-              <div className="mt-3 mb-3">
-                <NotesSection 
-                  note={selectedScene.note || ''} 
-                  onChange={(note) => updateScene(selectedScene.id, { note })} 
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background Drop</label>
-                <select
-                  value={selectedScene.dropId === null ? '__none__' : (selectedScene.dropId || '')}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '__none__') {
-                      updateScene(selectedScene.id, { dropId: null });
-                    } else if (value === '') {
-                      // Not selected yet - do nothing, force a choice
-                    } else {
-                      updateScene(selectedScene.id, { dropId: value });
-                    }
-                  }}
-                  className={`bg-diesel-panel border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold ${
-                    selectedScene.dropId === undefined ? 'border-diesel-rust' : 'border-diesel-border'
-                  }`}
-                >
-                  {selectedScene.dropId === undefined && (
-                    <option value="">-- Select a drop --</option>
-                  )}
-                  <option value="__none__">(None - No background)</option>
-                  {game.drops.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-                {selectedScene.dropId === undefined && (
-                  <span className="text-[10px] text-diesel-rust">Please select a drop or "(None)"</span>
-                )}
-              </div>
-            </section>
-
-            {/* Asset Palette */}
-            <section className="bg-diesel-black border border-diesel-border p-3">
-              <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Add to Stage</h3>
               
-              {/* Actors */}
-              <div className="mb-3">
-                <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
-                  <User size={12} />
-                  <span className="uppercase tracking-wider">Actors</span>
+              {/* Existing Graphics */}
+              {generatorActor.graphics.length > 0 && (
+                <div className="mb-3">
+                  <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Existing Poses</label>
+                  <div className="grid grid-cols-4 gap-1 max-h-24 overflow-y-auto">
+                    {generatorActor.graphics.map(graphic => (
+                      <button
+                        key={graphic.id}
+                        onClick={() => addActorWithGraphic(graphic)}
+                        className="aspect-square bg-diesel-panel border border-diesel-border hover:border-diesel-gold overflow-hidden"
+                        title={`${graphic.pose} • ${graphic.expression}`}
+                      >
+                        {graphic.image ? (
+                          <img src={graphic.image} alt="" className="w-full h-full object-contain" />
+                        ) : (
+                          <User size={12} className="w-full h-full p-1 text-diesel-steel" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {game.actors.map(actor => (
-                    <button
-                      key={actor.id}
-                      onClick={() => handleAddActor(actor.id)}
-                      className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
-                    >
-                      {actor.graphics[0]?.image && (
-                        <img src={actor.graphics[0].image} alt="" className="w-4 h-4 rounded object-cover" />
-                      )}
-                      {actor.name}
-                    </button>
-                  ))}
-                  {game.actors.length === 0 && (
-                    <span className="text-xs text-diesel-steel italic">No actors</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Items */}
-              <div className="mb-3">
-                <div className="flex items-center gap-1 text-xs text-diesel-steel mb-2">
-                  <Package size={12} />
-                  <span className="uppercase tracking-wider">Items</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {game.items.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => addStageElement(selectedScene.id, 'ITEM', item.id)}
-                      className="px-2 py-1 bg-diesel-panel border border-diesel-border text-xs text-diesel-paper hover:border-diesel-gold transition-colors flex items-center gap-1"
-                    >
-                      {item.visualAsset && (
-                        <img src={item.visualAsset} alt="" className="w-4 h-4 rounded object-contain" />
-                      )}
-                      {item.name}
-                    </button>
-                  ))}
-                  {game.items.length === 0 && (
-                    <span className="text-xs text-diesel-steel italic">No items</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Balloon */}
+              )}
+              
+              <div className="border-t border-diesel-border my-3" />
+              
+              {/* Style Lock */}
               <button
-                onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
-                className="w-full flex items-center justify-center gap-1 px-2 py-2 bg-diesel-gold/10 border border-dashed border-diesel-gold/50 text-diesel-gold text-xs uppercase font-bold hover:bg-diesel-gold/20 transition-colors"
+                onClick={() => setStyleLock(!styleLock)}
+                className={`flex items-center gap-2 w-full mb-2 py-1.5 px-2 border text-[10px] font-bold uppercase transition-colors ${
+                  styleLock 
+                    ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
+                    : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+                }`}
               >
-                <MessageSquare size={14} />
-                Add Balloon
+                <Lock size={10} />
+                <span className="flex-1 text-left">Style Lock</span>
+                <span>{styleLock ? 'ON' : 'OFF'}</span>
               </button>
-            </section>
-
-            {/* Selected Element Properties */}
-            {selectedElement && (
-              <section className="bg-diesel-black border-2 border-diesel-gold p-3">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest">
-                    {selectedElement.type === 'ACTOR' ? 'Actor' : selectedElement.type === 'ITEM' ? 'Item' : 'Balloon'}
-                  </h3>
-                  <button
-                    onClick={() => deleteStageElement(selectedScene.id, selectedElement.id)}
-                    className="p-1 text-diesel-rust hover:bg-diesel-rust/20 transition-colors"
+              
+              {/* Parameter Selectors */}
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                <div>
+                  <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Pose</label>
+                  <select
+                    value={genPose}
+                    onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
+                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
                   >
-                    <Trash2 size={14} />
+                    {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Expression</label>
+                  <select
+                    value={genExpression}
+                    onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
+                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
+                  >
+                    {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] text-diesel-steel uppercase mb-0.5 block">Angle</label>
+                  <select
+                    value={genAngle}
+                    onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
+                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] p-1"
+                  >
+                    {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Generate Button */}
+              <button
+                onClick={handleGeneratePreview}
+                disabled={isGenerating}
+                className="w-full py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                <Sparkles size={12} />
+                Generate Preview
+              </button>
+              
+              {isGenerating && (
+                <div className="mt-4 flex justify-center">
+                  <DieselpunkLoader size="sm" message="GENERATING..." />
+                </div>
+              )}
+              
+              {/* Preview & Commit */}
+              {generatedPreview && !isGenerating && (
+                <div className="mt-3 border-t border-diesel-border pt-3">
+                  <div className="flex gap-2">
+                    <div className="w-1/2 aspect-square bg-diesel-panel border border-diesel-border relative group">
+                      <img 
+                        src={generatedPreview} 
+                        alt="Preview" 
+                        className="w-full h-full object-contain cursor-pointer"
+                        onClick={() => setPreviewImage(generatedPreview)}
+                      />
+                    </div>
+                    <div className="w-1/2 flex flex-col gap-2">
+                      <textarea
+                        value={editPrompt}
+                        onChange={(e) => setEditPrompt(e.target.value)}
+                        placeholder="Fine-tune..."
+                        className="flex-1 bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-[10px] resize-none focus:outline-none focus:border-diesel-gold"
+                      />
+                      {isEditing ? (
+                        <div className="flex justify-center py-2">
+                          <DieselpunkLoader size="sm" message="EDITING..." />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleEditPreview}
+                          disabled={!editPrompt.trim()}
+                          className="py-1.5 bg-diesel-panel border border-diesel-paper text-diesel-paper text-[10px] font-bold uppercase hover:bg-diesel-paper/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Wand2 size={10} />
+                          Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={handleCommitToStage}
+                        disabled={isEditing}
+                        className="py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        <Check size={12} />
+                        Commit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Scene Info - Only show when not in generator mode */}
+          {!actorGenerator.active && (
+            <>
+              <section className="bg-diesel-black border border-diesel-border p-3">
+                <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Scene Info</h3>
+                <CyberInput
+                  label="Name"
+                  value={selectedScene.name}
+                  onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
+                />
+                <div className="mt-3 mb-3">
+                  <NotesSection 
+                    note={selectedScene.note || ''} 
+                    onChange={(note) => updateScene(selectedScene.id, { note })} 
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background Drop</label>
+                  <select
+                    value={selectedScene.dropId === null ? '__none__' : (selectedScene.dropId || '')}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '__none__') {
+                        updateScene(selectedScene.id, { dropId: null });
+                      } else if (value === '') {
+                        // Not selected yet
+                      } else {
+                        updateScene(selectedScene.id, { dropId: value });
+                      }
+                    }}
+                    className={`bg-diesel-panel border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold ${
+                      selectedScene.dropId === undefined ? 'border-diesel-rust' : 'border-diesel-border'
+                    }`}
+                  >
+                    {selectedScene.dropId === undefined && (
+                      <option value="">-- Select a drop --</option>
+                    )}
+                    <option value="__none__">(None - No background)</option>
+                    {game.drops.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  {selectedScene.dropId === undefined && (
+                    <p className="text-diesel-rust text-[10px] mt-1">Please select a drop or "(None)"</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Stage Elements */}
+              <section className="bg-diesel-black border border-diesel-border p-3">
+                <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Add to Stage</h3>
+                <div className="space-y-2">
+                  {game.actors.length > 0 && (
+                    <div>
+                      <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Actors</label>
+                      <div className="flex flex-wrap gap-1">
+                        {game.actors.map(actor => (
+                          <button
+                            key={actor.id}
+                            onClick={() => handleAddActor(actor.id)}
+                            className="px-2 py-1 bg-diesel-gold/10 border border-diesel-gold/50 text-diesel-gold text-[10px] hover:bg-diesel-gold/20"
+                          >
+                            {actor.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {game.items.length > 0 && (
+                    <div>
+                      <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Items</label>
+                      <div className="flex flex-wrap gap-1">
+                        {game.items.map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => addStageElement(selectedScene.id, 'ITEM', item.id)}
+                            className="px-2 py-1 bg-diesel-paper/10 border border-diesel-paper/50 text-diesel-paper text-[10px] hover:bg-diesel-paper/20"
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => addStageElement(selectedScene.id, 'BALLOON')}
+                    className="w-full flex items-center justify-center gap-2 py-2 bg-diesel-paper/10 border border-diesel-paper/50 text-diesel-paper text-xs uppercase font-bold hover:bg-diesel-paper/20"
+                  >
+                    <MessageSquare size={12} />
+                    Add Balloon
                   </button>
                 </div>
+              </section>
 
-                {/* Type-specific properties */}
-                {selectedElement.type === 'ACTOR' && (
-                  <div className="mb-3">
-                    <label className="text-xs text-diesel-steel">Actor</label>
-                    <select
-                      value={selectedElement.assetId || ''}
-                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
-                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
+              {/* Selected Element Properties */}
+              {selectedElement && (
+                <section className="bg-diesel-black border border-diesel-gold p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-diesel-gold uppercase tracking-widest">Element Properties</h3>
+                    <button
+                      onClick={() => deleteStageElement(selectedScene.id, selectedElement.id)}
+                      className="p-1 text-diesel-rust hover:bg-diesel-rust/20"
                     >
-                      <option value="">Select Actor</option>
-                      {game.actors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                )}
-
-                {selectedElement.type === 'ITEM' && (
-                  <div className="mb-3">
-                    <label className="text-xs text-diesel-steel">Item</label>
-                    <select
-                      value={selectedElement.assetId || ''}
-                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { assetId: e.target.value })}
-                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
-                    >
-                      <option value="">Select Item</option>
-                      {game.items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                    </select>
-                  </div>
-                )}
-
-                {selectedElement.type === 'BALLOON' && (
-                  <div className="space-y-2 mb-3">
+                  <div className="grid grid-cols-2 gap-2 mb-2">
                     <div>
-                      <label className="text-xs text-diesel-steel">Type</label>
-                      <select
-                        value={selectedElement.balloonType || 'SPEECH'}
-                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { balloonType: e.target.value as 'SPEECH' | 'THOUGHT' })}
-                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1"
-                      >
-                        <option value="SPEECH">Speech</option>
-                        <option value="THOUGHT">Thought</option>
-                      </select>
+                      <label className="text-xs text-diesel-steel">X %</label>
+                      <input
+                        type="number"
+                        value={selectedElement.x.toFixed(1)}
+                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { x: parseFloat(e.target.value) || 0 })}
+                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+                      />
                     </div>
                     <div>
-                      <label className="text-xs text-diesel-steel">Text</label>
-                      <textarea
-                        value={selectedElement.text || ''}
-                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { text: e.target.value })}
-                        placeholder="Balloon text..."
-                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 mt-1 h-16 resize-none"
+                      <label className="text-xs text-diesel-steel">Y %</label>
+                      <input
+                        type="number"
+                        value={selectedElement.y.toFixed(1)}
+                        onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { y: parseFloat(e.target.value) || 0 })}
+                        className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
                       />
                     </div>
                   </div>
-                )}
-
-                {/* Common properties */}
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div>
-                    <label className="text-xs text-diesel-steel">X %</label>
-                    <input
-                      type="number"
-                      value={selectedElement.x.toFixed(1)}
-                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { x: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-diesel-steel">Y %</label>
-                    <input
-                      type="number"
-                      value={selectedElement.y.toFixed(1)}
-                      onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { y: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
-                    />
-                  </div>
-                </div>
-                <CyberSlider
-                  label="Scale"
-                  value={selectedElement.scale}
-                  min={0.1}
-                  max={3}
-                  step={0.1}
-                  onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { scale: v })}
-                />
-                <CyberSlider
-                  label="Rotation"
-                  value={selectedElement.rotation}
-                  min={-180}
-                  max={180}
-                  step={1}
-                  onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { rotation: v })}
-                />
-                <div>
-                  <label className="text-xs text-diesel-steel">Z-Index</label>
-                  <input
-                    type="number"
-                    value={selectedElement.zIndex}
-                    onChange={(e) => updateStageElement(selectedScene.id, selectedElement.id, { zIndex: parseInt(e.target.value) || 0 })}
-                    className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-1 text-center"
+                  <CyberSlider
+                    label="Scale"
+                    value={selectedElement.scale}
+                    min={0.1}
+                    max={3}
+                    step={0.1}
+                    onChange={(v) => updateStageElement(selectedScene.id, selectedElement.id, { scale: v })}
                   />
-                </div>
-              </section>
-            )}
+                </section>
+              )}
 
-            {/* Audio Section */}
-            <section className="bg-diesel-black border border-diesel-green/50 p-3">
-              <button
-                onClick={() => setShowAudio(!showAudio)}
-                className="flex items-center justify-between w-full text-xs font-bold text-diesel-green uppercase tracking-widest"
-              >
-                <span className="flex items-center gap-2">
-                  <Music size={14} />
-                  Audio Tracks
-                  {selectedScene.audioTracks?.length ? ` (${selectedScene.audioTracks.length})` : ''}
-                </span>
-                {showAudio ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-              
-              {showAudio && (
-                <div className="mt-3 space-y-3">
-                  {/* Audio Track List */}
-                  {selectedScene.audioTracks?.map(track => (
-                    <div key={track.id} className="bg-diesel-panel border border-diesel-border p-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <input
-                          value={track.name}
-                          onChange={(e) => updateAudioTrack(track.id, { name: e.target.value })}
-                          className="flex-1 bg-transparent text-diesel-paper text-sm font-bold focus:outline-none"
-                        />
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => playingAudioId === track.id ? stopAudio() : playAudio(track)}
-                            className={`p-1 ${playingAudioId === track.id ? 'text-diesel-green' : 'text-diesel-steel hover:text-diesel-green'}`}
-                          >
-                            {playingAudioId === track.id ? <Pause size={14} /> : <Play size={14} />}
-                          </button>
-                          <button
-                            onClick={() => deleteAudioTrack(track.id)}
-                            className="p-1 text-diesel-rust hover:bg-diesel-rust/20"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={track.type}
-                          onChange={(e) => updateAudioTrack(track.id, { type: e.target.value as SceneAudio['type'] })}
-                          className="bg-diesel-dark border border-diesel-border text-diesel-paper text-xs p-1"
-                        >
-                          <option value="bgm">BGM</option>
-                          <option value="ambience">Ambience</option>
-                          <option value="sfx">SFX</option>
-                        </select>
-                        
-                        <label className="flex items-center gap-1 text-xs text-diesel-steel">
-                          <input
-                            type="checkbox"
-                            checked={track.loop}
-                            onChange={(e) => updateAudioTrack(track.id, { loop: e.target.checked })}
-                            className="accent-diesel-green"
-                          />
-                          Loop
-                        </label>
-                        
-                        <div className="flex items-center gap-1 flex-1">
-                          <Volume2 size={12} className="text-diesel-steel" />
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.1}
-                            value={track.volume}
-                            onChange={(e) => updateAudioTrack(track.id, { volume: parseFloat(e.target.value) })}
-                            className="flex-1 accent-diesel-green"
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Script command preview */}
-                      <div className="bg-diesel-dark border border-diesel-border p-1.5 font-mono text-[10px] text-diesel-gold">
-                        {getAudioScriptCommand(track)}
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(getAudioScriptCommand(track));
-                            toast.success('Copied to clipboard');
-                          }}
-                          className="ml-2 text-diesel-steel hover:text-diesel-paper"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    </div>
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const library = await loadLibraryFromDB();
+                    const updated = addSceneToLibrary(library, selectedScene, game.info.title);
+                    await saveLibraryToDB(updated);
+                    toast.success(`"${selectedScene.name}" saved to library!`);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+                >
+                  <Archive size={14} />
+                  Library
+                </button>
+                <button
+                  onClick={() => deleteScene(selectedScene.id)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Right Column - DramScript Panel (Prominent) */}
+        <div className="flex-1 flex flex-col min-w-0 bg-diesel-black border-2 border-diesel-rust">
+          <div className="flex items-center justify-between p-3 border-b border-diesel-rust bg-diesel-rust/10">
+            <h3 className="text-sm font-bold text-diesel-rust uppercase tracking-widest flex items-center gap-2">
+              <MessageSquare size={16} />
+              DramScript
+            </h3>
+            <div className="flex items-center gap-2">
+              {/* Quick insert audio commands */}
+              {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedScene.audioTracks.map(track => (
+                    <button
+                      key={track.id}
+                      onClick={() => {
+                        const cmd = getAudioScriptCommand(track);
+                        const currentScript = selectedScene.script || '';
+                        updateScene(selectedScene.id, { script: currentScript + (currentScript ? '\n' : '') + cmd });
+                      }}
+                      className="px-1.5 py-0.5 bg-diesel-green/20 border border-diesel-green/50 text-diesel-green text-[10px] hover:bg-diesel-green/30"
+                      title={`Insert ${track.type.toUpperCase()} command`}
+                    >
+                      {track.name}
+                    </button>
                   ))}
-                  
-                  {(!selectedScene.audioTracks || selectedScene.audioTracks.length === 0) && (
-                    <p className="text-xs text-diesel-steel/50 italic">No audio tracks</p>
-                  )}
-                  
-                  {/* Add Audio Button */}
-                  <button
-                    onClick={() => audioInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 py-2 bg-diesel-green/10 border border-dashed border-diesel-green/50 text-diesel-green text-xs uppercase font-bold hover:bg-diesel-green/20"
-                  >
-                    <Upload size={14} />
-                    Add Audio File
-                  </button>
-                  <input
-                    ref={audioInputRef}
-                    type="file"
-                    accept="audio/*"
-                    onChange={handleAudioUpload}
-                    className="hidden"
-                  />
                 </div>
               )}
-            </section>
-
-            {/* Script Section */}
-            <section className="bg-diesel-black border border-diesel-border p-3">
               <button
-                onClick={() => setShowScript(!showScript)}
-                className="flex items-center justify-between w-full text-xs font-bold text-diesel-rust uppercase tracking-widest"
-              >
-                Script
-                {showScript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-              {showScript && (
-                <>
-                  {/* Quick insert audio commands */}
-                  {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
-                    <div className="mt-2 mb-2 flex flex-wrap gap-1">
-                      <span className="text-[10px] text-diesel-steel">Insert:</span>
-                      {selectedScene.audioTracks.map(track => (
-                        <button
-                          key={track.id}
-                          onClick={() => {
-                            const cmd = getAudioScriptCommand(track);
-                            const currentScript = selectedScene.script || '';
-                            updateScene(selectedScene.id, { script: currentScript + (currentScript ? '\n' : '') + cmd });
-                          }}
-                          className="px-1.5 py-0.5 bg-diesel-green/20 border border-diesel-green/50 text-diesel-green text-[10px] hover:bg-diesel-green/30"
-                        >
-                          {track.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <textarea
-                    value={selectedScene.script || ''}
-                    onChange={(e) => updateScene(selectedScene.id, { script: e.target.value })}
-                    placeholder="Write your scene script here...&#10;Use [BGM: &quot;track_name&quot; loop vol=70%] for audio"
-                    className="w-full h-32 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm p-2 font-mono resize-none focus:outline-none focus:border-diesel-rust"
-                  />
-                </>
-              )}
-            </section>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  const library = await loadLibraryFromDB();
-                  const updated = addSceneToLibrary(library, selectedScene, game.info.title);
-                  await saveLibraryToDB(updated);
-                  toast.success(`"${selectedScene.name}" saved to library!`);
+                onClick={() => {
+                  if (!selectedScene.script || selectedScene.script.trim() === '') {
+                    updateScene(selectedScene.id, { script: generateScriptHeader() });
+                  }
                 }}
-                className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+                className="px-2 py-1 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-[10px] font-bold uppercase hover:bg-diesel-rust/30"
+                title="Add header comment"
               >
-                <Archive size={14} />
-                Save to Library
-              </button>
-              <button
-                onClick={() => deleteScene(selectedScene.id)}
-                className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-              >
-                <Trash2 size={14} />
-                Delete Scene
+                + Header
               </button>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Right Panel - Visual Stage Canvas */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-1 flex items-center justify-center bg-diesel-dark/50 border border-diesel-border overflow-hidden">
-          <div className="w-full max-w-4xl">
-            <Stage
-              scene={selectedScene}
-              game={game}
-              background={backgroundDrop}
-              editable={true}
-              selectedElementId={selectedElementId}
-              draggingId={dragging}
-              onElementSelect={setSelectedElementId}
-              onElementMouseDown={handleMouseDown}
-              onElementDoubleClick={(element, actor) => {
-                if (element.type === 'ACTOR' && actor) {
-                  setActorGenerator({ 
-                    active: true, 
-                    actorId: actor.id, 
-                    elementId: element.id,
-                    dropX: element.x,
-                    dropY: element.y
-                  });
-                  setGenPrompt('');
-                  setGeneratedPreview(null);
-                  setSelectedElementId(null);
+          </div>
+          <div className="flex-1 p-2 overflow-hidden">
+            <textarea
+              value={selectedScene.script || ''}
+              onChange={(e) => handleScriptChange(e.target.value)}
+              onFocus={() => {
+                if (!selectedScene.script || selectedScene.script.trim() === '') {
+                  updateScene(selectedScene.id, { script: generateScriptHeader() });
                 }
               }}
-              onMouseMove={handleCombinedMouseMove}
-              onMouseUp={handleMouseUp}
-              onCanvasClick={handleCanvasClick}
-              canvasRef={canvasRef}
-              // Button editor props
-              selectedButtonId={selectedButtonId}
-              draggingButtonId={draggingButton}
-              onButtonSelect={setSelectedButtonId}
-              onButtonMouseDown={handleButtonMouseDown}
+              placeholder={`# Your DramScript here...\n\nDetective: "The clues are all here."\n[ENTER Detective x=50 y=70]`}
+              className="w-full h-full bg-diesel-dark border border-diesel-border text-diesel-paper text-sm p-3 font-mono resize-none focus:outline-none focus:border-diesel-rust custom-scrollbar"
+              style={{ minHeight: '200px' }}
             />
           </div>
         </div>
       </div>
 
-      {/* Image Preview Dialog */}
+      {/* Image Preview */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-4xl bg-diesel-dark border-diesel-border p-0 overflow-hidden">
           <button
