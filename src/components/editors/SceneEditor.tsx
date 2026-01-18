@@ -843,15 +843,32 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background</label>
+                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background Drop</label>
                 <select
-                  value={selectedScene.dropId || ''}
-                  onChange={(e) => updateScene(selectedScene.id, { dropId: e.target.value || undefined })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
+                  value={selectedScene.dropId === null ? '__none__' : (selectedScene.dropId || '')}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '__none__') {
+                      updateScene(selectedScene.id, { dropId: null });
+                    } else if (value === '') {
+                      // Not selected yet - do nothing, force a choice
+                    } else {
+                      updateScene(selectedScene.id, { dropId: value });
+                    }
+                  }}
+                  className={`bg-diesel-panel border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold ${
+                    selectedScene.dropId === undefined ? 'border-diesel-rust' : 'border-diesel-border'
+                  }`}
                 >
-                  <option value="">No background</option>
+                  {selectedScene.dropId === undefined && (
+                    <option value="">-- Select a drop --</option>
+                  )}
+                  <option value="__none__">(None - No background)</option>
                   {game.drops.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
+                {selectedScene.dropId === undefined && (
+                  <span className="text-[10px] text-diesel-rust">Please select a drop or "(None)"</span>
+                )}
               </div>
             </section>
 
