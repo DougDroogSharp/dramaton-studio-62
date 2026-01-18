@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
+import { toast } from 'sonner';
 import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
@@ -47,8 +49,6 @@ const Index = () => {
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
   const [didSaveOnProtocolStart, setDidSaveOnProtocolStart] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check for autosave on mount and start pacing protocol timer
   useEffect(() => {
@@ -170,7 +170,28 @@ const Index = () => {
     navigate('/theater');
   };
 
-  const handleLoadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLoadFile = async () => {
+    const result = await openFileWithPicker({
+      ...DRAM_FILE_OPTIONS,
+    });
+    
+    if (!result) return; // User cancelled
+    
+    try {
+      const data = JSON.parse(result.content) as GameData;
+      setGame(data);
+      setIsStarted(true);
+      setIsLoaded(true);
+      saveGameToDB(data); // Save to IndexedDB for autosave
+      toast.success(`Loaded: ${result.name}`);
+    } catch (err) {
+      console.error('Failed to parse game file:', err);
+      toast.error('Failed to parse game file');
+    }
+  };
+
+  // Legacy handler for hidden file input (splash screen fallback)
+  const handleLoadFileLegacy = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -181,8 +202,11 @@ const Index = () => {
         setGame(data);
         setIsStarted(true);
         setIsLoaded(true);
+        saveGameToDB(data);
+        toast.success(`Loaded: ${file.name}`);
       } catch (err) {
         console.error('Failed to parse game file:', err);
+        toast.error('Failed to parse game file');
       }
     };
     reader.readAsText(file);
@@ -234,12 +258,18 @@ const Index = () => {
     }
   };
 
-  const handleSave = () => {
-    const blob = new Blob([JSON.stringify(game, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${game.info.title.replace(/\s+/g, '_')}.dram`;
-    a.click();
+  const handleSave = async () => {
+    const content = JSON.stringify(game, null, 2);
+    const suggestedName = `${game.info.title.replace(/\s+/g, '_')}.dram`;
+    
+    const saved = await saveFileWithPicker(content, {
+      ...DRAM_FILE_OPTIONS,
+      suggestedName,
+    });
+    
+    if (saved) {
+      toast.success('Game saved!');
+    }
   };
 
   const navItems = [
@@ -437,19 +467,12 @@ const Index = () => {
             
             {/* Load button */}
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleLoadFile}
               className="w-full py-3 mt-3 bg-diesel-panel border-2 border-diesel-border text-diesel-steel font-bold uppercase tracking-widest hover:text-diesel-paper hover:border-diesel-paper transition-all flex items-center justify-center gap-2"
             >
               <Upload size={18} />
               Load Archive (.dram)
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".dram,.json"
-              onChange={handleLoadFile}
-              className="hidden"
-            />
           </IndustrialPanel>
           
           {/* Footer with blinking status */}
@@ -533,7 +556,7 @@ const Index = () => {
           <button onClick={handleSave} className="p-1.5 text-diesel-steel hover:text-white" title="Save to file">
             <Save size={14} />
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="p-1.5 text-diesel-steel hover:text-white" title="Load game">
+          <button onClick={handleLoadFile} className="p-1.5 text-diesel-steel hover:text-white" title="Load game">
             <FolderOpen size={14} />
           </button>
           <button onClick={handleUndo} disabled={history.length === 0} className="p-1.5 text-diesel-steel hover:text-white disabled:opacity-30" title="Undo">
@@ -542,13 +565,6 @@ const Index = () => {
           <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-1.5 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
             {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".dram,.json"
-            onChange={handleLoadFile}
-            className="hidden"
-          />
         </div>
       </div>
       
