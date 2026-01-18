@@ -24,6 +24,7 @@ export interface ScriptRunnerState {
   hiddenElements: Set<string>;
   elementOverrides: Map<string, Partial<StageElement>>;
   activeEffects: Map<string, string[]>;
+  activeButtons: Set<string>; // Button IDs that are currently visible/active
   isWaiting: boolean;
   isComplete: boolean;
   isAutoPlay: boolean;
@@ -55,6 +56,7 @@ export function useScriptRunner({
     hiddenElements: new Set(),
     elementOverrides: new Map(),
     activeEffects: new Map(),
+    activeButtons: new Set(),
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -244,6 +246,7 @@ export function useScriptRunner({
           hiddenElements: new Set(),
           elementOverrides: new Map(),
           activeEffects: new Map(),
+          activeButtons: new Set(),
           isWaiting: false,
         }));
         return true;
@@ -284,6 +287,24 @@ export function useScriptRunner({
             executeCommand(nestedCmd);
           }
         }
+        return true;
+      }
+      
+      case 'BUTTON': {
+        setState(prev => {
+          const buttons = new Set(prev.activeButtons);
+          buttons.add(command.buttonId);
+          return { ...prev, activeButtons: buttons };
+        });
+        return true;
+      }
+      
+      case 'HIDE_BUTTON': {
+        setState(prev => {
+          const buttons = new Set(prev.activeButtons);
+          buttons.delete(command.buttonId);
+          return { ...prev, activeButtons: buttons };
+        });
         return true;
       }
       
@@ -347,6 +368,7 @@ export function useScriptRunner({
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
+      activeButtons: new Set(),
       isWaiting: false,
       isComplete: false,
     }));
@@ -387,6 +409,7 @@ export function useScriptRunner({
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
+      activeButtons: new Set(),
       isWaiting: false,
       isComplete: false,
     }));

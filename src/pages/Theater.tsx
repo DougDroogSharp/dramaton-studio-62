@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { GameData, createDefaultGame } from '@/types';
+import { GameData, createDefaultGame, Button } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { ChoicePanel } from '@/components/theater/ChoicePanel';
@@ -91,6 +91,58 @@ const Theater: React.FC = () => {
     startSceneId,
     onAudioCommand: handleAudioCommand,
   });
+
+  // Default button click sound (simple beep using Web Audio API)
+  const playDefaultClickSound = useCallback(() => {
+    if (isMuted) return;
+    
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (e) {
+      console.log('Could not play click sound:', e);
+    }
+  }, [isMuted]);
+
+  // Handle button click
+  const handleButtonClick = useCallback((button: Button) => {
+    // Play SFX (custom or default)
+    if (button.sfxId) {
+      const sfx = game?.sfx.find(s => s.id === button.sfxId);
+      if (sfx?.params?.audioUrl && !isMuted) {
+        const audio = new Audio(sfx.params.audioUrl);
+        audio.volume = 0.7;
+        audio.play().catch(e => console.log('Failed to play button SFX:', e));
+      } else {
+        playDefaultClickSound();
+      }
+    } else {
+      playDefaultClickSound();
+    }
+    
+    // Open external page if specified
+    if (button.pageUrl) {
+      window.open(button.pageUrl, '_blank', 'noopener,noreferrer');
+    }
+    
+    // Navigate to target scene if specified
+    if (button.targetSceneId) {
+      scriptRunner.goToScene(button.targetSceneId);
+    }
+  }, [game, isMuted, playDefaultClickSound, scriptRunner]);
 
   // Keyboard controls
   useEffect(() => {
@@ -218,6 +270,8 @@ const Theater: React.FC = () => {
               background={background}
               hideElement={scriptRunner.state.hiddenElements}
               activeEffects={scriptRunner.state.activeEffects}
+              activeButtons={Array.from(scriptRunner.state.activeButtons)}
+              onButtonClick={handleButtonClick}
             />
           )}
         </div>
