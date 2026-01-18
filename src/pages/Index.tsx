@@ -421,21 +421,21 @@ const Index = () => {
         />
         
         {/* Main content */}
-        <div className="relative z-20 flex flex-col items-center py-4">
+        <div className="relative z-20 flex flex-col items-center pt-1 pb-2">
           {/* Logo with glow - smaller */}
           <div className="relative">
             <div className="absolute inset-0 blur-xl bg-diesel-rust/30 rounded-full" />
-            <DramatonLogo className="relative w-24 h-24 text-diesel-rust mb-2 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
+            <DramatonLogo className="relative w-16 h-16 text-diesel-rust mb-1 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
           </div>
           
           {/* Art deco divider */}
-          <ArtDecoDivider width={300} className="text-diesel-gold mb-2" />
+          <ArtDecoDivider width={280} className="text-diesel-gold mb-1" />
           
           {/* Title - smaller */}
-          <h1 className="text-3xl md:text-4xl font-bold text-diesel-rust tracking-widest mb-1 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
+          <h1 className="text-2xl md:text-3xl font-bold text-diesel-rust tracking-widest mb-0.5 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
             DRAMATON
           </h1>
-          <p className="text-diesel-steel text-[10px] tracking-[0.3em] mb-4 uppercase font-mono">
+          <p className="text-diesel-steel text-[9px] tracking-[0.3em] mb-2 uppercase font-mono">
             ▸ Dieselpunk Narrative Architect v2.5 ◂
           </p>
           
