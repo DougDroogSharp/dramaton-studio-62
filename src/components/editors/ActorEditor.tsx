@@ -3,12 +3,13 @@ import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera, X, ZoomIn, Lock, Wand2, Check } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera, X, ZoomIn, Lock, Wand2, Check, Archive } from 'lucide-react';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
+import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 
 interface ActorEditorProps {
   game: GameData;
@@ -910,13 +911,27 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         </div>
       </section>
 
-      {/* Delete Actor */}
-      <button
-        onClick={() => deleteActor(selectedActor.id)}
-        className="w-full py-2 mt-6 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-      >
-        Delete Actor
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={async () => {
+            const library = await loadLibraryFromDB();
+            const updated = addActorToLibrary(library, selectedActor, game.info.title);
+            await saveLibraryToDB(updated);
+            toast.success(`"${selectedActor.name}" saved to library!`);
+          }}
+          className="flex-1 py-2 border border-diesel-gold text-diesel-gold text-sm font-bold uppercase hover:bg-diesel-gold/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <Archive size={14} />
+          Save to Library
+        </button>
+        <button
+          onClick={() => deleteActor(selectedActor.id)}
+          className="flex-1 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+        >
+          Delete Actor
+        </button>
+      </div>
 
       {/* Image Preview Dialog */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>

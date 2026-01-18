@@ -3,7 +3,9 @@ import { GameData, Sfx, SfxType, SfxCategory, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SFX_TYPES } from '@/constants';
-import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square, Upload } from 'lucide-react';
+import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square, Upload, Archive } from 'lucide-react';
+import { toast } from 'sonner';
+import { loadLibraryFromDB, saveLibraryToDB, addSfxToLibrary } from '@/utils/library';
 
 interface SfxEditorProps {
   game: GameData;
@@ -499,13 +501,27 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
         )}
       </section>
 
-      {/* Delete SFX */}
-      <button
-        onClick={() => deleteSfx(selectedSfx.id)}
-        className="w-full py-2 mt-6 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-      >
-        Delete Effect
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={async () => {
+            const library = await loadLibraryFromDB();
+            const updated = addSfxToLibrary(library, selectedSfx, game.info.title);
+            await saveLibraryToDB(updated);
+            toast.success(`"${selectedSfx.name}" saved to library!`);
+          }}
+          className="flex-1 py-2 border border-diesel-green text-diesel-green text-sm font-bold uppercase hover:bg-diesel-green/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <Archive size={14} />
+          Save to Library
+        </button>
+        <button
+          onClick={() => deleteSfx(selectedSfx.id)}
+          className="flex-1 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+        >
+          Delete Effect
+        </button>
+      </div>
     </div>
   );
 };

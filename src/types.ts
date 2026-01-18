@@ -145,6 +145,38 @@ export interface GameData {
   sfx: Sfx[];
 }
 
+// Library Types for cross-game asset reuse
+export interface LibraryAsset {
+  libraryId: string;      // Unique ID within the library
+  addedAt: number;        // Timestamp when added
+  source: string;         // Original game title
+  tags?: string[];        // Optional categorization
+}
+
+export interface LibraryActor extends Actor, LibraryAsset {}
+export interface LibraryScene extends Scene, LibraryAsset {}
+export interface LibraryDrop extends Drop, LibraryAsset {}
+export interface LibraryItem extends Item, LibraryAsset {}
+export interface LibrarySfx extends Sfx, LibraryAsset {}
+
+export interface AssetLibrary {
+  version: number;
+  actors: LibraryActor[];
+  scenes: LibraryScene[];
+  drops: LibraryDrop[];
+  items: LibraryItem[];
+  sfx: LibrarySfx[];
+}
+
+export const createDefaultLibrary = (): AssetLibrary => ({
+  version: 1,
+  actors: [],
+  scenes: [],
+  drops: [],
+  items: [],
+  sfx: [],
+});
+
 // Default game state
 export const createDefaultGame = (): GameData => ({
   info: {

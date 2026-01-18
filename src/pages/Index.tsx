@@ -3,7 +3,7 @@ import { GameData, SelectionState, createDefaultGame } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2 } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -11,6 +11,7 @@ import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
 import { AssetTree } from '@/components/AssetTree';
+import { LibraryPanel } from '@/components/LibraryPanel';
 import Hourglass from '@/components/Hourglass';
 import {
   Gear, 
@@ -38,6 +39,7 @@ const Index = () => {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
@@ -425,6 +427,13 @@ const Index = () => {
         
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
+          <button 
+            onClick={() => setShowLibrary(!showLibrary)} 
+            className={`p-1.5 transition-colors ${showLibrary ? 'text-diesel-gold' : 'text-diesel-steel hover:text-white'}`} 
+            title="Asset Library"
+          >
+            <Archive size={14} />
+          </button>
           <button onClick={handleSave} className="p-1.5 text-diesel-steel hover:text-white" title="Save to file">
             <Save size={14} />
           </button>
@@ -446,6 +455,14 @@ const Index = () => {
           />
         </div>
       </div>
+      
+      {/* Library Panel */}
+      <LibraryPanel 
+        isOpen={showLibrary} 
+        onClose={() => setShowLibrary(false)} 
+        game={game}
+        onGameChange={setGame}
+      />
       
       {/* Editor Content */}
       <div className="flex-1 flex overflow-hidden">

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { GameData, Item, ItemEffect, UnlockCondition, SelectionState, ItemCategory, AcquisitionType, Operator } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { ITEM_CATEGORIES, ACQUISITION_TYPES, OPERATORS } from '@/constants';
-import { Plus, Trash2, Package, ChevronRight, Upload, Lock, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Package, ChevronRight, Upload, Lock, Sparkles, Loader2, Archive } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadLibraryFromDB, saveLibraryToDB, addItemToLibrary } from '@/utils/library';
 
 interface ItemEditorProps {
   game: GameData;
@@ -499,13 +500,27 @@ NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrou
         </div>
       </section>
 
-      {/* Delete Item */}
-      <button
-        onClick={() => deleteItem(selectedItem.id)}
-        className="w-full py-2 mt-6 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-      >
-        Delete Item
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={async () => {
+            const library = await loadLibraryFromDB();
+            const updated = addItemToLibrary(library, selectedItem, game.info.title);
+            await saveLibraryToDB(updated);
+            toast.success(`"${selectedItem.name}" saved to library!`);
+          }}
+          className="flex-1 py-2 border border-diesel-gold text-diesel-gold text-sm font-bold uppercase hover:bg-diesel-gold/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <Archive size={14} />
+          Save to Library
+        </button>
+        <button
+          onClick={() => deleteItem(selectedItem.id)}
+          className="flex-1 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+        >
+          Delete Item
+        </button>
+      </div>
     </div>
   );
 };

@@ -3,10 +3,11 @@ import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, Sce
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2 } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2, Archive } from 'lucide-react';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { loadLibraryFromDB, saveLibraryToDB, addSceneToLibrary } from '@/utils/library';
 
 interface SceneEditorProps {
   game: GameData;
@@ -1164,14 +1165,28 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               )}
             </section>
 
-            {/* Delete Scene */}
-            <button
-              onClick={() => deleteScene(selectedScene.id)}
-              className="flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-            >
-              <Trash2 size={14} />
-              Delete Scene
-            </button>
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  const library = await loadLibraryFromDB();
+                  const updated = addSceneToLibrary(library, selectedScene, game.info.title);
+                  await saveLibraryToDB(updated);
+                  toast.success(`"${selectedScene.name}" saved to library!`);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+              >
+                <Archive size={14} />
+                Save to Library
+              </button>
+              <button
+                onClick={() => deleteScene(selectedScene.id)}
+                className="flex-1 flex items-center justify-center gap-2 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+              >
+                <Trash2 size={14} />
+                Delete Scene
+              </button>
+            </div>
           </>
         )}
       </div>
