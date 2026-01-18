@@ -252,6 +252,7 @@ This is a background scene with no characters or text.`;
             editMode: true,
             styleGuide: styleGuide || undefined,
             enforceStyleGuide: styleLock,
+            isCharacter: false, // Drops are backgrounds, not characters
           }),
         }
       );
