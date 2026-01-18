@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { GameData, Drop, SelectionState } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
-import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers, Lock } from 'lucide-react';
+import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers, Lock, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
+import { loadLibraryFromDB, saveLibraryToDB, addDropToLibrary } from '@/utils/library';
 
 interface DropEditorProps {
   game: GameData;
@@ -681,13 +682,27 @@ This is a background scene with no characters or text.`;
         )}
       </section>
 
-      {/* Delete Drop */}
-      <button
-        onClick={() => deleteDrop(selectedDrop.id)}
-        className="w-full py-2 mt-6 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
-      >
-        Delete Background
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2 mt-6">
+        <button
+          onClick={async () => {
+            const library = await loadLibraryFromDB();
+            const updated = addDropToLibrary(library, selectedDrop, game.info.title);
+            await saveLibraryToDB(updated);
+            toast.success(`"${selectedDrop.name}" saved to library!`);
+          }}
+          className="flex-1 py-2 border border-diesel-paper text-diesel-paper text-sm font-bold uppercase hover:bg-diesel-paper/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <Archive size={14} />
+          Save to Library
+        </button>
+        <button
+          onClick={() => deleteDrop(selectedDrop.id)}
+          className="flex-1 py-2 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/20 transition-colors"
+        >
+          Delete Background
+        </button>
+      </div>
     </div>
   );
 };
