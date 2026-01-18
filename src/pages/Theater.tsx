@@ -271,6 +271,11 @@ const Theater: React.FC = () => {
             setHasStarted(false);
           }
         }}
+        onBackToMenu={() => {
+          if (confirm('Exit to main menu? Progress will be lost.')) {
+            navigate('/');
+          }
+        }}
       />
       
       {/* Menu overlay (placeholder) */}
