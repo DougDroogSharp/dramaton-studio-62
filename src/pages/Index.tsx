@@ -409,137 +409,139 @@ const Index = () => {
         />
         
         {/* Main content */}
-        <div className="relative z-20 flex flex-col items-center">
-          {/* Logo with glow */}
+        <div className="relative z-20 flex flex-col items-center py-4">
+          {/* Logo with glow - smaller */}
           <div className="relative">
             <div className="absolute inset-0 blur-xl bg-diesel-rust/30 rounded-full" />
-            <DramatonLogo className="relative w-36 h-36 text-diesel-rust mb-4 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
+            <DramatonLogo className="relative w-24 h-24 text-diesel-rust mb-2 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
           </div>
           
           {/* Art deco divider */}
-          <ArtDecoDivider width={400} className="text-diesel-gold mb-4" />
+          <ArtDecoDivider width={300} className="text-diesel-gold mb-2" />
           
-          {/* Title */}
-          <h1 className="text-5xl md:text-6xl font-bold text-diesel-rust tracking-widest mb-2 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
+          {/* Title - smaller */}
+          <h1 className="text-3xl md:text-4xl font-bold text-diesel-rust tracking-widest mb-1 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
             DRAMATON
           </h1>
-          <p className="text-diesel-steel text-xs tracking-[0.4em] mb-8 uppercase font-mono">
+          <p className="text-diesel-steel text-[10px] tracking-[0.3em] mb-4 uppercase font-mono">
             ▸ Dieselpunk Narrative Architect v2.5 ◂
           </p>
           
-          {/* Industrial Panel */}
-          <IndustrialPanel className="w-[420px] max-w-[90vw]" glowing>
+          {/* Industrial Panel - more compact */}
+          <IndustrialPanel className="w-[400px] max-w-[90vw]" glowing>
             {/* Play/Edit buttons for saved game */}
             {hasAutoSave && (
-              <div className="mb-5">
-                <p className="text-diesel-steel text-xs uppercase tracking-widest text-center mb-2 font-mono">
+              <div className="mb-3">
+                <p className="text-diesel-steel text-[10px] uppercase tracking-widest text-center mb-1 font-mono">
                   ▸ Saved Protocol Detected ◂
                 </p>
-                <p className="text-diesel-paper text-sm text-center mb-1 font-bold truncate">
+                <p className="text-diesel-paper text-sm text-center font-bold truncate">
                   "{startTitle}"
                 </p>
-                <p className="text-diesel-steel/70 text-xs text-center mb-4">
+                <p className="text-diesel-steel/70 text-[10px] text-center mb-2">
                   by {startAuthor}
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={handlePlayGame}
-                    className="flex-1 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-all hover:shadow-[0_0_20px_hsl(15,70%,45%,0.3)] flex items-center justify-center gap-2"
+                    className="flex-1 py-2 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust text-sm font-bold uppercase tracking-wider hover:bg-diesel-rust/30 transition-all flex items-center justify-center gap-1"
                   >
-                    <Play size={18} />
+                    <Play size={14} />
                     Play
                   </button>
                   <button
                     onClick={handleLoadFile}
-                    className="flex-1 py-3 bg-diesel-gold/20 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/30 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
+                    className="flex-1 py-2 bg-diesel-gold/20 border-2 border-diesel-gold text-diesel-gold text-sm font-bold uppercase tracking-wider hover:bg-diesel-gold/30 transition-all flex items-center justify-center gap-1"
                   >
-                    <FolderOpen size={18} />
+                    <FolderOpen size={14} />
                     Load
                   </button>
                   <button
                     onClick={handleResumeGame}
-                    className="flex-1 py-3 bg-diesel-green/20 border-2 border-diesel-green text-diesel-green font-bold uppercase tracking-widest hover:bg-diesel-green/30 transition-all hover:shadow-[0_0_20px_hsl(120,50%,45%,0.3)] flex items-center justify-center gap-2"
+                    className="flex-1 py-2 bg-diesel-green/20 border-2 border-diesel-green text-diesel-green text-sm font-bold uppercase tracking-wider hover:bg-diesel-green/30 transition-all flex items-center justify-center gap-1"
                   >
-                    <Settings size={18} />
+                    <Settings size={14} />
                     Edit
                   </button>
                 </div>
-                <div className="flex items-center my-5">
+                <div className="flex items-center my-3">
                   <div className="flex-1 h-px bg-diesel-border" />
-                  <span className="px-3 text-diesel-steel/50 text-xs uppercase tracking-widest">or start fresh</span>
+                  <span className="px-2 text-diesel-steel/50 text-[10px] uppercase tracking-widest">or start fresh</span>
                   <div className="flex-1 h-px bg-diesel-border" />
                 </div>
               </div>
             )}
             
-            {/* New game inputs */}
-            <CyberInput
-              label="Protocol Designation"
-              value={startTitle}
-              onChange={(e) => setStartTitle(e.target.value)}
-              placeholder="Enter your game title..."
-            />
-            <CyberInput
-              label="Architect Identity"
-              value={startAuthor}
-              onChange={(e) => setStartAuthor(e.target.value)}
-              placeholder="Your name or studio..."
-            />
+            {/* New game inputs - tighter spacing */}
+            <div className="space-y-2">
+              <CyberInput
+                label="Protocol Designation"
+                value={startTitle}
+                onChange={(e) => setStartTitle(e.target.value)}
+                placeholder="Enter your game title..."
+              />
+              <CyberInput
+                label="Architect Identity"
+                value={startAuthor}
+                onChange={(e) => setStartAuthor(e.target.value)}
+                placeholder="Your name or studio..."
+              />
+            </div>
             
             {/* Create button */}
             <button
               onClick={handleStartGame}
-              className="w-full py-3 mt-4 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-all hover:shadow-[0_0_20px_hsl(15,70%,45%,0.3)] flex items-center justify-center gap-2"
+              className="w-full py-2 mt-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust text-sm font-bold uppercase tracking-wider hover:bg-diesel-rust/30 transition-all flex items-center justify-center gap-2"
             >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 6v6l4 2" />
               </svg>
               Initialize New Protocol
             </button>
             
-            {/* Load button with scream */}
-            <p className="text-diesel-steel text-xs text-center mt-4 mb-2 italic">
+            {/* Load button */}
+            <p className="text-diesel-steel text-[10px] text-center mt-2 mb-1 italic">
               "Allow me to load a .dram file!"
             </p>
             <button
               onClick={handleLoadFile}
-              className="w-full py-3 bg-diesel-gold/10 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/20 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
+              className="w-full py-2 bg-diesel-gold/10 border-2 border-diesel-gold text-diesel-gold text-sm font-bold uppercase tracking-wider hover:bg-diesel-gold/20 transition-all flex items-center justify-center gap-2"
             >
-              <FolderOpen size={18} />
+              <FolderOpen size={14} />
               Load Archive
             </button>
             
             {/* Document Project button - only show when there's a saved game */}
             {hasAutoSave && (
               <>
-                <div className="flex items-center my-4">
+                <div className="flex items-center my-2">
                   <div className="flex-1 h-px bg-diesel-border" />
-                  <span className="px-3 text-diesel-steel/50 text-xs uppercase tracking-widest">documentation</span>
+                  <span className="px-2 text-diesel-steel/50 text-[10px] uppercase tracking-widest">docs</span>
                   <div className="flex-1 h-px bg-diesel-border" />
                 </div>
                 <button
                   onClick={handleDocumentProject}
                   disabled={isCapturing}
-                  className="w-full py-3 bg-diesel-cyan/10 border-2 border-diesel-cyan text-diesel-cyan font-bold uppercase tracking-widest hover:bg-diesel-cyan/20 transition-all hover:shadow-[0_0_20px_hsl(180,60%,45%,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2 bg-diesel-cyan/10 border-2 border-diesel-cyan text-diesel-cyan text-sm font-bold uppercase tracking-wider hover:bg-diesel-cyan/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Camera size={18} />
+                  <Camera size={14} />
                   {isCapturing ? 'Capturing...' : 'Document Project'}
                 </button>
               </>
             )}
           </IndustrialPanel>
           
-          {/* Footer with blinking status */}
-          <div className="mt-8 flex items-center gap-4 text-diesel-steel/60 text-xs tracking-widest font-mono">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-diesel-green rounded-full animate-pulse" />
+          {/* Footer with blinking status - smaller */}
+          <div className="mt-4 flex items-center gap-3 text-diesel-steel/60 text-[10px] tracking-wider font-mono">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-diesel-green rounded-full animate-pulse" />
               CORE: ONLINE
             </span>
             <span className="text-diesel-border">│</span>
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-diesel-gold rounded-full animate-pulse" />
-              NARRATIVE ENGINE: READY
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-diesel-gold rounded-full animate-pulse" />
+              ENGINE: READY
             </span>
           </div>
         </div>
