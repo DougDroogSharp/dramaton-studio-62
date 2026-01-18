@@ -119,7 +119,7 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
       playAudio(audioDataUrl, sfx.id);
     } catch (error) {
       console.error('Audio generation failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate audio');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate audio');
     } finally {
       setGeneratingAudio(false);
     }
@@ -132,13 +132,13 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
     
     // Validate file type
     if (!file.type.startsWith('audio/')) {
-      alert('Please upload an audio file (MP3, WAV, OGG, etc.)');
+      toast.error('Please upload an audio file (MP3, WAV, OGG, etc.)');
       return;
     }
     
     // Validate file size (max 5MB for embedded audio)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Audio file must be under 5MB for game file embedding');
+      toast.error('Audio file must be under 5MB for game file embedding');
       return;
     }
     

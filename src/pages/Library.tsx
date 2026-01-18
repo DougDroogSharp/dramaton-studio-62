@@ -29,6 +29,7 @@ import {
   Search, Download, Upload, Trash2, Plus, Archive, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import {
   Gear, 
   Rivet, 
@@ -44,6 +45,7 @@ interface SelectedAsset {
 }
 
 const Library = () => {
+  const { confirm } = useConfirmDialog();
   const [library, setLibrary] = useState<AssetLibrary | null>(null);
   const [game, setGame] = useState<GameData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,10 +137,18 @@ const Library = () => {
     setSelectedAsset(null);
   };
 
-  const handleDeleteFromLibrary = () => {
+  const handleDeleteFromLibrary = async () => {
     if (!selectedAsset) return;
     
-    if (!confirm('Remove this asset from the library?')) return;
+    const shouldDelete = await confirm({ 
+      title: 'Remove Asset',
+      description: 'Remove this asset from the library?',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      variant: 'destructive'
+    });
+    
+    if (!shouldDelete) return;
 
     let updatedLibrary = library;
     
