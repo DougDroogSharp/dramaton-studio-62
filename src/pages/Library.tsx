@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   AssetLibrary, 
@@ -9,7 +9,7 @@ import {
   loadLibraryFromDB,
   saveLibraryToDB,
   exportLibrary,
-  importLibrary,
+  importLibraryFromPicker,
   removeActorFromLibrary,
   removeSceneFromLibrary,
   removeDropFromLibrary,
@@ -57,7 +57,6 @@ const Library = () => {
     items: true,
     sfx: true,
   });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load library and game on mount
   useEffect(() => {
@@ -175,17 +174,18 @@ const Library = () => {
     toast.success('Asset removed from library');
   };
 
-  const handleExport = () => {
-    exportLibrary(library);
-    toast.success('Library exported!');
+  const handleExport = async () => {
+    const saved = await exportLibrary(library);
+    if (saved) {
+      toast.success('Library exported!');
+    }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleImport = async () => {
     try {
-      const importedLibrary = await importLibrary(file);
+      const importedLibrary = await importLibraryFromPicker();
+      if (!importedLibrary) return; // User cancelled
+      
       // Merge with existing library
       const mergedLibrary: AssetLibrary = {
         version: Math.max(library.version, importedLibrary.version),
@@ -200,9 +200,6 @@ const Library = () => {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Import failed');
     }
-    
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const filteredActors = library.actors.filter(a => matchesSearch(a.name));
@@ -342,19 +339,12 @@ const Library = () => {
             Export
           </button>
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleImport}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-diesel-panel border border-diesel-border text-diesel-steel text-xs font-bold uppercase hover:text-diesel-paper hover:border-diesel-paper transition-colors"
           >
             <Upload size={14} />
             Import
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".dramlib,.json"
-            onChange={handleImport}
-            className="hidden"
-          />
         </div>
       </div>
       

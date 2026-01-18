@@ -6,6 +6,7 @@ import {
   LibraryActor, LibraryScene, LibraryDrop, LibraryItem, LibrarySfx,
   GameData
 } from '@/types';
+import { saveFileWithPicker, openFileWithPicker, LIBRARY_FILE_OPTIONS } from '@/utils/filePicker';
 
 const LIBRARY_KEY = 'dramaton_library_v1';
 
@@ -33,14 +34,33 @@ export const loadLibraryFromDB = async (): Promise<AssetLibrary> => {
   }
 };
 
-export const exportLibrary = (library: AssetLibrary): void => {
-  const blob = new Blob([JSON.stringify(library, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `dramaton_library_${new Date().toISOString().slice(0, 10)}.dramlib`;
-  a.click();
+export const exportLibrary = async (library: AssetLibrary): Promise<boolean> => {
+  const content = JSON.stringify(library, null, 2);
+  const suggestedName = `dramaton_library_${new Date().toISOString().slice(0, 10)}.dramlib`;
+  
+  return saveFileWithPicker(content, {
+    ...LIBRARY_FILE_OPTIONS,
+    suggestedName,
+  });
 };
 
+export const importLibraryFromPicker = async (): Promise<AssetLibrary | null> => {
+  const result = await openFileWithPicker(LIBRARY_FILE_OPTIONS);
+  
+  if (!result) return null; // User cancelled
+  
+  try {
+    const data = JSON.parse(result.content) as AssetLibrary;
+    if (!data.version || !Array.isArray(data.actors)) {
+      throw new Error('Invalid library format');
+    }
+    return data;
+  } catch (err) {
+    throw new Error('Failed to parse library file');
+  }
+};
+
+// Legacy import function for backward compatibility
 export const importLibrary = (file: File): Promise<AssetLibrary> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
