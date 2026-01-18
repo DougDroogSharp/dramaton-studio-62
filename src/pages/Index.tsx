@@ -396,8 +396,8 @@ const Index = () => {
           <ArtDecoDivider width={400} className="text-diesel-gold mb-4" />
           
           {/* Title with glitch effect */}
-          <h1 className="text-5xl md:text-6xl font-bold text-diesel-paper tracking-widest mb-2 glitch-text">
-            DRAMA<span className="text-diesel-rust drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">TON</span>
+          <h1 className="text-5xl md:text-6xl font-bold text-diesel-rust tracking-widest mb-2 glitch-text drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
+            DRAMATON
           </h1>
           <p className="text-diesel-steel text-xs tracking-[0.4em] mb-8 uppercase font-mono">
             ▸ Dieselpunk Narrative Architect v2.5 ◂
@@ -470,10 +470,10 @@ const Index = () => {
             {/* Load button */}
             <button
               onClick={handleLoadFile}
-              className="w-full py-3 mt-3 bg-diesel-panel border-2 border-diesel-border text-diesel-steel font-bold uppercase tracking-widest hover:text-diesel-paper hover:border-diesel-paper transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 mt-3 bg-diesel-gold/10 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/20 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
             >
-              <Upload size={18} />
-              Load Archive (.dram)
+              <FolderOpen size={18} />
+              Load Archive
             </button>
           </IndustrialPanel>
           
