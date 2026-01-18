@@ -842,16 +842,6 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   onChange={(note) => updateScene(selectedScene.id, { note })} 
                 />
               </div>
-              <div className="flex flex-col gap-1 mb-3">
-                <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Type</label>
-                <select
-                  value={selectedScene.sceneType || 'Dialogue'}
-                  onChange={(e) => updateScene(selectedScene.id, { sceneType: e.target.value })}
-                  className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold"
-                >
-                  {SCENE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Background</label>
                 <select
