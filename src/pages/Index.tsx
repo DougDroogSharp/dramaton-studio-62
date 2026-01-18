@@ -56,8 +56,24 @@ const Index = () => {
   const { isCapturing, captureAllViews } = useProjectCapture(
     (sel) => setSelection(sel as SelectionState),
     game.info.title,
-    setForceShowRestPeriod
+    setForceShowRestPeriod,
+    () => {
+      // Navigate to editor when capturing from splash
+      setIsStarted(true);
+      setIsLoaded(true);
+    }
   );
+  
+  // Handler for Document Project button on splash screen
+  const handleDocumentProject = async () => {
+    // Load the saved game first
+    const saved = await loadGameFromDB();
+    if (saved) {
+      setGame(saved);
+      // Start capture with splash screen included
+      captureAllViews(true);
+    }
+  };
 
   // Check for autosave on mount and start pacing protocol timer
   useEffect(() => {
@@ -296,7 +312,7 @@ const Index = () => {
   // ═══════════════════════════════════════════════════════════════
   if (!isStarted) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-diesel-black overflow-hidden relative">
+      <div data-capture-area="splash" className="h-screen w-screen flex flex-col items-center justify-center bg-diesel-black overflow-hidden relative">
         {/* Background gears - slow rotating */}
         <Gear 
           size={300} 
@@ -493,6 +509,25 @@ const Index = () => {
               <FolderOpen size={18} />
               Load Archive
             </button>
+            
+            {/* Document Project button - only show when there's a saved game */}
+            {hasAutoSave && (
+              <>
+                <div className="flex items-center my-4">
+                  <div className="flex-1 h-px bg-diesel-border" />
+                  <span className="px-3 text-diesel-steel/50 text-xs uppercase tracking-widest">documentation</span>
+                  <div className="flex-1 h-px bg-diesel-border" />
+                </div>
+                <button
+                  onClick={handleDocumentProject}
+                  disabled={isCapturing}
+                  className="w-full py-3 bg-diesel-cyan/10 border-2 border-diesel-cyan text-diesel-cyan font-bold uppercase tracking-widest hover:bg-diesel-cyan/20 transition-all hover:shadow-[0_0_20px_hsl(180,60%,45%,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Camera size={18} />
+                  {isCapturing ? 'Capturing...' : 'Document Project'}
+                </button>
+              </>
+            )}
           </IndustrialPanel>
           
           {/* Footer with blinking status */}
@@ -574,7 +609,7 @@ const Index = () => {
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
           <button 
-            onClick={captureAllViews} 
+            onClick={() => captureAllViews(false)} 
             disabled={isCapturing}
             className="p-1.5 text-diesel-steel hover:text-diesel-gold disabled:opacity-30" 
             title="Capture project state as PDF"
