@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
@@ -27,6 +27,7 @@ import {
 } from '@/components/DieselpunkDecorations';
 
 const Index = () => {
+  const navigate = useNavigate();
   // Startup state
   const [isStarted, setIsStarted] = useState(false);
   const [startTitle, setStartTitle] = useState('Untitled Protocol');
@@ -146,6 +147,11 @@ const Index = () => {
       setIsStarted(true);
       setIsLoaded(true);
     }
+  };
+
+  const handlePlayGame = () => {
+    // Theater will load from IndexedDB automatically
+    navigate('/theater');
   };
 
   const handleLoadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -351,15 +357,40 @@ const Index = () => {
           
           {/* Industrial Panel */}
           <IndustrialPanel className="w-[420px] max-w-[90vw]" glowing>
-            {/* Resume button */}
+            {/* Play/Edit buttons for saved game */}
             {hasAutoSave && (
-              <button
-                onClick={handleResumeGame}
-                className="w-full py-3 mb-5 bg-diesel-green/20 border-2 border-diesel-green text-diesel-green font-bold uppercase tracking-widest hover:bg-diesel-green/30 transition-all hover:shadow-[0_0_20px_hsl(120,50%,45%,0.3)] flex items-center justify-center gap-3"
-              >
-                <span className="text-xl">▶</span>
-                Resume Session
-              </button>
+              <div className="mb-5">
+                <p className="text-diesel-steel text-xs uppercase tracking-widest text-center mb-2 font-mono">
+                  ▸ Saved Protocol Detected ◂
+                </p>
+                <p className="text-diesel-paper text-sm text-center mb-1 font-bold truncate">
+                  "{startTitle}"
+                </p>
+                <p className="text-diesel-steel/70 text-xs text-center mb-4">
+                  by {startAuthor}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePlayGame}
+                    className="flex-1 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase tracking-widest hover:bg-diesel-rust/30 transition-all hover:shadow-[0_0_20px_hsl(15,70%,45%,0.3)] flex items-center justify-center gap-2"
+                  >
+                    <Play size={18} />
+                    Play
+                  </button>
+                  <button
+                    onClick={handleResumeGame}
+                    className="flex-1 py-3 bg-diesel-green/20 border-2 border-diesel-green text-diesel-green font-bold uppercase tracking-widest hover:bg-diesel-green/30 transition-all hover:shadow-[0_0_20px_hsl(120,50%,45%,0.3)] flex items-center justify-center gap-2"
+                  >
+                    <Settings size={18} />
+                    Edit
+                  </button>
+                </div>
+                <div className="flex items-center my-5">
+                  <div className="flex-1 h-px bg-diesel-border" />
+                  <span className="px-3 text-diesel-steel/50 text-xs uppercase tracking-widest">or start fresh</span>
+                  <div className="flex-1 h-px bg-diesel-border" />
+                </div>
+              </div>
             )}
             
             {/* New game inputs */}
