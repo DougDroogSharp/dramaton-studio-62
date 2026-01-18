@@ -458,17 +458,19 @@ const Index = () => {
               {item.count !== undefined && <span className="text-[9px] opacity-60 hidden md:inline">({item.count})</span>}
             </button>
           ))}
+          
+          {/* Library nav tab */}
+          <Link 
+            to="/library"
+            className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-steel hover:text-diesel-gold hover:bg-diesel-gold/10"
+          >
+            <Archive size={12} />
+            <span className="hidden sm:inline">Library</span>
+          </Link>
         </div>
         
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
-          <Link 
-            to="/library"
-            className="p-1.5 transition-colors text-diesel-steel hover:text-diesel-gold"
-            title="Asset Library"
-          >
-            <Archive size={14} />
-          </Link>
           <button onClick={handleSave} className="p-1.5 text-diesel-steel hover:text-white" title="Save to file">
             <Save size={14} />
           </button>
