@@ -32,7 +32,8 @@ interface CapturedScreen {
 export function useProjectCapture(
   setSelection: (selection: { type: EditorType; id: string | null }) => void,
   projectTitle: string,
-  setShowRestPeriod?: (show: boolean) => void
+  setShowRestPeriod?: (show: boolean) => void,
+  navigateToEditor?: () => void
 ) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
@@ -74,17 +75,37 @@ export function useProjectCapture(
     });
   }, []);
 
-  const captureAllViews = useCallback(async () => {
+  const captureAllViews = useCallback(async (includeSplash: boolean = false) => {
     if (isCapturing) return;
     
     setIsCapturing(true);
     setCaptureProgress(0);
     
     const captures: CapturedScreen[] = [];
-    const totalSteps = EDITOR_VIEWS.length + (setShowRestPeriod ? 1 : 0);
+    const splashStep = includeSplash ? 1 : 0;
+    const totalSteps = splashStep + EDITOR_VIEWS.length + (setShowRestPeriod ? 1 : 0);
     const toastId = toast.loading('Capturing project state...', { duration: Infinity });
     
     try {
+      // Capture splash screen first if requested
+      if (includeSplash) {
+        toast.loading('Capturing Splash Screen... (0%)', { id: toastId });
+        await waitForRender(500);
+        
+        const splashCapture = await captureElement('[data-capture-area="splash"]');
+        if (splashCapture) {
+          splashCapture.type = 'splash';
+          splashCapture.label = 'Splash Screen';
+          captures.push(splashCapture);
+        }
+        
+        // Navigate to editor for remaining captures
+        if (navigateToEditor) {
+          navigateToEditor();
+          await waitForRender(500);
+        }
+      }
+      
       // Capture each editor view
       for (let i = 0; i < EDITOR_VIEWS.length; i++) {
         const view = EDITOR_VIEWS[i];
@@ -92,7 +113,7 @@ export function useProjectCapture(
         setSelection({ type: view.type, id: null });
         await waitForRender();
         
-        const progress = Math.round(((i + 1) / totalSteps) * 100);
+        const progress = Math.round(((splashStep + i + 1) / totalSteps) * 100);
         setCaptureProgress(progress);
         toast.loading(`Capturing ${view.label}... (${progress}%)`, { id: toastId });
         
@@ -138,7 +159,7 @@ export function useProjectCapture(
       setCaptureProgress(0);
       if (setShowRestPeriod) setShowRestPeriod(false);
     }
-  }, [isCapturing, setSelection, captureElement, waitForRender, projectTitle, setShowRestPeriod]);
+  }, [isCapturing, setSelection, captureElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor]);
 
   return {
     isCapturing,
