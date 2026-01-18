@@ -5,9 +5,10 @@ import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { useProjectCapture } from '@/hooks/useProjectCapture';
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
 import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2 } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -46,6 +47,11 @@ const Index = () => {
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
+  // Project capture for PDF export
+  const { isCapturing, captureAllViews } = useProjectCapture(
+    (sel) => setSelection(sel as SelectionState),
+    game.info.title
+  );
   
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
@@ -555,6 +561,14 @@ const Index = () => {
         
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
+          <button 
+            onClick={captureAllViews} 
+            disabled={isCapturing}
+            className="p-1.5 text-diesel-steel hover:text-diesel-gold disabled:opacity-30" 
+            title="Capture project state as PDF"
+          >
+            <Camera size={14} />
+          </button>
           <button onClick={handleSave} className="p-1.5 text-diesel-steel hover:text-white" title="Save to file">
             <Save size={14} />
           </button>
@@ -571,7 +585,7 @@ const Index = () => {
       </div>
       
       {/* Editor Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" data-capture-area="editor">
         {/* Settings page: Two-panel layout with preview */}
         {selection.type === 'settings' ? (
           <>
