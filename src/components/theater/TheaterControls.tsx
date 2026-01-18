@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home } from 'lucide-react';
+import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home, ArrowLeft } from 'lucide-react';
 
 interface TheaterControlsProps {
   isAutoPlay: boolean;
@@ -9,6 +9,7 @@ interface TheaterControlsProps {
   onOpenMenu: () => void;
   onOpenSettings: () => void;
   onGoHome: () => void;
+  onBackToMenu: () => void;
   onSkip?: () => void;
 }
 
@@ -20,6 +21,7 @@ export const TheaterControls: React.FC<TheaterControlsProps> = ({
   onOpenMenu,
   onOpenSettings,
   onGoHome,
+  onBackToMenu,
   onSkip,
 }) => {
   return (
@@ -28,6 +30,14 @@ export const TheaterControls: React.FC<TheaterControlsProps> = ({
         <div className="flex items-center justify-between">
           {/* Left controls */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={onBackToMenu}
+              className="p-2 text-diesel-steel hover:text-diesel-rust transition-colors"
+              title="Back to Menu"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            
             <button
               onClick={onOpenMenu}
               className="p-2 text-diesel-steel hover:text-diesel-gold transition-colors"
