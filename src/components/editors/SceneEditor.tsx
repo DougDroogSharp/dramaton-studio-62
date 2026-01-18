@@ -42,6 +42,11 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   
+  // Button dragging state
+  const [selectedButtonId, setSelectedButtonId] = useState<string | null>(null);
+  const [draggingButton, setDraggingButton] = useState<string | null>(null);
+  const [buttonDragOffset, setButtonDragOffset] = useState({ x: 0, y: 0 });
+  
   // Actor generator state
   const [actorGenerator, setActorGenerator] = useState<ActorGeneratorState>({
     active: false, actorId: null, elementId: null, dropX: 50, dropY: 50
@@ -542,14 +547,62 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
 
   const handleMouseUp = useCallback(() => {
     setDragging(null);
+    setDraggingButton(null);
   }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
       setSelectedElementId(null);
+      setSelectedButtonId(null);
       closeGenerator();
     }
   }, []);
+
+  // Button drag handlers
+  const handleButtonMouseDown = useCallback((e: React.MouseEvent, buttonId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedButtonId(buttonId);
+    setDraggingButton(buttonId);
+    setSelectedElementId(null);
+    closeGenerator();
+
+    if (canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const button = game.buttons.find(b => b.id === buttonId);
+      if (button) {
+        const buttonX = (button.x / 100) * rect.width;
+        const buttonY = (button.y / 100) * rect.height;
+        setButtonDragOffset({
+          x: e.clientX - rect.left - buttonX,
+          y: e.clientY - rect.top - buttonY,
+        });
+      }
+    }
+  }, [game.buttons]);
+
+  const handleButtonMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!draggingButton || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left - buttonDragOffset.x) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top - buttonDragOffset.y) / rect.height) * 100));
+
+    // Update button position in game data
+    onChange({
+      ...game,
+      buttons: game.buttons.map(b => b.id === draggingButton ? { ...b, x, y } : b),
+    });
+  }, [draggingButton, buttonDragOffset, game, onChange]);
+
+  // Combined mouse move handler
+  const handleCombinedMouseMove = useCallback((e: React.MouseEvent) => {
+    if (dragging) {
+      handleMouseMove(e);
+    } else if (draggingButton) {
+      handleButtonMouseMove(e);
+    }
+  }, [dragging, draggingButton, handleMouseMove, handleButtonMouseMove]);
 
   // Get background drop image
   const backgroundDrop = selectedScene?.dropId
@@ -1262,10 +1315,15 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   setSelectedElementId(null);
                 }
               }}
-              onMouseMove={handleMouseMove}
+              onMouseMove={handleCombinedMouseMove}
               onMouseUp={handleMouseUp}
               onCanvasClick={handleCanvasClick}
               canvasRef={canvasRef}
+              // Button editor props
+              selectedButtonId={selectedButtonId}
+              draggingButtonId={draggingButton}
+              onButtonSelect={setSelectedButtonId}
+              onButtonMouseDown={handleButtonMouseDown}
             />
           </div>
         </div>

@@ -475,10 +475,13 @@ const Index = () => {
               Initialize New Protocol
             </button>
             
-            {/* Load button */}
+            {/* Load button with scream */}
+            <p className="text-diesel-steel text-xs text-center mt-4 mb-2 italic">
+              "Allow me to load a .dram file!"
+            </p>
             <button
               onClick={handleLoadFile}
-              className="w-full py-3 mt-3 bg-diesel-gold/10 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/20 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
+              className="w-full py-3 bg-diesel-gold/10 border-2 border-diesel-gold text-diesel-gold font-bold uppercase tracking-widest hover:bg-diesel-gold/20 transition-all hover:shadow-[0_0_20px_hsl(45,80%,55%,0.3)] flex items-center justify-center gap-2"
             >
               <FolderOpen size={18} />
               Load Archive

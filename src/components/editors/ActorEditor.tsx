@@ -689,13 +689,24 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           </button>
           <button
             onClick={handleGeneratePreview}
-            disabled={isGenerating}
+            disabled={isGenerating || !selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody}
             className="flex-1 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
+            title={!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody 
+              ? "Upload both Face and Full Body reference images first" 
+              : "Generate character graphic"}
           >
             <Sparkles size={14} />
             Generate
           </button>
         </div>
+        
+        {/* Reference images warning */}
+        {(!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody) && (
+          <div className="text-diesel-rust text-xs mb-2 flex items-center gap-1">
+            <span>⚠️</span>
+            <span>Upload both Face and Full Body reference images below to enable generation.</span>
+          </div>
+        )}
         
         {/* Loading State */}
         {isGenerating && (
