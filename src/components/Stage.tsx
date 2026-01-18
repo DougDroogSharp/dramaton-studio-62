@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, Actor, Drop, Sfx } from '@/types';
+import { GameData, Scene, StageElement, Actor, Drop, Sfx, Button } from '@/types';
 import { User, Package, MessageSquare } from 'lucide-react';
 
 interface StageProps {
@@ -21,6 +21,8 @@ interface StageProps {
   animatingElements?: Map<string, { x: number; y: number }>;
   activeEffects?: Map<string, string[]>; // element id -> active sfx ids
   hideElement?: Set<string>; // elements to hide (for EXIT command)
+  activeButtons?: string[]; // button ids that are currently active/visible
+  onButtonClick?: (button: Button) => void; // callback when button is clicked
 }
 
 export const Stage: React.FC<StageProps> = ({
@@ -40,6 +42,8 @@ export const Stage: React.FC<StageProps> = ({
   animatingElements,
   activeEffects,
   hideElement,
+  activeButtons,
+  onButtonClick,
 }) => {
   const internalCanvasRef = useRef<HTMLDivElement>(null);
   const canvasRef = externalCanvasRef || internalCanvasRef;
@@ -167,6 +171,35 @@ export const Stage: React.FC<StageProps> = ({
     );
   };
 
+  const renderButton = (button: Button) => {
+    const isActive = activeButtons?.includes(button.id);
+    if (!isActive && !editable) return null;
+    
+    return (
+      <div
+        key={button.id}
+        className={`absolute flex items-center justify-center font-bold text-sm uppercase cursor-pointer transition-all ${
+          button.style === 'primary'
+            ? 'bg-diesel-gold/90 text-diesel-black hover:bg-diesel-gold hover:scale-105'
+            : button.style === 'danger'
+            ? 'bg-diesel-rust/90 text-diesel-paper hover:bg-diesel-rust hover:scale-105'
+            : 'bg-diesel-panel/95 text-diesel-paper border border-diesel-border hover:bg-diesel-panel hover:border-diesel-paper hover:scale-105'
+        }`}
+        style={{
+          left: `${button.x}%`,
+          top: `${button.y}%`,
+          width: `${button.width}%`,
+          height: `${button.height}%`,
+          transform: 'translate(-50%, -50%)',
+          zIndex: 100,
+        }}
+        onClick={() => onButtonClick?.(button)}
+      >
+        {button.label}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={canvasRef}
@@ -194,6 +227,9 @@ export const Stage: React.FC<StageProps> = ({
 
       {/* Stage Elements */}
       {scene.stage?.map(renderElement)}
+      
+      {/* Buttons */}
+      {game.buttons?.map(renderButton)}
     </div>
   );
 };
