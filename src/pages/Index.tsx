@@ -138,6 +138,18 @@ const Index = () => {
       return;
     }
     
+    // Confirm if there's already a saved protocol
+    if (hasAutoSave) {
+      const confirmed = await confirm({
+        title: 'Overwrite Saved Protocol',
+        description: 'Starting a new game will replace your saved protocol. This cannot be undone. Continue?',
+        confirmText: 'Start New',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+      });
+      if (!confirmed) return;
+    }
+    
     const newGame = createDefaultGame();
     newGame.info.title = startTitle.trim();
     newGame.info.author = startAuthor.trim();
