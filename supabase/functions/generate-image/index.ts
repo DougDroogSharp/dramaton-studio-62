@@ -32,6 +32,7 @@ serve(async (req) => {
       existingImage,       // Current image for editing
       editMode,            // Whether we're editing vs generating
       enforceStyleGuide,   // Style lock toggle - adds strong style instructions
+      isCharacter,         // Whether this is a character sprite (needs green background)
     } = await req.json();
 
     // Build message content with multiple images
@@ -68,11 +69,17 @@ serve(async (req) => {
         });
       }
       
+      // Build edit instructions - only add green background for character sprites
+      let editInstructions = `EDIT INSTRUCTIONS: ${prompt}`;
+      if (isCharacter) {
+        editInstructions += `
+
+CRITICAL BACKGROUND INSTRUCTION: After making the edits, the character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). Replace any existing background with pure solid green (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background.`;
+      }
+      
       content.push({
         type: "text",
-        text: `EDIT INSTRUCTIONS: ${prompt}
-
-CRITICAL BACKGROUND INSTRUCTION: After making the edits, the character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). Replace any existing background with pure solid green (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background.`
+        text: editInstructions
       });
     } 
     // GENERATION MODE: Create new image
