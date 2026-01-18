@@ -637,7 +637,7 @@ const Index = () => {
         {selection.type === 'settings' ? (
           <>
             {/* Editor Panel */}
-            <div className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6">
+            <div className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6" data-scroll-area>
               <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
                 GAME SETTINGS
               </h2>
@@ -651,7 +651,7 @@ const Index = () => {
           </>
         ) : (
           /* Full-width layout for all other editors */
-          <div className="w-full bg-diesel-panel overflow-y-auto custom-scrollbar p-6">
+          <div className="w-full bg-diesel-panel overflow-y-auto custom-scrollbar p-6" data-scroll-area>
             <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
               {selection.type === 'actor' && 'ACTOR EDITOR'}
               {selection.type === 'scene' && 'SCENE EDITOR'}
