@@ -58,6 +58,7 @@ export default {
           steel: "hsl(var(--diesel-steel))",
           paper: "hsl(var(--diesel-paper))",
           green: "hsl(var(--diesel-green))",
+          cyan: "hsl(var(--diesel-cyan))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

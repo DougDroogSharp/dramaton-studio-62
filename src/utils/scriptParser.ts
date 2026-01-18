@@ -18,6 +18,8 @@ export type ScriptCommandType =
   | 'SET'
   | 'IF'
   | 'ENDIF'
+  | 'BUTTON'
+  | 'HIDE_BUTTON'
   | 'COMMENT'
   | 'UNKNOWN';
 
@@ -126,6 +128,16 @@ export interface CommentCommand {
   text: string;
 }
 
+export interface ButtonCommand {
+  type: 'BUTTON';
+  buttonId: string;
+}
+
+export interface HideButtonCommand {
+  type: 'HIDE_BUTTON';
+  buttonId: string;
+}
+
 export interface UnknownCommand {
   type: 'UNKNOWN';
   raw: string;
@@ -148,6 +160,8 @@ export type ScriptCommand =
   | SetCommand
   | IfCommand
   | CommentCommand
+  | ButtonCommand
+  | HideButtonCommand
   | UnknownCommand;
 
 // Parse volume string like "vol=70%" to number 0-1
@@ -342,6 +356,24 @@ function parseLine(line: string): ScriptCommand | null {
     // ENDIF or /IF
     if (/^(ENDIF|\/IF)$/i.test(content)) {
       return { type: 'ENDIF' } as unknown as ScriptCommand;
+    }
+    
+    // BUTTON button_id - show a button
+    const buttonMatch = content.match(/^BUTTON\s+(\w+)$/i);
+    if (buttonMatch) {
+      return {
+        type: 'BUTTON',
+        buttonId: buttonMatch[1],
+      };
+    }
+    
+    // HIDE_BUTTON button_id - hide a button
+    const hideButtonMatch = content.match(/^HIDE_BUTTON\s+(\w+)$/i);
+    if (hideButtonMatch) {
+      return {
+        type: 'HIDE_BUTTON',
+        buttonId: hideButtonMatch[1],
+      };
     }
     
     return { type: 'UNKNOWN', raw: trimmed };

@@ -18,6 +18,7 @@
     --diesel-steel: 40 5% 50%;
     --diesel-paper: 40 20% 85%;
     --diesel-green: 120 50% 45%;
+    --diesel-cyan: 190 70% 50%;
     
     /* Semantic Tokens */
     --background: var(--diesel-black);

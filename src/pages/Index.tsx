@@ -7,13 +7,14 @@ import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
 import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2 } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
 import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
+import { ButtonEditor } from '@/components/editors/ButtonEditor';
 import { AssetTree } from '@/components/AssetTree';
 import Hourglass from '@/components/Hourglass';
 import {
@@ -279,6 +280,7 @@ const Index = () => {
     { type: 'drop' as const, icon: Monitor, label: 'Drops', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
     { type: 'item' as const, icon: Package, label: 'Items', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
     { type: 'sfx' as const, icon: Music, label: 'SFX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
+    { type: 'button' as const, icon: MousePointer2, label: 'Buttons', color: 'text-diesel-cyan', count: game?.buttons?.length ?? 0 },
   ];
 
   // ═══════════════════════════════════════════════════════════════
@@ -611,6 +613,9 @@ const Index = () => {
             )}
             {selection.type === 'sfx' && (
               <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === 'button' && (
+              <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
             )}
           </div>
         )}

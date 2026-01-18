@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx';
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -147,6 +147,23 @@ export interface Sfx {
   status?: AssetStatus;
 }
 
+// Button type for interactive elements in scenes
+export interface Button {
+  id: string;
+  name: string;
+  label: string;           // Text shown on the button
+  x: number;               // Position as percentage (0-100)
+  y: number;               // Position as percentage (0-100)
+  width: number;           // Width as percentage (5-50)
+  height: number;          // Height as percentage (5-20)
+  targetSceneId?: string;  // Scene to navigate to when clicked
+  sfxId?: string;          // Sound effect to play on click
+  pageUrl?: string;        // External page URL to open
+  style?: 'default' | 'primary' | 'danger';  // Button style variant
+  note?: string;
+  status?: AssetStatus;
+}
+
 export interface GameData {
   info: GameInfo;
   actors: Actor[];
@@ -154,6 +171,7 @@ export interface GameData {
   drops: Drop[];
   items: Item[];
   sfx: Sfx[];
+  buttons: Button[];
 }
 
 // Library Types for cross-game asset reuse
@@ -203,4 +221,5 @@ export const createDefaultGame = (): GameData => ({
   drops: [],
   items: [],
   sfx: [],
+  buttons: [],
 });
