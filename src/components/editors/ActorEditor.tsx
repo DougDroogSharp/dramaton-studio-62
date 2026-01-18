@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { GameData, Actor, ActorGraphic, SelectionState } from '@/types';
+import { GameData, Actor, ActorGraphic, SelectionState, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
@@ -10,6 +10,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
+import { StatusSelector } from '@/components/StatusBadge';
+import { NotesSection } from '@/components/NotesSection';
 
 interface ActorEditorProps {
   game: GameData;
@@ -87,6 +89,8 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
       id: `actor_${Date.now()}`,
       name: 'New Actor',
       graphics: [],
+      status: 'new',
+      note: '',
     };
     onChange({ ...game, actors: [...game.actors, newActor] });
     onSelect('actor', newActor.id);
@@ -566,14 +570,26 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
       
       {/* Basic Info */}
       <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Character Info
-        </h3>
+        <div className="flex items-center justify-between mb-4 border-b border-diesel-border pb-2">
+          <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest">
+            Character Info
+          </h3>
+          <StatusSelector 
+            status={selectedActor.status || 'new'} 
+            onChange={(status) => updateActor(selectedActor.id, { status })} 
+          />
+        </div>
         <CyberInput
           label="Name"
           value={selectedActor.name}
           onChange={(e) => updateActor(selectedActor.id, { name: e.target.value })}
         />
+        <div className="mt-3">
+          <NotesSection 
+            note={selectedActor.note || ''} 
+            onChange={(note) => updateActor(selectedActor.id, { note })} 
+          />
+        </div>
       </section>
 
       {/* Voice Browser Modal */}

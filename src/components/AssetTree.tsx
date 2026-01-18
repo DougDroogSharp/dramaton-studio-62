@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Settings, User, Video, Monitor, Package, Music, Image, Wand2, FileText, Mic, Palette, Layers, Search, X } from 'lucide-react';
-import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic } from '@/types';
+import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus } from '@/types';
+import { StatusBadge } from '@/components/StatusBadge';
 
 interface AssetTreeProps {
   game: GameData;
   onNavigate: (type: SelectionState['type'], id: string | null, subId?: string) => void;
+  onUpdateStatus?: (type: 'actor' | 'scene' | 'drop' | 'item' | 'sfx', id: string, status: AssetStatus) => void;
 }
 
 interface TreeNodeProps {
@@ -17,9 +19,11 @@ interface TreeNodeProps {
   count?: number;
   color?: string;
   highlight?: boolean;
+  status?: AssetStatus;
+  onStatusChange?: (status: AssetStatus) => void;
 }
 
-const TreeNode = ({ label, icon, children, defaultOpen = false, onDoubleClick, depth = 0, count, color = 'text-diesel-paper', highlight = false }: TreeNodeProps) => {
+const TreeNode = ({ label, icon, children, defaultOpen = false, onDoubleClick, depth = 0, count, color = 'text-diesel-paper', highlight = false, status, onStatusChange }: TreeNodeProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen || highlight);
   const hasChildren = Boolean(children);
   
@@ -55,6 +59,13 @@ const TreeNode = ({ label, icon, children, defaultOpen = false, onDoubleClick, d
           <span className="w-4" />
         )}
         {icon && <span className="w-4 h-4 flex items-center justify-center opacity-70">{icon}</span>}
+        {status && (
+          <StatusBadge 
+            status={status} 
+            onChange={onStatusChange} 
+            size="sm" 
+          />
+        )}
         <span className="text-xs font-medium truncate flex-1">{label}</span>
         {count !== undefined && <span className="text-[10px] text-diesel-steel opacity-60">({count})</span>}
       </div>
@@ -77,7 +88,7 @@ const LeafNode = ({ label, icon, depth = 0, color = 'text-diesel-steel' }: { lab
   </div>
 );
 
-export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
+export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Helper to check if a name matches search
@@ -86,11 +97,32 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   }, [searchQuery]);
   
+  // Check if search query matches a status
+  const statusSearch = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (q === 'new' || q === 'work' || q === 'done') {
+      return q as AssetStatus;
+    }
+    return null;
+  }, [searchQuery]);
+  
   // Compute which items match the search
   const searchMatches = useMemo(() => {
     if (!searchQuery.trim()) return { scenes: [], actors: [], drops: [], items: [], sfx: [] };
     
     const q = searchQuery.toLowerCase();
+    
+    // If searching by status
+    if (statusSearch) {
+      return {
+        scenes: (game?.scenes ?? []).filter(s => (s.status || 'new') === statusSearch).map(s => s.id),
+        actors: (game?.actors ?? []).filter(a => (a.status || 'new') === statusSearch).map(a => a.id),
+        drops: (game?.drops ?? []).filter(d => (d.status || 'new') === statusSearch).map(d => d.id),
+        items: (game?.items ?? []).filter(i => (i.status || 'new') === statusSearch).map(i => i.id),
+        sfx: (game?.sfx ?? []).filter(s => (s.status || 'new') === statusSearch).map(s => s.id),
+      };
+    }
+    
     return {
       scenes: (game?.scenes ?? []).filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
       actors: (game?.actors ?? []).filter(a => a.name.toLowerCase().includes(q)).map(a => a.id),
@@ -98,7 +130,7 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
       items: (game?.items ?? []).filter(i => i.name.toLowerCase().includes(q)).map(i => i.id),
       sfx: (game?.sfx ?? []).filter(s => s.name.toLowerCase().includes(q)).map(s => s.id),
     };
-  }, [searchQuery, game]);
+  }, [searchQuery, statusSearch, game]);
   
   const hasMatches = searchQuery.trim() && (
     searchMatches.scenes.length > 0 ||
@@ -212,6 +244,8 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
                 onDoubleClick={() => onNavigate('scene', scene.id)}
                 color="text-diesel-rust"
                 highlight={searchMatches.scenes.includes(scene.id)}
+                status={scene.status || 'new'}
+                onStatusChange={onUpdateStatus ? (s) => onUpdateStatus('scene', scene.id, s) : undefined}
               >
                 {/* Scene contents */}
                 {getSceneAssets(scene).map(asset => (
@@ -266,6 +300,8 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
                 onDoubleClick={() => onNavigate('actor', actor.id)}
                 color="text-diesel-gold"
                 highlight={searchMatches.actors.includes(actor.id)}
+                status={actor.status || 'new'}
+                onStatusChange={onUpdateStatus ? (s) => onUpdateStatus('actor', actor.id, s) : undefined}
               >
                 {/* Actor graphics */}
                 {actor.graphics.map((graphic, i) => (
@@ -310,6 +346,8 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
                 onDoubleClick={() => onNavigate('drop', drop.id)}
                 color="text-diesel-paper"
                 highlight={searchMatches.drops.includes(drop.id)}
+                status={drop.status || 'new'}
+                onStatusChange={onUpdateStatus ? (s) => onUpdateStatus('drop', drop.id, s) : undefined}
               >
                 {drop.image && (
                   <LeafNode label="Generated image" icon={<Image size={8} />} depth={3} />
@@ -343,6 +381,8 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
                 onDoubleClick={() => onNavigate('item', item.id)}
                 color="text-diesel-gold"
                 highlight={searchMatches.items.includes(item.id)}
+                status={item.status || 'new'}
+                onStatusChange={onUpdateStatus ? (s) => onUpdateStatus('item', item.id, s) : undefined}
               >
                 <LeafNode label={`Category: ${item.category}`} icon={<Layers size={8} />} depth={3} />
                 {item.visualAsset && (
@@ -374,6 +414,8 @@ export const AssetTree = ({ game, onNavigate }: AssetTreeProps) => {
                 onDoubleClick={() => onNavigate('sfx', sfx.id)}
                 color="text-diesel-green"
                 highlight={searchMatches.sfx.includes(sfx.id)}
+                status={sfx.status || 'new'}
+                onStatusChange={onUpdateStatus ? (s) => onUpdateStatus('sfx', sfx.id, s) : undefined}
               >
                 <LeafNode label={`Type: ${sfx.type}`} icon={<Wand2 size={8} />} depth={3} />
                 <LeafNode label={`Category: ${sfx.category}`} icon={<Layers size={8} />} depth={3} />

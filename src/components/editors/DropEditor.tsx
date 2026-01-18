@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import { GameData, Drop, SelectionState } from '@/types';
+import { GameData, Drop, SelectionState, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { Plus, Trash2, Monitor, ChevronRight, Upload, Image, Sparkles, Loader2, Wand2, RotateCcw, Layers, Lock, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addDropToLibrary } from '@/utils/library';
+import { StatusSelector } from '@/components/StatusBadge';
+import { NotesSection } from '@/components/NotesSection';
 
 interface DropEditorProps {
   game: GameData;
@@ -102,6 +104,8 @@ This is a background scene with no characters or text.`;
       id: `drop_${Date.now()}`,
       name: 'New Background',
       prompt: '',
+      status: 'new',
+      note: '',
     };
     onChange({ ...game, drops: [...game.drops, newDrop] });
     onSelect('drop', newDrop.id);
@@ -345,14 +349,26 @@ This is a background scene with no characters or text.`;
       
       {/* Basic Info */}
       <section>
-        <h3 className="text-sm font-bold text-diesel-paper uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Background Info
-        </h3>
+        <div className="flex items-center justify-between mb-4 border-b border-diesel-border pb-2">
+          <h3 className="text-sm font-bold text-diesel-paper uppercase tracking-widest">
+            Background Info
+          </h3>
+          <StatusSelector 
+            status={selectedDrop.status || 'new'} 
+            onChange={(status) => updateDrop(selectedDrop.id, { status })} 
+          />
+        </div>
         <CyberInput
           label="Name"
           value={selectedDrop.name}
           onChange={(e) => updateDrop(selectedDrop.id, { name: e.target.value })}
         />
+        <div className="mt-3">
+          <NotesSection 
+            note={selectedDrop.note || ''} 
+            onChange={(note) => updateDrop(selectedDrop.id, { note })} 
+          />
+        </div>
       </section>
 
       {/* Image */}
