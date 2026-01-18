@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { GameData, SelectionState, createDefaultGame } from '@/types';
+import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
@@ -165,6 +165,41 @@ const Index = () => {
 
   const handleSelect = (type: SelectionState['type'], id: string | null) => {
     setSelection({ type, id });
+  };
+
+  const handleUpdateStatus = (type: 'actor' | 'scene' | 'drop' | 'item' | 'sfx', id: string, status: AssetStatus) => {
+    switch (type) {
+      case 'actor':
+        setGame(g => ({
+          ...g,
+          actors: g.actors.map(a => a.id === id ? { ...a, status } : a),
+        }));
+        break;
+      case 'scene':
+        setGame(g => ({
+          ...g,
+          scenes: g.scenes.map(s => s.id === id ? { ...s, status } : s),
+        }));
+        break;
+      case 'drop':
+        setGame(g => ({
+          ...g,
+          drops: g.drops.map(d => d.id === id ? { ...d, status } : d),
+        }));
+        break;
+      case 'item':
+        setGame(g => ({
+          ...g,
+          items: g.items.map(i => i.id === id ? { ...i, status } : i),
+        }));
+        break;
+      case 'sfx':
+        setGame(g => ({
+          ...g,
+          sfx: g.sfx.map(s => s.id === id ? { ...s, status } : s),
+        }));
+        break;
+    }
   };
 
   const handleUndo = () => {
@@ -479,7 +514,7 @@ const Index = () => {
             
             {/* Asset Tree Panel */}
             <div className="hidden md:flex md:w-2/5 lg:w-1/2 xl:w-2/5 bg-diesel-black p-4">
-              <AssetTree game={game} onNavigate={handleSelect} />
+              <AssetTree game={game} onNavigate={handleSelect} onUpdateStatus={handleUpdateStatus} />
             </div>
           </>
         ) : (

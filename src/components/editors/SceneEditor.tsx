@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio } from '@/types';
+import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
@@ -8,6 +8,8 @@ import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSceneToLibrary } from '@/utils/library';
+import { StatusSelector } from '@/components/StatusBadge';
+import { NotesSection } from '@/components/NotesSection';
 
 interface SceneEditorProps {
   game: GameData;
@@ -70,6 +72,8 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
       sceneType: 'Dialogue',
       stage: [],
       script: '',
+      status: 'new',
+      note: '',
     };
     onChange({ ...game, scenes: [...game.scenes, newScene] });
     onSelect('scene', newScene.id);
@@ -799,12 +803,24 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
         {!actorGenerator.active && (
           <>
             <section className="bg-diesel-black border border-diesel-border p-3">
-              <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest mb-3">Scene Info</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest">Scene Info</h3>
+                <StatusSelector 
+                  status={selectedScene.status || 'new'} 
+                  onChange={(status) => updateScene(selectedScene.id, { status })} 
+                />
+              </div>
               <CyberInput
                 label="Name"
                 value={selectedScene.name}
                 onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
               />
+              <div className="mt-3 mb-3">
+                <NotesSection 
+                  note={selectedScene.note || ''} 
+                  onChange={(note) => updateScene(selectedScene.id, { note })} 
+                />
+              </div>
               <div className="flex flex-col gap-1 mb-3">
                 <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Type</label>
                 <select

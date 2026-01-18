@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { GameData, Item, ItemEffect, UnlockCondition, SelectionState, ItemCategory, AcquisitionType, Operator } from '@/types';
+import { GameData, Item, ItemEffect, UnlockCondition, SelectionState, ItemCategory, AcquisitionType, Operator, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { ITEM_CATEGORIES, ACQUISITION_TYPES, OPERATORS } from '@/constants';
 import { Plus, Trash2, Package, ChevronRight, Upload, Lock, Sparkles, Loader2, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addItemToLibrary } from '@/utils/library';
+import { StatusSelector } from '@/components/StatusBadge';
+import { NotesSection } from '@/components/NotesSection';
 
 interface ItemEditorProps {
   game: GameData;
@@ -30,6 +32,8 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
       category: 'misc',
       acquisition: 'pickup',
       effects: [],
+      status: 'new',
+      note: '',
     };
     onChange({ ...game, items: [...game.items, newItem] });
     onSelect('item', newItem.id);
@@ -291,14 +295,26 @@ NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrou
       
       {/* Basic Info */}
       <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Item Info
-        </h3>
+        <div className="flex items-center justify-between mb-4 border-b border-diesel-border pb-2">
+          <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest">
+            Item Info
+          </h3>
+          <StatusSelector 
+            status={selectedItem.status || 'new'} 
+            onChange={(status) => updateItem(selectedItem.id, { status })} 
+          />
+        </div>
         <CyberInput
           label="Name"
           value={selectedItem.name}
           onChange={(e) => updateItem(selectedItem.id, { name: e.target.value })}
         />
+        <div className="mt-3 mb-3">
+          <NotesSection 
+            note={selectedItem.note || ''} 
+            onChange={(note) => updateItem(selectedItem.id, { note })} 
+          />
+        </div>
         <div className="flex flex-col gap-1 mb-2">
           <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Description</label>
           <textarea

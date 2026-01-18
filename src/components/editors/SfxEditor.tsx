@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react';
-import { GameData, Sfx, SfxType, SfxCategory, SelectionState } from '@/types';
+import { GameData, Sfx, SfxType, SfxCategory, SelectionState, AssetStatus } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SFX_TYPES } from '@/constants';
 import { Plus, Trash2, Music, ChevronRight, Play, Zap, Sparkles, Volume2, Loader2, Square, Upload, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSfxToLibrary } from '@/utils/library';
+import { StatusSelector } from '@/components/StatusBadge';
+import { NotesSection } from '@/components/NotesSection';
 
 interface SfxEditorProps {
   game: GameData;
@@ -36,6 +38,8 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
         speed: 1,
         duration: 1,
       },
+      status: 'new',
+      note: '',
     };
     onChange({ ...game, sfx: [...game.sfx, newSfx] });
     onSelect('sfx', newSfx.id);
@@ -349,14 +353,26 @@ export const SfxEditor: React.FC<SfxEditorProps> = ({ game, selection, onChange,
       
       {/* Basic Info */}
       <section>
-        <h3 className={`text-sm font-bold text-${accentColor} uppercase tracking-widest mb-4 border-b border-diesel-border pb-2`}>
-          Effect Info
-        </h3>
+        <div className={`flex items-center justify-between mb-4 border-b border-diesel-border pb-2`}>
+          <h3 className={`text-sm font-bold text-${accentColor} uppercase tracking-widest`}>
+            Effect Info
+          </h3>
+          <StatusSelector 
+            status={selectedSfx.status || 'new'} 
+            onChange={(status) => updateSfx(selectedSfx.id, { status })} 
+          />
+        </div>
         <CyberInput
           label="Name"
           value={selectedSfx.name}
           onChange={(e) => updateSfx(selectedSfx.id, { name: e.target.value })}
         />
+        <div className="mt-3 mb-4">
+          <NotesSection 
+            note={selectedSfx.note || ''} 
+            onChange={(note) => updateSfx(selectedSfx.id, { note })} 
+          />
+        </div>
         <div className="flex flex-col gap-1 mb-4">
           <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Type</label>
           <select

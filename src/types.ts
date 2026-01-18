@@ -1,6 +1,7 @@
 // Dramaton Editor Types
 
 export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx';
+export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
   type: SelectionType;
@@ -39,6 +40,8 @@ export interface Actor {
   referenceImageFullBody?: string;
   voiceId?: string;
   graphics: ActorGraphic[];
+  note?: string;
+  status?: AssetStatus;
 }
 
 export interface StageElement {
@@ -76,6 +79,8 @@ export interface Scene {
   script?: string;
   audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
+  note?: string;
+  status?: AssetStatus;
 }
 
 export interface Drop {
@@ -87,6 +92,8 @@ export interface Drop {
   editHistory?: string[];       // Track previous versions
   lastEditPrompt?: string;      // Last edit instruction used
   generatedPrompt?: string;     // Full prompt used to generate this image
+  note?: string;
+  status?: AssetStatus;
 }
 
 export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'key' | 'misc';
@@ -113,6 +120,8 @@ export interface Item {
   visualAsset?: string;
   effects: ItemEffect[];
   unlockCondition?: UnlockCondition;
+  note?: string;
+  status?: AssetStatus;
 }
 
 export type SfxType = 'glow' | 'pulse' | 'shake' | 'jiggle' | 'fade' | 'electric';
@@ -134,6 +143,8 @@ export interface Sfx {
   category: SfxCategory;
   params: SfxParams;
   prompt?: string;
+  note?: string;
+  status?: AssetStatus;
 }
 
 export interface GameData {
