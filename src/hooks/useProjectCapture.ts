@@ -31,23 +31,23 @@ interface CapturedScreen {
 
 export function useProjectCapture(
   setSelection: (selection: { type: EditorType; id: string | null }) => void,
-  projectTitle: string
+  projectTitle: string,
+  setShowRestPeriod?: (show: boolean) => void
 ) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
 
-  const captureCurrentView = useCallback(async (): Promise<CapturedScreen | null> => {
-    // Find the editor content area
-    const editorContent = document.querySelector('[data-capture-area="editor"]') as HTMLElement;
-    if (!editorContent) {
-      console.warn('Editor content area not found');
+  const captureElement = useCallback(async (selector: string): Promise<CapturedScreen | null> => {
+    const element = document.querySelector(selector) as HTMLElement;
+    if (!element) {
+      console.warn(`Element not found: ${selector}`);
       return null;
     }
 
     try {
-      const canvas = await html2canvas(editorContent, {
+      const canvas = await html2canvas(element, {
         backgroundColor: '#121212',
-        scale: 1.5, // Good quality without being too large
+        scale: 1.5,
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -61,16 +61,15 @@ export function useProjectCapture(
         height: canvas.height,
       };
     } catch (error) {
-      console.error('Failed to capture view:', error);
+      console.error('Failed to capture element:', error);
       return null;
     }
   }, []);
 
-  const waitForRender = useCallback(() => {
+  const waitForRender = useCallback((ms: number = 300) => {
     return new Promise<void>(resolve => {
-      // Wait for React to render and any animations to settle
       requestAnimationFrame(() => {
-        setTimeout(resolve, 300);
+        setTimeout(resolve, ms);
       });
     });
   }, []);
@@ -82,30 +81,44 @@ export function useProjectCapture(
     setCaptureProgress(0);
     
     const captures: CapturedScreen[] = [];
+    const totalSteps = EDITOR_VIEWS.length + (setShowRestPeriod ? 1 : 0);
     const toastId = toast.loading('Capturing project state...', { duration: Infinity });
     
     try {
+      // Capture each editor view
       for (let i = 0; i < EDITOR_VIEWS.length; i++) {
         const view = EDITOR_VIEWS[i];
         
-        // Navigate to this view
         setSelection({ type: view.type, id: null });
-        
-        // Wait for render
         await waitForRender();
         
-        // Update progress
-        const progress = Math.round(((i + 1) / EDITOR_VIEWS.length) * 100);
+        const progress = Math.round(((i + 1) / totalSteps) * 100);
         setCaptureProgress(progress);
         toast.loading(`Capturing ${view.label}... (${progress}%)`, { id: toastId });
         
-        // Capture the view
-        const capture = await captureCurrentView();
+        const capture = await captureElement('[data-capture-area="editor"]');
         if (capture) {
           capture.type = view.type;
           capture.label = view.label;
           captures.push(capture);
         }
+      }
+      
+      // Capture rest period screen (fake it)
+      if (setShowRestPeriod) {
+        toast.loading('Capturing Rest Period...', { id: toastId });
+        setShowRestPeriod(true);
+        await waitForRender(500); // Extra time for animations
+        
+        const restCapture = await captureElement('[data-capture-area="rest-period"]');
+        if (restCapture) {
+          restCapture.type = 'rest-period';
+          restCapture.label = 'Rest Period';
+          captures.push(restCapture);
+        }
+        
+        setShowRestPeriod(false);
+        await waitForRender(100);
       }
       
       if (captures.length === 0) {
@@ -114,10 +127,7 @@ export function useProjectCapture(
       }
       
       toast.loading('Generating PDF...', { id: toastId });
-      
-      // Generate PDF
       await generatePDF(captures, projectTitle);
-      
       toast.success(`Captured ${captures.length} screens!`, { id: toastId });
       
     } catch (error) {
@@ -126,8 +136,9 @@ export function useProjectCapture(
     } finally {
       setIsCapturing(false);
       setCaptureProgress(0);
+      if (setShowRestPeriod) setShowRestPeriod(false);
     }
-  }, [isCapturing, setSelection, captureCurrentView, waitForRender, projectTitle]);
+  }, [isCapturing, setSelection, captureElement, waitForRender, projectTitle, setShowRestPeriod]);
 
   return {
     isCapturing,

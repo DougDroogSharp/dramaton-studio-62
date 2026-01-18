@@ -47,15 +47,17 @@ const Index = () => {
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // Project capture for PDF export
-  const { isCapturing, captureAllViews } = useProjectCapture(
-    (sel) => setSelection(sel as SelectionState),
-    game.info.title
-  );
-  
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
   const [didSaveOnProtocolStart, setDidSaveOnProtocolStart] = useState(false);
+  const [forceShowRestPeriod, setForceShowRestPeriod] = useState(false);
+  
+  // Project capture for PDF export (needs forceShowRestPeriod setter)
+  const { isCapturing, captureAllViews } = useProjectCapture(
+    (sel) => setSelection(sel as SelectionState),
+    game.info.title,
+    setForceShowRestPeriod
+  );
 
   // Check for autosave on mount and start pacing protocol timer
   useEffect(() => {
@@ -280,13 +282,13 @@ const Index = () => {
   };
 
   const navItems = [
-    { type: 'settings' as const, icon: Settings, label: 'Settings', color: 'text-diesel-gold' },
-    { type: 'actor' as const, icon: User, label: 'Actors', color: 'text-diesel-gold', count: game?.actors?.length ?? 0 },
-    { type: 'scene' as const, icon: Video, label: 'Scenes', color: 'text-diesel-rust', count: game?.scenes?.length ?? 0 },
-    { type: 'drop' as const, icon: Monitor, label: 'Drops', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
-    { type: 'item' as const, icon: Package, label: 'Items', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
-    { type: 'sfx' as const, icon: Music, label: 'SFX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
-    { type: 'button' as const, icon: MousePointer2, label: 'Buttons', color: 'text-diesel-cyan', count: game?.buttons?.length ?? 0 },
+    { type: 'settings' as const, icon: Settings, label: 'Settings', abbrev: 'ST', color: 'text-diesel-gold' },
+    { type: 'actor' as const, icon: User, label: 'Actors', abbrev: 'AC', color: 'text-diesel-gold', count: game?.actors?.length ?? 0 },
+    { type: 'scene' as const, icon: Video, label: 'Scenes', abbrev: 'SC', color: 'text-diesel-rust', count: game?.scenes?.length ?? 0 },
+    { type: 'drop' as const, icon: Monitor, label: 'Drops', abbrev: 'DR', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
+    { type: 'item' as const, icon: Package, label: 'Items', abbrev: 'IT', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
+    { type: 'sfx' as const, icon: Music, label: 'SFX', abbrev: 'FX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
+    { type: 'button' as const, icon: MousePointer2, label: 'Buttons', abbrev: 'BT', color: 'text-diesel-cyan', count: game?.buttons?.length ?? 0 },
   ];
 
   // ═══════════════════════════════════════════════════════════════
@@ -535,7 +537,7 @@ const Index = () => {
               }`}
             >
               <item.icon size={12} />
-              <span className="hidden sm:inline">{item.label}</span>
+              <span className="hidden sm:inline">{item.abbrev}</span>
               {item.count !== undefined && <span className="text-[9px] opacity-60 hidden md:inline">({item.count})</span>}
             </button>
           ))}
@@ -546,7 +548,7 @@ const Index = () => {
             className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-steel hover:text-diesel-gold hover:bg-diesel-gold/10"
           >
             <Archive size={12} />
-            <span className="hidden sm:inline">Library</span>
+            <span className="hidden sm:inline">LB</span>
           </Link>
           
           {/* Play in Theater */}
@@ -636,8 +638,8 @@ const Index = () => {
       </div>
       
       {/* Pacing Protocol Overlay - Restful blue theme */}
-      {isRestPeriod && (
-        <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden">
+      {(isRestPeriod || forceShowRestPeriod) && (
+        <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden" data-capture-area="rest-period">
           {/* Background gears - hidden on mobile */}
           <Gear 
             size={400} 

@@ -234,6 +234,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             defaultOpen={(game?.scenes?.length ?? 0) <= 5 || searchMatches.scenes.length > 0}
             color={getCategoryColor(getCategoryStatus(game?.scenes ?? []))}
             highlight={searchMatches.scenes.length > 0}
+            onDoubleClick={() => onNavigate('scene', null)}
           >
             {(game?.scenes ?? []).map(scene => (
               <TreeNode
@@ -290,6 +291,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             defaultOpen={(game?.actors?.length ?? 0) <= 5 || searchMatches.actors.length > 0}
             color={getCategoryColor(getCategoryStatus(game?.actors ?? []))}
             highlight={searchMatches.actors.length > 0}
+            onDoubleClick={() => onNavigate('actor', null)}
           >
             {(game?.actors ?? []).map(actor => (
               <TreeNode
@@ -336,6 +338,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             defaultOpen={(game?.drops?.length ?? 0) <= 5 || searchMatches.drops.length > 0}
             color={getCategoryColor(getCategoryStatus(game?.drops ?? []))}
             highlight={searchMatches.drops.length > 0}
+            onDoubleClick={() => onNavigate('drop', null)}
           >
             {(game?.drops ?? []).map(drop => (
               <TreeNode
@@ -371,6 +374,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             defaultOpen={(game?.items?.length ?? 0) <= 5 || searchMatches.items.length > 0}
             color={getCategoryColor(getCategoryStatus(game?.items ?? []))}
             highlight={searchMatches.items.length > 0}
+            onDoubleClick={() => onNavigate('item', null)}
           >
             {(game?.items ?? []).map(item => (
               <TreeNode
@@ -404,6 +408,7 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
             defaultOpen={(game?.sfx?.length ?? 0) <= 5 || searchMatches.sfx.length > 0}
             color={getCategoryColor(getCategoryStatus(game?.sfx ?? []))}
             highlight={searchMatches.sfx.length > 0}
+            onDoubleClick={() => onNavigate('sfx', null)}
           >
             {(game?.sfx ?? []).map(sfx => (
               <TreeNode
