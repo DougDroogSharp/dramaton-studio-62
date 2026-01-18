@@ -4,6 +4,7 @@ import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/type
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
@@ -28,6 +29,7 @@ import {
 
 const Index = () => {
   const navigate = useNavigate();
+  const { confirm, alert } = useConfirmDialog();
   // Startup state
   const [isStarted, setIsStarted] = useState(false);
   const [startTitle, setStartTitle] = useState('Untitled Protocol');
@@ -100,14 +102,14 @@ const Index = () => {
     }
   }, [isRestPeriod, isLoaded, game, didSaveOnProtocolStart]);
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     // Validate title and author are not default/empty
     if (!startTitle.trim() || startTitle === 'Untitled Protocol') {
-      alert('Please enter a unique game title before starting.');
+      await alert('Please enter a unique game title before starting.');
       return;
     }
     if (!startAuthor.trim() || startAuthor === 'Unknown Architect') {
-      alert('Please enter your name or studio as the author.');
+      await alert('Please enter your name or studio as the author.');
       return;
     }
     
@@ -122,9 +124,23 @@ const Index = () => {
   };
 
   const handleNewGame = async () => {
-    if (confirm('Start a new game? You will be prompted to save the current game.')) {
+    const startNew = await confirm({ 
+      title: 'New Game',
+      description: 'Start a new game? You will be prompted to save the current game.',
+      confirmText: 'Start New',
+      cancelText: 'Cancel'
+    });
+    
+    if (startNew) {
       // Offer to save current game
-      if (confirm('Would you like to save the current game to a file before starting new?')) {
+      const shouldSave = await confirm({ 
+        title: 'Save Current Game',
+        description: 'Would you like to save the current game to a file before starting new?',
+        confirmText: 'Save',
+        cancelText: 'Skip'
+      });
+      
+      if (shouldSave) {
         handleSave();
       }
       // Clear IndexedDB so old game doesn't persist

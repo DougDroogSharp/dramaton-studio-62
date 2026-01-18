@@ -26,6 +26,7 @@ import {
   Search, Download, Upload, Trash2, Plus, Archive, FolderOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface LibraryPanelProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
   game, 
   onGameChange 
 }) => {
+  const { confirm } = useConfirmDialog();
   const [library, setLibrary] = useState<AssetLibrary | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsset, setSelectedAsset] = useState<SelectedAsset | null>(null);
@@ -122,10 +124,18 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({
     setSelectedAsset(null);
   };
 
-  const handleDeleteFromLibrary = () => {
+  const handleDeleteFromLibrary = async () => {
     if (!selectedAsset) return;
     
-    if (!confirm('Remove this asset from the library?')) return;
+    const shouldDelete = await confirm({ 
+      title: 'Remove Asset',
+      description: 'Remove this asset from the library?',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      variant: 'destructive'
+    });
+    
+    if (!shouldDelete) return;
 
     let updatedLibrary = library;
     

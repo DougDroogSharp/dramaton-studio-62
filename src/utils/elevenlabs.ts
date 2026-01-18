@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 export interface ElevenLabsVoice {
   voice_id: string;
   name: string;
@@ -150,14 +152,14 @@ export const generateSpeech = async (
     });
 
     if (response.status === 401 || response.status === 403) {
-      alert("Speech Generation Failed: Invalid API Key. Please check settings.");
+      toast.error("Speech Generation Failed: Invalid API Key. Please check settings.");
       return null;
     }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ detail: { message: response.statusText } }));
       console.error("ElevenLabs API Error:", JSON.stringify(err, null, 2));
-      alert(`Speech Generation Failed: ${err.detail?.message || err.message || response.status}`);
+      toast.error(`Speech Generation Failed: ${err.detail?.message || err.message || response.status}`);
       return null;
     }
 
@@ -200,7 +202,7 @@ export const generateSpeechToSpeech = async (
     if (!response.ok) {
       const err = await response.json().catch(() => ({ detail: { message: response.statusText } }));
       console.error("ElevenLabs STS API Error:", JSON.stringify(err, null, 2));
-      alert(`Speech-to-Speech Failed: ${err.detail?.message || err.message || response.status}`);
+      toast.error(`Speech-to-Speech Failed: ${err.detail?.message || err.message || response.status}`);
       return null;
     }
 

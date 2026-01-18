@@ -8,10 +8,12 @@ import { TheaterControls } from '@/components/theater/TheaterControls';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
 import { loadGameFromDB } from '@/utils/db';
 import { DramatonLogo } from '@/components/DramatonLogo';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 const Theater: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { confirm } = useConfirmDialog();
   
   const [game, setGame] = useState<GameData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -265,14 +267,28 @@ const Theater: React.FC = () => {
         onToggleMute={() => setIsMuted(!isMuted)}
         onOpenMenu={() => setShowMenu(true)}
         onOpenSettings={() => setShowSettings(true)}
-        onGoHome={() => {
-          if (confirm('Return to title screen? Progress will be lost.')) {
+        onGoHome={async () => {
+          const shouldReturn = await confirm({ 
+            title: 'Return to Title',
+            description: 'Return to title screen? Progress will be lost.',
+            confirmText: 'Return',
+            cancelText: 'Stay',
+            variant: 'destructive'
+          });
+          if (shouldReturn) {
             scriptRunner.goToScene(startSceneId);
             setHasStarted(false);
           }
         }}
-        onBackToMenu={() => {
-          if (confirm('Exit to main menu? Progress will be lost.')) {
+        onBackToMenu={async () => {
+          const shouldExit = await confirm({ 
+            title: 'Exit to Menu',
+            description: 'Exit to main menu? Progress will be lost.',
+            confirmText: 'Exit',
+            cancelText: 'Stay',
+            variant: 'destructive'
+          });
+          if (shouldExit) {
             navigate('/');
           }
         }}
