@@ -1,0 +1,220 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { GameData, Scene } from '@/types';
+import { Stage } from '@/components/Stage';
+import { DialogueBox } from '@/components/theater/DialogueBox';
+import { ChoicePanel } from '@/components/theater/ChoicePanel';
+import { useScriptRunner } from '@/hooks/useScriptRunner';
+import { X, Play, Pause, RotateCcw } from 'lucide-react';
+
+interface ScenePreviewProps {
+  scene: Scene;
+  game: GameData;
+  onClose: () => void;
+}
+
+export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose }) => {
+  const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Handle audio commands
+  const handleAudioCommand = useCallback((
+    type: 'bgm' | 'ambience' | 'sfx',
+    name: string,
+    options: { loop?: boolean; volume?: number }
+  ) => {
+    if (isMuted) return;
+    
+    // Find audio track in current scene
+    const track = scene.audioTracks?.find(t => t.name === name);
+    
+    if (track) {
+      // Stop previous audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      
+      const audio = new Audio(track.url);
+      audio.loop = options.loop ?? track.loop;
+      audio.volume = (options.volume ?? track.volume) * (isMuted ? 0 : 1);
+      audio.play();
+      audioRef.current = audio;
+    }
+  }, [scene, isMuted]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Script runner for the scene
+  const scriptRunner = useScriptRunner({
+    game,
+    startSceneId: scene.id,
+    onAudioCommand: handleAudioCommand,
+  });
+
+  // Get background
+  const background = scene.dropId 
+    ? game.drops.find(d => d.id === scene.dropId) 
+    : undefined;
+
+  // Find actor for dialogue
+  const dialogueActor = scriptRunner.state.activeDialogue?.actorId
+    ? game.actors.find(a => a.id === scriptRunner.state.activeDialogue?.actorId)
+    : undefined;
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      
+      // Choice selection with number keys
+      if (scriptRunner.state.choices && e.key >= '1' && e.key <= '9') {
+        const index = parseInt(e.key) - 1;
+        if (index < scriptRunner.state.choices.options.length) {
+          scriptRunner.selectChoice(index);
+        }
+        return;
+      }
+      
+      // Advance dialogue
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        scriptRunner.advance();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [scriptRunner, onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-diesel-black/95 z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-diesel-border">
+        <div className="flex items-center gap-4">
+          <h2 className="text-diesel-gold font-bold uppercase tracking-wider text-sm">
+            Preview: {scene.name}
+          </h2>
+          
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={scriptRunner.toggleAutoPlay}
+              className={`
+                flex items-center gap-1 px-3 py-1 border text-xs font-bold uppercase
+                ${scriptRunner.state.isAutoPlay 
+                  ? 'border-diesel-gold bg-diesel-gold/20 text-diesel-gold' 
+                  : 'border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold'
+                }
+              `}
+            >
+              {scriptRunner.state.isAutoPlay ? <Pause size={12} /> : <Play size={12} />}
+              Auto
+            </button>
+            
+            <button
+              onClick={() => scriptRunner.goToScene(scene.id)}
+              className="flex items-center gap-1 px-3 py-1 border border-diesel-border text-diesel-steel hover:border-diesel-rust hover:text-diesel-rust text-xs font-bold uppercase"
+            >
+              <RotateCcw size={12} />
+              Restart
+            </button>
+          </div>
+        </div>
+        
+        <button
+          onClick={onClose}
+          className="p-2 text-diesel-steel hover:text-diesel-paper transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      
+      {/* Stage Area */}
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div className="w-full max-w-4xl">
+          <Stage
+            scene={scene}
+            game={game}
+            background={background}
+            hideElement={scriptRunner.state.hiddenElements}
+            activeEffects={scriptRunner.state.activeEffects}
+          />
+        </div>
+      </div>
+      
+      {/* Dialogue / Choice Area */}
+      <div className="px-4 pb-4">
+        {scriptRunner.state.activeDialogue && (
+          <DialogueBox
+            dialogue={scriptRunner.state.activeDialogue}
+            actor={dialogueActor}
+            onAdvance={scriptRunner.advance}
+          />
+        )}
+        
+        {scriptRunner.state.choices && (
+          <ChoicePanel
+            choices={scriptRunner.state.choices}
+            onSelect={scriptRunner.selectChoice}
+          />
+        )}
+        
+        {/* End of scene */}
+        {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
+          <div className="text-center py-6">
+            <p className="text-diesel-steel text-sm uppercase tracking-wider mb-4">
+              — End of Scene —
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => scriptRunner.goToScene(scene.id)}
+                className="px-4 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust font-bold uppercase text-sm hover:bg-diesel-rust/30"
+              >
+                Replay
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold font-bold uppercase text-sm hover:bg-diesel-gold/30"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Empty script hint */}
+        {!scene.script?.trim() && (
+          <div className="text-center py-8">
+            <p className="text-diesel-steel text-sm">
+              No script to preview. Add dialogue and commands to the scene script.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-4 px-4 py-2 border border-diesel-border text-diesel-steel hover:border-diesel-paper hover:text-diesel-paper text-sm"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Footer hint */}
+      <div className="text-center py-2 border-t border-diesel-border">
+        <p className="text-diesel-steel/50 text-xs">
+          Press SPACE to advance • ESC to close • 1-9 for choices
+        </p>
+      </div>
+    </div>
+  );
+};
