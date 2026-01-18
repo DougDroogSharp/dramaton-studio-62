@@ -8,6 +8,7 @@ import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addDropToLibrary } from '@/utils/library';
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { computeDropStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface DropEditorProps {
   game: GameData;
@@ -112,9 +113,16 @@ This is a background scene with no characters or text.`;
   };
 
   const updateDrop = (id: string, updates: Partial<Drop>) => {
+    const currentDrop = game.drops.find(d => d.id === id);
+    if (!currentDrop) return;
+    
+    const updatedDrop = { ...currentDrop, ...updates };
+    const computedStatus = computeDropStatus(updatedDrop);
+    const newStatus = promoteStatus(currentDrop.status || 'new', computedStatus);
+    
     onChange({
       ...game,
-      drops: game.drops.map(d => d.id === id ? { ...d, ...updates } : d),
+      drops: game.drops.map(d => d.id === id ? { ...updatedDrop, status: newStatus } : d),
     });
   };
 

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addItemToLibrary } from '@/utils/library';
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { computeItemStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface ItemEditorProps {
   game: GameData;
@@ -40,9 +41,16 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
   };
 
   const updateItem = (id: string, updates: Partial<Item>) => {
+    const currentItem = game.items.find(i => i.id === id);
+    if (!currentItem) return;
+    
+    const updatedItem = { ...currentItem, ...updates };
+    const computedStatus = computeItemStatus(updatedItem);
+    const newStatus = promoteStatus(currentItem.status || 'new', computedStatus);
+    
     onChange({
       ...game,
-      items: game.items.map(i => i.id === id ? { ...i, ...updates } : i),
+      items: game.items.map(i => i.id === id ? { ...updatedItem, status: newStatus } : i),
     });
   };
 

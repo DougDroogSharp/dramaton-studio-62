@@ -12,6 +12,7 @@ import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 import { StatusSelector } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { computeActorStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface ActorEditorProps {
   game: GameData;
@@ -101,9 +102,16 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
   };
 
   const updateActor = (id: string, updates: Partial<Actor>) => {
+    const currentActor = game.actors.find(a => a.id === id);
+    if (!currentActor) return;
+    
+    const updatedActor = { ...currentActor, ...updates };
+    const computedStatus = computeActorStatus(updatedActor);
+    const newStatus = promoteStatus(currentActor.status || 'new', computedStatus);
+    
     onChange({
       ...game,
-      actors: game.actors.map(a => a.id === id ? { ...a, ...updates } : a),
+      actors: game.actors.map(a => a.id === id ? { ...updatedActor, status: newStatus } : a),
     });
   };
 
