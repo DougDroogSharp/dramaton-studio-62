@@ -41,14 +41,6 @@ export function useProjectCapture(
   const [isCapturing, setIsCapturing] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
 
-  const waitForRender = useCallback((ms: number = 300) => {
-    return new Promise<void>(resolve => {
-      requestAnimationFrame(() => {
-        setTimeout(resolve, ms);
-      });
-    });
-  }, []);
-
   const captureElement = useCallback(async (selector: string): Promise<CapturedScreen | null> => {
     const element = document.querySelector(selector) as HTMLElement;
     if (!element) {
@@ -76,6 +68,14 @@ export function useProjectCapture(
       console.error('Failed to capture element:', error);
       return null;
     }
+  }, []);
+
+  const waitForRender = useCallback((ms: number = 300) => {
+    return new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, ms);
+      });
+    });
   }, []);
 
   // Capture scrollable content in segments
