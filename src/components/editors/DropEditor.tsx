@@ -6,9 +6,8 @@ import { toast } from 'sonner';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addDropToLibrary } from '@/utils/library';
-import { StatusSelector } from '@/components/StatusBadge';
+import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
-import { computeDropStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface DropEditorProps {
   game: GameData;
@@ -112,17 +111,37 @@ This is a background scene with no characters or text.`;
     onSelect('drop', newDrop.id);
   };
 
+  // Update drop with auto-promotion to 'work' when content changes
   const updateDrop = (id: string, updates: Partial<Drop>) => {
     const currentDrop = game.drops.find(d => d.id === id);
     if (!currentDrop) return;
     
     const updatedDrop = { ...currentDrop, ...updates };
-    const computedStatus = computeDropStatus(updatedDrop);
-    const newStatus = promoteStatus(currentDrop.status || 'new', computedStatus);
+    
+    // Auto-promote to 'work' if currently 'new' and content is being edited
+    let newStatus = updatedDrop.status || 'new';
+    if (!('status' in updates) && newStatus === 'new') {
+      const hasContent = 
+        updatedDrop.name !== 'New Background' ||
+        updatedDrop.image ||
+        updatedDrop.referenceImage ||
+        (updatedDrop.prompt && updatedDrop.prompt.trim().length > 0);
+      if (hasContent) {
+        newStatus = 'work';
+      }
+    }
     
     onChange({
       ...game,
       drops: game.drops.map(d => d.id === id ? { ...updatedDrop, status: newStatus } : d),
+    });
+  };
+
+  // Manual status change - allows setting any status directly
+  const setDropStatus = (id: string, status: AssetStatus) => {
+    onChange({
+      ...game,
+      drops: game.drops.map(d => d.id === id ? { ...d, status } : d),
     });
   };
 
@@ -323,24 +342,33 @@ This is a background scene with no characters or text.`;
         </div>
         
         <div className="grid grid-cols-2 gap-3">
-          {game.drops.map(drop => (
-            <button
-              key={drop.id}
-              onClick={() => onSelect('drop', drop.id)}
-              className="flex flex-col bg-diesel-black border border-diesel-border hover:border-diesel-paper transition-colors text-left overflow-hidden"
-            >
-              <div className="aspect-video bg-diesel-panel flex items-center justify-center">
-                {drop.image ? (
-                  <img src={drop.image} alt={drop.name} className="w-full h-full object-cover" />
-                ) : (
-                  <Monitor size={32} className="text-diesel-steel opacity-30" />
-                )}
-              </div>
-              <div className="p-2">
-                <div className="text-diesel-paper font-bold text-sm truncate">{drop.name}</div>
-              </div>
-            </button>
-          ))}
+          {game.drops.map(drop => {
+            const statusBorderColor = drop.status === 'done' 
+              ? 'border-diesel-green/50 hover:border-diesel-green' 
+              : drop.status === 'work' 
+                ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                : 'border-diesel-border hover:border-diesel-paper';
+            
+            return (
+              <button
+                key={drop.id}
+                onClick={() => onSelect('drop', drop.id)}
+                className={`flex flex-col bg-diesel-black border ${statusBorderColor} transition-colors text-left overflow-hidden`}
+              >
+                <div className="aspect-video bg-diesel-panel flex items-center justify-center">
+                  {drop.image ? (
+                    <img src={drop.image} alt={drop.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Monitor size={32} className="text-diesel-steel opacity-30" />
+                  )}
+                </div>
+                <div className="p-2 flex items-center justify-between gap-2">
+                  <div className="text-diesel-paper font-bold text-sm truncate">{drop.name}</div>
+                  <StatusBadge status={drop.status || 'new'} size="sm" />
+                </div>
+              </button>
+            );
+          })}
         </div>
         
         {game.drops.length === 0 && (
@@ -371,7 +399,7 @@ This is a background scene with no characters or text.`;
           </h3>
           <StatusSelector 
             status={selectedDrop.status || 'new'} 
-            onChange={(status) => updateDrop(selectedDrop.id, { status })} 
+            onChange={(status) => setDropStatus(selectedDrop.id, status)} 
           />
         </div>
         <CyberInput

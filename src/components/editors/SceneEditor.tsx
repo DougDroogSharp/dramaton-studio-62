@@ -8,11 +8,10 @@ import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { loadLibraryFromDB, saveLibraryToDB, addSceneToLibrary } from '@/utils/library';
-import { StatusSelector } from '@/components/StatusBadge';
+import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
-import { computeSceneStatus, promoteStatus } from '@/utils/statusPromotion';
 
 interface SceneEditorProps {
   game: GameData;
@@ -87,17 +86,37 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     onSelect('scene', newScene.id);
   };
 
+  // Update scene with auto-promotion to 'work' when content changes
   const updateScene = (id: string, updates: Partial<Scene>) => {
     const currentScene = game.scenes.find(s => s.id === id);
     if (!currentScene) return;
     
     const updatedScene = { ...currentScene, ...updates };
-    const computedStatus = computeSceneStatus(updatedScene);
-    const newStatus = promoteStatus(currentScene.status || 'new', computedStatus);
+    
+    // Auto-promote to 'work' if currently 'new' and content is being edited
+    let newStatus = updatedScene.status || 'new';
+    if (!('status' in updates) && newStatus === 'new') {
+      const hasContent = 
+        updatedScene.name !== 'New Scene' ||
+        updatedScene.dropId ||
+        (updatedScene.script && updatedScene.script.trim().length > 0) ||
+        (updatedScene.stage && updatedScene.stage.length > 0);
+      if (hasContent) {
+        newStatus = 'work';
+      }
+    }
     
     onChange({
       ...game,
       scenes: game.scenes.map(s => s.id === id ? { ...updatedScene, status: newStatus } : s),
+    });
+  };
+
+  // Manual status change - allows setting any status directly
+  const setSceneStatus = (id: string, status: AssetStatus) => {
+    onChange({
+      ...game,
+      scenes: game.scenes.map(s => s.id === id ? { ...s, status } : s),
     });
   };
 
@@ -627,25 +646,34 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
         </div>
         
         <div className="space-y-2">
-          {game.scenes.map((scene, idx) => (
-            <button
-              key={scene.id}
-              onClick={() => onSelect('scene', scene.id)}
-              className="w-full flex items-center gap-3 p-3 bg-diesel-black border border-diesel-border hover:border-diesel-rust transition-colors text-left"
-            >
-              <div className="w-10 h-10 bg-diesel-panel border border-diesel-border flex items-center justify-center text-diesel-rust">
-                <Video size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="text-diesel-paper font-bold">{scene.name}</div>
-                <div className="text-xs text-diesel-steel">
-                  {scene.sceneType || 'Dialogue'} • {scene.stage?.length || 0} elements
+          {game.scenes.map((scene, idx) => {
+            const statusBorderColor = scene.status === 'done' 
+              ? 'border-diesel-green/50 hover:border-diesel-green' 
+              : scene.status === 'work' 
+                ? 'border-diesel-rust/50 hover:border-diesel-rust' 
+                : 'border-diesel-border hover:border-diesel-rust';
+            
+            return (
+              <button
+                key={scene.id}
+                onClick={() => onSelect('scene', scene.id)}
+                className={`w-full flex items-center gap-3 p-3 bg-diesel-black border ${statusBorderColor} transition-colors text-left`}
+              >
+                <div className="w-10 h-10 bg-diesel-panel border border-diesel-border flex items-center justify-center text-diesel-rust">
+                  <Video size={20} />
                 </div>
-              </div>
-              <span className="text-xs text-diesel-steel font-mono">#{idx + 1}</span>
-              <ChevronRight size={16} className="text-diesel-steel" />
-            </button>
-          ))}
+                <div className="flex-1">
+                  <div className="text-diesel-paper font-bold">{scene.name}</div>
+                  <div className="text-xs text-diesel-steel">
+                    {scene.sceneType || 'Dialogue'} • {scene.stage?.length || 0} elements
+                  </div>
+                </div>
+                <StatusBadge status={scene.status || 'new'} size="sm" />
+                <span className="text-xs text-diesel-steel font-mono">#{idx + 1}</span>
+                <ChevronRight size={16} className="text-diesel-steel" />
+              </button>
+            );
+          })}
         </div>
         
         {game.scenes.length === 0 && (
@@ -697,7 +725,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             <span className="text-diesel-paper font-bold">{selectedScene.name}</span>
             <StatusSelector 
               status={selectedScene.status || 'new'} 
-              onChange={(status) => updateScene(selectedScene.id, { status })} 
+              onChange={(status) => setSceneStatus(selectedScene.id, status)} 
             />
             <button
               onClick={() => setShowScenePreview(true)}
