@@ -480,7 +480,7 @@ const Index = () => {
               <ActorEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
             )}
             {selection.type === 'scene' && (
-              <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+              <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
             )}
             {selection.type === 'drop' && (
               <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
