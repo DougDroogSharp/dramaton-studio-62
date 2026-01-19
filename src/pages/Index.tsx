@@ -441,7 +441,7 @@ const Index = () => {
             DRAMATON
           </h1>
           <p className="text-diesel-steel text-[9px] tracking-[0.3em] mb-2 uppercase font-mono">
-            ▸ Dieselpunk Narrative Architect v2.5 ◂
+            ▸ Legendary Interactive Narrative System ◂
           </p>
           
           {/* Industrial Panel - compact */}
