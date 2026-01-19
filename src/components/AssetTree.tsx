@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Settings, User, Video, Monitor, Package, Music, Image, Wand2, FileText, Mic, Palette, Layers, Search, X } from 'lucide-react';
-import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus } from '@/types';
+import { ChevronRight, ChevronDown, Settings, User, Video, Monitor, Package, Music, Image, Wand2, FileText, Mic, Palette, Layers, Search, X, MousePointer2 } from 'lucide-react';
+import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus, Button } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { getCategoryStatus, getCategoryColor } from '@/utils/statusPromotion';
 interface AssetTreeProps {
@@ -143,6 +143,21 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
   const totalMatches = searchMatches.scenes.length + searchMatches.actors.length + 
     searchMatches.drops.length + searchMatches.items.length + searchMatches.sfx.length;
 
+  // Helper to find buttons used in a scene's script
+  const getSceneButtons = useCallback((scene: Scene): Button[] => {
+    if (!scene.script) return [];
+    
+    const buttonIds = new Set<string>();
+    const buttonRegex = /\[BUTTON\s+(\w+)\]/gi;
+    let match;
+    
+    while ((match = buttonRegex.exec(scene.script)) !== null) {
+      buttonIds.add(match[1]);
+    }
+    
+    return game.buttons.filter(b => buttonIds.has(b.id));
+  }, [game.buttons]);
+
   // Helper to find things used in a scene
   const getSceneAssets = (scene: Scene) => {
     const assets: { type: 'actor' | 'item' | 'drop' | 'sfx'; id: string; name: string }[] = [];
@@ -266,6 +281,16 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
                       asset.type === 'drop' ? 'text-diesel-paper' :
                       'text-diesel-green'
                     }
+                  />
+                ))}
+                {/* Buttons used in this scene */}
+                {getSceneButtons(scene).map(button => (
+                  <LeafNode
+                    key={`button-${button.id}`}
+                    label={button.name}
+                    icon={<MousePointer2 size={8} />}
+                    depth={3}
+                    color="text-diesel-cyan"
                   />
                 ))}
                 {/* Audio tracks */}
