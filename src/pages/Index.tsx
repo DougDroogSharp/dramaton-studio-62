@@ -5,10 +5,11 @@ import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { useAuth } from '@/hooks/useAuth';
 import { useProjectCapture } from '@/hooks/useProjectCapture';
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
 import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud, LogOut, LogIn } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -35,6 +36,7 @@ import {
 const Index = () => {
   const navigate = useNavigate();
   const { confirm, alert } = useConfirmDialog();
+  const { user, loading: authLoading, signOut } = useAuth();
   // Startup state
   const [isStarted, setIsStarted] = useState(false);
   const [startTitle, setStartTitle] = useState('Untitled Protocol');
@@ -628,6 +630,25 @@ const Index = () => {
           <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-1.5 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
             {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
+          
+          {/* Auth buttons */}
+          {user ? (
+            <button 
+              onClick={() => { signOut(); toast.success('Logged out'); }}
+              className="p-1.5 text-diesel-steel hover:text-diesel-rust" 
+              title={`Logged in as ${user.email} - Click to logout`}
+            >
+              <LogOut size={14} />
+            </button>
+          ) : (
+            <button 
+              onClick={() => navigate('/auth')}
+              className="p-1.5 text-diesel-gold hover:text-diesel-paper" 
+              title="Log in to publish"
+            >
+              <LogIn size={14} />
+            </button>
+          )}
         </div>
       </div>
       
