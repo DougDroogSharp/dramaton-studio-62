@@ -1,115 +1,9 @@
 import { GameData } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
-import { Plus, Trash2, Upload, Key, X, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-
-// Reusable ElevenLabs API Key input with verification
-const ElevenLabsApiKeyInput: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ value, onChange }) => {
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
-
-  const verifyApiKey = async () => {
-    if (!value.trim()) {
-      toast.error('Please enter an API key first');
-      return;
-    }
-
-    setIsVerifying(true);
-    setVerificationStatus('idle');
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-voices`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ action: 'list' }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.voices && data.voices.length > 0) {
-          setVerificationStatus('valid');
-          toast.success(`API key verified! Found ${data.voices.length} voices available.`);
-        } else {
-          setVerificationStatus('valid');
-          toast.success('API key verified!');
-        }
-      } else {
-        setVerificationStatus('invalid');
-        toast.error('API key verification failed. Please check your key.');
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-      setVerificationStatus('invalid');
-      toast.error('Failed to verify API key. Check your connection.');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  return (
-    <div className="relative">
-      <CyberInput
-        label="ElevenLabs API Key"
-        type={showApiKey ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setVerificationStatus('idle');
-        }}
-        placeholder="xi_xxxxxxxxxxxxxxxxxx"
-      />
-      <div className="absolute right-2 top-7 flex items-center gap-1">
-        {verificationStatus === 'valid' && (
-          <CheckCircle size={14} className="text-diesel-green" />
-        )}
-        {verificationStatus === 'invalid' && (
-          <XCircle size={14} className="text-diesel-rust" />
-        )}
-        <button
-          type="button"
-          onClick={() => setShowApiKey(!showApiKey)}
-          className="text-diesel-steel hover:text-diesel-gold p-1"
-          title={showApiKey ? 'Hide key' : 'Show key'}
-        >
-          <Key size={14} />
-        </button>
-      </div>
-      {value.trim() && (
-        <button
-          type="button"
-          onClick={verifyApiKey}
-          disabled={isVerifying}
-          className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-diesel-panel border border-diesel-border text-diesel-paper text-xs hover:border-diesel-gold hover:text-diesel-gold disabled:opacity-50 transition-colors"
-        >
-          {isVerifying ? (
-            <>
-              <Loader2 size={12} className="animate-spin" />
-              Verifying...
-            </>
-          ) : (
-            <>
-              <CheckCircle size={12} />
-              Verify API Key
-            </>
-          )}
-        </button>
-      )}
-    </div>
-  );
-};
 
 // Compress image to reduce AI token usage
 const compressImage = (file: File, maxDimension: number = 512): Promise<string> => {
@@ -289,20 +183,6 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
             />
           </label>
         )}
-      </section>
-
-      {/* ElevenLabs API Key */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Voice Integration
-        </h3>
-        <ElevenLabsApiKeyInput 
-          value={game.info.elevenLabsApiKey || ''}
-          onChange={(value) => updateInfo({ elevenLabsApiKey: value })}
-        />
-        <p className="text-xs text-diesel-steel mt-1">
-          Required for AI voice synthesis. Get your key at elevenlabs.io
-        </p>
       </section>
 
       {/* World State Variables */}

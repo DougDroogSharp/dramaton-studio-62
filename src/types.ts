@@ -15,7 +15,6 @@ export interface GameInfo {
   author: string;
   styleGuide: string | null;
   worldState: Record<string, string | number | boolean>;
-  elevenLabsApiKey?: string;
   gameMode: 'INTERACTIVE' | 'AUTO_PLAY';
   titleSceneId?: string;
   enableAutosave: boolean;
