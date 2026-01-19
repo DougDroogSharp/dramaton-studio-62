@@ -159,17 +159,17 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
         </p>
         
         {game.info.styleGuide ? (
-          <div className="relative group">
+          <div className="relative group inline-block">
             <img
               src={game.info.styleGuide}
               alt="Style guide"
-              className="w-full max-w-[300px] h-auto border border-diesel-border"
+              className="w-24 h-24 object-cover border border-diesel-border"
             />
             <button
               onClick={() => updateInfo({ styleGuide: null })}
-              className="absolute top-2 right-2 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1 right-1 p-0.5 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <Trash2 size={14} />
+              <Trash2 size={10} />
             </button>
           </div>
         ) : (
