@@ -1,38 +1,61 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from '@/types';
-import { DramatonLogo } from '@/components/DramatonLogo';
-import { CyberInput } from '@/components/CyberInput';
-import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
-import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import { useAuth } from '@/hooks/useAuth';
-import { useProjectCapture } from '@/hooks/useProjectCapture';
-import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
-import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud, LogOut, LogIn, Layers } from 'lucide-react';
-import { SettingsEditor } from '@/components/editors/SettingsEditor';
-import { ActorEditor } from '@/components/editors/ActorEditor';
-import { SceneEditor } from '@/components/editors/SceneEditor';
-import { DropEditor } from '@/components/editors/DropEditor';
-import { ItemEditor } from '@/components/editors/ItemEditor';
-import { SfxEditor } from '@/components/editors/SfxEditor';
-import { ButtonEditor } from '@/components/editors/ButtonEditor';
-import { EpisodeEditor } from '@/components/editors/EpisodeEditor';
-import { PublishDialog } from '@/components/PublishDialog';
-import { AssetTree } from '@/components/AssetTree';
-import Hourglass from '@/components/Hourglass';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from "@/types";
+import { DramatonLogo } from "@/components/DramatonLogo";
+import { CyberInput } from "@/components/CyberInput";
+import { loadGameFromDB, saveGameToDB, clearGameFromDB } from "@/utils/db";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useProjectCapture } from "@/hooks/useProjectCapture";
+import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from "@/utils/filePicker";
+import { toast } from "sonner";
 import {
-  Gear, 
-  Rivet, 
-  PipeHorizontal, 
-  PipeVertical, 
-  SteamVent, 
-  CornerBracket, 
-  Gauge, 
+  Settings,
+  User,
+  Video,
+  Monitor,
+  Package,
+  Music,
+  Save,
+  Volume2,
+  VolumeX,
+  Undo2,
+  Upload,
+  FolderOpen,
+  FilePlus2,
+  Archive,
+  Play,
+  MousePointer2,
+  Camera,
+  Plus,
+  Cloud,
+  LogOut,
+  LogIn,
+  Layers,
+} from "lucide-react";
+import { SettingsEditor } from "@/components/editors/SettingsEditor";
+import { ActorEditor } from "@/components/editors/ActorEditor";
+import { SceneEditor } from "@/components/editors/SceneEditor";
+import { DropEditor } from "@/components/editors/DropEditor";
+import { ItemEditor } from "@/components/editors/ItemEditor";
+import { SfxEditor } from "@/components/editors/SfxEditor";
+import { ButtonEditor } from "@/components/editors/ButtonEditor";
+import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
+import { PublishDialog } from "@/components/PublishDialog";
+import { AssetTree } from "@/components/AssetTree";
+import Hourglass from "@/components/Hourglass";
+import {
+  Gear,
+  Rivet,
+  PipeHorizontal,
+  PipeVertical,
+  SteamVent,
+  CornerBracket,
+  Gauge,
   ArtDecoDivider,
   IndustrialPanel,
-  VacuumTube
-} from '@/components/DieselpunkDecorations';
+  VacuumTube,
+} from "@/components/DieselpunkDecorations";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -40,23 +63,23 @@ const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   // Startup state
   const [isStarted, setIsStarted] = useState(false);
-  const [startTitle, setStartTitle] = useState('Untitled Game');
-  const [startAuthor, setStartAuthor] = useState('Unknown Creator');
+  const [startTitle, setStartTitle] = useState("Untitled Game");
+  const [startAuthor, setStartAuthor] = useState("Unknown Creator");
   const [hasAutoSave, setHasAutoSave] = useState(false);
-  
+
   // Editor state
   const [game, setGame] = useState<GameData>(createDefaultGame());
-  const [selection, setSelection] = useState<SelectionState>({ type: 'settings', id: null });
+  const [selection, setSelection] = useState<SelectionState>({ type: "settings", id: null });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
-  
+
   // Rest Period State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
   const [didSaveOnRestStart, setDidSaveOnRestStart] = useState(false);
   const [forceShowRestPeriod, setForceShowRestPeriod] = useState(false);
-  
+
   // Project capture for PDF export (needs forceShowRestPeriod setter)
   const { isCapturing, captureAllViews } = useProjectCapture(
     (sel) => setSelection(sel as SelectionState),
@@ -67,9 +90,9 @@ const Index = () => {
       setIsStarted(true);
       setIsLoaded(true);
     },
-    () => game // Pass game data getter for selecting first items
+    () => game, // Pass game data getter for selecting first items
   );
-  
+
   // Handler for Document Project button on splash screen
   const handleDocumentProject = async () => {
     // Load the saved game first
@@ -90,7 +113,7 @@ const Index = () => {
         setStartAuthor(saved.info.author);
       }
     });
-    
+
     // Rest period timer - check every 10 seconds
     const timer = setInterval(() => {
       setMinutes(new Date().getMinutes());
@@ -108,7 +131,7 @@ const Index = () => {
         // Check rest period dynamically
         const currentMinutes = new Date().getMinutes();
         const isResting = currentMinutes > 30; // 31-59 is rest time
-        
+
         if (!isResting) {
           saveGameToDB(game);
           setDidSaveOnRestStart(false); // Reset flag when not resting
@@ -119,7 +142,7 @@ const Index = () => {
       return () => clearTimeout(timer);
     }
   }, [game, isLoaded]);
-  
+
   // Save once when rest period starts
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave && isRestPeriod && !didSaveOnRestStart) {
@@ -135,27 +158,27 @@ const Index = () => {
 
   const handleStartGame = async () => {
     // Validate title and author are not default/empty
-    if (!startTitle.trim() || startTitle === 'Untitled Game') {
-      await alert('Please enter a unique game title before starting.');
+    if (!startTitle.trim() || startTitle === "Untitled Game") {
+      await alert("Please enter a unique game title before starting.");
       return;
     }
-    if (!startAuthor.trim() || startAuthor === 'Unknown Creator') {
-      await alert('Please enter your name or studio as the creator.');
+    if (!startAuthor.trim() || startAuthor === "Unknown Creator") {
+      await alert("Please enter your name or studio as the creator.");
       return;
     }
-    
+
     // Confirm if there's already a saved game
     if (hasAutoSave) {
       const confirmed = await confirm({
-        title: 'Overwrite Saved Game',
-        description: 'Starting a new game will replace your saved game. This cannot be undone. Continue?',
-        confirmText: 'Start New',
-        cancelText: 'Cancel',
-        variant: 'destructive',
+        title: "Overwrite Saved Game",
+        description: "Starting a new game will replace your saved game. This cannot be undone. Continue?",
+        confirmText: "Start New",
+        cancelText: "Cancel",
+        variant: "destructive",
       });
       if (!confirmed) return;
     }
-    
+
     const newGame = createDefaultGame();
     newGame.info.title = startTitle.trim();
     newGame.info.author = startAuthor.trim();
@@ -167,22 +190,22 @@ const Index = () => {
   };
 
   const handleNewGame = async () => {
-    const startNew = await confirm({ 
-      title: 'New Game',
-      description: 'Start a new game? You will be prompted to save the current game.',
-      confirmText: 'Start New',
-      cancelText: 'Cancel'
+    const startNew = await confirm({
+      title: "New Game",
+      description: "Start a new game? You will be prompted to save the current game.",
+      confirmText: "Start New",
+      cancelText: "Cancel",
     });
-    
+
     if (startNew) {
       // Offer to save current game
-      const shouldSave = await confirm({ 
-        title: 'Save Current Game',
-        description: 'Would you like to save the current game to a file before starting new?',
-        confirmText: 'Save',
-        cancelText: 'Skip'
+      const shouldSave = await confirm({
+        title: "Save Current Game",
+        description: "Would you like to save the current game to a file before starting new?",
+        confirmText: "Save",
+        cancelText: "Skip",
       });
-      
+
       if (shouldSave) {
         handleSave();
       }
@@ -191,8 +214,8 @@ const Index = () => {
       // Reset to splash screen with default placeholder values
       setIsStarted(false);
       setIsLoaded(false);
-      setStartTitle('Untitled Game');
-      setStartAuthor('Unknown Creator');
+      setStartTitle("Untitled Game");
+      setStartAuthor("Unknown Creator");
       setHasAutoSave(false);
       setHistory([]);
       setGame(createDefaultGame());
@@ -210,16 +233,16 @@ const Index = () => {
 
   const handlePlayGame = () => {
     // Theater will load from IndexedDB automatically
-    navigate('/theater');
+    navigate("/theater");
   };
 
   const handleLoadFile = async () => {
     const result = await openFileWithPicker({
       ...DRAM_FILE_OPTIONS,
     });
-    
+
     if (!result) return; // User cancelled
-    
+
     try {
       const rawData = JSON.parse(result.content);
       const data = migrateGameData(rawData);
@@ -229,8 +252,8 @@ const Index = () => {
       saveGameToDB(data); // Save to IndexedDB for autosave
       toast.success(`Loaded: ${result.name}`);
     } catch (err) {
-      console.error('Failed to parse game file:', err);
-      toast.error('Failed to parse game file');
+      console.error("Failed to parse game file:", err);
+      toast.error("Failed to parse game file");
     }
   };
 
@@ -238,7 +261,7 @@ const Index = () => {
   const handleLoadFileLegacy = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -250,47 +273,47 @@ const Index = () => {
         saveGameToDB(data);
         toast.success(`Loaded: ${file.name}`);
       } catch (err) {
-        console.error('Failed to parse game file:', err);
-        toast.error('Failed to parse game file');
+        console.error("Failed to parse game file:", err);
+        toast.error("Failed to parse game file");
       }
     };
     reader.readAsText(file);
   };
 
-  const handleSelect = (type: SelectionState['type'], id: string | null) => {
+  const handleSelect = (type: SelectionState["type"], id: string | null) => {
     setSelection({ type, id });
   };
 
-  const handleUpdateStatus = (type: 'actor' | 'scene' | 'drop' | 'item' | 'sfx', id: string, status: AssetStatus) => {
+  const handleUpdateStatus = (type: "actor" | "scene" | "drop" | "item" | "sfx", id: string, status: AssetStatus) => {
     switch (type) {
-      case 'actor':
-        setGame(g => ({
+      case "actor":
+        setGame((g) => ({
           ...g,
-          actors: g.actors.map(a => a.id === id ? { ...a, status } : a),
+          actors: g.actors.map((a) => (a.id === id ? { ...a, status } : a)),
         }));
         break;
-      case 'scene':
-        setGame(g => ({
+      case "scene":
+        setGame((g) => ({
           ...g,
-          scenes: g.scenes.map(s => s.id === id ? { ...s, status } : s),
+          scenes: g.scenes.map((s) => (s.id === id ? { ...s, status } : s)),
         }));
         break;
-      case 'drop':
-        setGame(g => ({
+      case "drop":
+        setGame((g) => ({
           ...g,
-          drops: g.drops.map(d => d.id === id ? { ...d, status } : d),
+          drops: g.drops.map((d) => (d.id === id ? { ...d, status } : d)),
         }));
         break;
-      case 'item':
-        setGame(g => ({
+      case "item":
+        setGame((g) => ({
           ...g,
-          items: g.items.map(i => i.id === id ? { ...i, status } : i),
+          items: g.items.map((i) => (i.id === id ? { ...i, status } : i)),
         }));
         break;
-      case 'sfx':
-        setGame(g => ({
+      case "sfx":
+        setGame((g) => ({
           ...g,
-          sfx: g.sfx.map(s => s.id === id ? { ...s, status } : s),
+          sfx: g.sfx.map((s) => (s.id === id ? { ...s, status } : s)),
         }));
         break;
     }
@@ -299,33 +322,82 @@ const Index = () => {
   const handleUndo = () => {
     if (history.length > 0) {
       setGame(history[history.length - 1]);
-      setHistory(h => h.slice(0, -1));
+      setHistory((h) => h.slice(0, -1));
     }
   };
 
   const handleSave = async () => {
     const content = JSON.stringify(game, null, 2);
-    const suggestedName = `${game.info.title.replace(/\s+/g, '_')}.dram`;
-    
+    const suggestedName = `${game.info.title.replace(/\s+/g, "_")}.dram`;
+
     const saved = await saveFileWithPicker(content, {
       ...DRAM_FILE_OPTIONS,
       suggestedName,
     });
-    
+
     if (saved) {
-      toast.success('Game saved!');
+      toast.success("Game saved!");
     }
   };
 
   const navItems = [
-    { type: 'settings' as const, icon: Settings, label: 'Settings', abbrev: 'GA', color: 'text-diesel-gold' },
-    { type: 'actor' as const, icon: User, label: 'Actors', abbrev: 'AC', color: 'text-diesel-gold', count: game?.actors?.length ?? 0 },
-    { type: 'scene' as const, icon: Video, label: 'Scenes', abbrev: 'SC', color: 'text-diesel-rust', count: game?.scenes?.length ?? 0 },
-    { type: 'episode' as const, icon: Layers, label: 'Episodes', abbrev: 'EP', color: 'text-diesel-purple', count: game?.episodes?.length ?? 0 },
-    { type: 'drop' as const, icon: Monitor, label: 'Drops', abbrev: 'DR', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
-    { type: 'item' as const, icon: Package, label: 'Items', abbrev: 'IT', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
-    { type: 'sfx' as const, icon: Music, label: 'SFX', abbrev: 'FX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
-    { type: 'button' as const, icon: MousePointer2, label: 'Buttons', abbrev: 'BT', color: 'text-diesel-cyan', count: game?.buttons?.length ?? 0 },
+    { type: "settings" as const, icon: Settings, label: "Settings", abbrev: "GA", color: "text-diesel-gold" },
+    {
+      type: "actor" as const,
+      icon: User,
+      label: "Actors",
+      abbrev: "AC",
+      color: "text-diesel-gold",
+      count: game?.actors?.length ?? 0,
+    },
+    {
+      type: "scene" as const,
+      icon: Video,
+      label: "Scenes",
+      abbrev: "SC",
+      color: "text-diesel-rust",
+      count: game?.scenes?.length ?? 0,
+    },
+    {
+      type: "episode" as const,
+      icon: Layers,
+      label: "Episodes",
+      abbrev: "EP",
+      color: "text-diesel-purple",
+      count: game?.episodes?.length ?? 0,
+    },
+    {
+      type: "drop" as const,
+      icon: Monitor,
+      label: "Drops",
+      abbrev: "DR",
+      color: "text-diesel-paper",
+      count: game?.drops?.length ?? 0,
+    },
+    {
+      type: "item" as const,
+      icon: Package,
+      label: "Items",
+      abbrev: "IT",
+      color: "text-diesel-gold",
+      count: game?.items?.length ?? 0,
+    },
+    {
+      type: "sfx" as const,
+      icon: Music,
+      label: "SFX",
+      abbrev: "FX",
+      color: "text-diesel-green",
+      count: game?.sfx?.length ?? 0,
+    },
+    {
+      type: "button" as const,
+      icon: MousePointer2,
+      label: "Buttons",
+      abbrev: "BT",
+      color: "text-diesel-cyan",
+      count: game?.buttons?.length ?? 0,
+    },
   ];
 
   // ═══════════════════════════════════════════════════════════════
@@ -333,29 +405,32 @@ const Index = () => {
   // ═══════════════════════════════════════════════════════════════
   if (!isStarted) {
     return (
-      <div data-capture-area="splash" className="h-screen w-screen flex flex-col items-center justify-center bg-diesel-black overflow-hidden relative">
+      <div
+        data-capture-area="splash"
+        className="h-screen w-screen flex flex-col items-center justify-center bg-diesel-black overflow-hidden relative"
+      >
         {/* Background gears - slow rotating */}
-        <Gear 
-          size={300} 
-          teeth={16} 
-          className="absolute -top-20 -left-20 text-diesel-border opacity-20 animate-[spin_60s_linear_infinite]" 
+        <Gear
+          size={300}
+          teeth={16}
+          className="absolute -top-20 -left-20 text-diesel-border opacity-20 animate-[spin_60s_linear_infinite]"
         />
-        <Gear 
-          size={200} 
-          teeth={12} 
-          className="absolute top-40 -left-10 text-diesel-border opacity-15 animate-[spin_45s_linear_infinite_reverse]" 
+        <Gear
+          size={200}
+          teeth={12}
+          className="absolute top-40 -left-10 text-diesel-border opacity-15 animate-[spin_45s_linear_infinite_reverse]"
         />
-        <Gear 
-          size={250} 
-          teeth={14} 
-          className="absolute -bottom-20 -right-20 text-diesel-border opacity-20 animate-[spin_50s_linear_infinite]" 
+        <Gear
+          size={250}
+          teeth={14}
+          className="absolute -bottom-20 -right-20 text-diesel-border opacity-20 animate-[spin_50s_linear_infinite]"
         />
-        <Gear 
-          size={180} 
-          teeth={10} 
-          className="absolute bottom-40 -right-10 text-diesel-border opacity-15 animate-[spin_40s_linear_infinite_reverse]" 
+        <Gear
+          size={180}
+          teeth={10}
+          className="absolute bottom-40 -right-10 text-diesel-border opacity-15 animate-[spin_40s_linear_infinite_reverse]"
         />
-        
+
         {/* Pipes */}
         <div className="absolute top-0 left-20">
           <PipeVertical height={200} className="opacity-40" />
@@ -369,7 +444,7 @@ const Index = () => {
         <div className="absolute bottom-0 right-16">
           <PipeVertical height={220} className="opacity-40" />
         </div>
-        
+
         {/* Steam vents */}
         <div className="absolute top-20 left-16 opacity-60">
           <SteamVent />
@@ -377,29 +452,28 @@ const Index = () => {
         <div className="absolute top-32 right-20 opacity-60">
           <SteamVent />
         </div>
-        
+
         {/* Gauges */}
         <div className="absolute top-8 left-1/4 opacity-70">
           <Gauge value={0.75} label="STEAM" />
         </div>
         <div className="absolute top-8 right-1/4 opacity-70">
-        
-        {/* Vacuum Tubes */}
-        <div className="absolute left-8 top-1/3 -translate-y-1/2">
-          <VacuumTube size={60} glowColor="orange" pulseSpeed={2.5} />
-        </div>
-        <div className="absolute left-20 top-1/3 -translate-y-1/2 mt-8">
-          <VacuumTube size={50} glowColor="orange" pulseSpeed={3} />
-        </div>
-        <div className="absolute right-8 top-1/3 -translate-y-1/2">
-          <VacuumTube size={60} glowColor="green" pulseSpeed={2} />
-        </div>
-        <div className="absolute right-20 top-1/3 -translate-y-1/2 mt-10">
-          <VacuumTube size={45} glowColor="green" pulseSpeed={2.8} />
-        </div>
+          {/* Vacuum Tubes */}
+          <div className="absolute left-8 top-1/3 -translate-y-1/2">
+            <VacuumTube size={60} glowColor="orange" pulseSpeed={2.5} />
+          </div>
+          <div className="absolute left-20 top-1/3 -translate-y-1/2 mt-8">
+            <VacuumTube size={50} glowColor="orange" pulseSpeed={3} />
+          </div>
+          <div className="absolute right-8 top-1/3 -translate-y-1/2">
+            <VacuumTube size={60} glowColor="green" pulseSpeed={2} />
+          </div>
+          <div className="absolute right-20 top-1/3 -translate-y-1/2 mt-10">
+            <VacuumTube size={45} glowColor="green" pulseSpeed={2.8} />
+          </div>
           <Gauge value={0.45} label="FLUX" />
         </div>
-        
+
         {/* Corner rivets pattern */}
         <div className="absolute top-4 left-4 flex gap-8">
           <Rivet size={16} />
@@ -421,14 +495,16 @@ const Index = () => {
           <Rivet size={16} />
           <Rivet size={16} />
         </div>
-        
+
         {/* Scanline overlay */}
-        <div className="absolute inset-0 pointer-events-none z-10 opacity-10"
+        <div
+          className="absolute inset-0 pointer-events-none z-10 opacity-10"
           style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
+            backgroundImage:
+              "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)",
           }}
         />
-        
+
         {/* Main content */}
         <div className="relative z-20 flex flex-col items-center pt-1 pb-2">
           {/* Logo with glow - smaller */}
@@ -436,10 +512,10 @@ const Index = () => {
             <div className="absolute inset-0 blur-xl bg-diesel-rust/30 rounded-full" />
             <DramatonLogo className="relative w-16 h-16 text-diesel-rust mb-1 animate-pulse drop-shadow-[0_0_30px_hsl(15,70%,45%,0.5)]" />
           </div>
-          
+
           {/* Art deco divider */}
           <ArtDecoDivider width={280} className="text-diesel-gold mb-1" />
-          
+
           {/* Title - smaller */}
           <h1 className="text-2xl md:text-3xl font-bold text-diesel-rust tracking-widest mb-0.5 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
             DRAMATON
@@ -447,7 +523,7 @@ const Index = () => {
           <p className="text-diesel-steel text-[9px] tracking-[0.3em] mb-2 uppercase font-mono">
             ▸ Legendary Interactive Narrative System ◂
           </p>
-          
+
           {/* Industrial Panel - compact */}
           <IndustrialPanel className="w-[380px] max-w-[90vw]" glowing>
             {/* Saved game section */}
@@ -456,12 +532,8 @@ const Index = () => {
                 <p className="text-diesel-steel text-[10px] uppercase tracking-widest text-center font-mono">
                   ▸ Saved Game ◂
                 </p>
-                <p className="text-diesel-paper text-sm text-center font-bold truncate">
-                  "{startTitle}"
-                </p>
-                <p className="text-diesel-steel/70 text-[10px] text-center mb-2">
-                  by {startAuthor}
-                </p>
+                <p className="text-diesel-paper text-sm text-center font-bold truncate">"{startTitle}"</p>
+                <p className="text-diesel-steel/70 text-[10px] text-center mb-2">by {startAuthor}</p>
                 <div className="flex gap-1.5 mb-2">
                   <button
                     onClick={handlePlayGame}
@@ -493,7 +565,7 @@ const Index = () => {
                 </div>
               </div>
             )}
-            
+
             {/* New game inputs */}
             <div className="space-y-1.5">
               <CyberInput
@@ -509,7 +581,7 @@ const Index = () => {
                 placeholder="Your name..."
               />
             </div>
-            
+
             {/* Action buttons - side by side */}
             <div className="flex gap-1.5 mt-2">
               <button
@@ -528,7 +600,7 @@ const Index = () => {
               </button>
             </div>
           </IndustrialPanel>
-          
+
           {/* Footer - minimal */}
           <div className="mt-3 flex items-center gap-2 text-diesel-steel/50 text-[9px] tracking-wider font-mono">
             <span className="flex items-center gap-1">
@@ -558,9 +630,9 @@ const Index = () => {
           <div className="flex items-center px-2 h-full border-r border-diesel-border">
             <DramatonLogo className="w-5 h-5 text-diesel-rust" />
           </div>
-          
+
           {/* New Game button */}
-          <button 
+          <button
             onClick={handleNewGame}
             className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-green hover:bg-diesel-green/20"
             title="New Game"
@@ -568,35 +640,37 @@ const Index = () => {
             <FilePlus2 size={12} />
             <span className="hidden sm:inline">New</span>
           </button>
-          
+
           {/* Navigation tabs - compact */}
-          {navItems.map(item => (
+          {navItems.map((item) => (
             <button
               key={item.type}
               onClick={() => handleSelect(item.type, null)}
               className={`h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border ${
-                selection.type === item.type 
-                  ? `bg-diesel-panel ${item.color}` 
-                  : 'text-diesel-steel hover:text-white hover:bg-white/5'
+                selection.type === item.type
+                  ? `bg-diesel-panel ${item.color}`
+                  : "text-diesel-steel hover:text-white hover:bg-white/5"
               }`}
             >
               <item.icon size={12} />
               <span className="hidden sm:inline">{item.abbrev}</span>
-              {item.count !== undefined && <span className="text-[9px] opacity-60 hidden md:inline">({item.count})</span>}
+              {item.count !== undefined && (
+                <span className="text-[9px] opacity-60 hidden md:inline">({item.count})</span>
+              )}
             </button>
           ))}
-          
+
           {/* Library nav tab */}
-          <Link 
+          <Link
             to="/library"
             className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-steel hover:text-diesel-gold hover:bg-diesel-gold/10"
           >
             <Archive size={12} />
             <span className="hidden sm:inline">LB</span>
           </Link>
-          
+
           {/* Play in Theater */}
-          <Link 
+          <Link
             to="/theater"
             className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-green hover:bg-diesel-green/20"
           >
@@ -604,20 +678,20 @@ const Index = () => {
             <span className="hidden sm:inline">Play</span>
           </Link>
         </div>
-        
+
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
-          <button 
+          <button
             onClick={() => setShowPublishDialog(true)}
-            className="p-1.5 text-diesel-rust hover:text-diesel-gold" 
+            className="p-1.5 text-diesel-rust hover:text-diesel-gold"
             title="Publish to Cloud"
           >
             <Cloud size={14} />
           </button>
-          <button 
-            onClick={() => captureAllViews(false)} 
+          <button
+            onClick={() => captureAllViews(false)}
             disabled={isCapturing}
-            className="p-1.5 text-diesel-steel hover:text-diesel-gold disabled:opacity-30" 
+            className="p-1.5 text-diesel-steel hover:text-diesel-gold disabled:opacity-30"
             title="Capture project state as PDF"
           >
             <Camera size={14} />
@@ -628,26 +702,38 @@ const Index = () => {
           <button onClick={handleLoadFile} className="p-1.5 text-diesel-steel hover:text-white" title="Load game">
             <FolderOpen size={14} />
           </button>
-          <button onClick={handleUndo} disabled={history.length === 0} className="p-1.5 text-diesel-steel hover:text-white disabled:opacity-30" title="Undo">
+          <button
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className="p-1.5 text-diesel-steel hover:text-white disabled:opacity-30"
+            title="Undo"
+          >
             <Undo2 size={14} />
           </button>
-          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className={`p-1.5 ${voiceEnabled ? 'text-diesel-green' : 'text-diesel-steel opacity-50'}`} title="Toggle voice">
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={`p-1.5 ${voiceEnabled ? "text-diesel-green" : "text-diesel-steel opacity-50"}`}
+            title="Toggle voice"
+          >
             {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
-          
+
           {/* Auth buttons */}
           {user ? (
-            <button 
-              onClick={() => { signOut(); toast.success('Logged out'); }}
-              className="p-1.5 text-diesel-steel hover:text-diesel-rust" 
+            <button
+              onClick={() => {
+                signOut();
+                toast.success("Logged out");
+              }}
+              className="p-1.5 text-diesel-steel hover:text-diesel-rust"
               title={`Logged in as ${user.email} - Click to logout`}
             >
               <LogOut size={14} />
             </button>
           ) : (
-            <button 
-              onClick={() => navigate('/auth')}
-              className="p-1.5 text-diesel-gold hover:text-diesel-paper" 
+            <button
+              onClick={() => navigate("/auth")}
+              className="p-1.5 text-diesel-gold hover:text-diesel-paper"
               title="Log in to publish"
             >
               <LogIn size={14} />
@@ -655,20 +741,23 @@ const Index = () => {
           )}
         </div>
       </div>
-      
+
       {/* Editor Content */}
       <div className="flex-1 flex overflow-hidden" data-capture-area="editor">
         {/* Settings page: Two-panel layout with preview */}
-        {selection.type === 'settings' ? (
+        {selection.type === "settings" ? (
           <>
             {/* Editor Panel */}
-            <div className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6" data-scroll-area>
+            <div
+              className="w-full md:w-3/5 lg:w-1/2 xl:w-3/5 bg-diesel-panel border-r border-diesel-border overflow-y-auto custom-scrollbar p-6"
+              data-scroll-area
+            >
               <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
                 GAME SETTINGS
               </h2>
               <SettingsEditor game={game} onChange={setGame} />
             </div>
-            
+
             {/* Asset Tree Panel */}
             <div className="hidden md:flex md:w-2/5 lg:w-1/2 xl:w-2/5 bg-diesel-black p-4">
               <AssetTree game={game} onNavigate={handleSelect} onUpdateStatus={handleUpdateStatus} />
@@ -678,53 +767,85 @@ const Index = () => {
           /* Full-width layout for all other editors */
           <div className="w-full bg-diesel-panel overflow-y-auto custom-scrollbar p-6" data-scroll-area>
             <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
-              {selection.type === 'actor' && 'ACTOR EDITOR'}
-              {selection.type === 'scene' && 'SCENE EDITOR'}
-              {selection.type === 'drop' && 'DROP EDITOR'}
-              {selection.type === 'item' && 'ITEM EDITOR'}
-              {selection.type === 'sfx' && 'SFX EDITOR'}
+              {selection.type === "actor" && "ACTOR EDITOR"}
+              {selection.type === "scene" && "SCENE EDITOR"}
+              {selection.type === "drop" && "DROP EDITOR"}
+              {selection.type === "item" && "ITEM EDITOR"}
+              {selection.type === "sfx" && "SFX EDITOR"}
             </h2>
-            
-            {selection.type === 'actor' && (
-              <ActorEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+
+            {selection.type === "actor" && (
+              <ActorEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+                styleGuide={game.info.styleGuide}
+              />
             )}
-            {selection.type === 'scene' && (
-              <SceneEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            {selection.type === "scene" && (
+              <SceneEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+                styleGuide={game.info.styleGuide}
+              />
             )}
-            {selection.type === 'drop' && (
-              <DropEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            {selection.type === "drop" && (
+              <DropEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+                styleGuide={game.info.styleGuide}
+              />
             )}
-            {selection.type === 'item' && (
-              <ItemEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} styleGuide={game.info.styleGuide} />
+            {selection.type === "item" && (
+              <ItemEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+                styleGuide={game.info.styleGuide}
+              />
             )}
-            {selection.type === 'sfx' && (
+            {selection.type === "sfx" && (
               <SfxEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
             )}
-            {selection.type === 'button' && (
+            {selection.type === "button" && (
               <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
             )}
-            {selection.type === 'episode' && (
-              <EpisodeEditor game={game} selectedId={selection.id} onUpdate={setGame} onSelect={(id) => handleSelect('episode', id)} />
+            {selection.type === "episode" && (
+              <EpisodeEditor
+                game={game}
+                selectedId={selection.id}
+                onUpdate={setGame}
+                onSelect={(id) => handleSelect("episode", id)}
+              />
             )}
           </div>
         )}
       </div>
-      
+
       {/* Rest Period Overlay - Restful blue theme */}
       {(isRestPeriod || forceShowRestPeriod) && (
-        <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden" data-capture-area="rest-period">
+        <div
+          className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden"
+          data-capture-area="rest-period"
+        >
           {/* Background gears - hidden on mobile */}
-          <Gear 
-            size={400} 
-            teeth={20} 
-            className="hidden md:block absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]" 
+          <Gear
+            size={400}
+            teeth={20}
+            className="hidden md:block absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]"
           />
-          <Gear 
-            size={350} 
-            teeth={18} 
-            className="hidden md:block absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]" 
+          <Gear
+            size={350}
+            teeth={18}
+            className="hidden md:block absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]"
           />
-          
+
           <div className="max-w-md mx-4 p-6 bg-[hsl(220,25%,12%)]/95 border border-[hsl(210,40%,30%)] rounded-sm shadow-[0_0_40px_hsl(210,50%,30%,0.2)]">
             <div className="text-center">
               {/* Compact header - cool blue tones */}
@@ -733,17 +854,13 @@ const Index = () => {
                   <div className="absolute inset-0 blur-xl bg-[hsl(210,50%,45%)]/30 rounded-full animate-[pulse_4s_ease-in-out_infinite]" />
                   <DramatonLogo className="relative w-16 h-16 text-[hsl(210,50%,55%)] animate-[pulse_4s_ease-in-out_infinite] drop-shadow-[0_0_20px_hsl(210,50%,50%,0.4)]" />
                 </div>
-                <h2 className="text-2xl font-bold text-[hsl(210,40%,65%)] tracking-widest">
-                  REST PERIOD
-                </h2>
+                <h2 className="text-2xl font-bold text-[hsl(210,40%,65%)] tracking-widest">REST PERIOD</h2>
               </div>
-              
+
               <ArtDecoDivider width={250} className="text-[hsl(210,40%,40%)] mx-auto mb-3" />
-              
-              <p className="text-[hsl(210,20%,60%)] text-sm mb-4">
-                Take a moment to breathe. Resume at top of hour.
-              </p>
-              
+
+              <p className="text-[hsl(210,20%,60%)] text-sm mb-4">Take a moment to breathe. Resume at top of hour.</p>
+
               {/* Timer display - hourglass beside countdown */}
               <div className="flex items-center justify-center gap-6 mb-4">
                 {/* Hourglass */}
@@ -753,30 +870,26 @@ const Index = () => {
                   </div>
                   <Hourglass remainingMinutes={Math.max(0, Math.min(30, 60 - minutes))} />
                 </div>
-                
+
                 {/* Digital countdown - calm blue */}
                 <div className="flex flex-col items-start">
                   <div className="text-7xl font-mono text-[hsl(210,50%,65%)] drop-shadow-[0_0_20px_hsl(210,50%,55%,0.4)] tabular-nums">
-                    <span className="animate-[pulse_4s_ease-in-out_infinite]">{String(60 - minutes).padStart(2, '0')}</span>
+                    <span className="animate-[pulse_4s_ease-in-out_infinite]">
+                      {String(60 - minutes).padStart(2, "0")}
+                    </span>
                   </div>
                   <span className="text-lg text-[hsl(210,20%,55%)] font-mono uppercase tracking-wider">minutes</span>
                 </div>
               </div>
-              
-              <p className="text-[hsl(210,20%,45%)] text-xs font-mono">
-                Work window: :00 to :30 each hour
-              </p>
+
+              <p className="text-[hsl(210,20%,45%)] text-xs font-mono">Work window: :00 to :30 each hour</p>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Publish Dialog */}
-      <PublishDialog
-        open={showPublishDialog}
-        onOpenChange={setShowPublishDialog}
-        game={game}
-      />
+      <PublishDialog open={showPublishDialog} onOpenChange={setShowPublishDialog} game={game} />
     </div>
   );
 };
