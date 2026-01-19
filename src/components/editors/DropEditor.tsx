@@ -425,15 +425,42 @@ This is a background scene with no characters or text.`;
           <div className="space-y-3">
             <div className="relative group">
               {/* Standard drop resolution: 1280x720 (16:9) */}
-              <div className="w-full max-w-[640px] mx-auto">
+              <div className="w-full max-w-[640px] mx-auto relative">
                 <img 
                   src={selectedDrop.image} 
                   alt={selectedDrop.name} 
-                  className="w-full aspect-video object-cover border border-diesel-border"
+                  className={`w-full aspect-video object-cover border border-diesel-border transition-opacity ${isGenerating || isEditing ? 'opacity-40' : ''}`}
                 />
+                
+                {/* Generation/Edit Progress Overlay */}
+                {(isGenerating || isEditing) && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-diesel-black/60 backdrop-blur-sm">
+                    <div className="relative">
+                      {/* Animated rings */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 border-2 border-diesel-gold/30 rounded-full animate-ping" />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 border-2 border-diesel-rust/40 rounded-full animate-[ping_1.5s_ease-in-out_infinite]" />
+                      </div>
+                      {/* Center icon */}
+                      <div className="relative w-24 h-24 flex items-center justify-center">
+                        <div className="absolute inset-0 border-4 border-diesel-gold/20 rounded-full" />
+                        <div className="absolute inset-0 border-4 border-transparent border-t-diesel-gold rounded-full animate-spin" />
+                        <Sparkles className="w-8 h-8 text-diesel-gold animate-pulse" />
+                      </div>
+                    </div>
+                    <p className="mt-4 text-diesel-gold text-sm font-bold uppercase tracking-wider animate-pulse">
+                      {isEditing ? 'Editing...' : 'Generating...'}
+                    </p>
+                    <p className="mt-1 text-diesel-steel text-xs">
+                      This may take 10-20 seconds
+                    </p>
+                  </div>
+                )}
               </div>
               {/* Always visible upload indicator */}
-              <label className="absolute top-2 right-2 p-2 bg-diesel-panel/80 border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel transition-colors flex items-center gap-1">
+              <label className={`absolute top-2 right-2 p-2 bg-diesel-panel/80 border border-diesel-border text-diesel-paper text-xs cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel transition-colors flex items-center gap-1 ${isGenerating || isEditing ? 'pointer-events-none opacity-50' : ''}`}>
                 <Upload size={12} />
                 <span>Upload</span>
                 <input
@@ -443,26 +470,28 @@ This is a background scene with no characters or text.`;
                   className="hidden"
                 />
               </label>
-              {/* Hover overlay with larger buttons */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <label className="flex items-center gap-2 px-4 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel/80">
-                  <Upload size={16} />
-                  Upload New
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(selectedDrop.id, e)}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  onClick={() => updateDrop(selectedDrop.id, { image: undefined })}
-                  className="flex items-center gap-2 px-4 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm hover:bg-diesel-rust/30"
-                >
-                  <Trash2 size={16} />
-                  Remove
-                </button>
-              </div>
+              {/* Hover overlay with larger buttons - hidden during generation */}
+              {!isGenerating && !isEditing && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <label className="flex items-center gap-2 px-4 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold hover:bg-diesel-panel/80">
+                    <Upload size={16} />
+                    Upload New
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(selectedDrop.id, e)}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    onClick={() => updateDrop(selectedDrop.id, { image: undefined })}
+                    className="flex items-center gap-2 px-4 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm hover:bg-diesel-rust/30"
+                  >
+                    <Trash2 size={16} />
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* AI Edit Mode Toggle */}
@@ -547,16 +576,45 @@ This is a background scene with no characters or text.`;
             )}
           </div>
         ) : (
-          <label className="flex items-center justify-center gap-2 aspect-video border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-paper hover:text-diesel-paper cursor-pointer transition-colors mb-4">
-            <Upload size={24} />
-            <span>Upload Background Image</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleImageUpload(selectedDrop.id, e)}
-              className="hidden"
-            />
-          </label>
+          <div className="relative">
+            <label className={`flex items-center justify-center gap-2 aspect-video border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-paper hover:text-diesel-paper cursor-pointer transition-colors mb-4 ${isGenerating ? 'pointer-events-none' : ''}`}>
+              <Upload size={24} />
+              <span>Upload Background Image</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(selectedDrop.id, e)}
+                className="hidden"
+              />
+            </label>
+            
+            {/* Generation Progress Overlay for empty state */}
+            {isGenerating && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-diesel-black/80 backdrop-blur-sm mb-4">
+                <div className="relative">
+                  {/* Animated rings */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-20 h-20 border-2 border-diesel-gold/30 rounded-full animate-ping" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 border-2 border-diesel-rust/40 rounded-full animate-[ping_1.5s_ease-in-out_infinite]" />
+                  </div>
+                  {/* Center icon */}
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <div className="absolute inset-0 border-4 border-diesel-gold/20 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-transparent border-t-diesel-gold rounded-full animate-spin" />
+                    <Sparkles className="w-8 h-8 text-diesel-gold animate-pulse" />
+                  </div>
+                </div>
+                <p className="mt-4 text-diesel-gold text-sm font-bold uppercase tracking-wider animate-pulse">
+                  Generating...
+                </p>
+                <p className="mt-1 text-diesel-steel text-xs">
+                  This may take 10-20 seconds
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </section>
 
