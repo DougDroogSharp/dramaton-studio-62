@@ -33,12 +33,12 @@ interface CapturedScreen {
 const SEGMENT_HEIGHT = 800;
 
 interface GameDataForCapture {
-  actors: { id: string }[];
-  scenes: { id: string }[];
-  drops: { id: string }[];
-  items: { id: string }[];
-  sfx: { id: string }[];
-  buttons: { id: string }[];
+  actors: { id: string; name: string }[];
+  scenes: { id: string; name: string }[];
+  drops: { id: string; name: string }[];
+  items: { id: string; name: string }[];
+  sfx: { id: string; name: string }[];
+  buttons: { id: string; name: string }[];
 }
 
 export function useProjectCapture(
@@ -165,9 +165,28 @@ export function useProjectCapture(
     setCaptureProgress(0);
     
     const captures: CapturedScreen[] = [];
-    const splashStep = includeSplash ? 1 : 0;
-    const totalSteps = splashStep + EDITOR_VIEWS.length + (setShowRestPeriod ? 1 : 0);
     const toastId = toast.loading('Capturing project state...', { duration: Infinity });
+    
+    // Calculate total steps dynamically
+    const gameData = getGameData?.();
+    const splashStep = includeSplash ? 1 : 0;
+    const restStep = setShowRestPeriod ? 1 : 0;
+    
+    // Count how many categories have items (will have both list + edit views)
+    let categoriesWithItems = 0;
+    if (gameData) {
+      if (gameData.actors.length > 0) categoriesWithItems++;
+      if (gameData.scenes.length > 0) categoriesWithItems++;
+      if (gameData.drops.length > 0) categoriesWithItems++;
+      if (gameData.items.length > 0) categoriesWithItems++;
+      if (gameData.sfx.length > 0) categoriesWithItems++;
+      if (gameData.buttons.length > 0) categoriesWithItems++;
+    }
+    
+    // Total: splash + settings + (categories with items * 2 for list+edit) + (empty categories * 1) + rest
+    const nonSettingsViews = EDITOR_VIEWS.filter(v => v.type !== 'settings').length;
+    const totalSteps = splashStep + 1 + categoriesWithItems * 2 + (nonSettingsViews - categoriesWithItems) + restStep;
+    let currentStep = 0;
     
     try {
       // Capture splash screen first if requested
@@ -181,6 +200,7 @@ export function useProjectCapture(
           splashCapture.label = 'Splash Screen';
           captures.push(splashCapture);
         }
+        currentStep++;
         
         // Navigate to editor for remaining captures
         if (navigateToEditor) {
@@ -189,58 +209,84 @@ export function useProjectCapture(
         }
       }
       
-      // Capture each editor view with scrolling support
+      // Capture each editor view
       for (let i = 0; i < EDITOR_VIEWS.length; i++) {
         const view = EDITOR_VIEWS[i];
         
-        // Determine which item to select (first item in category if available)
-        let selectedId: string | null = null;
-        if (getGameData) {
-          const gameData = getGameData();
+        // Get items for this category
+        let items: { id: string; name: string }[] = [];
+        if (gameData && view.type !== 'settings') {
           switch (view.type) {
-            case 'actor':
-              selectedId = gameData.actors[0]?.id || null;
-              break;
-            case 'scene':
-              selectedId = gameData.scenes[0]?.id || null;
-              break;
-            case 'drop':
-              selectedId = gameData.drops[0]?.id || null;
-              break;
-            case 'item':
-              selectedId = gameData.items[0]?.id || null;
-              break;
-            case 'sfx':
-              selectedId = gameData.sfx[0]?.id || null;
-              break;
-            case 'button':
-              selectedId = gameData.buttons[0]?.id || null;
-              break;
+            case 'actor': items = gameData.actors; break;
+            case 'scene': items = gameData.scenes; break;
+            case 'drop': items = gameData.drops; break;
+            case 'item': items = gameData.items; break;
+            case 'sfx': items = gameData.sfx; break;
+            case 'button': items = gameData.buttons; break;
           }
         }
         
-        setSelection({ type: view.type, id: selectedId });
-        await waitForRender(400); // Extra time for editor to render
+        // For settings, just capture once (no list/edit distinction)
+        if (view.type === 'settings') {
+          setSelection({ type: view.type, id: null });
+          await waitForRender(400);
+          
+          currentStep++;
+          const progress = Math.round((currentStep / totalSteps) * 100);
+          setCaptureProgress(progress);
+          toast.loading(`Capturing ${view.label}... (${progress}%)`, { id: toastId });
+          
+          const segmentCaptures = await captureScrollableElement(
+            '[data-capture-area="editor"]',
+            view.label,
+            view.type
+          );
+          captures.push(...segmentCaptures);
+          continue;
+        }
         
-        const progress = Math.round(((splashStep + i + 1) / totalSteps) * 100);
+        // STEP 1: Always capture the LIST view first (id: null)
+        setSelection({ type: view.type, id: null });
+        await waitForRender(400);
+        
+        currentStep++;
+        let progress = Math.round((currentStep / totalSteps) * 100);
         setCaptureProgress(progress);
-        const itemLabel = selectedId ? `${view.label} (editing)` : view.label;
-        toast.loading(`Capturing ${itemLabel}... (${progress}%)`, { id: toastId });
+        toast.loading(`Capturing ${view.label} list... (${progress}%)`, { id: toastId });
         
-        // Use segmented capture for scrollable content
-        const segmentCaptures = await captureScrollableElement(
+        const listCaptures = await captureScrollableElement(
           '[data-capture-area="editor"]',
-          itemLabel,
+          view.label,
           view.type
         );
-        captures.push(...segmentCaptures);
+        captures.push(...listCaptures);
+        
+        // STEP 2: If items exist, also capture the EDIT view (first item selected)
+        if (items.length > 0) {
+          const firstItem = items[0];
+          setSelection({ type: view.type, id: firstItem.id });
+          await waitForRender(400);
+          
+          currentStep++;
+          progress = Math.round((currentStep / totalSteps) * 100);
+          setCaptureProgress(progress);
+          const editLabel = `${view.label.slice(0, -1)}: ${firstItem.name || 'Untitled'}`;
+          toast.loading(`Capturing ${editLabel}... (${progress}%)`, { id: toastId });
+          
+          const editCaptures = await captureScrollableElement(
+            '[data-capture-area="editor"]',
+            editLabel,
+            `${view.type}-edit`
+          );
+          captures.push(...editCaptures);
+        }
       }
       
       // Capture rest period screen (fake it)
       if (setShowRestPeriod) {
         toast.loading('Capturing Rest Period...', { id: toastId });
         setShowRestPeriod(true);
-        await waitForRender(500); // Extra time for animations
+        await waitForRender(500);
         
         const restCapture = await captureElement('[data-capture-area="rest-period"]');
         if (restCapture) {
@@ -270,7 +316,7 @@ export function useProjectCapture(
       setCaptureProgress(0);
       if (setShowRestPeriod) setShowRestPeriod(false);
     }
-  }, [isCapturing, setSelection, captureElement, captureScrollableElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor]);
+  }, [isCapturing, setSelection, captureElement, captureScrollableElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor, getGameData]);
 
   return {
     isCapturing,
