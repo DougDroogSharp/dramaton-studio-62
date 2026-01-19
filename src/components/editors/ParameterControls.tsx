@@ -24,8 +24,9 @@ export const ParameterControls: React.FC<ParameterControlsProps> = ({ command, o
   const allPoses = [...POSES, ...(game.info.customPoses || [])];
   const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
 
-  const updateField = <T extends ScriptCommand>(field: keyof T, value: unknown) => {
-    onChange({ ...command, [field]: value } as T);
+  // Simple helper to update a field on the command - uses 'any' to bypass union type restrictions
+  const updateField = (field: string, value: unknown) => {
+    onChange({ ...command, [field]: value } as ScriptCommand);
   };
 
   switch (command.type) {

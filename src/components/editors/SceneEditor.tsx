@@ -12,6 +12,7 @@ import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
+import { DramScriptEditor } from '@/components/editors/DramScriptEditor';
 
 interface SceneEditorProps {
   game: GameData;
@@ -1095,49 +1096,36 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               <MessageSquare size={14} />
               DramScript
             </h3>
-            <div className="flex items-center gap-1">
-              {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {selectedScene.audioTracks.map(track => (
-                    <button
-                      key={track.id}
-                      onClick={() => {
-                        const cmd = getAudioScriptCommand(track);
-                        const currentScript = selectedScene.script || '';
-                        updateScene(selectedScene.id, { script: currentScript + (currentScript ? '\n' : '') + cmd });
-                      }}
-                      className="px-1.5 py-0.5 bg-diesel-green/20 border border-diesel-green/50 text-diesel-green text-[10px] hover:bg-diesel-green/30"
-                      title={`Insert ${track.type.toUpperCase()} command`}
-                    >
-                      {track.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  if (!selectedScene.script || selectedScene.script.trim() === '') {
-                    updateScene(selectedScene.id, { script: generateScriptHeader() });
-                  }
-                }}
-                className="px-2 py-1 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-[10px] font-bold uppercase hover:bg-diesel-rust/30"
-                title="Add header comment"
-              >
-                + Header
-              </button>
-            </div>
+            {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedScene.audioTracks.map(track => (
+                  <button
+                    key={track.id}
+                    onClick={() => {
+                      const cmd = getAudioScriptCommand(track);
+                      const currentScript = selectedScene.script || '';
+                      updateScene(selectedScene.id, { script: currentScript + (currentScript ? '\n' : '') + cmd });
+                    }}
+                    className="px-1.5 py-0.5 bg-diesel-green/20 border border-diesel-green/50 text-diesel-green text-[10px] hover:bg-diesel-green/30"
+                    title={`Insert ${track.type.toUpperCase()} command`}
+                  >
+                    {track.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex-1 p-2 min-h-0">
-            <textarea
-              value={selectedScene.script || ''}
-              onChange={(e) => handleScriptChange(e.target.value)}
+          <div className="flex-1 min-h-0">
+            <DramScriptEditor
+              script={selectedScene.script || ''}
+              onChange={handleScriptChange}
+              game={game}
               onFocus={() => {
                 if (!selectedScene.script || selectedScene.script.trim() === '') {
                   updateScene(selectedScene.id, { script: generateScriptHeader() });
                 }
               }}
               placeholder={`# Your DramScript here...\n\nDetective: "The clues are all here."\n[ENTER Detective x=50 y=70]`}
-              className="w-full h-full bg-diesel-dark border border-diesel-border text-diesel-paper text-sm p-3 font-mono resize-none focus:outline-none focus:border-diesel-rust custom-scrollbar"
             />
           </div>
         </div>
