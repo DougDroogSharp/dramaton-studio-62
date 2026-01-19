@@ -194,6 +194,7 @@ const Library = () => {
         drops: [...library.drops, ...importedLibrary.drops],
         items: [...library.items, ...importedLibrary.items],
         sfx: [...library.sfx, ...importedLibrary.sfx],
+        episodes: [...(library.episodes ?? []), ...(importedLibrary.episodes ?? [])],
       };
       setLibrary(mergedLibrary);
       toast.success(`Imported ${getLibraryCount(importedLibrary)} assets!`);

@@ -2,8 +2,8 @@ import { set, get } from 'idb-keyval';
 import { 
   AssetLibrary, 
   createDefaultLibrary,
-  Actor, Scene, Drop, Item, Sfx,
-  LibraryActor, LibraryScene, LibraryDrop, LibraryItem, LibrarySfx,
+  Actor, Scene, Drop, Item, Sfx, Episode,
+  LibraryActor, LibraryScene, LibraryDrop, LibraryItem, LibrarySfx, LibraryEpisode,
   GameData
 } from '@/types';
 import { saveFileWithPicker, openFileWithPicker, LIBRARY_FILE_OPTIONS } from '@/utils/filePicker';
@@ -164,6 +164,22 @@ export const addSfxToLibrary = (
   return { ...library, sfx: [...library.sfx, librarySfx] };
 };
 
+export const addEpisodeToLibrary = (
+  library: AssetLibrary, 
+  episode: Episode, 
+  source: string,
+  tags?: string[]
+): AssetLibrary => {
+  const libraryEpisode: LibraryEpisode = {
+    ...episode,
+    libraryId: `lib_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    addedAt: Date.now(),
+    source,
+    tags,
+  };
+  return { ...library, episodes: [...(library.episodes ?? []), libraryEpisode] };
+};
+
 // ═══════════════════════════════════════════════════════════════
 // REMOVE FROM LIBRARY
 // ═══════════════════════════════════════════════════════════════
@@ -186,6 +202,10 @@ export const removeItemFromLibrary = (library: AssetLibrary, libraryId: string):
 
 export const removeSfxFromLibrary = (library: AssetLibrary, libraryId: string): AssetLibrary => {
   return { ...library, sfx: library.sfx.filter(s => s.libraryId !== libraryId) };
+};
+
+export const removeEpisodeFromLibrary = (library: AssetLibrary, libraryId: string): AssetLibrary => {
+  return { ...library, episodes: (library.episodes ?? []).filter(e => e.libraryId !== libraryId) };
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -274,6 +294,21 @@ export const addLibrarySfxToGame = (game: GameData, librarySfx: LibrarySfx): Gam
   return { ...game, sfx: [...game.sfx, newSfx] };
 };
 
+export const addLibraryEpisodeToGame = (game: GameData, libraryEpisode: LibraryEpisode): GameData => {
+  const newEpisode: Episode = {
+    ...libraryEpisode,
+    id: generateNewId('episode'),
+    // Note: sceneIds will reference original scene IDs - user may need to remap
+    sceneIds: [],  // Start empty since scene IDs won't match
+  };
+  delete (newEpisode as any).libraryId;
+  delete (newEpisode as any).addedAt;
+  delete (newEpisode as any).source;
+  delete (newEpisode as any).tags;
+  
+  return { ...game, episodes: [...(game.episodes ?? []), newEpisode] };
+};
+
 // ═══════════════════════════════════════════════════════════════
 // LIBRARY STATS
 // ═══════════════════════════════════════════════════════════════
@@ -283,5 +318,6 @@ export const getLibraryCount = (library: AssetLibrary): number => {
          library.scenes.length + 
          library.drops.length + 
          library.items.length + 
-         library.sfx.length;
+         library.sfx.length +
+         (library.episodes?.length ?? 0);
 };

@@ -197,6 +197,7 @@ export interface LibraryScene extends Scene, LibraryAsset {}
 export interface LibraryDrop extends Drop, LibraryAsset {}
 export interface LibraryItem extends Item, LibraryAsset {}
 export interface LibrarySfx extends Sfx, LibraryAsset {}
+export interface LibraryEpisode extends Episode, LibraryAsset {}
 
 export interface AssetLibrary {
   version: number;
@@ -205,6 +206,7 @@ export interface AssetLibrary {
   drops: LibraryDrop[];
   items: LibraryItem[];
   sfx: LibrarySfx[];
+  episodes: LibraryEpisode[];
 }
 
 export const createDefaultLibrary = (): AssetLibrary => ({
@@ -214,7 +216,35 @@ export const createDefaultLibrary = (): AssetLibrary => ({
   drops: [],
   items: [],
   sfx: [],
+  episodes: [],
 });
+
+// Migrate old game data to current format
+export const migrateGameData = (data: any): GameData => {
+  const migrated = { ...data };
+  
+  // Ensure buttons array exists
+  if (!migrated.buttons) {
+    migrated.buttons = [];
+  }
+  
+  // Ensure episodes array exists - create default episode with all scenes if missing
+  if (!migrated.episodes) {
+    if (migrated.scenes && migrated.scenes.length > 0) {
+      migrated.episodes = [{
+        id: `episode_legacy_${Date.now()}`,
+        name: 'Episode 1',
+        description: 'Migrated from legacy game file',
+        sceneIds: migrated.scenes.map((s: Scene) => s.id),
+        status: 'work' as AssetStatus,
+      }];
+    } else {
+      migrated.episodes = [];
+    }
+  }
+  
+  return migrated as GameData;
+};
 
 // Default game state
 export const createDefaultGame = (): GameData => ({

@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { Episode, Scene, GameData, AssetStatus } from '@/types';
+import { useState, useEffect } from 'react';
+import { Episode, Scene, GameData, AssetStatus, AssetLibrary } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { NotesSection } from '@/components/NotesSection';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, Layers, Video, Search, X } from 'lucide-react';
+import { Plus, Trash2, Layers, Video, Search, X, Library, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadLibraryFromDB, saveLibraryToDB, addEpisodeToLibrary } from '@/utils/library';
 
 interface EpisodeEditorProps {
   game: GameData;
@@ -18,9 +19,15 @@ interface EpisodeEditorProps {
 
 export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeEditorProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [library, setLibrary] = useState<AssetLibrary | null>(null);
   
   const episodes = game.episodes ?? [];
   const episode = selectedId ? episodes.find(e => e.id === selectedId) : null;
+
+  // Load library on mount
+  useEffect(() => {
+    loadLibraryFromDB().then(setLibrary);
+  }, []);
 
   const handleCreate = () => {
     const id = `episode_${Date.now()}`;
@@ -56,6 +63,14 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
         e.id === episode.id ? { ...e, ...updates } : e
       ),
     });
+  };
+
+  const handleAddToLibrary = async () => {
+    if (!episode || !library) return;
+    const updatedLibrary = addEpisodeToLibrary(library, episode, game.info.title);
+    await saveLibraryToDB(updatedLibrary);
+    setLibrary(updatedLibrary);
+    toast.success(`Added "${episode.name}" to library`);
   };
 
   const handleToggleScene = (sceneId: string) => {
@@ -142,14 +157,25 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
             onChange={(status) => handleUpdateEpisode({ status })}
           />
         </div>
-        <Button
-          onClick={handleDelete}
-          size="sm"
-          variant="ghost"
-          className="text-diesel-rust hover:text-diesel-rust hover:bg-diesel-rust/10"
-        >
-          <Trash2 size={14} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={handleAddToLibrary}
+            size="sm"
+            variant="ghost"
+            className="text-diesel-gold hover:text-diesel-gold hover:bg-diesel-gold/10"
+            title="Add to Library"
+          >
+            <Library size={14} />
+          </Button>
+          <Button
+            onClick={handleDelete}
+            size="sm"
+            variant="ghost"
+            className="text-diesel-rust hover:text-diesel-rust hover:bg-diesel-rust/10"
+          >
+            <Trash2 size={14} />
+          </Button>
+        </div>
       </div>
 
       {/* Name */}
