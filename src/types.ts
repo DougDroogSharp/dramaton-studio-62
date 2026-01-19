@@ -209,8 +209,8 @@ export const createDefaultLibrary = (): AssetLibrary => ({
 // Default game state
 export const createDefaultGame = (): GameData => ({
   info: {
-    title: 'Untitled Protocol',
-    author: 'Unknown Architect',
+    title: 'Untitled Game',
+    author: 'Unknown Creator',
     styleGuide: null,
     worldState: {},
     gameMode: 'INTERACTIVE',
