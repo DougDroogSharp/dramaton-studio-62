@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Settings, User, Video, Monitor, Package, Music, Image, Wand2, FileText, Mic, Palette, Layers, Search, X, MousePointer2 } from 'lucide-react';
-import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus, Button } from '@/types';
+import { GameData, SelectionState, Actor, Scene, Drop, Item, Sfx, ActorGraphic, AssetStatus, Button, Episode } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { getCategoryStatus, getCategoryColor } from '@/utils/statusPromotion';
 interface AssetTreeProps {
@@ -452,6 +452,43 @@ export const AssetTree = ({ game, onNavigate, onUpdateStatus }: AssetTreeProps) 
                 {sfx.params.audioUrl && (
                   <LeafNode label="Audio generated" icon={<Mic size={8} />} depth={3} />
                 )}
+              </TreeNode>
+            ))}
+          </TreeNode>
+
+          {/* Episodes */}
+          <TreeNode
+            label="Episodes"
+            icon={<Layers size={12} />}
+            count={game?.episodes?.length ?? 0}
+            depth={1}
+            defaultOpen={(game?.episodes?.length ?? 0) <= 5}
+            color="text-diesel-purple"
+            onDoubleClick={() => onNavigate('episode', null)}
+          >
+            {(game?.episodes ?? []).map(episode => (
+              <TreeNode
+                key={episode.id}
+                label={episode.name}
+                icon={<Layers size={10} />}
+                depth={2}
+                onDoubleClick={() => onNavigate('episode', episode.id)}
+                color="text-diesel-purple"
+                status={episode.status || 'new'}
+              >
+                {/* Scenes in this episode */}
+                {episode.sceneIds.map(sceneId => {
+                  const scene = game.scenes.find(s => s.id === sceneId);
+                  return scene ? (
+                    <LeafNode
+                      key={sceneId}
+                      label={scene.name}
+                      icon={<Video size={8} />}
+                      depth={3}
+                      color="text-diesel-rust"
+                    />
+                  ) : null;
+                })}
               </TreeNode>
             ))}
           </TreeNode>

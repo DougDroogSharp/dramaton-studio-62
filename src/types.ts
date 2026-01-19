@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button';
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -163,6 +163,16 @@ export interface Button {
   status?: AssetStatus;
 }
 
+// Episode type for organizing scenes into releases
+export interface Episode {
+  id: string;
+  name: string;
+  description?: string;
+  sceneIds: string[];      // Unordered collection - scenes can be in multiple episodes
+  note?: string;
+  status?: AssetStatus;
+}
+
 export interface GameData {
   info: GameInfo;
   actors: Actor[];
@@ -171,6 +181,7 @@ export interface GameData {
   items: Item[];
   sfx: Sfx[];
   buttons: Button[];
+  episodes: Episode[];
 }
 
 // Library Types for cross-game asset reuse
@@ -221,4 +232,5 @@ export const createDefaultGame = (): GameData => ({
   items: [],
   sfx: [],
   buttons: [],
+  episodes: [],
 });
