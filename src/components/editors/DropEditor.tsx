@@ -757,37 +757,32 @@ This is a background scene with no characters or text.`;
         </p>
         
         {selectedDrop.referenceImage ? (
-          <div className="relative group mb-3">
+          <div className="relative group inline-block mb-3">
             <img 
               src={selectedDrop.referenceImage} 
               alt="Composition reference" 
-              className="w-full aspect-video object-cover border border-diesel-border opacity-75"
+              className="w-24 h-14 object-cover border border-diesel-border opacity-75"
             />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <label className="px-3 py-2 bg-diesel-panel border border-diesel-border text-diesel-paper text-sm cursor-pointer hover:border-diesel-gold">
-                Replace
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleReferenceUpload(selectedDrop.id, e)}
-                  className="hidden"
-                />
-              </label>
-              <button
-                onClick={() => updateDrop(selectedDrop.id, { referenceImage: undefined })}
-                className="px-3 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm hover:bg-diesel-rust/30"
-              >
-                Remove
-              </button>
-            </div>
-            <div className="absolute top-2 left-2 px-2 py-1 bg-diesel-black/80 text-diesel-gold text-xs">
-              REFERENCE
-            </div>
+            <button
+              onClick={() => updateDrop(selectedDrop.id, { referenceImage: undefined })}
+              className="absolute top-0.5 right-0.5 p-0.5 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 size={8} />
+            </button>
+            <label className="absolute inset-0 cursor-pointer opacity-0 group-hover:opacity-100 bg-black/50 flex items-center justify-center">
+              <span className="text-[10px] text-diesel-paper">Replace</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleReferenceUpload(selectedDrop.id, e)}
+                className="hidden"
+              />
+            </label>
           </div>
         ) : (
-          <label className="flex items-center justify-center gap-2 aspect-video border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-paper hover:text-diesel-paper cursor-pointer transition-colors">
-            <Layers size={24} />
-            <span>Upload Reference Image</span>
+          <label className="flex items-center justify-center gap-2 w-24 h-14 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-paper hover:text-diesel-paper cursor-pointer transition-colors">
+            <Layers size={14} />
+            <span className="text-xs">Upload</span>
             <input
               type="file"
               accept="image/*"

@@ -893,12 +893,12 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         <p className="text-xs text-diesel-steel mb-4">
           Upload reference photos to help the AI generate consistent character graphics.
         </p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-3">
           {/* Close-up reference */}
           <div>
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Face / Close-up</label>
+            <label className="text-[10px] uppercase tracking-widest text-diesel-gold font-bold mb-1 block">Face</label>
             {selectedActor.referenceImageCloseUp ? (
-              <div className="relative group aspect-square">
+              <div className="relative group w-16 h-16">
                 <img 
                   src={selectedActor.referenceImageCloseUp} 
                   alt="Close-up reference" 
@@ -906,15 +906,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
                 />
                 <button
                   onClick={() => updateActor(selectedActor.id, { referenceImageCloseUp: undefined })}
-                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-0.5 right-0.5 p-0.5 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={8} />
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                <Camera size={24} />
-                <span className="text-xs text-center">Upload Face<br/>Reference</span>
+              <label className="flex flex-col items-center justify-center w-16 h-16 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <Camera size={14} />
                 <input
                   type="file"
                   accept="image/*"
@@ -927,9 +926,9 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
 
           {/* Full body reference */}
           <div>
-            <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold mb-2 block">Full Body</label>
+            <label className="text-[10px] uppercase tracking-widest text-diesel-gold font-bold mb-1 block">Body</label>
             {selectedActor.referenceImageFullBody ? (
-              <div className="relative group aspect-square">
+              <div className="relative group w-16 h-16">
                 <img 
                   src={selectedActor.referenceImageFullBody} 
                   alt="Full body reference" 
@@ -937,15 +936,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
                 />
                 <button
                   onClick={() => updateActor(selectedActor.id, { referenceImageFullBody: undefined })}
-                  className="absolute top-1 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-0.5 right-0.5 p-0.5 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={8} />
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center gap-2 aspect-square border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
-                <User size={24} />
-                <span className="text-xs text-center">Upload Body<br/>Reference</span>
+              <label className="flex flex-col items-center justify-center w-16 h-16 border border-dashed border-diesel-border text-diesel-steel hover:border-diesel-gold hover:text-diesel-gold cursor-pointer transition-colors">
+                <User size={14} />
                 <input
                   type="file"
                   accept="image/*"
