@@ -18,11 +18,13 @@ export const saveFileWithPicker = async (
   content: string,
   options: FilePickerOptions
 ): Promise<boolean> => {
+  // Try modern File System Access API first
   if (isFileSystemAccessSupported()) {
     try {
       const handle = await (window as any).showSaveFilePicker({
         suggestedName: options.suggestedName,
         types: options.types,
+        startIn: 'documents', // Start in documents folder
       });
       
       const writable = await handle.createWritable();
@@ -34,17 +36,24 @@ export const saveFileWithPicker = async (
       if (err.name === 'AbortError') {
         return false;
       }
-      console.error('File save error:', err);
+      // SecurityError can happen in iframes or cross-origin contexts
+      if (err.name === 'SecurityError') {
+        console.warn('File System Access API blocked, using fallback');
+      } else {
+        console.error('File save error:', err);
+      }
       // Fall through to legacy method
     }
   }
   
-  // Fallback for older browsers
+  // Fallback for older browsers or when API is blocked
   const blob = new Blob([content], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = options.suggestedName || 'file.json';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
   return true;
 };
