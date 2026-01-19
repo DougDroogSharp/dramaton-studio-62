@@ -216,3 +216,10 @@
   95% { transform: rotate(0.5deg); }
   100% { transform: rotate(0deg); }
 }
+
+/* PDF Capture Mode - Disable truncation for full text visibility */
+[data-capturing] .truncate {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}

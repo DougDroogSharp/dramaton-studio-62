@@ -58,13 +58,18 @@ export function useProjectCapture(
       return null;
     }
 
+    // Add capturing attribute to disable truncation during capture
+    document.body.setAttribute('data-capturing', 'true');
+    
     try {
       const canvas = await html2canvas(element, {
         backgroundColor: '#121212',
-        scale: 1.5,
+        scale: 2.5,
         logging: false,
         useCORS: true,
         allowTaint: true,
+        windowWidth: 1600,
+        windowHeight: 900,
       });
 
       return {
@@ -77,6 +82,8 @@ export function useProjectCapture(
     } catch (error) {
       console.error('Failed to capture element:', error);
       return null;
+    } finally {
+      document.body.removeAttribute('data-capturing');
     }
   }, []);
 
@@ -117,13 +124,18 @@ export function useProjectCapture(
       scrollContainer.scrollTop = i * viewportHeight;
       await waitForRender(250);
       
+      // Add capturing attribute to disable truncation during capture
+      document.body.setAttribute('data-capturing', 'true');
+      
       try {
         const canvas = await html2canvas(element, {
           backgroundColor: '#121212',
-          scale: 1.5,
+          scale: 2.5,
           logging: false,
           useCORS: true,
           allowTaint: true,
+          windowWidth: 1600,
+          windowHeight: 900,
         });
 
         captures.push({
@@ -135,6 +147,8 @@ export function useProjectCapture(
         });
       } catch (error) {
         console.error(`Failed to capture segment ${i + 1}:`, error);
+      } finally {
+        document.body.removeAttribute('data-capturing');
       }
     }
     
