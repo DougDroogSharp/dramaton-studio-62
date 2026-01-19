@@ -709,75 +709,74 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
 
   // Scene Detail View - Redesigned Layout
   return (
-    <div className="flex flex-col h-full gap-3">
-      {/* Top Section - Stage Preview spanning full width */}
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => onSelect('scene', null)}
-            className="flex items-center gap-2 text-sm text-diesel-steel hover:text-diesel-rust transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to Scenes
-          </button>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-diesel-paper font-bold">{selectedScene.name}</span>
-            <StatusSelector 
-              status={selectedScene.status || 'new'} 
-              onChange={(status) => setSceneStatus(selectedScene.id, status)} 
-            />
-            <button
-              onClick={() => setShowScenePreview(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
-              title="Preview this scene"
-            >
-              <Eye size={14} />
-              Preview
-            </button>
-          </div>
-        </div>
+    <div className="flex flex-col h-full gap-2">
+      {/* Header Row */}
+      <div className="flex-shrink-0 flex items-center justify-between">
+        <button
+          onClick={() => onSelect('scene', null)}
+          className="flex items-center gap-2 text-sm text-diesel-steel hover:text-diesel-rust transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to Scenes
+        </button>
         
-        <div className="bg-diesel-dark/50 border border-diesel-border">
-          <Stage
-            scene={selectedScene}
-            game={game}
-            background={backgroundDrop}
-            editable={true}
-            selectedElementId={selectedElementId}
-            draggingId={dragging}
-            onElementSelect={setSelectedElementId}
-            onElementMouseDown={handleMouseDown}
-            onElementDoubleClick={(element, actor) => {
-              if (element.type === 'ACTOR' && actor) {
-                setActorGenerator({ 
-                  active: true, 
-                  actorId: actor.id, 
-                  elementId: element.id,
-                  dropX: element.x,
-                  dropY: element.y
-                });
-                setGenPrompt('');
-                setGeneratedPreview(null);
-                setSelectedElementId(null);
-              }
-            }}
-            onMouseMove={handleCombinedMouseMove}
-            onMouseUp={handleMouseUp}
-            onCanvasClick={handleCanvasClick}
-            canvasRef={canvasRef}
-            selectedButtonId={selectedButtonId}
-            draggingButtonId={draggingButton}
-            onButtonSelect={setSelectedButtonId}
-            onButtonMouseDown={handleButtonMouseDown}
+        <div className="flex items-center gap-2">
+          <span className="text-diesel-paper font-bold">{selectedScene.name}</span>
+          <StatusSelector 
+            status={selectedScene.status || 'new'} 
+            onChange={(status) => setSceneStatus(selectedScene.id, status)} 
           />
+          <button
+            onClick={() => setShowScenePreview(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
+            title="Preview this scene"
+          >
+            <Eye size={14} />
+            Preview
+          </button>
         </div>
       </div>
 
-      {/* Bottom Section - Two columns */}
-      <div className="flex-1 flex gap-4 min-h-0">
-        {/* Left Column - Controls */}
-        <div className="w-72 flex-shrink-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar">
+      {/* Stage Preview - Large at top */}
+      <div className="flex-shrink-0 h-[40%] min-h-[200px] bg-diesel-dark/50 border border-diesel-border">
+        <Stage
+          scene={selectedScene}
+          game={game}
+          background={backgroundDrop}
+          editable={true}
+          selectedElementId={selectedElementId}
+          draggingId={dragging}
+          onElementSelect={setSelectedElementId}
+          onElementMouseDown={handleMouseDown}
+          onElementDoubleClick={(element, actor) => {
+            if (element.type === 'ACTOR' && actor) {
+              setActorGenerator({ 
+                active: true, 
+                actorId: actor.id, 
+                elementId: element.id,
+                dropX: element.x,
+                dropY: element.y
+              });
+              setGenPrompt('');
+              setGeneratedPreview(null);
+              setSelectedElementId(null);
+            }
+          }}
+          onMouseMove={handleCombinedMouseMove}
+          onMouseUp={handleMouseUp}
+          onCanvasClick={handleCanvasClick}
+          canvasRef={canvasRef}
+          selectedButtonId={selectedButtonId}
+          draggingButtonId={draggingButton}
+          onButtonSelect={setSelectedButtonId}
+          onButtonMouseDown={handleButtonMouseDown}
+        />
+      </div>
+
+      {/* Two Columns Below Stage */}
+      <div className="flex-1 flex gap-3 min-h-0">
+        {/* Left Column - Scene Controls */}
+        <div className="w-64 flex-shrink-0 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
           {/* Actor Generator Panel - Shows when adding/editing actor */}
           {actorGenerator.active && generatorActor && (
             <section className="bg-diesel-black border-2 border-diesel-gold p-3">
@@ -1089,15 +1088,14 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           )}
         </div>
 
-        {/* Right Column - DramScript Panel (Prominent) */}
-        <div className="flex-1 flex flex-col min-w-0 bg-diesel-black border-2 border-diesel-rust">
-          <div className="flex items-center justify-between p-3 border-b border-diesel-rust bg-diesel-rust/10">
-            <h3 className="text-sm font-bold text-diesel-rust uppercase tracking-widest flex items-center gap-2">
-              <MessageSquare size={16} />
+        {/* Right Column - Large DramScript Panel */}
+        <div className="flex-1 flex flex-col min-h-0 bg-diesel-black border-2 border-diesel-rust">
+          <div className="flex-shrink-0 flex items-center justify-between p-2 border-b border-diesel-rust bg-diesel-rust/10">
+            <h3 className="text-xs font-bold text-diesel-rust uppercase tracking-widest flex items-center gap-2">
+              <MessageSquare size={14} />
               DramScript
             </h3>
-            <div className="flex items-center gap-2">
-              {/* Quick insert audio commands */}
+            <div className="flex items-center gap-1">
               {selectedScene.audioTracks && selectedScene.audioTracks.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {selectedScene.audioTracks.map(track => (
@@ -1129,7 +1127,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               </button>
             </div>
           </div>
-          <div className="flex-1 p-2 overflow-hidden">
+          <div className="flex-1 p-2 min-h-0">
             <textarea
               value={selectedScene.script || ''}
               onChange={(e) => handleScriptChange(e.target.value)}
@@ -1140,7 +1138,6 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               }}
               placeholder={`# Your DramScript here...\n\nDetective: "The clues are all here."\n[ENTER Detective x=50 y=70]`}
               className="w-full h-full bg-diesel-dark border border-diesel-border text-diesel-paper text-sm p-3 font-mono resize-none focus:outline-none focus:border-diesel-rust custom-scrollbar"
-              style={{ minHeight: '200px' }}
             />
           </div>
         </div>
