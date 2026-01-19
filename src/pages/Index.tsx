@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjectCapture } from '@/hooks/useProjectCapture';
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
 import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud, LogOut, LogIn } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud, LogOut, LogIn, Layers } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -17,6 +17,7 @@ import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
 import { ButtonEditor } from '@/components/editors/ButtonEditor';
+import { EpisodeEditor } from '@/components/editors/EpisodeEditor';
 import { PublishDialog } from '@/components/PublishDialog';
 import { AssetTree } from '@/components/AssetTree';
 import Hourglass from '@/components/Hourglass';
@@ -315,9 +316,10 @@ const Index = () => {
   };
 
   const navItems = [
-    { type: 'settings' as const, icon: Settings, label: 'Settings', abbrev: 'ST', color: 'text-diesel-gold' },
+    { type: 'settings' as const, icon: Settings, label: 'Settings', abbrev: 'GA', color: 'text-diesel-gold' },
     { type: 'actor' as const, icon: User, label: 'Actors', abbrev: 'AC', color: 'text-diesel-gold', count: game?.actors?.length ?? 0 },
     { type: 'scene' as const, icon: Video, label: 'Scenes', abbrev: 'SC', color: 'text-diesel-rust', count: game?.scenes?.length ?? 0 },
+    { type: 'episode' as const, icon: Layers, label: 'Episodes', abbrev: 'EP', color: 'text-diesel-purple', count: game?.episodes?.length ?? 0 },
     { type: 'drop' as const, icon: Monitor, label: 'Drops', abbrev: 'DR', color: 'text-diesel-paper', count: game?.drops?.length ?? 0 },
     { type: 'item' as const, icon: Package, label: 'Items', abbrev: 'IT', color: 'text-diesel-gold', count: game?.items?.length ?? 0 },
     { type: 'sfx' as const, icon: Music, label: 'SFX', abbrev: 'FX', color: 'text-diesel-green', count: game?.sfx?.length ?? 0 },
@@ -698,6 +700,9 @@ const Index = () => {
             )}
             {selection.type === 'button' && (
               <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === 'episode' && (
+              <EpisodeEditor game={game} selectedId={selection.id} onUpdate={setGame} onSelect={(id) => handleSelect('episode', id)} />
             )}
           </div>
         )}
