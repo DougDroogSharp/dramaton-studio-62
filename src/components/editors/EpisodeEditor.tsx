@@ -82,6 +82,43 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
     handleUpdateEpisode({ sceneIds: newSceneIds });
   };
 
+  const handleCreateScene = () => {
+    if (!episode) return;
+    const newScene: Scene = {
+      id: `scene_${Date.now()}`,
+      name: 'New Scene',
+      sceneType: 'Dialogue',
+      stage: [],
+      script: '',
+      status: 'new',
+      note: '',
+    };
+    onUpdate({
+      ...game,
+      scenes: [...(game.scenes ?? []), newScene],
+      episodes: episodes.map(e =>
+        e.id === episode.id
+          ? { ...e, sceneIds: [...e.sceneIds, newScene.id] }
+          : e
+      ),
+    });
+    toast.success('Scene created and added to episode');
+  };
+
+  const handleDeleteScene = (sceneId: string) => {
+    const scene = game.scenes.find(s => s.id === sceneId);
+    if (!scene) return;
+    onUpdate({
+      ...game,
+      scenes: game.scenes.filter(s => s.id !== sceneId),
+      episodes: episodes.map(e => ({
+        ...e,
+        sceneIds: e.sceneIds.filter(id => id !== sceneId),
+      })),
+    });
+    toast.success(`Deleted "${scene.name}"`);
+  };
+
   // Filter scenes by search
   const filteredScenes = (game.scenes ?? []).filter(scene =>
     !searchQuery.trim() || scene.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -206,6 +243,16 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
           <label className="text-[10px] text-diesel-steel uppercase tracking-widest">
             Scenes in Episode ({episode.sceneIds.length})
           </label>
+          <Button
+            onClick={handleCreateScene}
+            size="sm"
+            variant="ghost"
+            className="text-diesel-purple hover:text-diesel-purple hover:bg-diesel-purple/10 h-6 px-2"
+            title="Create new scene"
+          >
+            <Plus size={12} className="mr-1" />
+            <span className="text-xs">New Scene</span>
+          </Button>
         </div>
 
         {/* Search */}
@@ -239,9 +286,9 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
               filteredScenes.map(scene => {
                 const isIncluded = episode.sceneIds.includes(scene.id);
                 return (
-                  <label
+                  <div
                     key={scene.id}
-                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${
+                    className={`flex items-center gap-2 p-2 rounded transition-colors ${
                       isIncluded 
                         ? 'bg-diesel-purple/20 border border-diesel-purple/30' 
                         : 'hover:bg-diesel-border/30 border border-transparent'
@@ -250,12 +297,24 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
                     <Checkbox
                       checked={isIncluded}
                       onCheckedChange={() => handleToggleScene(scene.id)}
-                      className="border-diesel-steel data-[state=checked]:bg-diesel-purple data-[state=checked]:border-diesel-purple"
+                      className="border-diesel-steel data-[state=checked]:bg-diesel-purple data-[state=checked]:border-diesel-purple cursor-pointer"
                     />
                     <Video size={12} className="text-diesel-rust" />
                     <span className="text-sm text-diesel-paper flex-1">{scene.name}</span>
                     <StatusBadge status={scene.status || 'new'} size="sm" />
-                  </label>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteScene(scene.id);
+                      }}
+                      size="sm"
+                      variant="ghost"
+                      className="text-diesel-rust hover:text-diesel-rust hover:bg-diesel-rust/10 h-6 w-6 p-0"
+                      title="Delete scene"
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
                 );
               })
             )}
