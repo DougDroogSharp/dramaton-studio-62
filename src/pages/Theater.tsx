@@ -7,6 +7,7 @@ import { ChoicePanel } from '@/components/theater/ChoicePanel';
 import { TheaterControls } from '@/components/theater/TheaterControls';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
 import { loadGameFromDB } from '@/utils/db';
+import { loadPublishedGame } from '@/utils/cloudPublish';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
@@ -27,11 +28,24 @@ const Theater: React.FC = () => {
     const loadGame = async () => {
       setIsLoading(true);
       
-      // Try to load from various sources
+      // Try to load from various sources (priority: slug > URL > base64 > IndexedDB)
+      const slug = searchParams.get('slug');
       const gameUrl = searchParams.get('game');
       const gameData = searchParams.get('data');
       
-      if (gameUrl) {
+      if (slug) {
+        // Load from cloud database by slug
+        try {
+          const published = await loadPublishedGame(slug);
+          if (published) {
+            setGame(published);
+          } else {
+            console.error('Game not found for slug:', slug);
+          }
+        } catch (e) {
+          console.error('Failed to load game from cloud:', e);
+        }
+      } else if (gameUrl) {
         // Load from URL
         try {
           const response = await fetch(gameUrl);

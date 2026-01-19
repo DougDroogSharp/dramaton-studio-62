@@ -8,7 +8,7 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { useProjectCapture } from '@/hooks/useProjectCapture';
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from '@/utils/filePicker';
 import { toast } from 'sonner';
-import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus } from 'lucide-react';
+import { Settings, User, Video, Monitor, Package, Music, Save, Volume2, VolumeX, Undo2, Upload, FolderOpen, FilePlus2, Archive, Play, MousePointer2, Camera, Plus, Cloud } from 'lucide-react';
 import { SettingsEditor } from '@/components/editors/SettingsEditor';
 import { ActorEditor } from '@/components/editors/ActorEditor';
 import { SceneEditor } from '@/components/editors/SceneEditor';
@@ -16,6 +16,7 @@ import { DropEditor } from '@/components/editors/DropEditor';
 import { ItemEditor } from '@/components/editors/ItemEditor';
 import { SfxEditor } from '@/components/editors/SfxEditor';
 import { ButtonEditor } from '@/components/editors/ButtonEditor';
+import { PublishDialog } from '@/components/PublishDialog';
 import { AssetTree } from '@/components/AssetTree';
 import Hourglass from '@/components/Hourglass';
 import {
@@ -46,6 +47,7 @@ const Index = () => {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [history, setHistory] = useState<GameData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
   
   // Pacing Protocol State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
@@ -599,6 +601,13 @@ const Index = () => {
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
           <button 
+            onClick={() => setShowPublishDialog(true)}
+            className="p-1.5 text-diesel-rust hover:text-diesel-gold" 
+            title="Publish to Cloud"
+          >
+            <Cloud size={14} />
+          </button>
+          <button 
             onClick={() => captureAllViews(false)} 
             disabled={isCapturing}
             className="p-1.5 text-diesel-steel hover:text-diesel-gold disabled:opacity-30" 
@@ -732,6 +741,13 @@ const Index = () => {
           </div>
         </div>
       )}
+      
+      {/* Publish Dialog */}
+      <PublishDialog
+        open={showPublishDialog}
+        onOpenChange={setShowPublishDialog}
+        game={game}
+      />
     </div>
   );
 };
