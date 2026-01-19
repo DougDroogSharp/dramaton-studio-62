@@ -39,8 +39,8 @@ const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   // Startup state
   const [isStarted, setIsStarted] = useState(false);
-  const [startTitle, setStartTitle] = useState('Untitled Protocol');
-  const [startAuthor, setStartAuthor] = useState('Unknown Architect');
+  const [startTitle, setStartTitle] = useState('Untitled Game');
+  const [startAuthor, setStartAuthor] = useState('Unknown Creator');
   const [hasAutoSave, setHasAutoSave] = useState(false);
   
   // Editor state
@@ -51,9 +51,9 @@ const Index = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   
-  // Pacing Protocol State
+  // Rest Period State
   const [minutes, setMinutes] = useState(new Date().getMinutes());
-  const [didSaveOnProtocolStart, setDidSaveOnProtocolStart] = useState(false);
+  const [didSaveOnRestStart, setDidSaveOnRestStart] = useState(false);
   const [forceShowRestPeriod, setForceShowRestPeriod] = useState(false);
   
   // Project capture for PDF export (needs forceShowRestPeriod setter)
@@ -90,7 +90,7 @@ const Index = () => {
       }
     });
     
-    // Pacing Protocol timer - check every 10 seconds
+    // Rest period timer - check every 10 seconds
     const timer = setInterval(() => {
       setMinutes(new Date().getMinutes());
     }, 10000);
@@ -100,54 +100,54 @@ const Index = () => {
   // Derive rest period status
   const isRestPeriod = minutes > 30; // 31-59 is rest time
 
-  // Autosave when editing (respects Pacing Protocol)
+  // Autosave when editing (respects rest period)
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave) {
       const timer = setTimeout(() => {
-        // Check Pacing Protocol dynamically
+        // Check rest period dynamically
         const currentMinutes = new Date().getMinutes();
         const isResting = currentMinutes > 30; // 31-59 is rest time
         
         if (!isResting) {
           saveGameToDB(game);
-          setDidSaveOnProtocolStart(false); // Reset flag when not resting
+          setDidSaveOnRestStart(false); // Reset flag when not resting
         } else {
-          console.log("Autosave skipped: Pacing Protocol Active");
+          console.log("Autosave skipped: Rest Period Active");
         }
       }, 2000);
       return () => clearTimeout(timer);
     }
   }, [game, isLoaded]);
   
-  // Save once when Pacing Protocol starts
+  // Save once when rest period starts
   useEffect(() => {
-    if (isLoaded && game.info.enableAutosave && isRestPeriod && !didSaveOnProtocolStart) {
+    if (isLoaded && game.info.enableAutosave && isRestPeriod && !didSaveOnRestStart) {
       saveGameToDB(game);
-      setDidSaveOnProtocolStart(true);
-      console.log("Auto-saved on Pacing Protocol start");
+      setDidSaveOnRestStart(true);
+      console.log("Auto-saved on rest period start");
     }
     // Reset flag when rest period ends
-    if (!isRestPeriod && didSaveOnProtocolStart) {
-      setDidSaveOnProtocolStart(false);
+    if (!isRestPeriod && didSaveOnRestStart) {
+      setDidSaveOnRestStart(false);
     }
-  }, [isRestPeriod, isLoaded, game, didSaveOnProtocolStart]);
+  }, [isRestPeriod, isLoaded, game, didSaveOnRestStart]);
 
   const handleStartGame = async () => {
     // Validate title and author are not default/empty
-    if (!startTitle.trim() || startTitle === 'Untitled Protocol') {
+    if (!startTitle.trim() || startTitle === 'Untitled Game') {
       await alert('Please enter a unique game title before starting.');
       return;
     }
-    if (!startAuthor.trim() || startAuthor === 'Unknown Architect') {
-      await alert('Please enter your name or studio as the author.');
+    if (!startAuthor.trim() || startAuthor === 'Unknown Creator') {
+      await alert('Please enter your name or studio as the creator.');
       return;
     }
     
-    // Confirm if there's already a saved protocol
+    // Confirm if there's already a saved game
     if (hasAutoSave) {
       const confirmed = await confirm({
-        title: 'Overwrite Saved Protocol',
-        description: 'Starting a new game will replace your saved protocol. This cannot be undone. Continue?',
+        title: 'Overwrite Saved Game',
+        description: 'Starting a new game will replace your saved game. This cannot be undone. Continue?',
         confirmText: 'Start New',
         cancelText: 'Cancel',
         variant: 'destructive',
@@ -190,8 +190,8 @@ const Index = () => {
       // Reset to splash screen with default placeholder values
       setIsStarted(false);
       setIsLoaded(false);
-      setStartTitle('Untitled Protocol');
-      setStartAuthor('Unknown Architect');
+      setStartTitle('Untitled Game');
+      setStartAuthor('Unknown Creator');
       setHasAutoSave(false);
       setHistory([]);
       setGame(createDefaultGame());
@@ -450,7 +450,7 @@ const Index = () => {
             {hasAutoSave && (
               <div className="mb-2">
                 <p className="text-diesel-steel text-[10px] uppercase tracking-widest text-center font-mono">
-                  ▸ Saved Protocol ◂
+                  ▸ Saved Game ◂
                 </p>
                 <p className="text-diesel-paper text-sm text-center font-bold truncate">
                   "{startTitle}"
@@ -703,7 +703,7 @@ const Index = () => {
         )}
       </div>
       
-      {/* Pacing Protocol Overlay - Restful blue theme */}
+      {/* Rest Period Overlay - Restful blue theme */}
       {(isRestPeriod || forceShowRestPeriod) && (
         <div className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden" data-capture-area="rest-period">
           {/* Background gears - hidden on mobile */}
