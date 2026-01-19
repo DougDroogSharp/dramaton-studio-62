@@ -782,79 +782,79 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           </div>
         )}
         
-        {/* Parameter Selectors */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <div>
-            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Pose</label>
-            <select
-              value={genPose}
-              onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
-              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
-            >
-              {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Expression</label>
-            <select
-              value={genExpression}
-              onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
-              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
-            >
-              {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-diesel-steel uppercase mb-1 block">Angle</label>
-            <select
-              value={genAngle}
-              onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
-              className="w-full bg-diesel-panel border border-diesel-border text-diesel-paper text-xs p-2"
-            >
-              {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
-            </select>
-          </div>
-        </div>
-        
-        {/* Token Estimate */}
-        {(() => {
-          const prompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
-          const estimate = estimateGenerationTokens({
-            prompt,
-            styleGuide: styleLock ? styleGuide : null,
-            referenceImageCloseUp: selectedActor.referenceImageCloseUp,
-            referenceImageFullBody: selectedActor.referenceImageFullBody,
-            styleLock,
-          });
-          return <TokenEstimateDisplay estimate={estimate} />;
-        })()}
-        
-        {/* Style Lock + Generate Button Row */}
-        <div className="flex gap-2 mb-3 mt-2">
+        {/* Compact Controls Row: Pose | Expression | Angle | Tokens | Style Lock | Generate */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {/* Pose */}
+          <select
+            value={genPose}
+            onChange={(e) => { setGenPose(e.target.value); setGenPrompt(''); }}
+            className="bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] py-1 px-2 min-w-[70px]"
+            title="Pose"
+          >
+            {allPoses.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          
+          {/* Expression */}
+          <select
+            value={genExpression}
+            onChange={(e) => { setGenExpression(e.target.value); setGenPrompt(''); }}
+            className="bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] py-1 px-2 min-w-[70px]"
+            title="Expression"
+          >
+            {allExpressions.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+          
+          {/* Angle */}
+          <select
+            value={genAngle}
+            onChange={(e) => { setGenAngle(Number(e.target.value)); setGenPrompt(''); }}
+            className="bg-diesel-panel border border-diesel-border text-diesel-paper text-[10px] py-1 px-2 w-[50px]"
+            title="Angle"
+          >
+            {ANGLES.map(a => <option key={a} value={a}>{a}°</option>)}
+          </select>
+          
+          {/* Compact Token Estimate */}
+          {(() => {
+            const prompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
+            const estimate = estimateGenerationTokens({
+              prompt,
+              styleGuide: styleLock ? styleGuide : null,
+              referenceImageCloseUp: selectedActor.referenceImageCloseUp,
+              referenceImageFullBody: selectedActor.referenceImageFullBody,
+              styleLock,
+            });
+            return (
+              <span className="text-[10px] text-diesel-steel px-2 py-1 bg-diesel-panel border border-diesel-border" title="Estimated tokens">
+                ~{estimate.total}
+              </span>
+            );
+          })()}
+          
+          {/* Style Lock Button */}
           <button
             onClick={() => setStyleLock(!styleLock)}
-            className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold uppercase transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 border text-[10px] font-bold uppercase transition-colors ${
               styleLock 
                 ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold' 
                 : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
             }`}
             title="When ON, generated images follow the project style guide"
           >
-            <Lock size={12} />
-            <span>Style Lock</span>
-            <span className={`text-[10px] ${styleLock ? 'text-diesel-gold' : 'text-diesel-steel'}`}>
-              {styleLock ? 'ON' : 'OFF'}
-            </span>
+            <Lock size={10} />
+            <span>Style</span>
           </button>
+          
+          {/* Generate Button */}
           <button
             onClick={handleGeneratePreview}
             disabled={isGenerating || !selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody}
-            className="flex-1 py-2 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-sm hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-1 px-3 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
             title={!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody 
               ? "Upload both Face and Full Body reference images first" 
               : "Generate character graphic"}
           >
-            <Sparkles size={14} />
+            <Sparkles size={10} />
             Generate
           </button>
         </div>
