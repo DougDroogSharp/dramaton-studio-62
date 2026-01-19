@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GameData, SelectionState, createDefaultGame, AssetStatus } from '@/types';
+import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from '@/types';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { CyberInput } from '@/components/CyberInput';
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from '@/utils/db';
@@ -221,7 +221,8 @@ const Index = () => {
     if (!result) return; // User cancelled
     
     try {
-      const data = JSON.parse(result.content) as GameData;
+      const rawData = JSON.parse(result.content);
+      const data = migrateGameData(rawData);
       setGame(data);
       setIsStarted(true);
       setIsLoaded(true);
@@ -241,7 +242,8 @@ const Index = () => {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target?.result as string) as GameData;
+        const rawData = JSON.parse(ev.target?.result as string);
+        const data = migrateGameData(rawData);
         setGame(data);
         setIsStarted(true);
         setIsLoaded(true);
