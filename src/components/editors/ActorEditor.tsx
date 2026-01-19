@@ -648,6 +648,56 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         />
       )}
 
+      {/* Pose Library - Moved to top */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Pose Library ({selectedActor.graphics.length})
+        </h3>
+        
+        {selectedActor.graphics.length === 0 ? (
+          <div className="text-center py-4 text-diesel-steel">
+            <User size={24} className="mx-auto mb-2 opacity-30" />
+            <p className="text-xs">No poses yet. Use the generator below!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
+            {selectedActor.graphics.map((graphic) => (
+              <div key={graphic.id} className="bg-diesel-black border border-diesel-border group relative">
+                {/* Label */}
+                <div className="absolute top-0 left-0 right-0 bg-diesel-black/80 px-1 py-0.5 text-[8px] text-diesel-paper z-10 truncate">
+                  {graphic.pose} • {graphic.expression}
+                </div>
+                
+                {/* Image */}
+                <div className="aspect-square pt-3">
+                  {graphic.image ? (
+                    <img 
+                      src={graphic.image} 
+                      alt={`${graphic.pose} ${graphic.expression}`}
+                      className="w-full h-full object-contain cursor-pointer"
+                      onClick={() => setPreviewImage(graphic.image)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-diesel-steel">
+                      <User size={16} />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Delete on hover */}
+                <button
+                  onClick={() => deleteGraphic(selectedActor.id, graphic.id)}
+                  className="absolute top-4 right-0.5 p-0.5 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete"
+                >
+                  <Trash2 size={8} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Pose Generator */}
       <section className="bg-diesel-black border border-diesel-gold/50 p-4">
         <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2">
@@ -835,55 +885,6 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         </div>
       </section>
 
-      {/* Pose Library */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Pose Library ({selectedActor.graphics.length})
-        </h3>
-        
-        {selectedActor.graphics.length === 0 ? (
-          <div className="text-center py-8 text-diesel-steel">
-            <User size={32} className="mx-auto mb-2 opacity-30" />
-            <p className="text-xs">No poses yet. Use the generator above!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-            {selectedActor.graphics.map((graphic) => (
-              <div key={graphic.id} className="bg-diesel-black border border-diesel-border group relative">
-                {/* Label */}
-                <div className="absolute top-0 left-0 right-0 bg-diesel-black/80 px-1 py-0.5 text-[9px] text-diesel-paper z-10 truncate">
-                  {graphic.pose} • {graphic.expression} • {graphic.angle}°
-                </div>
-                
-                {/* Image */}
-                <div className="aspect-square pt-4">
-                  {graphic.image ? (
-                    <img 
-                      src={graphic.image} 
-                      alt={`${graphic.pose} ${graphic.expression}`}
-                      className="w-full h-full object-contain cursor-pointer"
-                      onClick={() => setPreviewImage(graphic.image)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-diesel-steel">
-                      <User size={24} />
-                    </div>
-                  )}
-                </div>
-                
-                {/* Delete on hover */}
-                <button
-                  onClick={() => deleteGraphic(selectedActor.id, graphic.id)}
-                  className="absolute top-5 right-1 p-1 bg-diesel-rust text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Reference Images */}
       <section>
