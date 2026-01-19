@@ -63,7 +63,8 @@ const Index = () => {
       // Navigate to editor when capturing from splash
       setIsStarted(true);
       setIsLoaded(true);
-    }
+    },
+    () => game // Pass game data getter for selecting first items
   );
   
   // Handler for Document Project button on splash screen

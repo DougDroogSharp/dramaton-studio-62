@@ -32,11 +32,21 @@ interface CapturedScreen {
 // Viewport height for capture segments (pixels)
 const SEGMENT_HEIGHT = 800;
 
+interface GameDataForCapture {
+  actors: { id: string }[];
+  scenes: { id: string }[];
+  drops: { id: string }[];
+  items: { id: string }[];
+  sfx: { id: string }[];
+  buttons: { id: string }[];
+}
+
 export function useProjectCapture(
   setSelection: (selection: { type: EditorType; id: string | null }) => void,
   projectTitle: string,
   setShowRestPeriod?: (show: boolean) => void,
-  navigateToEditor?: () => void
+  navigateToEditor?: () => void,
+  getGameData?: () => GameDataForCapture
 ) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [captureProgress, setCaptureProgress] = useState(0);
@@ -169,17 +179,44 @@ export function useProjectCapture(
       for (let i = 0; i < EDITOR_VIEWS.length; i++) {
         const view = EDITOR_VIEWS[i];
         
-        setSelection({ type: view.type, id: null });
+        // Determine which item to select (first item in category if available)
+        let selectedId: string | null = null;
+        if (getGameData) {
+          const gameData = getGameData();
+          switch (view.type) {
+            case 'actor':
+              selectedId = gameData.actors[0]?.id || null;
+              break;
+            case 'scene':
+              selectedId = gameData.scenes[0]?.id || null;
+              break;
+            case 'drop':
+              selectedId = gameData.drops[0]?.id || null;
+              break;
+            case 'item':
+              selectedId = gameData.items[0]?.id || null;
+              break;
+            case 'sfx':
+              selectedId = gameData.sfx[0]?.id || null;
+              break;
+            case 'button':
+              selectedId = gameData.buttons[0]?.id || null;
+              break;
+          }
+        }
+        
+        setSelection({ type: view.type, id: selectedId });
         await waitForRender(400); // Extra time for editor to render
         
         const progress = Math.round(((splashStep + i + 1) / totalSteps) * 100);
         setCaptureProgress(progress);
-        toast.loading(`Capturing ${view.label}... (${progress}%)`, { id: toastId });
+        const itemLabel = selectedId ? `${view.label} (editing)` : view.label;
+        toast.loading(`Capturing ${itemLabel}... (${progress}%)`, { id: toastId });
         
         // Use segmented capture for scrollable content
         const segmentCaptures = await captureScrollableElement(
           '[data-capture-area="editor"]',
-          view.label,
+          itemLabel,
           view.type
         );
         captures.push(...segmentCaptures);
