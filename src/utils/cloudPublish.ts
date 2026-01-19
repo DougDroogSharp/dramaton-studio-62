@@ -304,13 +304,19 @@ export async function publishGame(
         })
         .eq('id', gameId);
     } else {
-      // Create new game
+      // Create new game - get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to publish games');
+      }
+      
       const { data: newGame, error: gameError } = await supabase
         .from('games')
         .insert({
           slug,
           title: game.info.title,
-          author: game.info.author
+          author: game.info.author,
+          user_id: user.id
         })
         .select('id')
         .single();

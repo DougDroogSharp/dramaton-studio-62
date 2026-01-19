@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GameData } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   publishGame, 
   generateSlug, 
@@ -10,7 +12,7 @@ import {
 } from '@/utils/cloudPublish';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CyberInput } from '@/components/CyberInput';
-import { Cloud, Check, AlertCircle, Loader2, Copy, ExternalLink } from 'lucide-react';
+import { Cloud, Check, AlertCircle, Loader2, Copy, ExternalLink, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PublishDialogProps {
@@ -24,6 +26,8 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
   onOpenChange, 
   game 
 }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [slug, setSlug] = useState('');
   const [notes, setNotes] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -184,11 +188,30 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
         ) : (
           /* Publishing form */
           <div className="space-y-4">
-            <div>
-              <p className="text-diesel-steel text-sm mb-4">
-                Publish your game to make it playable via a shareable link. Images will be uploaded to cloud storage.
-              </p>
-            </div>
+            {/* Auth check */}
+            {!user ? (
+              <div className="text-center py-6">
+                <div className="w-16 h-16 mx-auto bg-diesel-gold/20 rounded-full flex items-center justify-center mb-4">
+                  <LogIn className="w-8 h-8 text-diesel-gold" />
+                </div>
+                <h3 className="text-lg font-bold text-diesel-paper mb-2">Authentication Required</h3>
+                <p className="text-diesel-steel text-sm mb-4">
+                  You need to be logged in to publish games.
+                </p>
+                <button
+                  onClick={() => { onOpenChange(false); navigate('/auth'); }}
+                  className="py-2 px-6 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold font-bold uppercase hover:bg-diesel-gold/30 transition-colors"
+                >
+                  Log In / Sign Up
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-diesel-steel text-sm mb-4">
+                    Publish your game to make it playable via a shareable link. Images will be uploaded to cloud storage.
+                  </p>
+                </div>
             
             {/* Slug input */}
             <div>
@@ -277,6 +300,8 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
                 </>
               )}
             </button>
+              </>
+            )}
           </div>
         )}
       </DialogContent>
