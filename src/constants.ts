@@ -35,7 +35,11 @@ export const SFX_TYPES: Record<'ATTACH' | 'DO', string[]> = {
   DO: ['shake', 'fade'],
 };
 
-export const ITEM_CATEGORIES = ['weapon', 'armor', 'consumable', 'key', 'misc'] as const;
+// Salvage taxonomy first (the canonical grammar), trunk originals after.
+export const ITEM_CATEGORIES = [
+  'costume', 'prop', 'knowledge', 'gear',
+  'weapon', 'armor', 'consumable', 'key', 'misc',
+] as const;
 export const ACQUISITION_TYPES = ['pickup', 'earned', 'purchased'] as const;
 export const OPERATORS = ['==', '!=', '>', '<', '>=', '<='] as const;
 

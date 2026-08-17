@@ -99,7 +99,12 @@ export interface Drop {
   status?: AssetStatus;
 }
 
-export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'key' | 'misc';
+// costume/prop/knowledge/gear is the canonical item grammar salvaged from
+// Dramaton Editor 2.0; the original trunk categories stay valid so saved
+// games keep loading.
+export type ItemCategory =
+  | 'costume' | 'prop' | 'knowledge' | 'gear'
+  | 'weapon' | 'armor' | 'consumable' | 'key' | 'misc';
 export type AcquisitionType = 'pickup' | 'earned' | 'purchased';
 export type Operator = '==' | '!=' | '>' | '<' | '>=' | '<=';
 

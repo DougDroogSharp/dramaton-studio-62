@@ -29,7 +29,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ game, selection, onChang
     const newItem: Item = {
       id: `item_${Date.now()}`,
       name: 'New Item',
-      category: 'misc',
+      category: 'prop',
       acquisition: 'pickup',
       effects: [],
       status: 'new',
