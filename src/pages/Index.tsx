@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from "@/types";
 import { DramatonLogo } from "@/components/DramatonLogo";
+import { CostMeter } from "@/components/CostMeter";
 import { CyberInput } from "@/components/CyberInput";
 import { loadGameFromDB, saveGameToDB, clearGameFromDB } from "@/utils/db";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -675,6 +676,7 @@ const Index = () => {
 
         {/* Toolbar actions - compact */}
         <div className="flex items-center h-full">
+          <CostMeter game={game} />
           <button
             onClick={() => setShowPublishDialog(true)}
             className="p-1.5 text-diesel-rust hover:text-diesel-gold"

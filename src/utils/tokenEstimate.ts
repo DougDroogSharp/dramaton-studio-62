@@ -1,6 +1,8 @@
 // Token estimation for AI image generation
 // Based on typical Gemini Vision token costs
 
+import { GameData } from '@/types';
+
 // Rough estimates for image tokens based on resolution
 const IMAGE_TOKEN_ESTIMATES = {
   '256': 85,    // ~85 tokens for 256px image
@@ -11,14 +13,17 @@ const IMAGE_TOKEN_ESTIMATES = {
 
 // Estimate tokens for a base64 image data URL
 export const estimateImageTokens = (dataUrl: string | null | undefined): number => {
-  if (!dataUrl) return 0;
-  
-  // Extract base64 data and estimate dimensions from file size
-  const base64Match = dataUrl.match(/^data:image\/[^;]+;base64,(.+)$/);
-  if (!base64Match) return 0;
-  
-  const base64Data = base64Match[1];
-  const byteSize = base64Data.length * 0.75; // base64 overhead
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) return 0;
+
+  // Estimate dimensions from base64 payload size (without capturing the
+  // payload — these strings can be megabytes)
+  const marker = ';base64,';
+  const markerIndex = dataUrl.indexOf(marker);
+  if (markerIndex === -1) return 0;
+
+  const base64Length = dataUrl.length - markerIndex - marker.length;
+  if (base64Length <= 0) return 0;
+  const byteSize = base64Length * 0.75; // base64 overhead
   
   // Rough dimension estimate based on file size (assuming JPEG at ~85% quality)
   // Small: <50KB = ~256px, Medium: 50-150KB = ~512px, Large: >150KB = ~768px+
@@ -87,6 +92,32 @@ export const estimateGenerationTokens = (params: TokenEstimateParams): TokenEsti
     },
     level,
   };
+};
+
+// Estimate the total AI tokens represented by a whole project: every image
+// and prompt on the game's generation surface. Powers the header cost meter.
+// Observation only — no limits, no warnings.
+export const estimateProjectTokens = (game: GameData): number => {
+  let total = 0;
+  total += estimateImageTokens(game.info.styleGuide);
+  for (const actor of game.actors) {
+    total += estimateImageTokens(actor.referenceImageCloseUp);
+    total += estimateImageTokens(actor.referenceImageFullBody);
+    for (const graphic of actor.graphics) {
+      total += estimateImageTokens(graphic.image);
+      if (graphic.generatedPrompt) total += estimateTextTokens(graphic.generatedPrompt);
+    }
+  }
+  for (const drop of game.drops) {
+    total += estimateImageTokens(drop.image);
+    total += estimateImageTokens(drop.referenceImage);
+    if (drop.prompt) total += estimateTextTokens(drop.prompt);
+    if (drop.generatedPrompt) total += estimateTextTokens(drop.generatedPrompt);
+  }
+  for (const item of game.items) {
+    total += estimateImageTokens(item.visualAsset);
+  }
+  return total;
 };
 
 // Format token count for display
