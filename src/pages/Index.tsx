@@ -122,22 +122,16 @@ const Index = () => {
   }, []);
 
   // Derive rest period status
-  const isRestPeriod = minutes > 30; // 31-59 is rest time
+  const isRestPeriod = false; // DISABLED — was: minutes > 30; // 31-59 is rest time
 
   // Autosave when editing (respects rest period)
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave) {
       const timer = setTimeout(() => {
-        // Check rest period dynamically
-        const currentMinutes = new Date().getMinutes();
-        const isResting = currentMinutes > 30; // 31-59 is rest time
-
-        if (!isResting) {
-          saveGameToDB(game);
-          setDidSaveOnRestStart(false); // Reset flag when not resting
-        } else {
-          console.log("Autosave skipped: Rest Period Active");
-        }
+        // Rest period DISABLED — autosave always runs.
+        // (Was: skip saves during minutes 31-59, matching the isRestPeriod overlay.)
+        saveGameToDB(game);
+        setDidSaveOnRestStart(false);
       }, 2000);
       return () => clearTimeout(timer);
     }
