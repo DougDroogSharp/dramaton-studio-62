@@ -219,7 +219,7 @@ const Index = () => {
   const handleResumeGame = async () => {
     const saved = await loadGameFromDB();
     if (saved) {
-      setGame(saved);
+      setGame(migrateGameData(saved));
       setIsStarted(true);
       setIsLoaded(true);
     }

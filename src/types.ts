@@ -232,6 +232,23 @@ export const migrateGameData = (data: any): GameData => {
     migrated.buttons = [];
   }
 
+  // Dramaton Editor 2.0 called drops "screens"; rename the collection and
+  // each scene's screenId reference.
+  if (!migrated.drops && migrated.screens) {
+    migrated.drops = migrated.screens;
+    delete migrated.screens;
+  }
+  if (!migrated.drops) {
+    migrated.drops = [];
+  }
+  if (migrated.scenes) {
+    migrated.scenes = migrated.scenes.map((s: any) => {
+      if (s.dropId || !s.screenId) return s;
+      const { screenId, ...rest } = s;
+      return { ...rest, dropId: screenId };
+    });
+  }
+
   // Normalize sceneType to the AGENCY/WITNESS pair.
   // Dramaton Editor 2.0 saves carried the pair in a `type` field; honor it.
   // Anything else ('Dialogue', 'Cutscene', undefined, ...) defaults to AGENCY.
