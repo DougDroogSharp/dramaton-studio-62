@@ -44,7 +44,6 @@ import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
-import Hourglass from "@/components/Hourglass";
 import {
   Gear,
   Rivet,
@@ -76,16 +75,10 @@ const Index = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
 
-  // Rest Period State
-  const [minutes, setMinutes] = useState(new Date().getMinutes());
-  const [didSaveOnRestStart, setDidSaveOnRestStart] = useState(false);
-  const [forceShowRestPeriod, setForceShowRestPeriod] = useState(false);
-
-  // Project capture for PDF export (needs forceShowRestPeriod setter)
+  // Project capture for PDF export
   const { isCapturing, captureAllViews } = useProjectCapture(
     (sel) => setSelection(sel as SelectionState),
     game.info.title,
-    setForceShowRestPeriod,
     () => {
       // Navigate to editor when capturing from splash
       setIsStarted(true);
@@ -105,7 +98,7 @@ const Index = () => {
     }
   };
 
-  // Check for autosave on mount and start pacing protocol timer
+  // Check for autosave on mount
   useEffect(() => {
     loadGameFromDB().then((saved) => {
       if (saved) {
@@ -114,42 +107,15 @@ const Index = () => {
         setStartAuthor(saved.info.author);
       }
     });
-
-    // Rest period timer - check every 10 seconds
-    const timer = setInterval(() => {
-      setMinutes(new Date().getMinutes());
-    }, 10000);
-    return () => clearInterval(timer);
   }, []);
 
-  // Derive rest period status
-  const isRestPeriod = false; // DISABLED — was: minutes > 30; // 31-59 is rest time
-
-  // Autosave when editing (respects rest period)
+  // Autosave when editing (debounced)
   useEffect(() => {
     if (isLoaded && game.info.enableAutosave) {
-      const timer = setTimeout(() => {
-        // Rest period DISABLED — autosave always runs.
-        // (Was: skip saves during minutes 31-59, matching the isRestPeriod overlay.)
-        saveGameToDB(game);
-        setDidSaveOnRestStart(false);
-      }, 2000);
+      const timer = setTimeout(() => saveGameToDB(game), 2000);
       return () => clearTimeout(timer);
     }
   }, [game, isLoaded]);
-
-  // Save once when rest period starts
-  useEffect(() => {
-    if (isLoaded && game.info.enableAutosave && isRestPeriod && !didSaveOnRestStart) {
-      saveGameToDB(game);
-      setDidSaveOnRestStart(true);
-      console.log("Auto-saved on rest period start");
-    }
-    // Reset flag when rest period ends
-    if (!isRestPeriod && didSaveOnRestStart) {
-      setDidSaveOnRestStart(false);
-    }
-  }, [isRestPeriod, isLoaded, game, didSaveOnRestStart]);
 
   const handleStartGame = async () => {
     // Validate title and author are not default/empty
@@ -823,66 +789,6 @@ const Index = () => {
           </div>
         )}
       </div>
-
-      {/* Rest Period Overlay - Restful blue theme */}
-      {(isRestPeriod || forceShowRestPeriod) && (
-        <div
-          className="fixed inset-0 z-50 bg-[hsl(220,30%,8%)]/98 flex items-center justify-center backdrop-blur-sm overflow-hidden"
-          data-capture-area="rest-period"
-        >
-          {/* Background gears - hidden on mobile */}
-          <Gear
-            size={400}
-            teeth={20}
-            className="hidden md:block absolute -top-32 -left-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_180s_linear_infinite]"
-          />
-          <Gear
-            size={350}
-            teeth={18}
-            className="hidden md:block absolute -bottom-32 -right-32 text-[hsl(210,40%,35%)] opacity-8 animate-[spin_200s_linear_infinite_reverse]"
-          />
-
-          <div className="max-w-md mx-4 p-6 bg-[hsl(220,25%,12%)]/95 border border-[hsl(210,40%,30%)] rounded-sm shadow-[0_0_40px_hsl(210,50%,30%,0.2)]">
-            <div className="text-center">
-              {/* Compact header - cool blue tones */}
-              <div className="flex items-center justify-center gap-3 mb-3">
-                <div className="relative">
-                  <div className="absolute inset-0 blur-xl bg-[hsl(210,50%,45%)]/30 rounded-full animate-[pulse_4s_ease-in-out_infinite]" />
-                  <DramatonLogo className="relative w-16 h-16 text-[hsl(210,50%,55%)] animate-[pulse_4s_ease-in-out_infinite] drop-shadow-[0_0_20px_hsl(210,50%,50%,0.4)]" />
-                </div>
-                <h2 className="text-2xl font-bold text-[hsl(210,40%,65%)] tracking-widest">REST PERIOD</h2>
-              </div>
-
-              <ArtDecoDivider width={250} className="text-[hsl(210,40%,40%)] mx-auto mb-3" />
-
-              <p className="text-[hsl(210,20%,60%)] text-sm mb-4">Take a moment to breathe. Resume at top of hour.</p>
-
-              {/* Timer display - hourglass beside countdown */}
-              <div className="flex items-center justify-center gap-6 mb-4">
-                {/* Hourglass */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-24 h-36 bg-[hsl(210,50%,50%)]/10 blur-xl rounded-full animate-[pulse_5s_ease-in-out_infinite]" />
-                  </div>
-                  <Hourglass remainingMinutes={Math.max(0, Math.min(30, 60 - minutes))} />
-                </div>
-
-                {/* Digital countdown - calm blue */}
-                <div className="flex flex-col items-start">
-                  <div className="text-7xl font-mono text-[hsl(210,50%,65%)] drop-shadow-[0_0_20px_hsl(210,50%,55%,0.4)] tabular-nums">
-                    <span className="animate-[pulse_4s_ease-in-out_infinite]">
-                      {String(60 - minutes).padStart(2, "0")}
-                    </span>
-                  </div>
-                  <span className="text-lg text-[hsl(210,20%,55%)] font-mono uppercase tracking-wider">minutes</span>
-                </div>
-              </div>
-
-              <p className="text-[hsl(210,20%,45%)] text-xs font-mono">Work window: :00 to :30 each hour</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Publish Dialog */}
       <PublishDialog open={showPublishDialog} onOpenChange={setShowPublishDialog} game={game} />

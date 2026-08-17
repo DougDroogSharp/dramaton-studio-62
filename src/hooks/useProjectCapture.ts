@@ -44,7 +44,6 @@ interface GameDataForCapture {
 export function useProjectCapture(
   setSelection: (selection: { type: EditorType; id: string | null }) => void,
   projectTitle: string,
-  setShowRestPeriod?: (show: boolean) => void,
   navigateToEditor?: () => void,
   getGameData?: () => GameDataForCapture
 ) {
@@ -170,7 +169,6 @@ export function useProjectCapture(
     // Calculate total steps dynamically
     const gameData = getGameData?.();
     const splashStep = includeSplash ? 1 : 0;
-    const restStep = setShowRestPeriod ? 1 : 0;
     
     // Count how many categories have items (will have both list + edit views)
     let categoriesWithItems = 0;
@@ -185,7 +183,7 @@ export function useProjectCapture(
     
     // Total: splash + settings + (categories with items * 2 for list+edit) + (empty categories * 1) + rest
     const nonSettingsViews = EDITOR_VIEWS.filter(v => v.type !== 'settings').length;
-    const totalSteps = splashStep + 1 + categoriesWithItems * 2 + (nonSettingsViews - categoriesWithItems) + restStep;
+    const totalSteps = splashStep + 1 + categoriesWithItems * 2 + (nonSettingsViews - categoriesWithItems);
     let currentStep = 0;
     
     try {
@@ -282,23 +280,6 @@ export function useProjectCapture(
         }
       }
       
-      // Capture rest period screen (fake it)
-      if (setShowRestPeriod) {
-        toast.loading('Capturing Rest Period...', { id: toastId });
-        setShowRestPeriod(true);
-        await waitForRender(500);
-        
-        const restCapture = await captureElement('[data-capture-area="rest-period"]');
-        if (restCapture) {
-          restCapture.type = 'rest-period';
-          restCapture.label = 'Rest Period';
-          captures.push(restCapture);
-        }
-        
-        setShowRestPeriod(false);
-        await waitForRender(100);
-      }
-      
       if (captures.length === 0) {
         toast.error('No views captured', { id: toastId });
         return;
@@ -314,9 +295,8 @@ export function useProjectCapture(
     } finally {
       setIsCapturing(false);
       setCaptureProgress(0);
-      if (setShowRestPeriod) setShowRestPeriod(false);
     }
-  }, [isCapturing, setSelection, captureElement, captureScrollableElement, waitForRender, projectTitle, setShowRestPeriod, navigateToEditor, getGameData]);
+  }, [isCapturing, setSelection, captureElement, captureScrollableElement, waitForRender, projectTitle, navigateToEditor, getGameData]);
 
   return {
     isCapturing,
