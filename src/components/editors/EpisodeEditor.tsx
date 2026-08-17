@@ -87,7 +87,7 @@ export const EpisodeEditor = ({ game, selectedId, onUpdate, onSelect }: EpisodeE
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
       name: 'New Scene',
-      sceneType: 'Dialogue',
+      sceneType: 'AGENCY',
       stage: [],
       script: '',
       status: 'new',

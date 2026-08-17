@@ -4,6 +4,7 @@ import { GameData, createDefaultGame, Button } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { ChoicePanel } from '@/components/theater/ChoicePanel';
+import { AudienceReactions } from '@/components/theater/AudienceReactions';
 import { TheaterControls } from '@/components/theater/TheaterControls';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
 import { loadGameFromDB } from '@/utils/db';
@@ -226,13 +227,20 @@ const Theater: React.FC = () => {
     );
   }
 
+  // Enter the start scene explicitly: the script runner initializes before the
+  // game has loaded, so its internal currentSceneId starts out empty.
+  const startShow = () => {
+    if (startSceneId) scriptRunner.goToScene(startSceneId);
+    setHasStarted(true);
+  };
+
   // Title screen (before starting)
   if (!hasStarted) {
     return (
       <div className="min-h-screen bg-diesel-black flex items-center justify-center">
-        <div 
+        <div
           className="text-center max-w-2xl mx-auto p-8 cursor-pointer"
-          onClick={() => setHasStarted(true)}
+          onClick={startShow}
         >
           <DramatonLogo className="w-32 h-32 mx-auto text-diesel-gold" />
           
@@ -246,7 +254,7 @@ const Theater: React.FC = () => {
           
           <div className="animate-pulse">
             <button
-              onClick={() => setHasStarted(true)}
+              onClick={startShow}
               className="px-8 py-4 bg-diesel-gold/20 border-2 border-diesel-gold text-diesel-gold font-bold uppercase text-xl hover:bg-diesel-gold/30 transition-colors"
             >
               Start Game
@@ -306,6 +314,11 @@ const Theater: React.FC = () => {
             choices={scriptRunner.state.choices}
             onSelect={scriptRunner.selectChoice}
           />
+        )}
+
+        {/* Audience reaction palette — shown while a WITNESS scene plays */}
+        {currentScene?.sceneType === 'WITNESS' && (
+          <AudienceReactions key={currentScene.id} sceneName={currentScene.name} />
         )}
         
         {/* End of game message */}

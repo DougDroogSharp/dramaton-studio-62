@@ -69,10 +69,14 @@ export interface SceneAudio {
   volume: number;
 }
 
+// Scene taxonomy salvaged from Dramaton Editor 2.0:
+// AGENCY = the player acts; WITNESS = the player watches, but reacts.
+export type SceneType = 'AGENCY' | 'WITNESS';
+
 export interface Scene {
   id: string;
   name: string;
-  sceneType?: string;
+  sceneType?: SceneType;
   dropId?: string;
   stage?: StageElement[];
   script?: string;
@@ -226,6 +230,17 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure buttons array exists
   if (!migrated.buttons) {
     migrated.buttons = [];
+  }
+
+  // Normalize sceneType to the AGENCY/WITNESS pair.
+  // Dramaton Editor 2.0 saves carried the pair in a `type` field; honor it.
+  // Anything else ('Dialogue', 'Cutscene', undefined, ...) defaults to AGENCY.
+  if (migrated.scenes) {
+    const isPair = (v: any): v is SceneType => v === 'AGENCY' || v === 'WITNESS';
+    migrated.scenes = migrated.scenes.map((s: any) => {
+      if (isPair(s.sceneType)) return s;
+      return { ...s, sceneType: isPair(s.type) ? s.type : ('AGENCY' as SceneType) };
+    });
   }
   
   // Ensure episodes array exists - create default episode with all scenes if missing

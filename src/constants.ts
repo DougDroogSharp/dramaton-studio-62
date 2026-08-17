@@ -39,19 +39,9 @@ export const ITEM_CATEGORIES = ['weapon', 'armor', 'consumable', 'key', 'misc'] 
 export const ACQUISITION_TYPES = ['pickup', 'earned', 'purchased'] as const;
 export const OPERATORS = ['==', '!=', '>', '<', '>=', '<='] as const;
 
-export const SCENE_TYPES = [
-  'Dialogue',
-  'Cutscene',
-  'Battle',
-  'Exploration',
-  'Puzzle',
-  'Menu',
-];
+// AGENCY = the player acts; WITNESS = the player watches, but reacts.
+// (Taxonomy salvaged from Dramaton Editor 2.0.)
+export const SCENE_TYPES = ['AGENCY', 'WITNESS'] as const;
 
-export const WITNESS_REACTIONS = [
-  'neutral',
-  'surprised',
-  'angry',
-  'scared',
-  'happy',
-];
+// Fixed audience reaction palette for WITNESS scenes.
+export const WITNESS_REACTIONS = ['CHEER', 'BOO', 'SILENCE', 'WALK AWAY'] as const;

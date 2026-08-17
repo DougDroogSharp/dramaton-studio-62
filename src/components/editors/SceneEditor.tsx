@@ -77,7 +77,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
       name: 'New Scene',
-      sceneType: 'Dialogue',
+      sceneType: 'AGENCY',
       stage: [],
       script: '',
       status: 'new',
@@ -666,7 +666,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                 <div className="flex-1">
                   <div className="text-diesel-paper font-bold">{scene.name}</div>
                   <div className="text-xs text-diesel-steel">
-                    {scene.sceneType || 'Dialogue'} • {scene.stage?.length || 0} elements
+                    {scene.sceneType || 'AGENCY'} • {scene.stage?.length || 0} elements
                   </div>
                 </div>
                 <StatusBadge status={scene.status || 'new'} size="sm" />
@@ -938,6 +938,25 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   value={selectedScene.name}
                   onChange={(e) => updateScene(selectedScene.id, { name: e.target.value })}
                 />
+                <div className="mt-3">
+                  <label className="text-xs uppercase tracking-widest text-diesel-gold font-bold">Scene Type</label>
+                  <div className="flex gap-1 mt-1">
+                    {SCENE_TYPES.map(type => (
+                      <button
+                        key={type}
+                        onClick={() => updateScene(selectedScene.id, { sceneType: type })}
+                        className={`flex-1 py-1.5 border text-[10px] font-bold uppercase transition-colors ${
+                          (selectedScene.sceneType || 'AGENCY') === type
+                            ? 'bg-diesel-gold/20 border-diesel-gold text-diesel-gold'
+                            : 'bg-diesel-panel border-diesel-border text-diesel-steel hover:border-diesel-paper'
+                        }`}
+                        title={type === 'AGENCY' ? 'The player acts' : 'The player watches, but reacts'}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="mt-3 mb-3">
                   <NotesSection 
                     note={selectedScene.note || ''} 
