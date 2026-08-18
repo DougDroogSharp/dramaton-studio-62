@@ -1,7 +1,36 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { GameData, Scene, StageElement } from '@/types';
-import { parseScript, ScriptCommand, DialogueCommand, TickCommand, findActorByName } from '@/utils/scriptParser';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { GameData, Scene, StageElement, StageElementOverride } from '@/types';
+import { parseScript, ScriptCommand, IfCommand, TickCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, warnOnce, WorldVars } from '@/utils/expression';
+
+// Flattened execution node. IF blocks flatten to a test node followed by
+// their body; jumpTo is the index just past the body, taken when the
+// condition is false. Flattening lets commands inside an IF yield
+// (dialogue, waits) exactly like top-level commands — the old recursive
+// execution fired them all in one pass, so nested dialogue overwrote
+// itself instantly.
+interface FlatNode {
+  cmd: ScriptCommand;
+  jumpTo?: number;
+}
+
+function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
+  const out: FlatNode[] = [];
+  const walk = (list: ScriptCommand[]) => {
+    for (const c of list) {
+      if (c.type === 'IF') {
+        const node: FlatNode = { cmd: c };
+        out.push(node);
+        walk(c.commands);
+        node.jumpTo = out.length;
+      } else {
+        out.push({ cmd: c });
+      }
+    }
+  };
+  walk(cmds);
+  return out;
+}
 
 export interface ActiveDialogue {
   actorId: string | null;
@@ -23,7 +52,7 @@ export interface ScriptRunnerState {
   choices: ChoiceState | null;
   worldState: Record<string, string | number | boolean>;
   hiddenElements: Set<string>;
-  elementOverrides: Map<string, Partial<StageElement>>;
+  elementOverrides: Map<string, StageElementOverride>;
   activeEffects: Map<string, string[]>;
   activeButtons: Set<string>; // Button IDs that are currently visible/active
   isWaiting: boolean;
@@ -94,7 +123,17 @@ export function useScriptRunner({
 
   // Get current scene and parsed commands
   const currentScene = game.scenes.find(s => s.id === state.currentSceneId);
-  const commands = currentScene?.script ? parseScript(currentScene.script) : [];
+  const currentScript = currentScene?.script;
+  const commands = useMemo(
+    () => (currentScript ? parseScript(currentScript) : []),
+    [currentScript],
+  );
+  const flatCommands = useMemo(() => flattenCommands(commands), [commands]);
+
+  // When a timed command (WAIT, MOVE) yields, runFrom stores the
+  // continuation here; the command's timeout invokes it.
+  const resumeAfterWaitRef = useRef<(() => void) | null>(null);
+  const runFromRef = useRef<(index: number) => void>(() => {});
 
   // Clear all timeouts
   const clearTimeouts = useCallback(() => {
@@ -165,12 +204,13 @@ export function useScriptRunner({
       }
       
       case 'ENTER': {
-        // Show actor at position
+        // Show actor at position (instantly — no glide on entry)
         setState(prev => {
           const hidden = new Set(prev.hiddenElements);
           hidden.delete(command.actorId);
           const overrides = new Map(prev.elementOverrides);
-          overrides.set(command.actorId, { x: command.x, y: command.y });
+          const existing = overrides.get(command.actorId) || {};
+          overrides.set(command.actorId, { ...existing, x: command.x, y: command.y, transitionDuration: 0 });
           return { ...prev, hiddenElements: hidden, elementOverrides: overrides };
         });
         return true; // Continue immediately
@@ -186,18 +226,25 @@ export function useScriptRunner({
       }
       
       case 'MOVE': {
-        // Animate movement
+        // Animate movement at the scripted speed
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
-          overrides.set(command.actorId, { x: command.x, y: command.y });
+          const existing = overrides.get(command.actorId) || {};
+          overrides.set(command.actorId, {
+            ...existing,
+            x: command.x,
+            y: command.y,
+            transitionDuration: command.duration,
+          });
           return { ...prev, elementOverrides: overrides };
         });
-        
-        // Wait for animation
+
+        // Wait for the animation, then auto-resume the script
         if (command.duration > 0) {
           setState(prev => ({ ...prev, isWaiting: true }));
           waitTimeoutRef.current = setTimeout(() => {
             setState(prev => ({ ...prev, isWaiting: false }));
+            resumeAfterWaitRef.current?.();
           }, command.duration * 1000);
           return false;
         }
@@ -256,6 +303,10 @@ export function useScriptRunner({
         setState(prev => ({ ...prev, isWaiting: true }));
         waitTimeoutRef.current = setTimeout(() => {
           setState(prev => ({ ...prev, isWaiting: false }));
+          // Continue the script — before this, WAIT stalled forever
+          // (nothing resumed execution, and manual advance re-ran the
+          // WAIT itself).
+          resumeAfterWaitRef.current?.();
         }, command.duration * 1000);
         return false;
       }
@@ -274,8 +325,12 @@ export function useScriptRunner({
           activeEffects: new Map(),
           activeButtons: new Set(),
           isWaiting: false,
+          isComplete: false,
         }));
-        return true;
+        // Yield: the new scene starts via the scene-change effect.
+        // Continuing here would keep executing the OLD scene's commands
+        // past the jump.
+        return false;
       }
       
       case 'CHOICE': {
@@ -296,17 +351,10 @@ export function useScriptRunner({
         return true;
       }
 
-      case 'IF': {
-        const conditionMet = evaluateIfCondition(command, worldStateRef.current);
-
-        if (conditionMet && command.commands.length > 0) {
-          // Execute nested commands
-          for (const nestedCmd of command.commands) {
-            executeCommand(nestedCmd);
-          }
-        }
+      case 'IF':
+        // Handled by the flattened execution in runFrom (main flow) and
+        // by executeTickBody (tick flow); never executed directly.
         return true;
-      }
       
       case 'BUTTON': {
         setState(prev => {
@@ -353,11 +401,12 @@ export function useScriptRunner({
           }
           continue;
         case 'MOVE':
-          // Apply the position instantly; a tick must never set isWaiting
+          // Animate at the scripted speed but never set isWaiting —
+          // a tick body must not block
           setState(prev => {
             const overrides = new Map(prev.elementOverrides);
             const existing = overrides.get(cmd.actorId) || {};
-            overrides.set(cmd.actorId, { ...existing, x: cmd.x, y: cmd.y });
+            overrides.set(cmd.actorId, { ...existing, x: cmd.x, y: cmd.y, transitionDuration: cmd.duration });
             return { ...prev, elementOverrides: overrides };
           });
           continue;
@@ -392,40 +441,68 @@ export function useScriptRunner({
     return () => clearInterval(id);
   }, [tickKey]);
 
-  // Advance to next command
+  // Execute the flattened command list from an index until something
+  // yields (dialogue, choice, wait, scene change) or the script ends.
+  const runFrom = useCallback((startIndex: number) => {
+    let i = startIndex;
+    while (i < flatCommands.length) {
+      const node = flatCommands[i];
+
+      // IF test node: on false, jump past the flattened body
+      if (node.cmd.type === 'IF') {
+        const met = evaluateIfCondition(node.cmd as IfCommand, worldStateRef.current);
+        i = met ? i + 1 : (node.jumpTo ?? i + 1);
+        continue;
+      }
+
+      const shouldContinue = executeCommand(node.cmd);
+      if (!shouldContinue) {
+        // SCENE already reset all state for the new scene (index 0);
+        // writing our index here would clobber that reset.
+        if (node.cmd.type === 'SCENE') {
+          resumeAfterWaitRef.current = null;
+          return;
+        }
+        const yieldIndex = i;
+        setState(prev => ({ ...prev, currentCommandIndex: yieldIndex }));
+        // Timed commands (WAIT, MOVE) resume on their own; user-driven
+        // yields (dialogue, choice) and scene changes do not.
+        if (node.cmd.type === 'WAIT' || node.cmd.type === 'MOVE') {
+          resumeAfterWaitRef.current = () => runFromRef.current(yieldIndex + 1);
+        } else {
+          resumeAfterWaitRef.current = null;
+        }
+        return;
+      }
+      i++;
+    }
+
+    // Reached end of script
+    setState(prev => ({ ...prev, currentCommandIndex: i, isComplete: true }));
+  }, [flatCommands, executeCommand]);
+  runFromRef.current = runFrom;
+
+  // Advance to next command (user input / auto-play)
   const advance = useCallback(() => {
     if (state.isWaiting) return;
-    
+    if (state.choices) return; // choices resolve via selectChoice
+    if (state.isComplete) return;
+
     // If dialogue is active but not complete, complete it first
     if (state.activeDialogue && !state.activeDialogue.isComplete) {
       completeDialogue();
       return;
     }
-    
-    // Clear current dialogue
+
+    // Clear current dialogue and continue past it
     if (state.activeDialogue) {
       setState(prev => ({ ...prev, activeDialogue: null }));
+      runFrom(state.currentCommandIndex + 1);
+      return;
     }
-    
-    // Move to next command
-    let nextIndex = state.currentCommandIndex + (state.activeDialogue ? 1 : 0);
-    
-    // Execute commands until we hit one that requires waiting
-    while (nextIndex < commands.length) {
-      const command = commands[nextIndex];
-      const shouldContinue = executeCommand(command);
-      
-      if (!shouldContinue) {
-        setState(prev => ({ ...prev, currentCommandIndex: nextIndex }));
-        return;
-      }
-      
-      nextIndex++;
-    }
-    
-    // Reached end of script
-    setState(prev => ({ ...prev, currentCommandIndex: nextIndex, isComplete: true }));
-  }, [state, commands, executeCommand, completeDialogue]);
+
+    runFrom(state.currentCommandIndex);
+  }, [state, runFrom, completeDialogue]);
 
   // Handle choice selection
   const selectChoice = useCallback((index: number) => {

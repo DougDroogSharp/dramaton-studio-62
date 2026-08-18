@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, Actor, Drop, Sfx, Button } from '@/types';
+import { GameData, Scene, StageElement, StageElementOverride, Actor, Drop, Sfx, Button } from '@/types';
 import { User, Package, MessageSquare } from 'lucide-react';
 
 interface StageProps {
@@ -24,7 +24,7 @@ interface StageProps {
   onButtonMouseDown?: (e: React.MouseEvent, buttonId: string) => void;
   onButtonUpdate?: (buttonId: string, updates: Partial<Button>) => void;
   // Theater mode props
-  animatingElements?: Map<string, { x: number; y: number }>;
+  elementOverrides?: Map<string, StageElementOverride>; // script-driven element state (ENTER/MOVE/POSE/BIND)
   activeEffects?: Map<string, string[]>; // element id -> active sfx ids
   hideElement?: Set<string>; // elements to hide (for EXIT command)
   activeButtons?: string[]; // button ids that are currently active/visible
@@ -52,7 +52,7 @@ export const Stage: React.FC<StageProps> = ({
   onButtonMouseDown,
   onButtonUpdate,
   // Theater mode props
-  animatingElements,
+  elementOverrides,
   activeEffects,
   hideElement,
   activeButtons,
@@ -98,22 +98,22 @@ export const Stage: React.FC<StageProps> = ({
   const renderElement = (element: StageElement) => {
     // Check if element should be hidden
     if (hideElement?.has(element.id)) return null;
-    
-    const actor = element.type === 'ACTOR' ? game.actors.find(a => a.id === element.assetId) : null;
-    const item = element.type === 'ITEM' ? game.items.find(i => i.id === element.assetId) : null;
-    
-    // Find the matching graphic based on pose/expression/angle stored on the element
-    const actorGraphic = actor?.graphics.find(g => 
-      g.pose === element.pose && 
-      g.expression === element.expression && 
-      g.angle === element.spriteAngle
+
+    // Merge script-driven overrides (ENTER/MOVE/POSE/BIND) over the
+    // editor-authored element
+    const override = elementOverrides?.get(element.id);
+    const el: StageElement = override ? { ...element, ...override } : element;
+
+    const actor = el.type === 'ACTOR' ? game.actors.find(a => a.id === el.assetId) : null;
+    const item = el.type === 'ITEM' ? game.items.find(i => i.id === el.assetId) : null;
+
+    // Find the matching graphic based on pose/expression/angle
+    const actorGraphic = actor?.graphics.find(g =>
+      g.pose === el.pose &&
+      g.expression === el.expression &&
+      g.angle === el.spriteAngle
     ) || actor?.graphics[0];
 
-    // Get position (use animation override if present)
-    const animPos = animatingElements?.get(element.id);
-    const x = animPos?.x ?? element.x;
-    const y = animPos?.y ?? element.y;
-    
     const sfxClasses = getSfxClasses(element.id);
 
     return (
@@ -122,22 +122,26 @@ export const Stage: React.FC<StageProps> = ({
         className={`absolute select-none transition-all duration-200 ${
           editable ? 'cursor-move' : ''
         } ${
-          editable && selectedElementId === element.id 
-            ? 'ring-2 ring-diesel-gold ring-offset-2 ring-offset-transparent' 
+          editable && selectedElementId === element.id
+            ? 'ring-2 ring-diesel-gold ring-offset-2 ring-offset-transparent'
             : ''
         } ${
           editable && draggingId === element.id ? 'z-50' : ''
         } ${sfxClasses}`}
         style={{
-          left: `${x}%`,
-          top: `${y}%`,
-          transform: `translate(-50%, -50%) scale(${element.scale}) rotate(${element.rotation}deg)`,
-          zIndex: draggingId === element.id ? 1000 : element.zIndex,
+          left: `${el.x}%`,
+          top: `${el.y}%`,
+          transform: `translate(-50%, -50%) scale(${el.scale}) rotate(${el.rotation}deg)`,
+          zIndex: draggingId === element.id ? 1000 : el.zIndex,
+          // MOVE animates at its scripted duration; ENTER snaps (0)
+          ...(override?.transitionDuration !== undefined
+            ? { transitionDuration: `${override.transitionDuration}s` }
+            : {}),
         }}
         onMouseDown={editable ? (e) => onElementMouseDown?.(e, element.id) : undefined}
         onDoubleClick={editable ? () => onElementDoubleClick?.(element, actor || undefined) : undefined}
       >
-        {element.type === 'ACTOR' && (
+        {el.type === 'ACTOR' && (
           actorGraphic?.image ? (
             <img
               src={actorGraphic.image}
@@ -152,7 +156,7 @@ export const Stage: React.FC<StageProps> = ({
           )
         )}
 
-        {element.type === 'ITEM' && (
+        {el.type === 'ITEM' && (
           item?.visualAsset ? (
             <img
               src={item.visualAsset}
@@ -167,15 +171,15 @@ export const Stage: React.FC<StageProps> = ({
           )
         )}
 
-        {element.type === 'BALLOON' && (
+        {el.type === 'BALLOON' && (
           <div
             className={`px-3 py-2 max-w-48 text-sm ${
-              element.balloonType === 'THOUGHT'
+              el.balloonType === 'THOUGHT'
                 ? 'bg-diesel-paper/90 rounded-full border-2 border-dashed border-diesel-steel text-diesel-black'
                 : 'bg-diesel-paper/90 border-2 border-diesel-steel text-diesel-black'
             }`}
           >
-            {element.text || (
+            {el.text || (
               editable && <span className="text-diesel-steel italic">Empty balloon</span>
             )}
           </div>

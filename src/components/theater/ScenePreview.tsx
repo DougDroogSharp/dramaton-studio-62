@@ -168,6 +168,7 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
             game={game}
             background={background}
             hideElement={scriptRunner.state.hiddenElements}
+            elementOverrides={scriptRunner.state.elementOverrides}
             activeEffects={scriptRunner.state.activeEffects}
           />
         </div>

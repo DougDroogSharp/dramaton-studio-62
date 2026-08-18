@@ -291,6 +291,7 @@ const Theater: React.FC = () => {
               game={game}
               background={background}
               hideElement={scriptRunner.state.hiddenElements}
+              elementOverrides={scriptRunner.state.elementOverrides}
               activeEffects={scriptRunner.state.activeEffects}
               activeButtons={Array.from(scriptRunner.state.activeButtons)}
               onButtonClick={handleButtonClick}

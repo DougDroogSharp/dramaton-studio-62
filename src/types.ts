@@ -60,6 +60,11 @@ export interface StageElement {
   balloonType?: 'SPEECH' | 'THOUGHT';
 }
 
+// Runtime-only override applied to a StageElement by the script runner
+// (ENTER/MOVE/POSE, and later BIND). transitionDuration lets a MOVE
+// animate at its scripted speed instead of the default CSS easing.
+export type StageElementOverride = Partial<StageElement> & { transitionDuration?: number };
+
 export interface SceneAudio {
   id: string;
   name: string;
