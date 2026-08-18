@@ -185,7 +185,7 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'CHOICE',
     category: 'choice',
-    syntax: '[CHOICE]\\n- "Option text" -> target_scene\\n[/CHOICE]',
+    syntax: '[CHOICE]\n- "Option text" -> target_scene\n[/CHOICE]',
     description: 'Presents the player with branching dialogue options. Each option navigates to a different scene.',
     parameters: [
       { name: 'options', type: 'array', description: 'List of choice options with text and target scenes' },
@@ -238,7 +238,7 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'IF',
     category: 'flow',
-    syntax: '[IF variable operator value]\\n...commands...\\n[ENDIF]',
+    syntax: '[IF variable operator value]\n...commands...\n[ENDIF]',
     description: 'Conditionally executes commands based on world state variables.',
     parameters: [
       { name: 'variable', type: 'string', description: 'The variable to check' },

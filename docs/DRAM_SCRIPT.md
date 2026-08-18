@@ -1,7 +1,6 @@
 # DRAM Script Language Reference
 
-**Version:** 1.0  
-**Last Updated:** 2026-01-18
+**Version:** 1.0
 
 DRAM Script is the scripting language used by Dramaton to control narrative flow, scene transitions, character dialogue, and interactive elements in visual novel-style games.
 

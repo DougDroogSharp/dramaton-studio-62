@@ -17,13 +17,11 @@ const CATEGORY_ORDER: CommandDoc['category'][] = [
 
 function generateMarkdown(): string {
   const lines: string[] = [];
-  const now = new Date().toISOString().split('T')[0];
-  
-  // Header
+
+  // Header (no date stamp: output must be stable so regens diff clean)
   lines.push('# DRAM Script Language Reference');
   lines.push('');
-  lines.push('**Version:** 1.0  ');
-  lines.push(`**Last Updated:** ${now}`);
+  lines.push('**Version:** 1.0');
   lines.push('');
   lines.push('DRAM Script is the scripting language used by Dramaton to control narrative flow, scene transitions, character dialogue, and interactive elements in visual novel-style games.');
   lines.push('');
@@ -225,8 +223,12 @@ function generateMarkdown(): string {
 // Export for use in other contexts
 export { generateMarkdown };
 
-// If running as a script, output to console
-// Usage: npx tsx src/utils/generateDramDocs.ts > docs/DRAM_SCRIPT.md
+// If running as a script, write docs/DRAM_SCRIPT.md directly.
+// Usage: npm run docs:dram
 if (typeof process !== 'undefined' && process.argv[1]?.includes('generateDramDocs')) {
-  console.log(generateMarkdown());
+  const { writeFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const outPath = resolve(process.cwd(), 'docs', 'DRAM_SCRIPT.md');
+  writeFileSync(outPath, generateMarkdown() + '\n', 'utf8');
+  console.log(`Wrote ${outPath}`);
 }
