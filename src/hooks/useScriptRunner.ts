@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameData, Scene, StageElement } from '@/types';
-import { parseScript, ScriptCommand, DialogueCommand, findActorByName } from '@/utils/scriptParser';
-import { resolveSetValue, evaluateIfCondition, WorldVars } from '@/utils/expression';
+import { parseScript, ScriptCommand, DialogueCommand, TickCommand, findActorByName } from '@/utils/scriptParser';
+import { resolveSetValue, evaluateIfCondition, warnOnce, WorldVars } from '@/utils/expression';
 
 export interface ActiveDialogue {
   actorId: string | null;
@@ -326,11 +326,71 @@ export function useScriptRunner({
         return true;
       }
       
+      case 'TICK':
+        // Declaration only: the interval effect below picks it up.
+        return true;
+
       case 'COMMENT':
       case 'UNKNOWN':
         return true; // Skip
     }
   }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
+
+  // Execute a TICK body: non-blocking commands only, run against the
+  // live worldState ref, never touching the yield/advance machinery.
+  const executeTickBody = useCallback((cmds: ScriptCommand[]) => {
+    for (const cmd of cmds) {
+      switch (cmd.type) {
+        case 'DIALOGUE':
+        case 'CHOICE':
+        case 'WAIT':
+        case 'TICK':
+          warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
+          continue;
+        case 'IF':
+          if (evaluateIfCondition(cmd, worldStateRef.current)) {
+            executeTickBody(cmd.commands);
+          }
+          continue;
+        case 'MOVE':
+          // Apply the position instantly; a tick must never set isWaiting
+          setState(prev => {
+            const overrides = new Map(prev.elementOverrides);
+            const existing = overrides.get(cmd.actorId) || {};
+            overrides.set(cmd.actorId, { ...existing, x: cmd.x, y: cmd.y });
+            return { ...prev, elementOverrides: overrides };
+          });
+          continue;
+        default:
+          // SET, ENTER, EXIT, POSE, EFFECT, CLEAR_EFFECT, BUTTON,
+          // HIDE_BUTTON, BGM, AMBIENCE, SFX, SCENE, COMMENT, UNKNOWN
+          // are all non-blocking in executeCommand.
+          executeCommand(cmd);
+      }
+    }
+  }, [executeCommand]);
+
+  // The TICK heartbeat. Runs the scene's tick body on its interval,
+  // concurrent with normal flow; stops on scene change and unmount.
+  const tickCommands = commands.filter((c): c is TickCommand => c.type === 'TICK');
+  if (tickCommands.length > 1) {
+    warnOnce(`scene "${state.currentSceneId}" has ${tickCommands.length} TICK blocks; only the first runs`);
+  }
+  const activeTick = tickCommands[0];
+  const tickBodyRef = useRef<ScriptCommand[]>([]);
+  tickBodyRef.current = activeTick?.commands ?? [];
+  const executeTickBodyRef = useRef(executeTickBody);
+  executeTickBodyRef.current = executeTickBody;
+  const tickKey = activeTick ? `${state.currentSceneId}:${activeTick.interval}` : null;
+
+  useEffect(() => {
+    if (!tickKey) return;
+    const intervalSeconds = Number(tickKey.slice(tickKey.lastIndexOf(':') + 1));
+    const id = setInterval(() => {
+      executeTickBodyRef.current(tickBodyRef.current);
+    }, Math.max(50, intervalSeconds * 1000)); // floor: don't let a typo spin the CPU
+    return () => clearInterval(id);
+  }, [tickKey]);
 
   // Advance to next command
   const advance = useCallback(() => {

@@ -21,6 +21,7 @@ export type ScriptCommandType =
   | 'SET'
   | 'IF'
   | 'ENDIF'
+  | 'TICK'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -132,6 +133,14 @@ export interface IfCommand {
   commands: ScriptCommand[];
 }
 
+// A repeating block: the body runs every `interval` seconds while the
+// scene is active, concurrent with (never blocking) normal script flow.
+export interface TickCommand {
+  type: 'TICK';
+  interval: number; // seconds
+  commands: ScriptCommand[];
+}
+
 export interface CommentCommand {
   type: 'COMMENT';
   text: string;
@@ -168,6 +177,7 @@ export type ScriptCommand =
   | ChoiceCommand
   | SetCommand
   | IfCommand
+  | TickCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -493,7 +503,7 @@ export function parseScript(script: string): ScriptCommand[] {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
-    
+
     // Handle CHOICE blocks
     if (line === '[CHOICE]') {
       const result = parseChoiceBlock(lines, i);
@@ -504,6 +514,31 @@ export function parseScript(script: string): ScriptCommand[] {
           commands.push(result.command);
         }
         i = result.endIndex + 1;
+        continue;
+      }
+    }
+
+    // Handle TICK blocks: body parses recursively (so IF nesting works
+    // inside a tick). An unclosed [TICK ...] falls through to UNKNOWN.
+    const tickOpen = line.match(/^\[TICK\s+(.+)\]$/i);
+    if (tickOpen) {
+      let closeIndex = -1;
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^\[\/TICK\]$/i.test(lines[j].trim())) { closeIndex = j; break; }
+      }
+      if (closeIndex !== -1) {
+        const body = lines.slice(i + 1, closeIndex).join('\n');
+        const tickCmd: TickCommand = {
+          type: 'TICK',
+          interval: parseDuration(tickOpen[1]),
+          commands: parseScript(body),
+        };
+        if (ifStack.length > 0) {
+          ifStack[ifStack.length - 1].commands.push(tickCmd);
+        } else {
+          commands.push(tickCmd);
+        }
+        i = closeIndex + 1;
         continue;
       }
     }
@@ -618,6 +653,11 @@ export function commandToString(cmd: ScriptCommand): string {
       const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');
       return `[CHOICE]\n${opts}\n[/CHOICE]`;
     }
+    case 'TICK': {
+      const dur = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;
+      const inner = cmd.commands.map(c => commandToString(c)).join('\n');
+      return `[TICK ${dur}]\n${inner}\n[/TICK]`;
+    }
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -675,6 +715,8 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'IF', variable: 'myVar', operator: '==', value: true, commands: [] };
     case 'CHOICE':
       return { type: 'CHOICE', options: [{ text: 'Option 1', target: firstSceneId }] };
+    case 'TICK':
+      return { type: 'TICK', interval: 1, commands: [] };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':

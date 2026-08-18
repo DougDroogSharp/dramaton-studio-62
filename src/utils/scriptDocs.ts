@@ -270,6 +270,23 @@ Narrator: "The humans are starving."
     example: '[ENDIF]',
     implemented: true,
   },
+  {
+    type: 'TICK',
+    category: 'flow',
+    syntax: '[TICK interval]\n...commands...\n[/TICK]',
+    description: 'A repeating block: the body runs every interval while the scene is active, concurrent with (never blocking) normal script and dialogue flow. Use it as a simulation heartbeat — typically SETs and IFs updating world state. One TICK block per scene; extra blocks are ignored with a warning. Blocking commands (DIALOGUE, CHOICE, WAIT, nested TICK) are skipped inside a tick body with a warning. The tick keeps running after the scene script completes and stops on scene transition.',
+    parameters: [
+      { name: 'interval', type: 'string', description: 'Repeat interval (e.g., "500ms", "2s")' },
+    ],
+    example: `[TICK 500ms]
+[SET productivity = productivity + 0.1]
+[SET product = laborForce * productivity * (marginHeight / 100)]
+[IF speculation > 70]
+[EFFECT shake on stage]
+[ENDIF]
+[/TICK]`,
+    implemented: true,
+  },
 
   // ============ SPECIAL ============
   {
@@ -358,6 +375,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'HIDE_BUTTON', label: 'HIDE_BUTTON', insertText: 'HIDE_BUTTON ', description: 'Hide button' },
   { type: 'SET', label: 'SET', insertText: 'SET ', description: 'Set variable (literal or expression)' },
   { type: 'IF', label: 'IF', insertText: 'IF ', description: 'Conditional block' },
+  { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
 ];
 
@@ -366,7 +384,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
   const allTypes: ScriptCommandType[] = [
     'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
-    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF',
+    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   

@@ -19,7 +19,7 @@ export type ExprNode =
 
 const warned = new Set<string>();
 
-function warnOnce(msg: string) {
+export function warnOnce(msg: string) {
   if (warned.has(msg)) return;
   if (warned.size > 200) warned.clear();
   warned.add(msg);

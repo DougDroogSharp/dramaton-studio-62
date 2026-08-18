@@ -488,6 +488,33 @@ Marks the end of an IF conditional block.
 [ENDIF]
 ```
 
+#### `TICK`
+
+A repeating block: the body runs every interval while the scene is active, concurrent with (never blocking) normal script and dialogue flow. Use it as a simulation heartbeat — typically SETs and IFs updating world state. One TICK block per scene; extra blocks are ignored with a warning. Blocking commands (DIALOGUE, CHOICE, WAIT, nested TICK) are skipped inside a tick body with a warning. The tick keeps running after the scene script completes and stops on scene transition.
+
+**Syntax:**
+```
+[TICK interval]
+...commands...
+[/TICK]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `interval` | string | Repeat interval (e.g., "500ms", "2s") |
+
+**Example:**
+```
+[TICK 500ms]
+[SET productivity = productivity + 0.1]
+[SET product = laborForce * productivity * (marginHeight / 100)]
+[IF speculation > 70]
+[EFFECT shake on stage]
+[ENDIF]
+[/TICK]
+```
+
 #### `COMMENT`
 
 A comment line that is ignored during execution. Useful for notes and documentation.
@@ -572,7 +599,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **20 commands documented**
+✅ **21 commands documented**
 
 ---
 
