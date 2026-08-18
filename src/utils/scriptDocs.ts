@@ -2,7 +2,7 @@
 // This file serves as the source of truth for all DRAM script commands
 // Run `npm run docs:dram` to regenerate docs/DRAM_SCRIPT.md
 
-import { ScriptCommandType } from './scriptParser';
+import type { ScriptCommandType } from './scriptParser';
 
 export interface CommandParameter {
   name: string;
@@ -224,33 +224,40 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'SET',
     category: 'flow',
-    syntax: '[SET variable = value]',
-    description: 'Sets a world state variable that persists across scenes.',
+    syntax: '[SET variable = value_or_expression]',
+    description: 'Sets a world state variable that persists across scenes. The right side can be a literal (string, number, boolean) or an arithmetic expression over other variables. Expressions support + - * / ( ), numeric literals, variable names, and the functions clamp(x,min,max), min(...), max(...), abs(x), floor(x), rand(). A bare variable name copies that variable\'s value. Bad expressions and unknown variables resolve to 0 with a console warning — scripts never crash.',
     parameters: [
       { name: 'variable', type: 'string', description: 'The variable name (alphanumeric, no spaces)' },
-      { name: 'value', type: 'any', description: 'The value to set (string, number, or boolean)' },
+      { name: 'value', type: 'any', description: 'A literal (string, number, boolean) or an arithmetic expression' },
     ],
     example: `[SET hasKey = true]
 [SET visitCount = 3]
-[SET playerName = "Alex"]`,
+[SET playerName = "Alex"]
+[SET product = laborForce * productivity]
+[SET wages = max(product - rent, survivalFloor)]
+[SET rent = clamp(product * rentShare, 0, product)]`,
     implemented: true,
   },
   {
     type: 'IF',
     category: 'flow',
-    syntax: '[IF variable operator value]\n...commands...\n[ENDIF]',
-    description: 'Conditionally executes commands based on world state variables.',
+    syntax: '[IF condition]\n...commands...\n[ENDIF]',
+    description: 'Conditionally executes commands based on world state. The simple form compares one variable against a literal. Either side may also be an arithmetic expression (same grammar as SET), in which case both sides evaluate numerically. Booleans count as 1/0 in expressions.',
     parameters: [
-      { name: 'variable', type: 'string', description: 'The variable to check' },
+      { name: 'lhs', type: 'string', description: 'The variable to check, or an arithmetic expression' },
       { name: 'operator', type: 'string', description: 'Comparison operator: ==, !=, >, <, >=, <=' },
-      { name: 'value', type: 'any', description: 'The value to compare against' },
+      { name: 'rhs', type: 'any', description: 'A literal, variable, or arithmetic expression to compare against' },
     ],
     example: `[IF hasKey == true]
 Detective: "I can unlock this door now."
 [ENDIF]
 
-[IF visitCount > 2]
-Guide: "You've been here before, haven't you?"
+[IF wages < survivalFloor + 10]
+Narrator: "The humans are starving."
+[ENDIF]
+
+[IF speculation * greed > 5000]
+[EFFECT shake on stage]
 [ENDIF]`,
     implemented: true,
   },
@@ -323,6 +330,36 @@ export const CATEGORY_INFO: Record<CommandDoc['category'], { title: string; desc
     description: 'Commands for applying and removing visual effects on actors and elements.',
   },
 };
+
+// ============ EDITOR AUTOCOMPLETE PALETTE ============
+// The script editor's command palette, kept here (next to the docs) as
+// the single source of truth. Order = display order in the editor.
+
+export interface CommandAutocompleteEntry {
+  type: ScriptCommandType;
+  label: string;
+  insertText: string;
+  description: string;
+}
+
+export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
+  { type: 'ENTER', label: 'ENTER', insertText: 'ENTER ', description: 'Make actor appear' },
+  { type: 'EXIT', label: 'EXIT', insertText: 'EXIT ', description: 'Remove actor' },
+  { type: 'MOVE', label: 'MOVE', insertText: 'MOVE ', description: 'Animate actor movement' },
+  { type: 'POSE', label: 'POSE', insertText: 'POSE ', description: 'Change pose/expression' },
+  { type: 'BGM', label: 'BGM:', insertText: 'BGM: ""', description: 'Play background music' },
+  { type: 'AMBIENCE', label: 'AMBIENCE:', insertText: 'AMBIENCE: ""', description: 'Play ambient sound' },
+  { type: 'SFX', label: 'SFX:', insertText: 'SFX: ""', description: 'Play sound effect' },
+  { type: 'EFFECT', label: 'EFFECT', insertText: 'EFFECT ', description: 'Apply visual effect' },
+  { type: 'CLEAR_EFFECT', label: 'CLEAR_EFFECT', insertText: 'CLEAR_EFFECT ', description: 'Remove effect' },
+  { type: 'WAIT', label: 'WAIT', insertText: 'WAIT 1s]', description: 'Pause execution' },
+  { type: 'SCENE', label: 'SCENE', insertText: 'SCENE ', description: 'Go to scene' },
+  { type: 'BUTTON', label: 'BUTTON', insertText: 'BUTTON ', description: 'Show button' },
+  { type: 'HIDE_BUTTON', label: 'HIDE_BUTTON', insertText: 'HIDE_BUTTON ', description: 'Hide button' },
+  { type: 'SET', label: 'SET', insertText: 'SET ', description: 'Set variable (literal or expression)' },
+  { type: 'IF', label: 'IF', insertText: 'IF ', description: 'Conditional block' },
+  { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
+];
 
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {

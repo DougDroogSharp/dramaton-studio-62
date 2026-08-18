@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameData, Scene, StageElement } from '@/types';
 import { parseScript, ScriptCommand, DialogueCommand, findActorByName } from '@/utils/scriptParser';
+import { resolveSetValue, evaluateIfCondition, WorldVars } from '@/utils/expression';
 
 export interface ActiveDialogue {
   actorId: string | null;
@@ -65,6 +66,31 @@ export function useScriptRunner({
   const typewriterRef = useRef<NodeJS.Timeout | null>(null);
   const waitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // The live world state. A ref (not state) so that a run of commands
+  // executed in one synchronous pass — [SET a = ...] followed by
+  // [IF a > ...] — sees its own writes immediately. React state batches
+  // updates until the pass ends, which made IF read stale values.
+  // state.worldState mirrors this ref for rendering.
+  const worldStateRef = useRef<WorldVars>({ ...game.info.worldState });
+
+  // Games load asynchronously in Theater: the hook initializes before
+  // the real game arrives, so seed newly-appearing initial variables
+  // into the ref without clobbering values the script already wrote.
+  useEffect(() => {
+    const seed = game.info.worldState;
+    let changed = false;
+    for (const key of Object.keys(seed)) {
+      if (!(key in worldStateRef.current)) {
+        worldStateRef.current = { ...worldStateRef.current, [key]: seed[key] };
+        changed = true;
+      }
+    }
+    if (changed) {
+      const snapshot = worldStateRef.current;
+      setState(prev => ({ ...prev, worldState: snapshot }));
+    }
+  }, [game]);
 
   // Get current scene and parsed commands
   const currentScene = game.scenes.find(s => s.id === state.currentSceneId);
@@ -261,26 +287,18 @@ export function useScriptRunner({
       }
       
       case 'SET': {
-        setState(prev => ({
-          ...prev,
-          worldState: { ...prev.worldState, [command.variable]: command.value },
-        }));
+        // Write the ref synchronously (so later commands in this pass
+        // see it), then mirror into state for rendering.
+        const resolved = resolveSetValue(command, worldStateRef.current);
+        worldStateRef.current = { ...worldStateRef.current, [command.variable]: resolved };
+        const snapshot = worldStateRef.current;
+        setState(prev => ({ ...prev, worldState: snapshot }));
         return true;
       }
-      
+
       case 'IF': {
-        const varValue = state.worldState[command.variable];
-        let conditionMet = false;
-        
-        switch (command.operator) {
-          case '==': conditionMet = varValue === command.value; break;
-          case '!=': conditionMet = varValue !== command.value; break;
-          case '>': conditionMet = Number(varValue) > Number(command.value); break;
-          case '<': conditionMet = Number(varValue) < Number(command.value); break;
-          case '>=': conditionMet = Number(varValue) >= Number(command.value); break;
-          case '<=': conditionMet = Number(varValue) <= Number(command.value); break;
-        }
-        
+        const conditionMet = evaluateIfCondition(command, worldStateRef.current);
+
         if (conditionMet && command.commands.length > 0) {
           // Execute nested commands
           for (const nestedCmd of command.commands) {
@@ -312,7 +330,7 @@ export function useScriptRunner({
       case 'UNKNOWN':
         return true; // Skip
     }
-  }, [game, state.worldState, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
+  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
 
   // Advance to next command
   const advance = useCallback(() => {

@@ -418,33 +418,36 @@ Pauses script execution for the specified duration.
 
 #### `SET`
 
-Sets a world state variable that persists across scenes.
+Sets a world state variable that persists across scenes. The right side can be a literal (string, number, boolean) or an arithmetic expression over other variables. Expressions support + - * / ( ), numeric literals, variable names, and the functions clamp(x,min,max), min(...), max(...), abs(x), floor(x), rand(). A bare variable name copies that variable's value. Bad expressions and unknown variables resolve to 0 with a console warning — scripts never crash.
 
 **Syntax:**
 ```
-[SET variable = value]
+[SET variable = value_or_expression]
 ```
 
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
 | `variable` | string | The variable name (alphanumeric, no spaces) |
-| `value` | any | The value to set (string, number, or boolean) |
+| `value` | any | A literal (string, number, boolean) or an arithmetic expression |
 
 **Example:**
 ```
 [SET hasKey = true]
 [SET visitCount = 3]
 [SET playerName = "Alex"]
+[SET product = laborForce * productivity]
+[SET wages = max(product - rent, survivalFloor)]
+[SET rent = clamp(product * rentShare, 0, product)]
 ```
 
 #### `IF`
 
-Conditionally executes commands based on world state variables.
+Conditionally executes commands based on world state. The simple form compares one variable against a literal. Either side may also be an arithmetic expression (same grammar as SET), in which case both sides evaluate numerically. Booleans count as 1/0 in expressions.
 
 **Syntax:**
 ```
-[IF variable operator value]
+[IF condition]
 ...commands...
 [ENDIF]
 ```
@@ -452,9 +455,9 @@ Conditionally executes commands based on world state variables.
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
-| `variable` | string | The variable to check |
+| `lhs` | string | The variable to check, or an arithmetic expression |
 | `operator` | string | Comparison operator: ==, !=, >, <, >=, <= |
-| `value` | any | The value to compare against |
+| `rhs` | any | A literal, variable, or arithmetic expression to compare against |
 
 **Example:**
 ```
@@ -462,8 +465,12 @@ Conditionally executes commands based on world state variables.
 Detective: "I can unlock this door now."
 [ENDIF]
 
-[IF visitCount > 2]
-Guide: "You've been here before, haven't you?"
+[IF wages < survivalFloor + 10]
+Narrator: "The humans are starving."
+[ENDIF]
+
+[IF speculation * greed > 5000]
+[EFFECT shake on stage]
 [ENDIF]
 ```
 

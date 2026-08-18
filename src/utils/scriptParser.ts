@@ -1,6 +1,9 @@
 // DRAM Script Parser for Dramaton Theater
 // Parses text-based scripts into executable commands
 
+import { parseExpression, isBareIdentifier, splitComparison } from './expression';
+import { COMMAND_AUTOCOMPLETE } from './scriptDocs';
+
 export type ScriptCommandType = 
   | 'DIALOGUE'
   | 'ENTER'
@@ -112,14 +115,20 @@ export interface ChoiceCommand {
 export interface SetCommand {
   type: 'SET';
   variable: string;
+  // Literal value, or raw expression source text when isExpression is set.
   value: string | number | boolean;
+  isExpression?: boolean;
 }
 
 export interface IfCommand {
   type: 'IF';
+  // Variable name, or raw LHS expression source when isExpression is set.
   variable: string;
   operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  // Literal value, or raw RHS expression source when isExpression is set.
   value: string | number | boolean;
+  // When true, both sides are expressions and compare numerically.
+  isExpression?: boolean;
   commands: ScriptCommand[];
 }
 
@@ -318,39 +327,79 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
     
-    // SET variable = value
+    // SET variable = value  (value may be a literal or an expression)
     const setMatch = content.match(/^SET\s+(\w+)\s*=\s*(.+)$/i);
     if (setMatch) {
-      let value: string | number | boolean = setMatch[2].trim();
-      // Try to parse as number or boolean
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      else if (!isNaN(Number(value))) value = Number(value);
-      else value = value.replace(/^["']|["']$/g, ''); // Remove quotes
-      
+      const raw = setMatch[2].trim();
+      let value: string | number | boolean = raw;
+      let isExpression = false;
+      // Literal fast-paths keep every existing script byte-compatible
+      if (raw === 'true') value = true;
+      else if (raw === 'false') value = false;
+      else if (!isNaN(Number(raw))) value = Number(raw);
+      else if (/^["'].*["']$/.test(raw)) value = raw.replace(/^["']|["']$/g, '');
+      else {
+        // Not a literal: try the expression grammar. Bare identifiers
+        // also route through here so [SET x = someVar] can copy a
+        // variable at runtime (falling back to the legacy plain-string
+        // behavior when no such variable exists).
+        const node = parseExpression(raw);
+        if (node) isExpression = true;
+        // Unparseable stays a plain string (legacy behavior)
+      }
+
       return {
         type: 'SET',
         variable: setMatch[1],
         value,
+        ...(isExpression ? { isExpression } : {}),
       };
     }
-    
-    // IF variable == value
+
+    // IF variable == value  (either side may be an expression)
     const ifMatch = content.match(/^IF\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
     if (ifMatch) {
-      let value: string | number | boolean = ifMatch[3].trim();
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      else if (!isNaN(Number(value))) value = Number(value);
-      else value = value.replace(/^["']|["']$/g, '');
-      
+      const raw = ifMatch[3].trim();
+      let value: string | number | boolean = raw;
+      let isExpression = false;
+      if (raw === 'true') value = true;
+      else if (raw === 'false') value = false;
+      else if (!isNaN(Number(raw))) value = Number(raw);
+      else if (/^["'].*["']$/.test(raw)) value = raw.replace(/^["']|["']$/g, '');
+      else {
+        // RHS with operators (e.g. rent * 2) upgrades the whole
+        // condition to expression mode; a bare identifier stays on the
+        // legacy path, where the runner resolves it as a variable if
+        // one exists.
+        const node = parseExpression(raw);
+        if (node && !isBareIdentifier(node)) isExpression = true;
+      }
+
       return {
         type: 'IF',
         variable: ifMatch[1],
         operator: ifMatch[2] as '==' | '!=' | '>' | '<' | '>=' | '<=',
         value,
+        ...(isExpression ? { isExpression } : {}),
         commands: [], // Will be populated by parseScript
       };
+    }
+
+    // IF with an expression on the left side: [IF wages + 5 > rent * 2]
+    // (the simple-form regex above requires a bare variable on the left)
+    const ifExprMatch = content.match(/^IF\s+(.+)$/i);
+    if (ifExprMatch) {
+      const split = splitComparison(ifExprMatch[1]);
+      if (split && split.lhs && split.rhs && parseExpression(split.lhs) && parseExpression(split.rhs)) {
+        return {
+          type: 'IF',
+          variable: split.lhs,
+          operator: split.op as '==' | '!=' | '>' | '<' | '>=' | '<=',
+          value: split.rhs,
+          isExpression: true,
+          commands: [], // Will be populated by parseScript
+        };
+      }
     }
     
     // ENDIF or /IF
@@ -552,13 +601,15 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[HIDE_BUTTON ${cmd.buttonId}]`;
     case 'SET': {
       let valStr: string;
-      if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
+      if (cmd.isExpression) valStr = String(cmd.value); // raw expression source, unquoted
+      else if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
       else valStr = String(cmd.value);
       return `[SET ${cmd.variable} = ${valStr}]`;
     }
     case 'IF': {
       let valStr: string;
-      if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
+      if (cmd.isExpression) valStr = String(cmd.value); // raw expression source, unquoted
+      else if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
       else valStr = String(cmd.value);
       const inner = cmd.commands.map(c => commandToString(c)).join('\n');
       return `[IF ${cmd.variable} ${cmd.operator} ${valStr}]\n${inner}\n[ENDIF]`;
@@ -756,24 +807,13 @@ export function getAutoCompleteSuggestions(
   
   switch (context.type) {
     case 'command': {
-      const commands: AutoCompleteSuggestion[] = [
-        { label: 'ENTER', insertText: 'ENTER ', category: 'command', description: 'Make actor appear' },
-        { label: 'EXIT', insertText: 'EXIT ', category: 'command', description: 'Remove actor' },
-        { label: 'MOVE', insertText: 'MOVE ', category: 'command', description: 'Animate actor movement' },
-        { label: 'POSE', insertText: 'POSE ', category: 'command', description: 'Change pose/expression' },
-        { label: 'BGM:', insertText: 'BGM: ""', category: 'command', description: 'Play background music' },
-        { label: 'AMBIENCE:', insertText: 'AMBIENCE: ""', category: 'command', description: 'Play ambient sound' },
-        { label: 'SFX:', insertText: 'SFX: ""', category: 'command', description: 'Play sound effect' },
-        { label: 'EFFECT', insertText: 'EFFECT ', category: 'command', description: 'Apply visual effect' },
-        { label: 'CLEAR_EFFECT', insertText: 'CLEAR_EFFECT ', category: 'command', description: 'Remove effect' },
-        { label: 'WAIT', insertText: 'WAIT 1s]', category: 'command', description: 'Pause execution' },
-        { label: 'SCENE', insertText: 'SCENE ', category: 'command', description: 'Go to scene' },
-        { label: 'BUTTON', insertText: 'BUTTON ', category: 'command', description: 'Show button' },
-        { label: 'HIDE_BUTTON', insertText: 'HIDE_BUTTON ', category: 'command', description: 'Hide button' },
-        { label: 'SET', insertText: 'SET ', category: 'command', description: 'Set variable' },
-        { label: 'IF', insertText: 'IF ', category: 'command', description: 'Conditional block' },
-        { label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', category: 'command', description: 'Present choices' },
-      ];
+      // Palette lives in scriptDocs.ts (single source of truth)
+      const commands: AutoCompleteSuggestion[] = COMMAND_AUTOCOMPLETE.map(entry => ({
+        label: entry.label,
+        insertText: entry.insertText,
+        category: 'command' as const,
+        description: entry.description,
+      }));
       return commands.filter(c => c.label.toLowerCase().startsWith(prefix));
     }
     
