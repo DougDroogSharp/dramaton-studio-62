@@ -132,7 +132,7 @@ const EVENTS = [
   {
     id: 'quotas', title: 'The First Quotas', drop: 'station',
     keys: { quotaDoubled: { target: 1, scale: 1 } },
-    blurb: 'The concession companies — ABIR, the Anversoise — set each village a wild-rubber quota, enforced by armed sentries. Wild rubber does not farm; it must be bled from vines deeper and deeper in the forest.',
+    blurb: 'The concession companies — ABIR, the Anversoise — set each village a wild-rubber quota, enforced by armed sentries. In districts such as Bongandanga the figure is roughly three kilograms of dried rubber per man per fortnight, verified by basket at the weighing shed. Wild rubber does not farm; it must be bled from vines deeper and deeper in the forest, and meeting the figure means abandoning the fields.',
   },
   {
     id: 'bullets', title: 'The Bullet Accounting', drop: 'station',
@@ -142,7 +142,7 @@ const EVENTS = [
   {
     id: 'hostages', title: 'The Hostage-Taking', drop: 'station',
     keys: { hostages: { target: 1, scale: 1 } },
-    blurb: 'Stations hold women and children as surety until a village\'s men deliver rubber. The practice is entered in company ledgers — which is how it will one day be proved.',
+    blurb: 'Stations hold women and children as surety until a village\'s men deliver rubber; later the agents imprison the chiefs themselves — one post records 44 chiefs held in July 1902. The practice is entered in company ledgers — which is how it will one day be proved.',
   },
   {
     id: 'docks', title: 'Morel\'s Dock Discovery, c. 1900', drop: 'docks',
@@ -258,7 +258,7 @@ const VOICES = {
       `Leopold: "The returns you read of are commerce, nothing more."`,
     ]},
     { r: 'leopold', s: 'in private', l: [
-      `Leopold (Sit/Smug): "ABIR returned a dividend past one hundred percent. Do not tell me the system fails."`,
+      `Leopold (Sit/Smug): "ABIR sells in Europe at ten francs the kilogram what costs it one franc thirty-five to collect. Do not tell me the system fails."`,
       `Leopold: "Raise the quota where the returns fall. The forest is large."`,
     ]},
     { r: 'casement', l: [
@@ -1198,8 +1198,11 @@ const aftermathsHub = {
 const AFTERMATH_SCENES = [aftermathsHub, ...aftermathScenes];
 
 // ------------------------------------------------------------ The Record
-// Fifteen single-scene entries of uncovered research — episodes the main
-// spine passes over, each documented, each returning to the shelf.
+// Single-scene entries of uncovered research — episodes the main spine
+// passes over, each documented, each returning to the shelf. The final
+// fourteen entries come from the Pass 2 deep-dive dossier: the quota and
+// margin arithmetic, the hostage escalation, the named perpetrators, the
+// verbatim testimony, and the prestige machine read in Georgist terms.
 
 const RECORD = [
   {
@@ -1331,7 +1334,7 @@ const RECORD = [
     l: [
       `Narrator: "1897, Tervuren, outside Brussels. For the World's Fair the King exhibits 267 Congolese men, women and children in a built 'village' in the park, behind a fence, before more than a million visitors."`,
       `The Community: "They were people with names — soldiers' families, boatmen, weavers — shipped to Belgium to be looked at in the cold."`,
-      `Narrator: "Seven die that summer and are buried at Tervuren, for decades in unmarked ground. The fence bore a sign, added after visitors kept throwing food: they are fed. Nothing in this scene is invented."`,
+      `Narrator: "Seven die that summer, of pneumonia and influenza, and are buried by the parish church of Sint-Jan Evangelist, for decades in unmarked ground. Their names are recorded: Ekia, Gemba, Kitukwa, Mpela, Zao, Samba, and Mbange. The fence bore a sign, added after visitors kept throwing food: they are fed. Nothing in this scene is invented."`,
     ],
   },
   {
@@ -1350,6 +1353,142 @@ const RECORD = [
       `Narrator: "A last entry: the instrument itself. A No. 2 Bull's-Eye Kodak — a box, a lens, a strap. It cost a few pounds and needed no tripod."`,
       `Harris: "It was not built as a weapon. It was built for holidays. That an amateur's box could answer an empire's press bureau — that was the discovery."`,
       `Narrator: "Cheap cameras, cheap print, fast steamers: the same machinery that moved the rubber moved the evidence. The system built the roads its exposure traveled."`,
+    ],
+  },
+  // ---- Pass 2 additions: the deeper dossier ----
+  {
+    id: 'bongandanga', title: 'The Bongandanga Quota', drop: 'station', actor: 'community',
+    keys: { quotaDoubled: { target: 1, scale: 1 } },
+    balloonText: '3 KG DRIED RUBBER — PER MAN — PER FORTNIGHT',
+    l: [
+      `Narrator: "The quota, stated exactly, from the ABIR district of Bongandanga: roughly three kilograms of dried rubber per man per fortnight, verified by basket at the weighing shed."`,
+      `The Community: "Say the number slowly. Three kilograms of dried rubber is days of tapping, farther out each season — and the fortnight does not lengthen when the vines recede."`,
+      `Narrator: "Meeting the figure means abandoning the fields. The quota does not merely take the rubber; it takes the time that grew the food. Hunger is not a side effect of the system. It is the system, arriving on schedule."`,
+    ],
+  },
+  {
+    id: 'margin', title: 'The Red-Rubber Margin', drop: 'docks', actor: 'morel',
+    keys: { concealment: { target: 3, scale: 8 } },
+    balloonText: 'COST: 1.35 FRANCS/KG — SOLD: UP TO 10 FRANCS/KG',
+    l: [
+      `Narrator: "The extraction engine, in two numbers. Through the late 1890s ABIR sold in Europe, for up to ten francs, a kilogram of rubber that cost it 1.35 francs to collect."`,
+      `Morel: "Study the gap. It is not profit as a merchant knows profit — no wage paid, no goods exchanged, nothing bought. The 1.35 francs is the cost of the sentries and the steamers. The rest is rent, taken at gunpoint from land the takers claim to own."`,
+      `Narrator: "The campaign will call it red rubber. Henry George would have called it by its older name: rent, collected where no law reaches, wearing a company letterhead."`,
+    ],
+  },
+  {
+    id: 'shares', title: 'The Share Register, 1892-1903', drop: 'docks', actor: null,
+    keys: { concealment: { target: 3, scale: 8 } },
+    balloonText: 'THE ABIR SHARE REGISTER',
+    l: [
+      `Narrator: "One security, followed for eleven years. An ABIR share, on the register:"`,
+      `[SET_TEXT rc_shares_b "1892 — SHARE: 500 GOLD FRANCS. DIVIDEND: 1 FRANC."]`,
+      `Narrator: "Eighteen ninety-two. Five hundred gold francs the share; one franc the annual dividend."`,
+      `[SET_TEXT rc_shares_b "1903 — SHARE: 15,000 FRANCS. DIVIDEND: 1,200 FRANCS."]`,
+      `Narrator: "Nineteen hundred and three. Fifteen thousand francs the share; twelve hundred francs the dividend. A thirty-fold price, a twelve-hundred-fold payout."`,
+      `Narrator: "In those same eleven years the quota, the sentry system, and the surety ledgers did their work in the Maringa-Lopori basin. The register and the testimony describe the same machine. Read either; they agree."`,
+    ],
+  },
+  {
+    id: 'fortune', title: 'The King\'s Seventy Million', drop: 'palace', actor: 'leopold',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "The personal account. Between 1896 and 1905, historians estimate, Leopold netted some seventy million Belgian francs from the Congo — his privately, not Belgium's."`,
+      `Leopold (Sit/Smug): "The Congo cost me my inheritance in the lean years. I regard the later returns as repayment, with interest, from a grateful estate."`,
+      `Narrator: "The estate was not consulted. The seventy million is an estimate and is flagged as one — the King's finances were built to resist counting — but the arcades, the galleries, and the palace works it paid for stand in Belgium to this day, auditable in stone."`,
+    ],
+  },
+  {
+    id: 'chiefs', title: 'The Chiefs in the Sheds, 1899-1902', drop: 'station', actor: 'community',
+    keys: { hostages: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "The hostage policy, escalating in the companies' own records. First the women and children, held as surety. Then the chiefs themselves: in July 1902 one post recorded that it held 44 chiefs in prison."`,
+      `The Community: "Understand what a chief in their shed means. It is the village's law, its memory, and its voice, held against a weight of rubber. They did not only take persons. They took the offices we govern ourselves by."`,
+      `Narrator: "And the sheds killed. The posts at Bongandanga and Mompono each recorded death rates of three to ten prisoners per day in 1899. The figures are the companies' own entries. No reformer wrote them. A clerk did."`,
+    ],
+  },
+  {
+    id: 'chicotte', title: 'The Chicotte', drop: 'station', actor: 'officer',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "An instrument, described and not depicted: the chicotte, a whip of raw, sun-dried hippopotamus hide, issued at the stations as routinely as ledger paper."`,
+      `Officer: "It hangs by the weighing shed. Most days it is not taken down. It does not need to be taken down. That is what it is for."`,
+      `Narrator: "The testimony before the Commission, and Casement's pages, record what its use did. This record keeps the instrument in view for one reason: it was standard equipment. Not an excess. An issue item, requisitioned, replaced, and accounted."`,
+    ],
+  },
+  {
+    id: 'fievez', title: 'The Devil of the Equator', drop: 'station', actor: null,
+    keys: { exposure: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "Léon Fiévez, district commissioner of the Equateur from April 1893. In late 1894 alone, his forces burned or looted more than 160 villages. The record of him that matters most is Congolese."`,
+      `Narrator: "A man named Tswambe testified — his words reported through a Catholic priest, and quoted by Hochschild; reported speech, and flagged as such:"`,
+      `Tswambe: "All blacks saw this man as the devil of the Equator... From all the bodies killed in the field, you had to cut off the hands. He wanted to see the number of hands cut off by each soldier... A village which refused to provide rubber would be completely swept clean."`,
+      `Narrator: "Foreign press coverage eventually forced Fiévez's removal. Not a trial — a removal. The system disciplined its excesses only when they became visible, which is a sentence worth reading twice."`,
+    ],
+  },
+  {
+    id: 'lemaire', title: 'The Commissioner\'s Own Sentence', drop: 'station', actor: null,
+    keys: { testimony: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "Charles Lemaire, commissioner of the Equateur before Fiévez, 1890 to 1893. After his retirement he wrote down, in his own hand, what the post had required of him. Verbatim:"`,
+      `Lemaire: "As soon as it was a question of rubber, I wrote to the government, 'To gather rubber in the district... one must cut off hands, noses and ears.'"`,
+      `Narrator: "No missionary alleged this. No reformer reconstructed it. The commissioner reported it of himself, as administration. Lemaire was not disgraced: he became the first director of Belgium's Colonial University, teaching the next generation how the Congo was run."`,
+    ],
+  },
+  {
+    id: 'rom', title: 'The Officer Behind Kurtz', drop: 'station', actor: 'officer',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "Léon Rom, Force Publique officer. The documented atrocities of his stations were of a kind that some scholars — it is a scholarly reading, not a certainty, and is flagged as one — see behind Conrad's Kurtz in Heart of Darkness."`,
+      `Officer: "Conrad came up this river in 1890, a steamer officer like any other. He saw what the stations were. He changed the names and kept the truth."`,
+      `Narrator: "Whether or not Rom sat for the portrait, the novel's readers met the Free State before the Blue Books reached them. Fiction carried the reconnaissance; the documents came after, and matched."`,
+    ],
+  },
+  {
+    id: 'uu', title: 'The Testimony of the Witnesses', drop: 'village', actor: 'casement',
+    keys: { testimony: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "From the sworn testimony appended to the Casement Report — names cut to initials by the Foreign Office before printing. These words are verbatim. Nothing is staged here except the page."`,
+      `Casement: "A refugee stated: 'They killed my little sister, threw her in a house, and set it on fire.'"`,
+      `Casement: "The witness the Report calls U.U. stated: 'As we fled, the soldiers killed ten children, in the water. They killed a lot of adults, cut off their hands, put them in baskets, and took them to the white man, who counted 200 hands...'"`,
+      `Narrator: "The sentences were spoken across a table, sworn, read back, and marked. They have been in the public record since 1904. This scene exists so that they are read, not summarized."`,
+    ],
+  },
+  {
+    id: 'string', title: 'The Knotted String', drop: 'village', actor: 'casement',
+    keys: { testimony: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "One witness came to the consul's table carrying his testimony in his hands — recorded by Casement, retold by Conan Doyle in The Crime of the Congo."`,
+      `Casement: "He appeared with a string knotted in forty-two places, and with a packet of fifty leaves. Each knot, he said, was a murder he had counted. Each leaf stood for a rope in his village."`,
+      `Narrator: "Where the State kept ledgers, the villages kept string and leaves. Two systems of record met across that table, and they corroborated each other exactly. The arithmetic of the Congo was never Europe's alone."`,
+    ],
+  },
+  {
+    id: 'arch', title: 'The Arch, Paid in Rubber', drop: 'palace', actor: null,
+    keys: { concealment: { target: 3, scale: 8 } },
+    balloonText: 'THE CINQUANTENAIRE ARCH, BRUSSELS, 1905',
+    l: [
+      `Narrator: "Brussels, 1905 — the year after the Casement Report. The monumental arch of the Cinquantenaire is completed, substantially on Congo money, routed through the Fondation de la Couronne — the Crown Foundation, the King's instrument for converting Congo revenue into Belgian stone."`,
+      `Narrator: "Read it in George's terms: rent extracted at gunpoint on the Lopori, laundered through a foundation, and fixed as civic marble in Europe. The margin from the red rubber does not vanish. It becomes architecture — and the architecture becomes an alibi."`,
+      `Narrator: "Belgians call him the Builder King. The record asks only that the building and the funding stream be read in the same sentence. They were never separate facts."`,
+    ],
+  },
+  {
+    id: 'ostend', title: 'The Builder King', drop: 'palace', actor: 'leopold',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "The program is larger than one arch: the Royal Galleries of Ostend, works at Antwerp, palace grounds at Laeken, the Africa Palace at Tervuren — the prestige machine, in masonry."`,
+      `Leopold: "A king is judged by what he leaves standing. I have given Belgium boulevards, galleries, arcades. Posterity walks through my defense."`,
+      `Narrator: "That is precisely the mechanism: prestige as insulation. Every colonnade made the quota system harder to believe. The monuments were not decoration on the extraction. They were its armor — and for twenty years, the armor held."`,
+    ],
+  },
+  {
+    id: 'antislavery', title: 'The Anti-Slavery Conference, 1889-90', drop: 'palace', actor: 'leopold',
+    keys: { concealment: { target: 1, scale: 8 } },
+    l: [
+      `Narrator: "Brussels, 1889-90. Leopold hosts the great Anti-Slavery Conference of the powers — the King of the Congo presiding, in his own capital, over the abolition of slavery in Africa."`,
+      `Leopold: "Who has done more against the slavers than my State? The powers may consult their own resolutions — passed at my table, under my roof."`,
+      `Narrator: "Within a few years his Force Publique is conscripting kidnapped children, his stations hold hostages against rubber, and his companies run forced labor at a scale the century has not seen. The conference is not a footnote to the system. It is its masterpiece: prestige language, minted in advance, as insulation for the thing it named."`,
     ],
   },
 ];
@@ -1381,7 +1520,7 @@ const recordHub = {
   dropId: dropFor('lecture'),
   stage: stage(el('lp_rc_shep', 'sheppard', 28, 61), el('lp_rc_move', 'movement', 72, 60)),
   script: lines(
-    'Narrator: "Fifteen entries the main story passes over — mutinies, hearings, trials, invoices, and one museum. Each is documented; where a figure is disputed, the entry says so."',
+    `Narrator: "${RECORD.length} entries the main story passes over — mutinies, hearings, trials, invoices, the quota and margin arithmetic, the named perpetrators in their own words, the verbatim testimony, and the monuments the rubber paid for. Each is documented; where a figure is disputed or a quote is secondhand, the entry says so."`,
     '[CHOICE]',
     ...RECORD.map((r) => `- "${r.title}" -> rc_${r.id}`),
     '- "Return to Brussels" -> lp_palace',
@@ -1499,6 +1638,8 @@ const MACHINE_SCENES = [
       'Narrator: "The slides are places, dates, ledger entries. Every one documented. Every one has survived cross-examination."',
       '[WAIT 4s]',
       '[SET_TEXT lp_cl_marquee "THE ABIR CONCESSION, 1903 — AT LEAST 122 DEAD ON ONE RUBBER EXPEDITION"]',
+      '[WAIT 4s]',
+      '[SET_TEXT lp_cl_marquee "ABIR SHARE, 1892: 500 FRANCS. 1903: 15,000. DIVIDEND: 1 FRANC TO 1,200."]',
       '[WAIT 4s]',
       '[SET_TEXT lp_cl_marquee "LULUABOURG, 1895 — THE FORCE PUBLIQUE TURNS ITS RIFLES ON THE REGIME"]',
       '[WAIT 4s]',
@@ -1730,6 +1871,7 @@ const game = {
       script: lines(
         'Narrator: "A river station in the ABIR concession. Baskets of wild rubber stand weighed and stacked on the landing. The company sets each village a quota, enforced on pain of death."',
         'Officer: "Two hundred and forty persons, compelled to supply one ton of foodstuffs per week. They receive fifteen shillings tenpence. The ledger balances."',
+        'Officer: "And the rubber: at Bongandanga, three kilograms of dried rubber per man per fortnight, verified by basket. The basket is the law here. Everything else is commentary."',
         '[IF quotaDoubled == 1]',
         'Officer: "New instruction from Brussels: the quota is doubled. The vines nearby are bled dry; the men will walk two days now to find rubber. The ledger will still balance. Ledgers always balance."',
         'Sheppard: "Doubled. You know what that number does. Not to the ledger — to the villages."',
@@ -2037,7 +2179,7 @@ const game = {
         'Morel: "Not a victory to toast. Extraction continues under the Belgian flag. But the thing that was his — the thing the arithmetic exposed — is finished."',
         'Narrator: "December 1909. Leopold II is dead. As the funeral cortege passes through Brussels, the crowds boo their King."',
         'Harris: "They booed. All that piety, all those bought headlines — and at the end, the crowd looked at him the way the camera did. Without flattery."',
-        'Narrator: "In 1913 the Congo Reform Association dissolves itself, believing its work done — history\'s first successful mass human-rights campaign, driven by a clerk\'s ledgers, a consul\'s testimony, and a missionary\'s box Kodak. Scholars still dispute the full toll — estimates range up to roughly ten million dead, though Vansina and others caution the worst districts may not speak for the whole."',
+        'Narrator: "In 1913 the Congo Reform Association dissolves itself, believing its work done — history\'s first successful mass human-rights campaign, driven by a clerk\'s ledgers, a consul\'s testimony, and a missionary\'s box Kodak. Scholars still dispute the full toll: modern estimates run from roughly 1.2 million to 10 million dead. Hochschild popularized ten million — about half the population — combining killing, forced-labor death, starvation, disease, and falling birth rates; Vansina and others caution the worst districts may not speak for the whole. The dispute is itself part of the record."',
         '[CHOICE]',
         '- "Play again" -> lp_palace',
         '[/CHOICE]',
@@ -2120,7 +2262,7 @@ const game = {
     {
       id: 'ep_leopold_record',
       name: 'The Record',
-      description: 'Fifteen entries of uncovered research: the Batetela mutinies, the Commission hearings, the American lantern tours, the press syndicate and its exposure, Conan Doyle, Sheppard\'s Kasai record and libel trial, the 15s 10d arithmetic, and Tervuren.',
+      description: 'Uncovered research: the Batetela mutinies, the Commission hearings, the American lantern tours, the press syndicate and its exposure, Conan Doyle, Sheppard\'s Kasai record and libel trial, the 15s 10d arithmetic, Tervuren — and the Pass 2 dossier: the Bongandanga quota, the red-rubber margin and share register, the King\'s seventy million, the chiefs in the sheds, the chicotte, Fiévez, Lemaire, Rom, the verbatim testimony, the knotted string, and the prestige machine in stone.',
       sceneIds: RECORD_SCENES.map((s) => s.id),
       status: 'work',
     },
