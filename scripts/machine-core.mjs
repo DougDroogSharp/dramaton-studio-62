@@ -472,6 +472,10 @@ export const TUNING_SLIDERS = [
   ['c_crisisChance', 'CRISIS ODDS', 0, 0.5, 0.01],
   ['c_commentaryCooldown', 'STORY CD', 0, 120, 5],
   ['c_commentaryFlareMin', 'STORY FLARES', 0, 6, 1],
+  ['c_wheelSpeed', 'WHEEL SPEED', 0, 2, 0.1],
+  ['c_legacyHoard', 'LGCY HOARD', 0, 1, 0.05],
+  ['c_legacyPrestige', 'LGCY PRSTG', 0, 1, 0.05],
+  ['c_legacyEdu', 'LGCY EDU', 0, 1, 0.05],
   // Column 4 — the player levers, for context while tuning
   ['greed', 'GREED', 0, 100, 1],
   ['speculation', 'SPECULATION', 0, 100, 1],
@@ -480,7 +484,6 @@ export const TUNING_SLIDERS = [
   ['hierarchy', 'HIERARCHY', 0, 100, 1],
   ['repression', 'REPRESSION', 0, 100, 1],
   ['singleTax', 'SINGLE TAX', 0, 1, 1],
-  ['c_wheelSpeed', 'WHEEL SPEED', 0, 2, 0.1],
 ];
 
 // The tuning cockpit: every coefficient on a slider, live gauges on
@@ -488,7 +491,7 @@ export const TUNING_SLIDERS = [
 // worldState persists across scenes, so tuned values carry back.
 export const tuningScene = ({ id = 'machine_tuning', backButton }) => {
   const cols = [14, 38, 62, 86];
-  const rows = [22, 32, 42, 52, 62, 72, 82, 92];
+  const rows = [21, 30.5, 40, 49.5, 59, 68.5, 78, 87.5, 96];
   const sliderCmds = TUNING_SLIDERS.map(([variable, label, min, max, step], i) => {
     const x = cols[Math.floor(i / rows.length)];
     const y = rows[i % rows.length];
