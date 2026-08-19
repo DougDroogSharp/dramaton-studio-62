@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameData, Scene } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
-import { ChoicePanel } from '@/components/theater/ChoicePanel';
+import { StageDialogueLayer } from '@/components/theater/StageDialogueLayer';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
 
@@ -162,7 +162,7 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
       
       {/* Stage Area */}
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-4xl relative">
           <Stage
             scene={scene}
             game={game}
@@ -175,23 +175,30 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
             worldState={scriptRunner.state.worldState}
             onSliderChange={scriptRunner.setVariable}
           />
+          <StageDialogueLayer
+            scene={scene}
+            dialogue={
+              scriptRunner.state.activeDialogue &&
+              scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() !== 'narrator'
+                ? scriptRunner.state.activeDialogue
+                : null
+            }
+            choices={scriptRunner.state.choices}
+            elementOverrides={scriptRunner.state.elementOverrides}
+            onAdvance={scriptRunner.advance}
+            onSelectChoice={scriptRunner.selectChoice}
+          />
         </div>
       </div>
-      
-      {/* Dialogue / Choice Area */}
+
+      {/* Narration window (narration only; speech renders as balloons) */}
       <div className="px-4 pb-4">
-        {scriptRunner.state.activeDialogue && (
+        {scriptRunner.state.activeDialogue &&
+          scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
           <DialogueBox
             dialogue={scriptRunner.state.activeDialogue}
             actor={dialogueActor}
             onAdvance={scriptRunner.advance}
-          />
-        )}
-        
-        {scriptRunner.state.choices && (
-          <ChoicePanel
-            choices={scriptRunner.state.choices}
-            onSelect={scriptRunner.selectChoice}
           />
         )}
         

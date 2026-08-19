@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { GameData, createDefaultGame, Button } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
-import { ChoicePanel } from '@/components/theater/ChoicePanel';
+import { StageDialogueLayer } from '@/components/theater/StageDialogueLayer';
 import { AudienceReactions } from '@/components/theater/AudienceReactions';
 import { TheaterControls } from '@/components/theater/TheaterControls';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
@@ -284,20 +284,15 @@ const Theater: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-diesel-black flex flex-col">
-      {/* Dialogue / Choice Area — on top so it never hides below the fold */}
+      {/* Narration window — narration only; actor speech and choices
+          render as balloons on the stage */}
       <div className="px-4 pt-3 pb-1">
-        {scriptRunner.state.activeDialogue && (
+        {scriptRunner.state.activeDialogue &&
+          scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
           <DialogueBox
             dialogue={scriptRunner.state.activeDialogue}
             actor={dialogueActor}
             onAdvance={scriptRunner.advance}
-          />
-        )}
-
-        {scriptRunner.state.choices && (
-          <ChoicePanel
-            choices={scriptRunner.state.choices}
-            onSelect={scriptRunner.selectChoice}
           />
         )}
 
@@ -323,7 +318,7 @@ const Theater: React.FC = () => {
       {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
       <div className="flex-1 flex items-start justify-center p-2 min-h-0">
         <div
-          className="w-full"
+          className="w-full relative"
           style={{ maxWidth: 'min(72rem, calc((100vh - 190px) * 16 / 9))' }}
         >
           {currentScene && (
@@ -342,6 +337,19 @@ const Theater: React.FC = () => {
               onSliderChange={scriptRunner.setVariable}
             />
           )}
+          <StageDialogueLayer
+            scene={currentScene}
+            dialogue={
+              scriptRunner.state.activeDialogue &&
+              scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() !== 'narrator'
+                ? scriptRunner.state.activeDialogue
+                : null
+            }
+            choices={scriptRunner.state.choices}
+            elementOverrides={scriptRunner.state.elementOverrides}
+            onAdvance={scriptRunner.advance}
+            onSelectChoice={scriptRunner.selectChoice}
+          />
         </div>
       </div>
 
