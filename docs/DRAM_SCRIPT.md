@@ -654,6 +654,29 @@ A repeating block: the body runs every interval while the scene is active, concu
 [/TICK]
 ```
 
+#### `NARRATON`
+
+Yields flow control to the Narraton selector (the 1986 King of Chicago storyteller). It gathers every scene whose Narraton metadata names this pool, filters by hard requirements, play history (non-repeatable scenes play once), and subplot rotation (one scene per subplot, in order), then transitions to the survivor whose keys least-squares match the current world state: score = sum of ((current - target) / scale)^2 per key, divided by the scene's weight; lowest wins, exact ties break randomly. Scene metadata is set in the scene editor. Every selection decision (candidate pool, gates, per-key deltas, scores, winner) is logged to the console. If no scene is eligible, the script continues past the command with a warning.
+
+**Syntax:**
+```
+[NARRATON pool=pool_name]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `pool` | string | The selection pool to draw from (default: main) *(optional)* |
+
+**Example:**
+```
+# Let the storyteller pick what happens next
+[NARRATON pool=main]
+
+# Era-specific pool
+[NARRATON pool=era2_extraction]
+```
+
 #### `COMMENT`
 
 A comment line that is ignored during execution. Useful for notes and documentation.
@@ -738,7 +761,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **27 commands documented**
+✅ **28 commands documented**
 
 ---
 

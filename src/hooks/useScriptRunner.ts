@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride } from '@/types';
 import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
+import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
 
 // Properties BIND may drive on a stage element
 const BINDABLE_PROPERTIES = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'zIndex']);
@@ -151,6 +152,11 @@ export function useScriptRunner({
   // Active BIND bindings, keyed "elementId.property". Cleared on scene
   // change. Re-evaluated on every worldState write.
   const bindingsRef = useRef<Map<string, Binding>>(new Map());
+
+  // Narraton play history: which scenes the selector has already
+  // chosen. Survives scene changes; reset via resetNarratonHistory
+  // (Theater calls it when a fresh show starts).
+  const narratonHistoryRef = useRef(createNarratonHistory());
   const currentSceneRef = useRef<Scene | undefined>(undefined);
   currentSceneRef.current = currentScene;
 
@@ -494,6 +500,40 @@ export function useScriptRunner({
         return true;
       }
 
+      case 'NARRATON': {
+        const { winner } = selectNarratonScene(
+          command.pool,
+          game.scenes,
+          worldStateRef.current,
+          narratonHistoryRef.current,
+        );
+        if (!winner) {
+          warnOnce(`NARRATON: no eligible scene in pool "${command.pool}"; continuing script`);
+          return true; // fail soft: fall through to the next command
+        }
+        narratonHistoryRef.current.played.add(winner.id);
+        // Transition exactly like SCENE
+        clearTimeouts();
+        bindingsRef.current = new Map();
+        onSceneChange?.(winner.id);
+        setState(prev => ({
+          ...prev,
+          currentSceneId: winner.id,
+          currentCommandIndex: 0,
+          activeDialogue: null,
+          choices: null,
+          hiddenElements: new Set(),
+          elementOverrides: new Map(),
+          activeEffects: new Map(),
+          activeButtons: new Set(),
+          activeSliders: new Map(),
+          activeGauges: new Map(),
+          isWaiting: false,
+          isComplete: false,
+        }));
+        return false; // yield: the new scene starts via the scene-change effect
+      }
+
       case 'COMMENT':
       case 'UNKNOWN':
         return true; // Skip
@@ -573,9 +613,9 @@ export function useScriptRunner({
 
       const shouldContinue = executeCommand(node.cmd);
       if (!shouldContinue) {
-        // SCENE already reset all state for the new scene (index 0);
-        // writing our index here would clobber that reset.
-        if (node.cmd.type === 'SCENE') {
+        // SCENE/NARRATON already reset all state for the new scene
+        // (index 0); writing our index here would clobber that reset.
+        if (node.cmd.type === 'SCENE' || node.cmd.type === 'NARRATON') {
           resumeAfterWaitRef.current = null;
           return;
         }
@@ -706,6 +746,11 @@ export function useScriptRunner({
     applyBindings();
   }, [applyBindings]);
 
+  // Forget which scenes the Narraton has already chosen (fresh show)
+  const resetNarratonHistory = useCallback(() => {
+    narratonHistoryRef.current = createNarratonHistory();
+  }, []);
+
   return {
     state,
     currentScene,
@@ -715,5 +760,6 @@ export function useScriptRunner({
     goToScene,
     toggleAutoPlay,
     setVariable,
+    resetNarratonHistory,
   };
 }

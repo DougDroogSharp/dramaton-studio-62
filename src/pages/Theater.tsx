@@ -230,6 +230,7 @@ const Theater: React.FC = () => {
   // Enter the start scene explicitly: the script runner initializes before the
   // game has loaded, so its internal currentSceneId starts out empty.
   const startShow = () => {
+    scriptRunner.resetNarratonHistory();
     if (startSceneId) scriptRunner.goToScene(startSceneId);
     setHasStarted(true);
   };

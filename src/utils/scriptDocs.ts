@@ -374,6 +374,22 @@ Narrator: "The humans are starving."
     implemented: true,
   },
 
+  {
+    type: 'NARRATON',
+    category: 'flow',
+    syntax: '[NARRATON pool=pool_name]',
+    description: 'Yields flow control to the Narraton selector (the 1986 King of Chicago storyteller). It gathers every scene whose Narraton metadata names this pool, filters by hard requirements, play history (non-repeatable scenes play once), and subplot rotation (one scene per subplot, in order), then transitions to the survivor whose keys least-squares match the current world state: score = sum of ((current - target) / scale)^2 per key, divided by the scene\'s weight; lowest wins, exact ties break randomly. Scene metadata is set in the scene editor. Every selection decision (candidate pool, gates, per-key deltas, scores, winner) is logged to the console. If no scene is eligible, the script continues past the command with a warning.',
+    parameters: [
+      { name: 'pool', type: 'string', description: 'The selection pool to draw from (default: main)', optional: true },
+    ],
+    example: `# Let the storyteller pick what happens next
+[NARRATON pool=main]
+
+# Era-specific pool
+[NARRATON pool=era2_extraction]`,
+    implemented: true,
+  },
+
   // ============ SPECIAL ============
   {
     type: 'COMMENT',
@@ -472,6 +488,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'GAUGE', label: 'GAUGE', insertText: 'GAUGE ', description: 'Read-only variable dial' },
   { type: 'HIDE_SLIDER', label: 'HIDE_SLIDER', insertText: 'HIDE_SLIDER ', description: 'Hide a slider' },
   { type: 'HIDE_GAUGE', label: 'HIDE_GAUGE', insertText: 'HIDE_GAUGE ', description: 'Hide a gauge' },
+  { type: 'NARRATON', label: 'NARRATON', insertText: 'NARRATON pool=main]', description: 'Let the storyteller pick the next scene' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
 ];
 
@@ -483,6 +500,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
+    'NARRATON',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   

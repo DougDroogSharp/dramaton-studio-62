@@ -13,6 +13,7 @@ import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
 import { DramScriptEditor } from '@/components/editors/DramScriptEditor';
+import { NarratonEditor } from '@/components/editors/NarratonEditor';
 
 interface SceneEditorProps {
   game: GameData;
@@ -992,6 +993,13 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   )}
                 </div>
               </section>
+
+              {/* Narraton selection metadata */}
+              <NarratonEditor
+                meta={selectedScene.narraton}
+                worldStateVars={Object.keys(game.info.worldState)}
+                onChange={(narraton) => updateScene(selectedScene.id, { narraton })}
+              />
 
               {/* Stage Elements */}
               <section className="bg-diesel-black border border-diesel-border p-3">

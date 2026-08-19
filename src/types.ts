@@ -79,6 +79,35 @@ export interface SceneAudio {
 // AGENCY = the player acts; WITNESS = the player watches, but reacts.
 export type SceneType = 'AGENCY' | 'WITNESS';
 
+// ============ NARRATON ============
+// The 1986 King of Chicago storyteller: scenes carry selection keys and
+// the [NARRATON pool=x] command picks the scene whose keys least-squares
+// match the current world state. See src/utils/narraton.ts.
+
+export interface NarratonRequirement {
+  variable: string;
+  operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  value: string | number | boolean;
+}
+
+// A selection key: the scene "wants" the variable near target.
+// scale normalizes the delta before squaring (default 100, i.e. a
+// 0-100 variable); without it, big-range variables like hoard would
+// drown out everything else.
+export interface NarratonKey {
+  target: number;
+  scale?: number;
+}
+
+export interface NarratonMeta {
+  pool: string;                                   // selection pool membership
+  keys?: Record<string, number | NarratonKey>;    // target values, least-squares matched
+  requires?: NarratonRequirement[];               // hard gates
+  repeatable?: boolean;                           // default false: plays once
+  subplot?: string;                               // one scene per subplot in rotation
+  weight?: number;                                // bias: score divides by this (default 1)
+}
+
 export interface Scene {
   id: string;
   name: string;
@@ -88,6 +117,7 @@ export interface Scene {
   script?: string;
   audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
+  narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
 }

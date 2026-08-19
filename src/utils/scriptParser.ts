@@ -28,6 +28,7 @@ export type ScriptCommandType =
   | 'GAUGE'
   | 'HIDE_SLIDER'
   | 'HIDE_GAUGE'
+  | 'NARRATON'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -195,6 +196,13 @@ export interface HideGaugeCommand {
   variable: string;
 }
 
+// Yield flow control to the Narraton selector: it picks the next scene
+// from the pool by least-squares matching scene keys against worldState.
+export interface NarratonCommand {
+  type: 'NARRATON';
+  pool: string;
+}
+
 export interface CommentCommand {
   type: 'COMMENT';
   text: string;
@@ -238,6 +246,7 @@ export type ScriptCommand =
   | GaugeCommand
   | HideSliderCommand
   | HideGaugeCommand
+  | NarratonCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -531,6 +540,12 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
 
+    // NARRATON pool=main  (pool defaults to "main")
+    const narratonMatch = content.match(/^NARRATON(?:\s+pool=(\w+))?$/i);
+    if (narratonMatch) {
+      return { type: 'NARRATON', pool: narratonMatch[1] || 'main' };
+    }
+
     // HIDE_SLIDER var / HIDE_GAUGE var
     const hideSliderMatch = content.match(/^HIDE_SLIDER\s+(\w+)$/i);
     if (hideSliderMatch) {
@@ -799,6 +814,8 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[HIDE_SLIDER ${cmd.variable}]`;
     case 'HIDE_GAUGE':
       return `[HIDE_GAUGE ${cmd.variable}]`;
+    case 'NARRATON':
+      return `[NARRATON pool=${cmd.pool}]`;
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -870,6 +887,8 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'HIDE_SLIDER', variable: 'myVar' };
     case 'HIDE_GAUGE':
       return { type: 'HIDE_GAUGE', variable: 'myVar' };
+    case 'NARRATON':
+      return { type: 'NARRATON', pool: 'main' };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':
