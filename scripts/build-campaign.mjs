@@ -377,19 +377,20 @@ const game = {
   items: [],
   sfx: SFX,
   buttons: [
+    // Top-center strip: clear of the gauges (left) and sliders (right)
     {
       id: 'tune_button', name: 'Tune', label: 'TUNE',
-      x: 5, y: 5, width: 8, height: 6,
+      x: 40, y: 4, width: 9, height: 6,
       targetSceneId: 'machine_tuning', status: 'work',
     },
     {
       id: 'back_button', name: 'Back', label: 'BACK',
-      x: 5, y: 5, width: 8, height: 6,
+      x: 50, y: 97, width: 9, height: 5,
       targetSceneId: 'menu', status: 'work',
     },
     {
       id: 'menu_button', name: 'Chapters', label: 'CHAPTERS',
-      x: 16, y: 5, width: 11, height: 6,
+      x: 53, y: 4, width: 12, height: 6,
       targetSceneId: 'menu', status: 'work',
     },
   ],

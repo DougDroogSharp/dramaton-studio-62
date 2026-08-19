@@ -61,14 +61,15 @@ const game = {
   items: [],
   sfx: SFX,
   buttons: [
+    // Top-center strip: clear of the gauges (left) and sliders (right)
     {
       id: 'tune_button', name: 'Tune', label: 'TUNE',
-      x: 5, y: 5, width: 8, height: 6,
+      x: 44, y: 4, width: 9, height: 6,
       targetSceneId: 'machine_tuning', status: 'work',
     },
     {
       id: 'back_button', name: 'Back', label: 'BACK',
-      x: 5, y: 5, width: 8, height: 6,
+      x: 50, y: 97, width: 9, height: 5,
       targetSceneId: 'the_machine', status: 'work',
     },
   ],

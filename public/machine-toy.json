@@ -58,6 +58,9 @@
       "c_collapseTicks": 40,
       "c_reconTicks": 40,
       "c_reconEduMin": 80,
+      "c_legacyHoard": 0.6,
+      "c_legacyPrestige": 0.7,
+      "c_legacyEdu": 0.5,
       "machineIntroSeen": 0
     },
     "gameMode": "INTERACTIVE",
@@ -546,9 +549,9 @@
       "id": "tune_button",
       "name": "Tune",
       "label": "TUNE",
-      "x": 5,
-      "y": 5,
-      "width": 8,
+      "x": 44,
+      "y": 4,
+      "width": 9,
       "height": 6,
       "targetSceneId": "machine_tuning",
       "status": "work"
@@ -557,10 +560,10 @@
       "id": "back_button",
       "name": "Back",
       "label": "BACK",
-      "x": 5,
-      "y": 5,
-      "width": 8,
-      "height": 6,
+      "x": 50,
+      "y": 97,
+      "width": 9,
+      "height": 5,
       "targetSceneId": "the_machine",
       "status": "work"
     }

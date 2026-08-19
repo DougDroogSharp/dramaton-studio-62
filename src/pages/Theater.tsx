@@ -49,7 +49,8 @@ const Theater: React.FC = () => {
       } else if (gameUrl) {
         // Load from URL
         try {
-          const response = await fetch(gameUrl);
+          // no-store: game files change constantly during development
+          const response = await fetch(gameUrl, { cache: 'no-store' });
           const data = await response.json();
           setGame(data);
         } catch (e) {

@@ -233,7 +233,8 @@ export const Stage: React.FC<StageProps> = ({
           width: `${button.width}%`,
           height: `${button.height}%`,
           transform: 'translate(-50%, -50%)',
-          zIndex: isDragging ? 1000 : 100,
+          // Above instruments (200): navigation must never be buried
+          zIndex: isDragging ? 1000 : 250,
         }}
         onMouseDown={editable ? (e) => {
           e.stopPropagation();
