@@ -1,5 +1,7 @@
 import { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { readdirSync, readFileSync, statSync } from 'fs';
+import { join, extname } from 'path';
 
 /**
  * Local image-generation bridge: the editor POSTs to /api/flux-generate
@@ -43,10 +45,50 @@ interface GenRequest {
   aspectRatio?: string;
 }
 
+// ---- style pack ------------------------------------------------------
+// STYLE_REF_DIR in .env.local names a folder of images; up to
+// MAX_PACK_IMAGES of them ride along on every generation as style
+// references (Flux multi-reference). Swap the folder to change eras.
+
+const MAX_PACK_IMAGES = 3;
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
+};
+
+let packCache: { key: string; images: string[] } | null = null;
+
+function loadStylePack(dir: string | undefined): string[] {
+  if (!dir) return [];
+  let entries: string[];
+  try {
+    entries = readdirSync(dir).filter(f => IMAGE_EXTS.has(extname(f).toLowerCase())).sort();
+  } catch {
+    console.warn(`🎨 STYLE_REF_DIR not readable: ${dir}`);
+    return [];
+  }
+  const picked = entries.slice(0, MAX_PACK_IMAGES);
+  const key = dir + '|' + picked.map(f => {
+    try { return f + ':' + statSync(join(dir, f)).mtimeMs; } catch { return f; }
+  }).join(',');
+  if (packCache?.key === key) return packCache.images;
+
+  const images: string[] = [];
+  for (const f of picked) {
+    try {
+      const b64 = readFileSync(join(dir, f)).toString('base64');
+      images.push(`data:${MIME[extname(f).toLowerCase()]};base64,${b64}`);
+    } catch { /* skip unreadable */ }
+  }
+  if (images.length) console.log(`🎨 Style pack: ${images.length} reference(s) from ${dir}`);
+  packCache = { key, images };
+  return images;
+}
+
 const stripDataUrl = (s: string): string =>
   s.replace(/^data:image\/\w+;base64,/, '');
 
-function buildFluxBody(body: GenRequest): Record<string, unknown> {
+function buildFluxBody(body: GenRequest, stylePack: string[] = []): Record<string, unknown> {
   const promptParts: string[] = [];
   const images: string[] = [];
   const imageRoles: string[] = [];
@@ -57,12 +99,20 @@ function buildFluxBody(body: GenRequest): Record<string, unknown> {
     imageRoles.push(`Image ${images.length}: ${role}`);
   };
 
+  const addPack = () => {
+    for (const img of stylePack) {
+      addImage(img, 'era style reference — match the art style, linework, texture and palette of this image');
+    }
+  };
+
   if (body.editMode && body.existingImage) {
     addImage(body.existingImage, 'the current image — edit THIS image, keeping the overall scene');
     addImage(body.styleGuide, 'style reference — match this art style');
+    addPack();
     promptParts.push(`Edit the current image according to these instructions: ${body.prompt}`);
   } else {
     addImage(body.styleGuide, 'style reference — match this art style exactly');
+    addPack();
     addImage(body.referenceImage, 'composition reference — match this layout, perspective and camera angle');
     addImage(body.referenceImageCloseUp, "character face reference — match these facial features exactly");
     addImage(body.referenceImageFullBody, 'character body reference — match body proportions and clothing');
@@ -86,8 +136,8 @@ function buildFluxBody(body: GenRequest): Record<string, unknown> {
   return flux;
 }
 
-async function callFlux(apiKey: string, model: string, body: GenRequest): Promise<{ imageUrl: string }> {
-  const fluxBody = buildFluxBody(body);
+async function callFlux(apiKey: string, model: string, body: GenRequest, stylePack: string[] = []): Promise<{ imageUrl: string }> {
+  const fluxBody = buildFluxBody(body, stylePack);
 
   const submit = await fetch(`${BFL_BASE}/${model}`, {
     method: 'POST',
@@ -148,7 +198,7 @@ const falImageSize = (aspect: string): string => {
   return 'landscape_16_9';
 };
 
-async function callFal(apiKey: string, model: string, body: GenRequest): Promise<{ imageUrl: string }> {
+async function callFal(apiKey: string, model: string, body: GenRequest, stylePack: string[] = []): Promise<{ imageUrl: string }> {
   // Reuse the same prompt assembly; collect reference images as data URIs
   const promptParts: string[] = [];
   const imageUrls: string[] = [];
@@ -160,12 +210,20 @@ async function callFal(apiKey: string, model: string, body: GenRequest): Promise
     imageRoles.push(`Image ${imageUrls.length}: ${role}`);
   };
 
+  const addPack = () => {
+    for (const img of stylePack) {
+      addImage(img, 'era style reference — match the art style, linework, texture and palette of this image');
+    }
+  };
+
   if (body.editMode && body.existingImage) {
     addImage(body.existingImage, 'the current image — edit THIS image, keeping the overall scene');
     addImage(body.styleGuide, 'style reference — match this art style');
+    addPack();
     promptParts.push(`Edit the current image according to these instructions: ${body.prompt}`);
   } else {
     addImage(body.styleGuide, 'style reference — match this art style exactly');
+    addPack();
     addImage(body.referenceImage, 'composition reference — match this layout, perspective and camera angle');
     addImage(body.referenceImageCloseUp, 'character face reference — match these facial features exactly');
     addImage(body.referenceImageFullBody, 'character body reference — match body proportions and clothing');
@@ -246,10 +304,11 @@ export function fluxPlugin(env: Record<string, string>): Plugin {
           const raw = await readBody(req);
           const body = JSON.parse(raw) as GenRequest;
           if (!body.prompt?.trim()) return respond(400, { error: 'prompt is required' });
-          console.log(`🎨 Flux [${isFal ? 'fal.ai' : 'bfl'}] ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'} — ${body.prompt.slice(0, 80)}...`);
+          const stylePack = loadStylePack(env.STYLE_REF_DIR);
+          console.log(`🎨 Flux [${isFal ? 'fal.ai' : 'bfl'}] ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'}${stylePack.length ? ` +${stylePack.length} style refs` : ''} — ${body.prompt.slice(0, 80)}...`);
           const result = isFal
-            ? await callFal(apiKey, model, body)
-            : await callFlux(apiKey, model, body);
+            ? await callFal(apiKey, model, body, stylePack)
+            : await callFlux(apiKey, model, body, stylePack);
           console.log('🎨 Flux: image ready');
           respond(200, result);
         })().catch((err: unknown) => {
