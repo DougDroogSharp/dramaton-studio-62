@@ -55,8 +55,12 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     
     const angleDescription = getAngleDescription(graphic.angle);
     
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    const description = actor.note?.trim()
+      ? `\nDESCRIPTION: ${actor.note.trim()}\n`
+      : '';
 
+    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+${description}
 POSE & EXPRESSION:
 - Pose: ${graphic.pose}
 - Expression: ${graphic.expression}
@@ -368,8 +372,12 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     
     const angleDescription = getAngleDescription(genAngle);
     
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    const description = actor.note?.trim()
+      ? `\nDESCRIPTION: ${actor.note.trim()}\n`
+      : '';
 
+    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+${description}
 POSE & EXPRESSION:
 - Pose: ${genPose}
 - Expression: ${genExpression}

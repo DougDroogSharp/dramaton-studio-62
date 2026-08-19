@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npx tsc --noEmit)",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__Claude_Browser__tabs_context",
+      "mcp__Claude_Browser__find",
+      "mcp__f3981e82-7269-46ce-ad6b-4b46f934a3e5__netlify-project-services-reader",
+      "mcp__f3981e82-7269-46ce-ad6b-4b46f934a3e5__netlify-deploy-services-reader"
+    ]
+  }
+}
