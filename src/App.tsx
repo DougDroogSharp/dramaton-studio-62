@@ -13,6 +13,12 @@ const Library = lazy(() => import("./pages/Library"));
 const Theater = lazy(() => import("./pages/Theater"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const GameLanding = lazy(() => import("./pages/GameLanding"));
+
+// Production/web builds ship the theater only: "/" is a public games
+// landing page and the editor routes are not registered. The editor
+// exists only in local dev (npm run dev).
+const isDev = import.meta.env.DEV;
 
 const queryClient = new QueryClient();
 
@@ -26,9 +32,9 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/library" element={<Library />} />
+                <Route path="/" element={isDev ? <Index /> : <GameLanding />} />
+                {isDev && <Route path="/auth" element={<Auth />} />}
+                {isDev && <Route path="/library" element={<Library />} />}
                 <Route path="/theater" element={<Theater />} />
                 <Route path="/play" element={<Theater />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
