@@ -209,19 +209,22 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
             onSelectChoice={scriptRunner.selectChoice}
             onEditText={onUpdateScript ? handleEditText : undefined}
           />
+          {/* Narration as a comic caption overlaying the stage top */}
+          {scriptRunner.state.activeDialogue &&
+            scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[94%]" style={{ zIndex: 320 }}>
+              <DialogueBox
+                dialogue={scriptRunner.state.activeDialogue}
+                actor={dialogueActor}
+                onAdvance={scriptRunner.advance}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Narration window (narration only; speech renders as balloons) */}
+      {/* Below-stage area */}
       <div className="px-4 pb-4">
-        {scriptRunner.state.activeDialogue &&
-          scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
-          <DialogueBox
-            dialogue={scriptRunner.state.activeDialogue}
-            actor={dialogueActor}
-            onAdvance={scriptRunner.advance}
-          />
-        )}
         
         {/* End of scene */}
         {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (

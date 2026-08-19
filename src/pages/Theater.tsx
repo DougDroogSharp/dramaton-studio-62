@@ -284,18 +284,9 @@ const Theater: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-diesel-black flex flex-col">
-      {/* Narration window — narration only; actor speech and choices
-          render as balloons on the stage */}
-      <div className="px-4 pt-3 pb-1">
-        {scriptRunner.state.activeDialogue &&
-          scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
-          <DialogueBox
-            dialogue={scriptRunner.state.activeDialogue}
-            actor={dialogueActor}
-            onAdvance={scriptRunner.advance}
-          />
-        )}
-
+      {/* End-of-game area (narration overlays the stage as a caption,
+          so the stage never jumps when it appears/disappears) */}
+      <div className="px-4 pt-1 pb-1">
         {/* End of game message */}
         {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
           <div className="text-center py-4">
@@ -319,7 +310,7 @@ const Theater: React.FC = () => {
       <div className="flex-1 flex items-start justify-center p-2 min-h-0">
         <div
           className="w-full relative"
-          style={{ maxWidth: 'min(72rem, calc((100vh - 190px) * 16 / 9))' }}
+          style={{ maxWidth: 'min(72rem, calc((100vh - 120px) * 16 / 9))' }}
         >
           {currentScene && (
             <Stage
@@ -350,6 +341,17 @@ const Theater: React.FC = () => {
             onAdvance={scriptRunner.advance}
             onSelectChoice={scriptRunner.selectChoice}
           />
+          {/* Narration as a comic caption overlaying the stage top */}
+          {scriptRunner.state.activeDialogue &&
+            scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[94%]" style={{ zIndex: 320 }}>
+              <DialogueBox
+                dialogue={scriptRunner.state.activeDialogue}
+                actor={dialogueActor}
+                onAdvance={scriptRunner.advance}
+              />
+            </div>
+          )}
         </div>
       </div>
 
