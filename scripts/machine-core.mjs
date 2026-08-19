@@ -403,7 +403,7 @@ export const tickEndings = () => [
 //         autopilot?: boolean (include the self-playing drift) }
 export const machineHubScene = ({
   id, name, pool, intro, endings = false, buttons = [],
-  ordersButton, panel = 'full', autopilot = false,
+  ordersButton, panel = 'full', autopilot = false, newsExtra = [],
 }) => ({
   id,
   name,
@@ -440,6 +440,7 @@ export const machineHubScene = ({
     tickEffects(),
     '',
     tickNews(),
+    ...(newsExtra.length ? ['', '# era headlines (later lines win when conditions match)', ...newsExtra] : []),
     '',
     tickCommentary(pool),
     ...(endings ? ['', tickEndings()] : []),

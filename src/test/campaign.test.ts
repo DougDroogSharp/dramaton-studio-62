@@ -214,12 +214,12 @@ describe('hvb-campaign.json', () => {
       act(() => { result.current.advance(); }); // lieutenant's prompt
       expect(result.current.state.choices).toBeTruthy();
 
-      act(() => { result.current.selectChoice(0); }); // "Double the rubber quota"
+      act(() => { result.current.selectChoice(0); }); // "Set impossible rubber quotas"
       act(() => { vi.advanceTimersByTime(10000); });
       act(() => { result.current.advance(); }); // reaction line
 
       expect(result.current.state.currentSceneId).toBe('ch2_machine');
-      expect(Number(result.current.state.worldState.greed)).toBe(Math.min(100, before + 15));
+      expect(Number(result.current.state.worldState.greed)).toBe(Math.min(100, before + 20));
       expect(Number(result.current.state.worldState.repression)).toBeGreaterThan(0);
     });
 
