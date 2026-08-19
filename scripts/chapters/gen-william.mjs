@@ -82,6 +82,20 @@ const MANIFEST = [
     prompt: 'Hereward the Wake mid-attack: the same long-haired bearded Saxon warrior in a mud-spattered leather jerkin and wool cloak, round shield raised on his left arm, short axe swung high overhead in his right hand, lunging forward, fierce determined face, full body, facing slightly right. Same face and costume as the reference.',
     retry: 'Hereward the Wake, Saxon warrior of the fens, axe raised high, shield up, charging stance, determined expression, leather jerkin and wool cloak, full body, facing slightly right. Same face and costume as the reference.',
   },
+  // Walk-cycle frames (two-frame flip-book; the runner alternates
+  // Walk1/Walk2 while a MOVE is in flight).
+  {
+    file: 'peasant_walk1.png', isCharacter: true,
+    ref: ['peasant.png'],
+    prompt: 'The same Saxon peasant farmer mid-stride walking: left leg forward, right leg back, arms swinging, side profile facing slightly left, full body. Same face, tunic, hood and grain sack as the reference.',
+    retry: 'A gaunt Saxon peasant in a rough wool tunic and hood walking, left leg forward mid-stride, full body, facing slightly left. Same face and costume as the reference.',
+  },
+  {
+    file: 'peasant_walk2.png', isCharacter: true,
+    ref: ['peasant.png'],
+    prompt: 'The same Saxon peasant farmer mid-stride walking: right leg forward, left leg back, arms swinging opposite, side profile facing slightly left, full body. Same face, tunic, hood and grain sack as the reference.',
+    retry: 'A gaunt Saxon peasant in a rough wool tunic and hood walking, right leg forward mid-stride, full body, facing slightly left. Same face and costume as the reference.',
+  },
   // Crowd sprites (reaction-layer pass) — the village en masse.
   {
     file: 'crowd_calm.png', isCharacter: true,

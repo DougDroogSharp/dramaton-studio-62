@@ -63,7 +63,12 @@ const actors = [
     ...graphic('hereward_g', 'Neutral', 'Neutral', art('william', 'hereward.png')),
     ...graphic('hereward_attack_g', 'Attack', 'Determined', art('william', 'hereward_attack.png')),
   ]),
-  mkActor('peasant', 'Aldric', graphic('peasant_g', 'Neutral', 'Neutral', art('william', 'peasant.png'))),
+  mkActor('peasant', 'Aldric', [
+    ...graphic('peasant_g', 'Neutral', 'Neutral', art('william', 'peasant.png')),
+    // Two-frame walk cycle: the runner flips Walk1/Walk2 during MOVE
+    ...graphic('peasant_walk1_g', 'Walk1', 'Neutral', art('william', 'peasant_walk1.png')),
+    ...graphic('peasant_walk2_g', 'Walk2', 'Neutral', art('william', 'peasant_walk2.png')),
+  ]),
   mkActor('orderic', 'Orderic', graphic('orderic_g', 'Neutral', 'Neutral', art('william', 'orderic.png'))),
   mkActor('crowd', 'The Village', [
     ...graphic('crowd_calm_g', 'Neutral', 'Neutral', art('william', 'crowd_calm.png')),
@@ -239,6 +244,10 @@ scenes.push({
     '[TICK 1s]',
     '[SET ash = clamp(ash + 12, 0, 200)]',
     '[/TICK]',
+    // Aldric flees into frame from the burning fields (two-frame walk
+    // cycle: the runner flips his Walk1/Walk2 sprites during the MOVE)
+    '[ENTER h_peasant at 98,64]',
+    '[MOVE h_peasant to 72,64 over 4s]',
     'Narrator: "Norman columns move village to village. Crops, stores, and livestock burn so that nothing can feed a rebel — or anyone else."',
     'Aldric: "The seed corn too, lord? If the seed corn burns, there is no harvest next year. There is no year after that at all."',
     'William: "The North rebelled twice. It will not have the strength to rebel a third time."',
