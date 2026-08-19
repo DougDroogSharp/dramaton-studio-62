@@ -66,6 +66,10 @@ export interface ActiveDialogue {
   style: 'speech' | 'thought';
   displayedText: string; // For typewriter effect
   isComplete: boolean;
+  // The graphic chosen for this utterance (explicit acting tag or
+  // auto-varied) — portraits use it to match the stage sprite.
+  expression?: string;
+  pose?: string;
 }
 
 export interface ChoiceState {
@@ -234,6 +238,50 @@ export function useScriptRunner({
     switch (command.type) {
       case 'DIALOGUE': {
         const actorId = findActorByName(command.actorName, game.actors);
+
+        // Animate the speaker: an explicit (Pose/Expression) tag wins;
+        // otherwise auto-vary among the actor's graphics per utterance
+        // so conversations come alive as pose matrices fill in. Always
+        // resolve to a REAL graphic triple so the renderer never
+        // falls back to the default sprite by accident.
+        let chosenPose: string | undefined;
+        let chosenExpression: string | undefined;
+        const actorAsset = actorId ? game.actors.find(a => a.id === actorId) : undefined;
+        const speakerEl = actorId
+          ? currentSceneRef.current?.stage?.find(e => e.type === 'ACTOR' && e.assetId === actorId)
+          : undefined;
+        if (actorAsset && speakerEl && actorAsset.graphics.length > 0) {
+          let graphic;
+          if (command.expression || command.pose) {
+            graphic = actorAsset.graphics.find(g =>
+              (!command.pose || g.pose === command.pose) &&
+              (!command.expression || g.expression === command.expression));
+            if (!graphic) {
+              warnOnce(`no graphic for ${command.actorName} (${command.pose ?? '*'}/${command.expression ?? '*'}); keeping current look`);
+            }
+          } else if (actorAsset.graphics.length > 1) {
+            let h = 0;
+            for (let i = 0; i < command.text.length; i++) h = (h * 31 + command.text.charCodeAt(i)) >>> 0;
+            graphic = actorAsset.graphics[h % actorAsset.graphics.length];
+          }
+          if (graphic) {
+            chosenPose = graphic.pose;
+            chosenExpression = graphic.expression;
+            const g = graphic;
+            setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = overrides.get(speakerEl.id) || {};
+              overrides.set(speakerEl.id, {
+                ...existing,
+                pose: g.pose,
+                expression: g.expression,
+                spriteAngle: g.angle,
+              });
+              return { ...prev, elementOverrides: overrides };
+            });
+          }
+        }
+
         setState(prev => ({
           ...prev,
           activeDialogue: {
@@ -243,6 +291,8 @@ export function useScriptRunner({
             style: command.style,
             displayedText: '',
             isComplete: false,
+            ...(chosenExpression ? { expression: chosenExpression } : {}),
+            ...(chosenPose ? { pose: chosenPose } : {}),
           },
         }));
         

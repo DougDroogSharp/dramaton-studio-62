@@ -41,6 +41,11 @@ export interface DialogueCommand {
   actorName: string;
   text: string;
   style: 'speech' | 'thought';
+  // Optional acting direction: ACTOR (Expression): "..." or
+  // ACTOR (Pose/Expression): "..." — the speaker's stage sprite (and
+  // portrait) switches to the matching graphic for this utterance.
+  pose?: string;
+  expression?: string;
 }
 
 export interface EnterCommand {
@@ -607,28 +612,44 @@ function parseLine(line: string): ScriptCommand | null {
     return { type: 'UNKNOWN', raw: trimmed };
   }
   
-  // Dialogue: ACTOR_NAME: "Text" or ACTOR_NAME (thinking): "Text"
-  const dialogueMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\((thinking)\))?\s*:\s*"(.+)"$/);
+  // Dialogue: ACTOR: "Text", ACTOR (thinking): "Text",
+  // ACTOR (Expression): "Text", or ACTOR (Pose/Expression): "Text"
+  const parseActingTag = (tag: string | undefined): { style: 'speech' | 'thought'; pose?: string; expression?: string } => {
+    if (!tag) return { style: 'speech' };
+    const t = tag.trim();
+    if (t.toLowerCase() === 'thinking') return { style: 'thought' };
+    const parts = t.split('/').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 2) return { style: 'speech', pose: parts[0], expression: parts[1] };
+    return { style: 'speech', expression: parts[0] };
+  };
+
+  const dialogueMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\(([^)]+)\))?\s*:\s*"(.+)"$/);
   if (dialogueMatch) {
+    const tag = parseActingTag(dialogueMatch[2]);
     return {
       type: 'DIALOGUE',
       actorName: dialogueMatch[1].trim(),
       text: dialogueMatch[3],
-      style: dialogueMatch[2] === 'thinking' ? 'thought' : 'speech',
+      style: tag.style,
+      ...(tag.pose ? { pose: tag.pose } : {}),
+      ...(tag.expression ? { expression: tag.expression } : {}),
     };
   }
-  
+
   // Alternative dialogue without quotes
-  const dialogueAltMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\((thinking)\))?\s*:\s*(.+)$/);
+  const dialogueAltMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\(([^)]+)\))?\s*:\s*(.+)$/);
   if (dialogueAltMatch) {
+    const tag = parseActingTag(dialogueAltMatch[2]);
     return {
       type: 'DIALOGUE',
       actorName: dialogueAltMatch[1].trim(),
       text: dialogueAltMatch[3],
-      style: dialogueAltMatch[2] === 'thinking' ? 'thought' : 'speech',
+      style: tag.style,
+      ...(tag.pose ? { pose: tag.pose } : {}),
+      ...(tag.expression ? { expression: tag.expression } : {}),
     };
   }
-  
+
   return { type: 'UNKNOWN', raw: trimmed };
 }
 
@@ -760,8 +781,11 @@ export function findActorByName(name: string, actors: { id: string; name: string
 export function commandToString(cmd: ScriptCommand): string {
   switch (cmd.type) {
     case 'DIALOGUE': {
-      const style = cmd.style === 'thought' ? ' (thinking)' : '';
-      return `${cmd.actorName}${style}: "${cmd.text}"`;
+      let tag = '';
+      if (cmd.style === 'thought') tag = ' (thinking)';
+      else if (cmd.pose && cmd.expression) tag = ` (${cmd.pose}/${cmd.expression})`;
+      else if (cmd.expression) tag = ` (${cmd.expression})`;
+      return `${cmd.actorName}${tag}: "${cmd.text}"`;
     }
     case 'ENTER':
       return `[ENTER ${cmd.actorId} at ${cmd.x},${cmd.y}]`;

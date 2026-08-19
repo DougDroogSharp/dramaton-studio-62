@@ -178,22 +178,25 @@ Commands for displaying character dialogue and narration.
 
 #### `DIALOGUE`
 
-Displays dialogue spoken by an actor. The actor name must match a defined actor.
+Displays dialogue spoken by an actor. An optional acting tag switches the speaker's stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon.
 
 **Syntax:**
 ```
-ACTOR_NAME: "dialogue text"
+ACTOR_NAME: "text"  |  ACTOR_NAME (Expression): "text"  |  ACTOR_NAME (Pose/Expression): "text"  |  ACTOR_NAME (thinking): "text"
 ```
 
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
 | `actorName` | string | The name of the speaking actor (case-sensitive, starts with uppercase) |
+| `acting tag` | string | Optional: thinking, an Expression, or Pose/Expression — must match a graphic in the actor's pose library *(optional)* |
 | `text` | string | The dialogue text to display (in quotes) |
 
 **Example:**
 ```
 Detective: "I've seen things you wouldn't believe."
+Detective (Angry): "You lied to me."
+Detective (Pointing/Angry): "It was YOU."
 Narrator: "The rain continued to fall."
 Alice (thinking): "What should I do next?"
 ```

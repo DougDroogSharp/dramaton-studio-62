@@ -26,13 +26,16 @@ export const COMMAND_DOCS: CommandDoc[] = [
   {
     type: 'DIALOGUE',
     category: 'dialogue',
-    syntax: 'ACTOR_NAME: "dialogue text"',
-    description: 'Displays dialogue spoken by an actor. The actor name must match a defined actor.',
+    syntax: 'ACTOR_NAME: "text"  |  ACTOR_NAME (Expression): "text"  |  ACTOR_NAME (Pose/Expression): "text"  |  ACTOR_NAME (thinking): "text"',
+    description: 'Displays dialogue spoken by an actor. An optional acting tag switches the speaker\'s stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon.',
     parameters: [
       { name: 'actorName', type: 'string', description: 'The name of the speaking actor (case-sensitive, starts with uppercase)' },
+      { name: 'acting tag', type: 'string', description: 'Optional: thinking, an Expression, or Pose/Expression — must match a graphic in the actor\'s pose library', optional: true },
       { name: 'text', type: 'string', description: 'The dialogue text to display (in quotes)' },
     ],
     example: `Detective: "I've seen things you wouldn't believe."
+Detective (Angry): "You lied to me."
+Detective (Pointing/Angry): "It was YOU."
 Narrator: "The rain continued to fall."
 Alice (thinking): "What should I do next?"`,
     implemented: true,

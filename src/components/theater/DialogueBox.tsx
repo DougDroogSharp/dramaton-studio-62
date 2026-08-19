@@ -30,9 +30,16 @@ const speakerColor = (name: string): string => {
 // Pick a portrait for this utterance: prefer Closeup graphics, and vary
 // the expression per line (stable hash of the text) so a speaker's face
 // changes utterance to utterance as their pose matrix fills in.
-const pickPortrait = (actor: Actor | undefined, text: string) => {
+const pickPortrait = (actor: Actor | undefined, text: string, expression?: string) => {
   const graphics = (actor?.graphics ?? []).filter(g => g.image);
   if (graphics.length === 0) return undefined;
+  // Match the expression chosen for this utterance (stage sprite sync)
+  if (expression) {
+    const matching = graphics.filter(g => g.expression === expression);
+    if (matching.length > 0) {
+      return matching.find(g => g.pose === 'Closeup') ?? matching[0];
+    }
+  }
   const closeups = graphics.filter(g => g.pose === 'Closeup');
   const pool = closeups.length > 0 ? closeups : graphics;
   let h = 0;
@@ -44,7 +51,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({ dialogue, actor, onAdv
   const isThought = dialogue.style === 'thought';
   const isNarration = dialogue.actorName.trim().toLowerCase() === 'narrator';
   const color = isNarration ? undefined : speakerColor(dialogue.actorName.trim().toLowerCase());
-  const portrait = isNarration ? undefined : pickPortrait(actor, dialogue.text);
+  const portrait = isNarration ? undefined : pickPortrait(actor, dialogue.text, dialogue.expression);
 
   return (
     <div
