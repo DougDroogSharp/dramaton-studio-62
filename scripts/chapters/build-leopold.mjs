@@ -91,6 +91,584 @@ const KEY_OF = {
 
 const stage = (...els) => els.filter(Boolean);
 
+// ------------------------------------------------- Voices of the Congo
+// A data-driven reaction layer: ten documented moments x the people who
+// ran, endured, exposed, and ended the system — ~100 short documentary
+// vignettes. Register throughout: testimony, absence, aftermath. No
+// depicted violence; disputed figures stay framed as disputed.
+//
+// Navigation: lp_palace -> lp_voices (hub) -> evc_<event> (responder
+// chooser) -> vgl_<event>_<responder> (vignette) -> back.
+// Every vignette carries narraton metadata in pool 'leopold_reactions',
+// keyed to the worldState the event corresponds to.
+
+const RESP = {
+  leopold:   { label: 'King Leopold',        drop: 'palace' },
+  casement:  { label: 'Consul Casement',     drop: 'station' },
+  morel:     { label: 'E.D. Morel',          drop: 'docks' },
+  harris:    { label: 'Alice Seeley Harris', drop: 'village' },
+  sheppard:  { label: 'William Sheppard',    drop: 'station' },
+  officer:   { label: 'The Officer',         drop: 'station' },
+  community: { label: 'The Community',       drop: 'village' },
+  movement:  { label: 'The Movement',        drop: 'lecture' },
+};
+
+const dropFor = (key) => (ART[key] ? `${key}_drop` : (ART.station ? 'station_drop' : null));
+
+const EVENTS = [
+  {
+    id: 'berlin', title: 'The Berlin Award, 1885', drop: 'palace',
+    keys: { concealment: { target: 0, scale: 8 } },
+    blurb: 'February 1885. The Berlin Conference recognizes Leopold\'s International African Association as sovereign over the Congo basin — a million square miles granted to one man as a work of charity. No Congolese delegate is present.',
+  },
+  {
+    id: 'treaties', title: 'The Treaty Signings, 1879-1884', drop: 'station',
+    keys: { concealment: { target: 1, scale: 8 } },
+    blurb: 'Stanley\'s expeditions gather more than four hundred treaties along the river: chiefs marking papers written in a language they cannot read, ceding land and labor for cloth and trinkets.',
+  },
+  {
+    id: 'quotas', title: 'The First Quotas', drop: 'station',
+    keys: { quotaDoubled: { target: 1, scale: 1 } },
+    blurb: 'The concession companies — ABIR, the Anversoise — set each village a wild-rubber quota, enforced by armed sentries. Wild rubber does not farm; it must be bled from vines deeper and deeper in the forest.',
+  },
+  {
+    id: 'bullets', title: 'The Bullet Accounting', drop: 'station',
+    keys: { concealment: { target: 3, scale: 8 } },
+    blurb: 'Force Publique officers must account for every cartridge issued, and the proof demanded of soldiers is not paper. The rule turns ammunition audits into mutilation — documented later, station by station, in the Casement Report.',
+  },
+  {
+    id: 'hostages', title: 'The Hostage-Taking', drop: 'station',
+    keys: { hostages: { target: 1, scale: 1 } },
+    blurb: 'Stations hold women and children as surety until a village\'s men deliver rubber. The practice is entered in company ledgers — which is how it will one day be proved.',
+  },
+  {
+    id: 'docks', title: 'Morel\'s Dock Discovery, c. 1900', drop: 'docks',
+    keys: { exposure: { target: 1, scale: 8 } },
+    blurb: 'A Liverpool shipping clerk checks the Elder Dempster manifests: rubber and ivory in; guns, chains and cartridges out. Nothing to pay a workforce with. The trade is not trade.',
+  },
+  {
+    id: 'photographs', title: 'The Harris Photographs, 1904', drop: 'village',
+    keys: { rumor: { target: 8, scale: 16 } },
+    blurb: 'Alice Seeley Harris levels a box Kodak in the ABIR districts. Her photographs — among them Nsala of Wala, seated before what the militia left of his daughter Boali — become the lantern slides of the reform campaign.',
+  },
+  {
+    id: 'report', title: 'The Casement Report, 1904', drop: 'palace',
+    keys: { testimony: { target: 1, scale: 1 }, exposure: { target: 3, scale: 8 } },
+    blurb: 'February 1904. The British consul\'s report to Parliament: forty pages of findings and twenty of sworn testimony, names redacted to initials. The Foreign Office hedges; the facts hold.',
+  },
+  {
+    id: 'pamphlet', title: 'The Twain Pamphlet, 1905', drop: 'lecture',
+    keys: { celebrities: { target: 1, scale: 1 } },
+    blurb: 'Mark Twain publishes King Leopold\'s Soliloquy — the King defending himself in his own voice and damning himself in every line. It sells in the tens of thousands, proceeds to the reform cause.',
+  },
+  {
+    id: 'annexation', title: 'The Annexation, 1908', drop: 'palace',
+    keys: { exposure: { target: 6, scale: 8 } },
+    blurb: 'Under sustained pressure, Belgium takes the Congo from its King. His personal rule ends; extraction continues under the Belgian flag. In 1909 the funeral crowds boo him; in 1913 the reform association dissolves, its work done.',
+  },
+];
+
+// Each entry: r = responder id, s = optional stance label, l = 2-3 short
+// lines of first-pass dialogue (documentary register, in-character).
+const VOICES = {
+  berlin: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold (Sit/Smug): "The powers have entrusted me with a sacred task: to open the Congo to civilization and close it to the slave trade."`,
+      `Leopold: "I ask nothing for myself. Belgium is small; my heart, I confess, is large."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold: "A million square miles, and not one power asked what it costs to run. It will pay for itself. It must."`,
+      `Leopold (Sit/Smug): "They signed away a continent to keep it from each other. Vanity is a lever, gentlemen. I only pulled it."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "I read the Berlin Act as a young man. Free trade, protection of the natives — clause after clause."`,
+      `Casement: "Years later I walked the territory it created. I never saw the Act in operation. Only its opposite, well organized."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "Berlin promised free trade on the Congo. Note the word. Trade means goods move both ways."`,
+      `Morel: "Hold that promise against a shipping manifest and it comes apart in your hands. That is all I ever did."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "A conference hall in Berlin. Maps on the table, not photographs."`,
+      `Harris: "No one at that table had seen the river. I would spend years showing them what they signed."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "The year Berlin met, I was studying for the ministry. I reached the Congo five years later."`,
+      `Sheppard: "The charity they chartered — I looked for it in the Kasai. I found the company instead."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "The Act is read to us at induction. Suppression of the slave trade; uplift of the native."`,
+      `Officer: "Then we are handed the quota book. The two documents are never in the same drawer."`,
+    ]},
+    { r: 'community', l: [
+      `The Community: "No one from the river stood in that hall. Our names were not asked."`,
+      `The Community: "We learned of Berlin the way you learn of weather — when it arrives."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "In 1885 the whole reforming world applauded him. Philanthropy, they printed."`,
+      `The Movement: "Our movement began the day someone checked the applause against the cargo lists."`,
+    ]},
+  ],
+
+  treaties: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "Every station was acquired lawfully. The chiefs made their marks freely; the documents are on file in Brussels."`,
+      `Leopold (Sit/Smug): "Four hundred treaties. Show me another empire with such tidy paperwork."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold: "Stanley understands his instructions: the treaties must grant everything, and the price must be nothing."`,
+      `Leopold: "Do not send lawyers up the river. Send cloth."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "I have examined the treaty texts. Sovereignty, land and labor, ceded for cloth, in a script the signers could not read."`,
+      `Casement: "In consular law we have a word for a contract like that. It is not treaty."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "A treaty is a bargain between parties who understand it. These are receipts, signed by the losers, for a taking."`,
+      `Morel: "File them beside the manifests. Paper convicts paper."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "I photographed a chief once who kept his copy of the paper, folded small, in a tin."`,
+      `Harris: "He could not read it. He kept it because he understood, too late, that the paper was the weapon."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "The elders in the Kasai told me how the marks were made. A gift of cloth, a flag, a hand guided on the page."`,
+      `Sheppard: "They were not fooled men. They were ambushed in a language."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "Bula Matari, they called Stanley — breaker of rocks. The treaties came up the river before we did."`,
+      `Officer: "When a village disputes the paper, we do not argue the clause. We are the clause."`,
+    ]},
+    { r: 'community', l: [
+      `The Community: "Our fathers touched the pen because the visitors were armed and the cloth was offered as between equals."`,
+      `The Community: "We know what a bargain is. That was not one. We have said so from the first day."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "Four hundred treaties, and not one read aloud in the signers' own tongue. We printed a facsimile in the pamphlets."`,
+      `The Movement: "Let the public read the clause that took a country. It fits on one line."`,
+    ]},
+  ],
+
+  quotas: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "The natives are paid for their harvest. Labor is the great teacher; idleness the old tyrant of Africa."`,
+      `Leopold: "The returns you read of are commerce, nothing more."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold (Sit/Smug): "ABIR returned a dividend past one hundred percent. Do not tell me the system fails."`,
+      `Leopold: "Raise the quota where the returns fall. The forest is large."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "I recorded the arithmetic of one district: two hundred forty persons, a ton of foodstuffs weekly, fifteen shillings tenpence returned."`,
+      `Casement: "That is not a wage. It is a tribute, with a cash alibi."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "The company calls it purchase. The ledgers show the price: near nothing, and the sentries thrown in."`,
+      `Morel: "A trade where one side cannot refuse is not trade. It is the quota, wearing a shop apron."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "You can photograph a quota. It looks like a village with no one in the fields at midday."`,
+      `Harris: "Everyone who can walk is in the forest, bleeding vines."`,
+    ]},
+    { r: 'sheppard', s: 'what he saw', l: [
+      `Sheppard: "In the Kasai I counted the gardens gone to weeds. The people had no time to farm; the vine came first."`,
+      `Sheppard: "Hunger is in the quota the way the harvest is — built in."`,
+    ]},
+    { r: 'sheppard', s: 'what he wrote down', l: [
+      `Sheppard: "I kept a notebook: names and villages, dates and amounts. Not impressions — entries."`,
+      `Sheppard: "Years on, when the company sued me for saying so in print, the notebook answered. The court believed the entries."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "The quota is set in Brussels, enforced here, and blamed on the forest when it fails."`,
+      `Officer: "My instructions are one page. What the sentries do with them, no page records."`,
+    ]},
+    { r: 'community', s: 'enduring', l: [
+      `The Community: "We tap the vines two days' walk out now. The near forest is bled white."`,
+      `The Community: "We carry the baskets in, we are weighed, we are told the number again. We keep our children close, and we endure."`,
+    ]},
+    { r: 'community', s: 'resisting', l: [
+      `The Community: "Some of us have stopped. We cut the vines ourselves, so there is nothing left to demand."`,
+      `The Community: "Some have crossed the river to the French side. The forest that hides rubber can hide people."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "Red Rubber, Morel titled it. Every ton priced in something no market lists."`,
+      `The Movement: "We read the dividend tables aloud at meetings, next to the testimony. The two columns explain each other."`,
+    ]},
+  ],
+
+  bullets: [
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold: "I issued no such rule. I issue budgets. What a budget becomes, nine hundred miles up a river, is administration, not policy."`,
+      `Leopold (Pointing/Angry): "And I will thank Europe not to lecture me on economies it taught me."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement (Closeup/Determined): "I verified the practice at more stations than I could bear to count. Cartridge issued, proof required, entry made."`,
+      `Casement: "I wrote it without adjectives. The practice supplies its own."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "An audit rule. That is what chills me — not rage, procedure."`,
+      `Morel: "Somewhere a clerk designed it, and the design worked, year after year."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "There are photographs from these districts I will not describe here. The world has seen them."`,
+      `Harris: "We photographed what the rule left behind, never the rule at work. The aftermath was proof enough."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "I was made to count once, at a post in the Kasai. I wrote the number in my notebook and the officer signed it, proud of his accounting."`,
+      `Sheppard: "I have carried that page ever since. It weighs more than the book."`,
+    ]},
+    { r: 'officer', s: 'obedient', l: [
+      `Officer: "The colonel's rule is simple: a cartridge is money, and money is accounted. The men bring their proofs to the sergeant."`,
+      `Officer: "I record the tally and forward it. That is the whole of my instruction, and I follow it."`,
+    ]},
+    { r: 'officer', s: 'uneasy', l: [
+      `Officer: "I asked once to see the regulation in writing. There is no regulation — only the audit, and what passes it."`,
+      `Officer: "I have requested a transfer to the railway. I do not say why in the letter."`,
+    ]},
+    { r: 'community', s: 'enduring', l: [
+      `The Community: "What the rule asked of the soldiers, our villages know. We buried what was returned to us, and we said the names."`,
+      `The Community: "We are asked to prove nothing. We remember everything."`,
+    ]},
+    { r: 'community', s: 'resisting', l: [
+      `The Community: "Some of the soldiers were our own sons, conscripted. At Luluabourg they turned their rifles around."`,
+      `The Community: "The Batetela fought the Free State for years. The first army the regime feared was the one it had armed."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "When we first printed the accounting rule, editors refused it as unbelievable."`,
+      `The Movement: "So we stopped asserting and started quoting: the Report, page and line. Disbelief is no defense against a page number."`,
+    ]},
+  ],
+
+  hostages: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "Detention? A brief guardianship, humanely conducted, to encourage the men to their work."`,
+      `Leopold: "You will find no order of mine commanding cruelty."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold: "Surety works where wages fail. A man will not walk two days into the forest for cloth. He will for his family."`,
+      `Leopold (Sit/Smug): "Keep the word surety in the books. Words are also administration."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "At one station I copied the surety ledger myself: names, dates of seizure, the rubber owed against each."`,
+      `Casement: "The clerk was helpful. He believed he was showing me good order."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "They booked human beings like goods in bond. And bonds, gentlemen, generate paper."`,
+      `Morel: "I have never needed to imagine anything. The system confessed in its own hand."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "I photographed the shed where they were held — after. Empty, swept, a bar across the door."`,
+      `Harris: "An empty room can testify. You only have to print it."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "The women came back to a village with no harvest in it, and began again the same day."`,
+      `Sheppard: "I recorded their names. Not victims — householders, mothers, farmers. The ledger never asked their names. I did."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "Surety is the cleanest tool we have. No shots, no marks, entries in and entries out."`,
+      `Officer: "I used to believe that sentence. I typed it often enough."`,
+    ]},
+    { r: 'community', s: 'enduring', l: [
+      `The Community: "They took the mothers to the station and named it surety. We carried rubber to buy back our own."`,
+      `The Community: "We counted the days aloud, so the children would know that counting was not the enemy."`,
+    ]},
+    { r: 'community', s: 'resisting', l: [
+      `The Community: "After the second seizure our village did not deliver. We moved, whole, in one night — pots, goats, seed."`,
+      `The Community: "Let the station hold an empty district in surety."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "Hostage is the word we used on the posters, because it was the true one."`,
+      `The Movement: "Their ledgers said surety. We printed both words side by side and let the audience choose."`,
+    ]},
+  ],
+
+  docks: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "I am told a Liverpool clerk studies my cargoes. Let him. Publish the tonnage of souls saved from the slavers; publish anything."`,
+      `Leopold: "Commerce has always had its sour spectators."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold (Pointing/Angry): "Find out who pays him. No one? You are certain?"`,
+      `Leopold: "A man who cannot be bought is a problem of an entirely different order."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "Morel found in a ledger what I found on the river. We had never met, and our evidence agreed to the shilling."`,
+      `Casement: "That agreement is what a fact looks like."`,
+    ]},
+    { r: 'morel', s: 'the discovery', l: [
+      `Morel (Pointing/Surprised): "There — outbound: guns, cartridges, chains. No cloth, no trade goods, no payment."`,
+      `Morel: "Nothing is being bought. Everything is being taken. The manifest says so in its own dull voice."`,
+    ]},
+    { r: 'morel', s: 'the resignation', l: [
+      `Morel: "Elder Dempster offered me advancement to stop asking. I resigned instead."`,
+      `Morel: "A salary is a small thing to set down next to what the columns were saying."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "I met him later — a clerk's mind and a preacher's fire, both at full steam."`,
+      `Harris: "He had never seen the Congo. He did not need to. The Congo had been arriving at his dock for years."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "What I saw in the Kasai, Morel saw in Liverpool without leaving the quay."`,
+      `Sheppard: "Witness is not only eyes. Sometimes it is arithmetic, done honestly."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "We load the outbound cargo he wrote about. I never thought of the manifest as a confession."`,
+      `Officer: "Neither did Brussels. That was the mistake."`,
+    ]},
+    { r: 'community', l: [
+      `The Community: "We saw the steamers too — riding low going out to sea, full of our forest; empty of anything for us coming back."`,
+      `The Community: "A man across the ocean read the numbers and believed us. The numbers were ours before they were his."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "One clerk, one ledger, no army. Within four years, an association; within eight, questions in every parliament in Europe."`,
+      `The Movement: "Write it on the banner: the truth requires an accountant."`,
+    ]},
+  ],
+
+  photographs: [
+    { r: 'leopold', l: [
+      `Leopold: "Photographs can be staged; missionaries have imaginations, and darkroom chemicals."`,
+      `Leopold: "But the crowds do not ask how a negative was made. That little box does me more harm than any consul."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "My report gave the facts a spine. Her slides gave them a face."`,
+      `Casement: "Parliament reads forty pages. A hall reads a photograph in one second, and never afterward unreads it."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "I set her photographs into the pamphlets beside the tonnage tables."`,
+      `Morel: "Numbers for the head, negatives for the heart. The campaign needed both."`,
+    ]},
+    { r: 'harris', s: 'behind the camera', l: [
+      `Harris (Crouch/Determined): "Nsala sat on the mission veranda and asked, in effect, that the world be made to look. I steadied the camera and did the one thing I could."`,
+      `Harris: "I have never called it my photograph. It is his testimony. I held the box."`,
+    ]},
+    { r: 'harris', s: 'in the lantern halls', l: [
+      `Harris: "In the halls I say very little. I change the slide, and wait, and change the slide."`,
+      `Harris: "Some nights the silence after a slide is the loudest sound I have ever heard."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "I knew the people in those photographs as neighbors, not emblems. Nsala was a man of Wala; his daughter was named Boali."`,
+      `Sheppard: "Say the names. A photograph without the names is only sorrow. With them, it is evidence."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "There is an instruction now about cameras at the stations. It arrived years too late."`,
+      `Officer: "You cannot confiscate a negative that has already crossed the ocean."`,
+    ]},
+    { r: 'community', s: 'those who sat', l: [
+      `The Community: "The mothers and fathers who sat for her chose to sit. Understand that. It cost them more than the sitting."`,
+      `The Community: "We gave our grief a face on purpose, so it could travel where we could not."`,
+    ]},
+    { r: 'community', s: 'the argument', l: [
+      `The Community: "Some said: do not show them our dead; they have taken enough. Others said: the shame is not ours to carry."`,
+      `The Community: "The second voice won. It was the harder gift, and we gave it."`,
+    ]},
+    { r: 'movement', l: [
+      `The Movement: "Sixty slides, a lantern, a chapel hall — that was the whole armory."`,
+      `The Movement: "Twain named the weapon from inside the King's own head: the Kodak, 'the most powerful enemy that has confronted us.'"`,
+    ]},
+  ],
+
+  report: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "An honest inquiry would have consulted my administration. Mr. Casement consulted rumor at riverside missions."`,
+      `Leopold: "My own Commission will examine the matter. My officials. My terms."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold (Sit/Smug): "Read it twice. He proves the system from our own ledgers. Europe forgives cruelty; the danger is the bookkeeping."`,
+      `Leopold: "Burn nothing — that looks worse. Reinterpret."`,
+    ]},
+    { r: 'casement', s: 'the consul', l: [
+      `Casement (Closeup/Determined): "I wrote it cold, on purpose. Dates, stations, statements signed or marked."`,
+      `Casement: "Let no man say he was moved by my rhetoric. There is none. He is moved by what happened."`,
+    ]},
+    { r: 'casement', s: 'in private', l: [
+      `Casement: "At night, after the interviews, I wrote a different set of pages no Parliament will see."`,
+      `Casement: "A man can be a consul all day. The evening belongs to what he heard."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "The Report reached me like ammunition reaches a gun already aimed."`,
+      `Morel: "Within a month we founded the Congo Reform Association in Liverpool. February wrote; March organized."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "The Foreign Office cut the names to initials. As if an E could not grieve; as if an M had no village."`,
+      `Harris: "My slides gave the initials back their faces."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "He wrote what we missionaries had been saying for a decade — but under a consul's seal."`,
+      `Sheppard: "The same words weigh differently under a crown. That is a bitter chemistry, and we used it."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "The consul was courteous at my station. He asked to see the books, and I showed him the books."`,
+      `Officer: "I have thought about that afternoon every day since the Report was printed."`,
+    ]},
+    { r: 'community', l: [
+      `The Community: "The twenty pages at the back — those are ours. Sworn, marked, spoken to his face across a table."`,
+      `The Community: "They printed our words in London with the letters of our names removed. The words still stand. We know which are whose."`,
+    ]},
+    { r: 'movement', s: 'in the halls', l: [
+      `The Movement: "A Blue Book is built to be shelved. We refused the shelf."`,
+      `The Movement: "We read it aloud — at meetings, from pulpits, in every paper Morel could reach. A report becomes a movement when it is spoken."`,
+    ]},
+    { r: 'movement', s: 'in the streets', l: [
+      `The Movement: "Handbills at the dock gates. Questions planted in the Commons. Resolutions from a hundred chapels."`,
+      `The Movement: "The Foreign Office called it pressure. We called it the public, informed."`,
+    ]},
+  ],
+
+  pamphlet: [
+    { r: 'leopold', l: [
+      `Leopold (Pointing/Angry): "An American humorist puts words in my mouth, and the world laughs at a king."`,
+      `Leopold: "The worst of it is the accuracy. He has read everything my syndicate ever planted, and quotes it back with the bill attached."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "Satire can go where a consul cannot. I could report the King; Twain could inhabit him."`,
+      `Casement: "Between us, the man has nowhere left to stand."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "He gave us the pamphlet outright — no royalty, the proceeds to the Association."`,
+      `Morel: "The most valuable cargo I ever handled, and it weighed three ounces."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "Twain has the King call my camera 'the only witness I couldn't bribe.'"`,
+      `Harris: "I read that line and looked at the box on my table. It had never seemed small. Now it never will."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "Twain, Conan Doyle — and Booker T. Washington, who spoke where I could not always be heard, and was heard."`,
+      `Sheppard: "It mattered, I will say it plainly, that Black America stood in this fight by name."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "A copy reached the mess by steamer, third-hand, the cover gone."`,
+      `Officer: "No one laughed twice. On the second reading you notice it is all true."`,
+    ]},
+    { r: 'community', l: [
+      `The Community: "We are told a famous writer across the sea has made the King ridiculous."`,
+      `The Community: "Good. But understand: he is not ridiculous here. Here he is the quota. Laugh — then finish the work."`,
+    ]},
+    { r: 'movement', s: 'in the halls', l: [
+      `The Movement: "Tens of thousands of copies at a shilling, sold at the hall doors beside the slide programs."`,
+      `The Movement: "Mockery finished what testimony began. No drawing room in Europe could praise the King now without someone smiling."`,
+    ]},
+    { r: 'movement', s: 'in the streets', l: [
+      `The Movement: "The boys cried it outside the exchanges: the King's own soliloquy, one shilling."`,
+      `The Movement: "Satire travels faster than a Blue Book, and it fits in a coat pocket."`,
+    ]},
+  ],
+
+  annexation: [
+    { r: 'leopold', s: 'in public', l: [
+      `Leopold: "I give the Congo to Belgium as I always intended — a patriot's bequest, freely made."`,
+      `Leopold: "History will thank me when the shouting tires."`,
+    ]},
+    { r: 'leopold', s: 'in private', l: [
+      `Leopold: "The State archives burned for days before the transfer. I will give them my Congo; they have no right to know what I did there."`,
+      `Leopold (Sit/Smug): "Let the new owners audit ashes."`,
+    ]},
+    { r: 'casement', l: [
+      `Casement: "Annexation, not restitution. The same stations, the same companies, a different flag over the same forest."`,
+      `Casement: "I note the improvement honestly, and refuse to call it justice."`,
+    ]},
+    { r: 'morel', l: [
+      `Morel: "We forced the transfer; we could not force the accounting. Extraction continues, in better manners."`,
+      `Morel: "In 1913 we dissolved the Association — work done. I have never been entirely sure of that adjective."`,
+    ]},
+    { r: 'harris', l: [
+      `Harris: "I lectured for years after. The slides did not change; the audiences did — disbelief, then grief, then at last resolve."`,
+      `Harris: "When the crowds booed the funeral in 1909, they were seeing the slides, I think. I put them there."`,
+    ]},
+    { r: 'sheppard', l: [
+      `Sheppard: "In 1909 a Congo court tried me for libel over what I wrote of the Kasai companies. My notebook and I won."`,
+      `Sheppard: "The King died months later. The system I described outlived him. Both facts belong in the record."`,
+    ]},
+    { r: 'officer', l: [
+      `Officer: "We hauled down one flag and raised another over the same station. The ledgers did not change hands; they changed headings."`,
+      `Officer: "I stayed on. I want that written down too."`,
+    ]},
+    { r: 'community', s: 'enduring', l: [
+      `The Community: "The King is gone and the quota is not. The new officials speak of reform in the old warehouse."`,
+      `The Community: "We plant our fields again anyway. That much we have taken back."`,
+    ]},
+    { r: 'community', s: 'counting the cost', l: [
+      `The Community: "They argue in Europe over our dead — some say millions upon millions, some say fewer, and they are right that the counting is disputed."`,
+      `The Community: "We do not count that way. We count the villages that sing again, and the ones that never will."`,
+    ]},
+    { r: 'movement', s: 'the reckoning', l: [
+      `The Movement: "First campaign of its kind, they call us now: ledgers, lantern slides, testimony, and no army at all."`,
+      `The Movement: "We dissolved in 1913 believing the work done. Watch the world, reader, and decide."`,
+    ]},
+    { r: 'movement', s: 'in the streets', l: [
+      `The Movement: "When the funeral passed in Brussels, the crowd booed its own King. No association organized that."`,
+      `The Movement: "That sound was the campaign's true dissolution — the public no longer needed telling."`,
+    ]},
+  ],
+};
+
+// ---- generate hub, choosers, vignettes ----
+
+const voiceVignettes = [];
+const voiceChoosers = [];
+
+for (const ev of EVENTS) {
+  const entries = VOICES[ev.id] || [];
+  const seen = {};
+  const choiceLines = [];
+  for (const v of entries) {
+    seen[v.r] = (seen[v.r] || 0) + 1;
+    const id = `vgl_${ev.id}_${v.r}${seen[v.r] > 1 ? seen[v.r] : ''}`;
+    const label = `${RESP[v.r].label}${v.s ? ` — ${v.s}` : ''}`;
+    choiceLines.push(`- "${label}" -> ${id}`);
+    voiceVignettes.push({
+      id,
+      name: `${ev.title}: ${label}`,
+      sceneType: 'WITNESS',
+      dropId: dropFor(RESP[v.r].drop),
+      stage: stage(el(`${id}_a`, v.r, 50, 60)),
+      script: lines(
+        ...v.l,
+        '[CHOICE]',
+        `- "Another voice on this moment" -> evc_${ev.id}`,
+        '- "Back to the moments" -> lp_voices',
+        '[/CHOICE]',
+      ),
+      narraton: { pool: 'leopold_reactions', keys: ev.keys, repeatable: true },
+      status: 'work',
+    });
+  }
+  voiceChoosers.push({
+    id: `evc_${ev.id}`,
+    name: ev.title,
+    sceneType: 'WITNESS',
+    dropId: dropFor(ev.drop),
+    stage: [],
+    script: lines(
+      `Narrator: "${ev.blurb}"`,
+      'Narrator: "Who speaks to this?"',
+      '[CHOICE]',
+      ...choiceLines,
+      '- "Back to the moments" -> lp_voices',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  });
+}
+
+const voicesHub = {
+  id: 'lp_voices',
+  name: 'Voices of the Congo',
+  sceneType: 'WITNESS',
+  dropId: dropFor('lecture'),
+  stage: stage(el('lp_vo_comm', 'community', 26, 60), el('lp_vo_move', 'movement', 74, 60)),
+  script: lines(
+    'Narrator: "The record of the Congo Free State, 1885-1908, moment by moment. Choose an event, then choose who answers it — drawn from the testimony, ledgers, and campaign literature of the period."',
+    '[CHOICE]',
+    ...EVENTS.map((ev) => `- "${ev.title}" -> evc_${ev.id}`),
+    '- "Return to Brussels" -> lp_palace',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+};
+
+const VOICES_SCENES = [voicesHub, ...voiceChoosers, ...voiceVignettes];
+
 // ---------------------------------------------------------------- game
 
 const game = {
@@ -549,6 +1127,9 @@ const game = {
       ),
       status: 'work',
     },
+
+    // ------------------------------------------------ Voices of the Congo (reaction layer)
+    ...VOICES_SCENES,
   ],
 
   episodes: [
@@ -562,6 +1143,13 @@ const game = {
         'lp_casement', 'lp_allies', 'lp_parliament', 'lp_response',
         'lp_press', 'lp_commission', 'lp_lecture', 'lp_funeral', 'lp_holdout',
       ],
+      status: 'work',
+    },
+    {
+      id: 'ep_leopold_voices',
+      name: 'Voices of the Congo',
+      description: 'A documentary reaction layer: ten recorded moments of the Congo Free State, 1885-1908, answered by the people who ran, endured, exposed, and ended it.',
+      sceneIds: VOICES_SCENES.map((s) => s.id),
       status: 'work',
     },
   ],

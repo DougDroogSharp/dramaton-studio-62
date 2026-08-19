@@ -1335,7 +1335,14 @@ const game = {
       id: 'ep_elon',
       name: 'Elon Musk (2020s)',
       description: 'The feed, the factory, the exposé, the verdict, the wobble. Sourced from the Reuters investigation and court records.',
-      sceneIds: scenes.map((s) => s.id),
+      sceneIds: scenes.slice(0, storySceneCount).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_voices',
+      name: 'Voices of the Feed',
+      description: 'The reaction layer: ten documented moments × ten voices — Elon posting and Elon at 3am, the reporter, the worker, the lawyer, the lieutenant, the workers grieving and organizing, the reply guys defending and doubting. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(storySceneCount).map((s) => s.id),
       status: 'work',
     },
   ],
@@ -1344,5 +1351,5 @@ const game = {
 const outPath = resolve(root, 'public', 'hvb-elon.json');
 const json = JSON.stringify(game);
 writeFileSync(outPath, json + '\n', 'utf8');
-console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes, ${drops.length} drops, ${actors.length} actors)`);
+console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes [${storySceneCount} story + ${scenes.length - storySceneCount} voices, ${vignetteCount} vignettes], ${drops.length} drops, ${actors.length} actors)`);
 console.log('Play: http://localhost:8080/theater?game=/hvb-elon.json');
