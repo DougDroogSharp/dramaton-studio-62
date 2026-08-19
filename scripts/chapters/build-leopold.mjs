@@ -736,7 +736,7 @@ const game = {
         poseLine('leopold', 'Sit', 'Smug', ART.kingSit),
         'Leopold: "My International African Association exists to suppress the slave trade. The powers have said so. The maps on this wall say so."',
         'Narrator: "He governs the rubber country from this chair. He will die without ever having seen it. The concession reports are on the desk: returns falling, villages resisting, quotas unmet."',
-        'Leopold: "If there are these abuses in the Congo, we must stop them. If they continue, it will be the end of the state." (attributed, 1896)',
+        'Leopold: "If there are these abuses in the Congo, we must stop them. If they continue, it will be the end of the state. (attributed, 1896)"',
         'Narrator: "He does not stop them. He manages them. You hold the pen. What does the King order?"',
         '[CHOICE]',
         '- "Double the rubber quota — the returns must not fall" -> lp_quota',

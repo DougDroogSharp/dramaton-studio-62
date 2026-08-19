@@ -83,6 +83,8 @@ const actors = [
   actor('ness', 'Ness', ['capone', 'capone_ness.png']),
   actor('workman', 'Workman', ['capone', 'capone_breadline.png']),
   actor('newsboy', 'Newsboy', ['capone', 'capone_newsboy.png']),
+  actor('breadline', 'The Breadline', ['capone', 'capone_crowd_breadline.png']),
+  actor('press', 'The Press', ['capone', 'capone_crowd_press.png']),
   actor('narrator', 'Narrator'),
 ];
 
@@ -123,6 +125,7 @@ const scenes = [
       '- "Flood the polls with muscle" -> cap_cic_muscle',
       '- "Buy the precinct captains quietly" -> cap_cic_money',
       '- "Let Cicero vote — this once" -> cap_cic_stayout',
+      '- "Voices of Chicago — hear the witnesses" -> cap_voices',
       '[/CHOICE]',
     ),
     status: 'work',

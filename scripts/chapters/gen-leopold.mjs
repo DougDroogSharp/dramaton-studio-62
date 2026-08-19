@@ -61,8 +61,8 @@ const MANIFEST = [
   },
   {
     file: 'leopold_movement.png', isCharacter: true,
-    prompt: 'A crowd at a Liverpool reform meeting, 1904: Edwardian men and women packed together, hats raised in the air, cloth banners held aloft, earnest determined faces, full bodies, formal group photograph.',
-    fallback: 'An Edwardian public meeting crowd, 1904: men and women in period dress, hats raised, banners held up, determined expressions, full bodies, group photograph.',
+    prompt: 'A dense crowd of many people at a Liverpool reform meeting, 1904: dozens of Edwardian men and women packed shoulder to shoulder, bowler hats and cloth caps raised in the air, plain blank cloth banners with no writing held aloft, earnest determined faces, full-length group photograph of the whole crowd.',
+    fallback: 'A large Edwardian public meeting crowd, 1904: dozens of men and women in period dress standing close together, hats raised, plain unlettered banners, determined expressions, full-length group photograph.',
   },
   {
     file: 'leopold_docks.png', isCharacter: false,
