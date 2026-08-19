@@ -844,22 +844,20 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           {/* Generate Button */}
           <button
             onClick={handleGeneratePreview}
-            disabled={isGenerating || !selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody}
+            disabled={isGenerating}
             className="flex-1 py-1 px-3 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
-            title={!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody 
-              ? "Upload both Face and Full Body reference images first" 
-              : "Generate character graphic"}
+            title="Generate character graphic"
           >
             <Sparkles size={10} />
             Generate
           </button>
         </div>
-        
-        {/* Reference images warning */}
+
+        {/* Reference images hint (optional: they improve consistency across poses) */}
         {(!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody) && (
-          <div className="text-diesel-rust text-xs mb-2 flex items-center gap-1">
-            <span>⚠️</span>
-            <span>Upload both Face and Full Body reference images below to enable generation.</span>
+          <div className="text-diesel-steel text-xs mb-2 flex items-center gap-1">
+            <span>ℹ️</span>
+            <span>Optional: Face and Full Body reference images below keep the character consistent across poses.</span>
           </div>
         )}
         
