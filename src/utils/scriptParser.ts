@@ -24,6 +24,10 @@ export type ScriptCommandType =
   | 'TICK'
   | 'BIND'
   | 'UNBIND'
+  | 'SLIDER'
+  | 'GAUGE'
+  | 'HIDE_SLIDER'
+  | 'HIDE_GAUGE'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -158,6 +162,39 @@ export interface UnbindCommand {
   property: string;
 }
 
+// Interactive slider: writes its worldState variable as the player drags.
+export interface SliderCommand {
+  type: 'SLIDER';
+  variable: string;
+  x: number;
+  y: number;
+  min: number;
+  max: number;
+  step: number;
+  label?: string; // defaults to the variable name in the UI
+}
+
+// Read-only gauge: displays one worldState variable.
+export interface GaugeCommand {
+  type: 'GAUGE';
+  variable: string;
+  x: number;
+  y: number;
+  min: number;
+  max: number;
+  label?: string;
+}
+
+export interface HideSliderCommand {
+  type: 'HIDE_SLIDER';
+  variable: string;
+}
+
+export interface HideGaugeCommand {
+  type: 'HIDE_GAUGE';
+  variable: string;
+}
+
 export interface CommentCommand {
   type: 'COMMENT';
   text: string;
@@ -197,6 +234,10 @@ export type ScriptCommand =
   | TickCommand
   | BindCommand
   | UnbindCommand
+  | SliderCommand
+  | GaugeCommand
+  | HideSliderCommand
+  | HideGaugeCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -457,6 +498,49 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
 
+    // SLIDER var at x,y min=0 max=100 step=1 label="TEXT"
+    const sliderMatch = content.match(/^SLIDER\s+(\w+)\s+at\s+([\d.]+)\s*,\s*([\d.]+)(.*)$/i);
+    if (sliderMatch) {
+      const params = sliderMatch[4] || '';
+      const label = params.match(/label="([^"]*)"/i)?.[1];
+      return {
+        type: 'SLIDER',
+        variable: sliderMatch[1],
+        x: parseFloat(sliderMatch[2]),
+        y: parseFloat(sliderMatch[3]),
+        min: parseFloat(params.match(/min=(-?[\d.]+)/i)?.[1] ?? '0'),
+        max: parseFloat(params.match(/max=(-?[\d.]+)/i)?.[1] ?? '100'),
+        step: parseFloat(params.match(/step=([\d.]+)/i)?.[1] ?? '1'),
+        ...(label !== undefined ? { label } : {}),
+      };
+    }
+
+    // GAUGE var at x,y min=0 max=100 label="TEXT"
+    const gaugeMatch = content.match(/^GAUGE\s+(\w+)\s+at\s+([\d.]+)\s*,\s*([\d.]+)(.*)$/i);
+    if (gaugeMatch) {
+      const params = gaugeMatch[4] || '';
+      const label = params.match(/label="([^"]*)"/i)?.[1];
+      return {
+        type: 'GAUGE',
+        variable: gaugeMatch[1],
+        x: parseFloat(gaugeMatch[2]),
+        y: parseFloat(gaugeMatch[3]),
+        min: parseFloat(params.match(/min=(-?[\d.]+)/i)?.[1] ?? '0'),
+        max: parseFloat(params.match(/max=(-?[\d.]+)/i)?.[1] ?? '100'),
+        ...(label !== undefined ? { label } : {}),
+      };
+    }
+
+    // HIDE_SLIDER var / HIDE_GAUGE var
+    const hideSliderMatch = content.match(/^HIDE_SLIDER\s+(\w+)$/i);
+    if (hideSliderMatch) {
+      return { type: 'HIDE_SLIDER', variable: hideSliderMatch[1] };
+    }
+    const hideGaugeMatch = content.match(/^HIDE_GAUGE\s+(\w+)$/i);
+    if (hideGaugeMatch) {
+      return { type: 'HIDE_GAUGE', variable: hideGaugeMatch[1] };
+    }
+
     // BUTTON button_id - show a button
     const buttonMatch = content.match(/^BUTTON\s+(\w+)$/i);
     if (buttonMatch) {
@@ -702,6 +786,19 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[BIND ${cmd.elementId}.${cmd.property} to ${cmd.expression}]`;
     case 'UNBIND':
       return `[UNBIND ${cmd.elementId}.${cmd.property}]`;
+    case 'SLIDER': {
+      const step = cmd.step !== 1 ? ` step=${cmd.step}` : '';
+      const label = cmd.label !== undefined ? ` label="${cmd.label}"` : '';
+      return `[SLIDER ${cmd.variable} at ${cmd.x},${cmd.y} min=${cmd.min} max=${cmd.max}${step}${label}]`;
+    }
+    case 'GAUGE': {
+      const label = cmd.label !== undefined ? ` label="${cmd.label}"` : '';
+      return `[GAUGE ${cmd.variable} at ${cmd.x},${cmd.y} min=${cmd.min} max=${cmd.max}${label}]`;
+    }
+    case 'HIDE_SLIDER':
+      return `[HIDE_SLIDER ${cmd.variable}]`;
+    case 'HIDE_GAUGE':
+      return `[HIDE_GAUGE ${cmd.variable}]`;
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -765,6 +862,14 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'BIND', elementId: 'element', property: 'rotation', expression: 'myVar' };
     case 'UNBIND':
       return { type: 'UNBIND', elementId: 'element', property: 'rotation' };
+    case 'SLIDER':
+      return { type: 'SLIDER', variable: 'myVar', x: 85, y: 20, min: 0, max: 100, step: 1 };
+    case 'GAUGE':
+      return { type: 'GAUGE', variable: 'myVar', x: 15, y: 20, min: 0, max: 100 };
+    case 'HIDE_SLIDER':
+      return { type: 'HIDE_SLIDER', variable: 'myVar' };
+    case 'HIDE_GAUGE':
+      return { type: 'HIDE_GAUGE', variable: 'myVar' };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':

@@ -19,6 +19,7 @@ DRAM Script is the scripting language used by Dramaton to control narrative flow
    - [Audio Commands](#audio-commands)
    - [Effect Commands](#effect-commands)
    - [Button Commands](#button-commands)
+   - [Instrument Commands](#instrument-commands)
    - [Choice Commands](#choice-commands)
    - [Flow Control](#flow-control)
 4. [Examples](#examples)
@@ -405,6 +406,100 @@ Hides and deactivates a previously shown button.
 
 ---
 
+### Instrument Commands
+
+Interactive sliders and read-only gauges wired to world state variables — the instrument panel.
+
+#### `SLIDER`
+
+Shows an interactive slider that writes its worldState variable continuously as the player drags. Position is a percentage of the stage. min/max default to 0/100, step to 1; label defaults to the variable name. Dragging re-evaluates BINDs immediately, so sliders drive the stage live.
+
+**Syntax:**
+```
+[SLIDER variable at x,y min=0 max=100 step=1 label="TEXT"]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `variable` | string | The worldState variable the slider writes |
+| `x` | number | Horizontal position (0-100, percentage from left) |
+| `y` | number | Vertical position (0-100, percentage from top) |
+| `min` | number | Minimum value (default 0) *(optional)* |
+| `max` | number | Maximum value (default 100) *(optional)* |
+| `step` | number | Drag increment (default 1) *(optional)* |
+| `label` | string | Panel label (default: variable name) *(optional)* |
+
+**Example:**
+```
+[SLIDER greed at 85,20 min=0 max=100 label="GREED"]
+[SLIDER rentShare at 85,35 min=0 max=1 step=0.05 label="RENT SHARE"]
+```
+
+#### `GAUGE`
+
+Shows a read-only dial displaying one worldState variable, updating live as the variable changes (SET, TICK, sliders).
+
+**Syntax:**
+```
+[GAUGE variable at x,y min=0 max=100 label="TEXT"]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `variable` | string | The worldState variable the gauge displays |
+| `x` | number | Horizontal position (0-100, percentage from left) |
+| `y` | number | Vertical position (0-100, percentage from top) |
+| `min` | number | Dial minimum (default 0) *(optional)* |
+| `max` | number | Dial maximum (default 100) *(optional)* |
+| `label` | string | Panel label (default: variable name) *(optional)* |
+
+**Example:**
+```
+[GAUGE wages at 15,80 min=0 max=100 label="WAGES"]
+```
+
+#### `HIDE_SLIDER`
+
+Hides the slider bound to the given variable.
+
+**Syntax:**
+```
+[HIDE_SLIDER variable]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `variable` | string | The variable whose slider to hide |
+
+**Example:**
+```
+[HIDE_SLIDER greed]
+```
+
+#### `HIDE_GAUGE`
+
+Hides the gauge bound to the given variable.
+
+**Syntax:**
+```
+[HIDE_GAUGE variable]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `variable` | string | The variable whose gauge to hide |
+
+**Example:**
+```
+[HIDE_GAUGE wages]
+```
+
+---
+
 ### Choice Commands
 
 Commands for presenting branching narrative choices to the player.
@@ -643,7 +738,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **23 commands documented**
+✅ **27 commands documented**
 
 ---
 

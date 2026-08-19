@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride } from '@/types';
-import { parseScript, ScriptCommand, IfCommand, TickCommand, findActorByName } from '@/utils/scriptParser';
+import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
 
 // Properties BIND may drive on a stage element
@@ -64,6 +64,8 @@ export interface ScriptRunnerState {
   elementOverrides: Map<string, StageElementOverride>;
   activeEffects: Map<string, string[]>;
   activeButtons: Set<string>; // Button IDs that are currently visible/active
+  activeSliders: Map<string, SliderCommand>; // variable -> slider config
+  activeGauges: Map<string, GaugeCommand>;   // variable -> gauge config
   isWaiting: boolean;
   isComplete: boolean;
   isAutoPlay: boolean;
@@ -96,6 +98,8 @@ export function useScriptRunner({
     elementOverrides: new Map(),
     activeEffects: new Map(),
     activeButtons: new Set(),
+    activeSliders: new Map(),
+      activeGauges: new Map(),
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -365,6 +369,8 @@ export function useScriptRunner({
           elementOverrides: new Map(),
           activeEffects: new Map(),
           activeButtons: new Set(),
+          activeSliders: new Map(),
+      activeGauges: new Map(),
           isWaiting: false,
           isComplete: false,
         }));
@@ -441,6 +447,50 @@ export function useScriptRunner({
       case 'UNBIND': {
         // The element keeps its last driven value
         bindingsRef.current.delete(`${command.elementId}.${command.property}`);
+        return true;
+      }
+
+      case 'SLIDER': {
+        setState(prev => {
+          const sliders = new Map(prev.activeSliders);
+          sliders.set(command.variable, command);
+          return { ...prev, activeSliders: sliders };
+        });
+        // Seed the variable so the slider and any BINDs on it agree
+        // before the first drag
+        if (!(command.variable in worldStateRef.current)) {
+          worldStateRef.current = { ...worldStateRef.current, [command.variable]: command.min };
+          const snapshot = worldStateRef.current;
+          setState(prev => ({ ...prev, worldState: snapshot }));
+          applyBindings();
+        }
+        return true;
+      }
+
+      case 'GAUGE': {
+        setState(prev => {
+          const gauges = new Map(prev.activeGauges);
+          gauges.set(command.variable, command);
+          return { ...prev, activeGauges: gauges };
+        });
+        return true;
+      }
+
+      case 'HIDE_SLIDER': {
+        setState(prev => {
+          const sliders = new Map(prev.activeSliders);
+          sliders.delete(command.variable);
+          return { ...prev, activeSliders: sliders };
+        });
+        return true;
+      }
+
+      case 'HIDE_GAUGE': {
+        setState(prev => {
+          const gauges = new Map(prev.activeGauges);
+          gauges.delete(command.variable);
+          return { ...prev, activeGauges: gauges };
+        });
         return true;
       }
 
@@ -591,6 +641,8 @@ export function useScriptRunner({
       elementOverrides: new Map(),
       activeEffects: new Map(),
       activeButtons: new Set(),
+      activeSliders: new Map(),
+      activeGauges: new Map(),
       isWaiting: false,
       isComplete: false,
     }));
@@ -633,6 +685,8 @@ export function useScriptRunner({
       elementOverrides: new Map(),
       activeEffects: new Map(),
       activeButtons: new Set(),
+      activeSliders: new Map(),
+      activeGauges: new Map(),
       isWaiting: false,
       isComplete: false,
     }));
@@ -643,6 +697,15 @@ export function useScriptRunner({
     setState(prev => ({ ...prev, isAutoPlay: !prev.isAutoPlay }));
   }, []);
 
+  // External worldState write (sliders, debug tools). Re-evaluates
+  // BINDs immediately so dragging drives the stage live.
+  const setVariable = useCallback((name: string, value: string | number | boolean) => {
+    worldStateRef.current = { ...worldStateRef.current, [name]: value };
+    const snapshot = worldStateRef.current;
+    setState(prev => ({ ...prev, worldState: snapshot }));
+    applyBindings();
+  }, [applyBindings]);
+
   return {
     state,
     currentScene,
@@ -651,5 +714,6 @@ export function useScriptRunner({
     completeDialogue,
     goToScene,
     toggleAutoPlay,
+    setVariable,
   };
 }

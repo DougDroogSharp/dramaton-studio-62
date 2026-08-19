@@ -11,6 +11,7 @@ const CATEGORY_ORDER: CommandDoc['category'][] = [
   'audio',
   'effect',
   'button',
+  'instrument',
   'choice',
   'flow',
 ];

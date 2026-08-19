@@ -13,7 +13,7 @@ export interface CommandParameter {
 
 export interface CommandDoc {
   type: ScriptCommandType;
-  category: 'scene' | 'actor' | 'dialogue' | 'audio' | 'button' | 'choice' | 'flow' | 'effect';
+  category: 'scene' | 'actor' | 'dialogue' | 'audio' | 'button' | 'choice' | 'flow' | 'effect' | 'instrument';
   syntax: string;
   description: string;
   parameters?: CommandParameter[];
@@ -210,6 +210,63 @@ Alice (thinking): "What should I do next?"`,
     implemented: true,
   },
 
+  // ============ INSTRUMENT COMMANDS ============
+  {
+    type: 'SLIDER',
+    category: 'instrument',
+    syntax: '[SLIDER variable at x,y min=0 max=100 step=1 label="TEXT"]',
+    description: 'Shows an interactive slider that writes its worldState variable continuously as the player drags. Position is a percentage of the stage. min/max default to 0/100, step to 1; label defaults to the variable name. Dragging re-evaluates BINDs immediately, so sliders drive the stage live.',
+    parameters: [
+      { name: 'variable', type: 'string', description: 'The worldState variable the slider writes' },
+      { name: 'x', type: 'number', description: 'Horizontal position (0-100, percentage from left)' },
+      { name: 'y', type: 'number', description: 'Vertical position (0-100, percentage from top)' },
+      { name: 'min', type: 'number', description: 'Minimum value (default 0)', optional: true },
+      { name: 'max', type: 'number', description: 'Maximum value (default 100)', optional: true },
+      { name: 'step', type: 'number', description: 'Drag increment (default 1)', optional: true },
+      { name: 'label', type: 'string', description: 'Panel label (default: variable name)', optional: true },
+    ],
+    example: '[SLIDER greed at 85,20 min=0 max=100 label="GREED"]\n[SLIDER rentShare at 85,35 min=0 max=1 step=0.05 label="RENT SHARE"]',
+    implemented: true,
+  },
+  {
+    type: 'GAUGE',
+    category: 'instrument',
+    syntax: '[GAUGE variable at x,y min=0 max=100 label="TEXT"]',
+    description: 'Shows a read-only dial displaying one worldState variable, updating live as the variable changes (SET, TICK, sliders).',
+    parameters: [
+      { name: 'variable', type: 'string', description: 'The worldState variable the gauge displays' },
+      { name: 'x', type: 'number', description: 'Horizontal position (0-100, percentage from left)' },
+      { name: 'y', type: 'number', description: 'Vertical position (0-100, percentage from top)' },
+      { name: 'min', type: 'number', description: 'Dial minimum (default 0)', optional: true },
+      { name: 'max', type: 'number', description: 'Dial maximum (default 100)', optional: true },
+      { name: 'label', type: 'string', description: 'Panel label (default: variable name)', optional: true },
+    ],
+    example: '[GAUGE wages at 15,80 min=0 max=100 label="WAGES"]',
+    implemented: true,
+  },
+  {
+    type: 'HIDE_SLIDER',
+    category: 'instrument',
+    syntax: '[HIDE_SLIDER variable]',
+    description: 'Hides the slider bound to the given variable.',
+    parameters: [
+      { name: 'variable', type: 'string', description: 'The variable whose slider to hide' },
+    ],
+    example: '[HIDE_SLIDER greed]',
+    implemented: true,
+  },
+  {
+    type: 'HIDE_GAUGE',
+    category: 'instrument',
+    syntax: '[HIDE_GAUGE variable]',
+    description: 'Hides the gauge bound to the given variable.',
+    parameters: [
+      { name: 'variable', type: 'string', description: 'The variable whose gauge to hide' },
+    ],
+    example: '[HIDE_GAUGE wages]',
+    implemented: true,
+  },
+
   // ============ CHOICE COMMANDS ============
   {
     type: 'CHOICE',
@@ -375,6 +432,10 @@ export const CATEGORY_INFO: Record<CommandDoc['category'], { title: string; desc
     title: 'Effect Commands',
     description: 'Commands for applying and removing visual effects on actors and elements.',
   },
+  instrument: {
+    title: 'Instrument Commands',
+    description: 'Interactive sliders and read-only gauges wired to world state variables — the instrument panel.',
+  },
 };
 
 // ============ EDITOR AUTOCOMPLETE PALETTE ============
@@ -407,6 +468,10 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
   { type: 'BIND', label: 'BIND', insertText: 'BIND ', description: 'Drive element property from expression' },
   { type: 'UNBIND', label: 'UNBIND', insertText: 'UNBIND ', description: 'Release a bound property' },
+  { type: 'SLIDER', label: 'SLIDER', insertText: 'SLIDER ', description: 'Interactive variable slider' },
+  { type: 'GAUGE', label: 'GAUGE', insertText: 'GAUGE ', description: 'Read-only variable dial' },
+  { type: 'HIDE_SLIDER', label: 'HIDE_SLIDER', insertText: 'HIDE_SLIDER ', description: 'Hide a slider' },
+  { type: 'HIDE_GAUGE', label: 'HIDE_GAUGE', insertText: 'HIDE_GAUGE ', description: 'Hide a gauge' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
 ];
 
@@ -417,6 +482,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
     'BIND', 'UNBIND',
+    'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   

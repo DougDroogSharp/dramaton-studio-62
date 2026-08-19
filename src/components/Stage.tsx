@@ -1,5 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride, Actor, Drop, Sfx, Button } from '@/types';
+import { SliderCommand, GaugeCommand } from '@/utils/scriptParser';
+import { DieselSlider, DieselGauge } from '@/components/theater/Instruments';
 import { User, Package, MessageSquare } from 'lucide-react';
 
 interface StageProps {
@@ -29,6 +31,11 @@ interface StageProps {
   hideElement?: Set<string>; // elements to hide (for EXIT command)
   activeButtons?: string[]; // button ids that are currently active/visible
   onButtonClick?: (button: Button) => void; // callback when button is clicked
+  // Instrument panel (script-declared SLIDERs/GAUGEs)
+  sliders?: SliderCommand[];
+  gauges?: GaugeCommand[];
+  worldState?: Record<string, string | number | boolean>;
+  onSliderChange?: (variable: string, value: number) => void;
 }
 
 export const Stage: React.FC<StageProps> = ({
@@ -57,6 +64,10 @@ export const Stage: React.FC<StageProps> = ({
   hideElement,
   activeButtons,
   onButtonClick,
+  sliders,
+  gauges,
+  worldState,
+  onSliderChange,
 }) => {
   const internalCanvasRef = useRef<HTMLDivElement>(null);
   const canvasRef = externalCanvasRef || internalCanvasRef;
@@ -262,9 +273,28 @@ export const Stage: React.FC<StageProps> = ({
 
       {/* Stage Elements */}
       {scene.stage?.map(renderElement)}
-      
+
       {/* Buttons */}
       {game.buttons?.map(renderButton)}
+
+      {/* Instrument panel (theater mode; declared by script) */}
+      {sliders?.map(s => {
+        const raw = worldState?.[s.variable];
+        const value = typeof raw === 'number' ? raw : Number(raw) || s.min;
+        return (
+          <DieselSlider
+            key={`slider_${s.variable}`}
+            config={s}
+            value={value}
+            onChange={v => onSliderChange?.(s.variable, v)}
+          />
+        );
+      })}
+      {gauges?.map(g => {
+        const raw = worldState?.[g.variable];
+        const value = typeof raw === 'number' ? raw : Number(raw) || g.min;
+        return <DieselGauge key={`gauge_${g.variable}`} config={g} value={value} />;
+      })}
     </div>
   );
 };

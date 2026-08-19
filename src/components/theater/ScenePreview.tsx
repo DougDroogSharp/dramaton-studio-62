@@ -170,6 +170,10 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
             hideElement={scriptRunner.state.hiddenElements}
             elementOverrides={scriptRunner.state.elementOverrides}
             activeEffects={scriptRunner.state.activeEffects}
+            sliders={Array.from(scriptRunner.state.activeSliders.values())}
+            gauges={Array.from(scriptRunner.state.activeGauges.values())}
+            worldState={scriptRunner.state.worldState}
+            onSliderChange={scriptRunner.setVariable}
           />
         </div>
       </div>

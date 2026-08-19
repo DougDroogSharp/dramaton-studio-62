@@ -295,6 +295,10 @@ const Theater: React.FC = () => {
               activeEffects={scriptRunner.state.activeEffects}
               activeButtons={Array.from(scriptRunner.state.activeButtons)}
               onButtonClick={handleButtonClick}
+              sliders={Array.from(scriptRunner.state.activeSliders.values())}
+              gauges={Array.from(scriptRunner.state.activeGauges.values())}
+              worldState={scriptRunner.state.worldState}
+              onSliderChange={scriptRunner.setVariable}
             />
           )}
         </div>
