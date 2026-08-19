@@ -13,6 +13,23 @@ interface Binding {
   expression: string;
 }
 
+// Interpolate {variable} placeholders with worldState values.
+// Numbers round to 1 decimal; unknown variables render as ?? with a warning.
+function interpolateText(text: string, vars: WorldVars): string {
+  return text.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const v = vars[name];
+    if (v === undefined) {
+      warnOnce(`SET_TEXT: variable "${name}" is not defined; showing ??`);
+      return '??';
+    }
+    if (typeof v === 'number') {
+      const rounded = Math.round(v * 10) / 10;
+      return String(rounded);
+    }
+    return String(v);
+  });
+}
+
 // Flattened execution node. IF blocks flatten to a test node followed by
 // their body; jumpTo is the index just past the body, taken when the
 // condition is false. Flattening lets commands inside an IF yield
@@ -431,6 +448,23 @@ export function useScriptRunner({
       case 'TICK':
         // Declaration only: the interval effect below picks it up.
         return true;
+
+      case 'SET_TEXT': {
+        const text = interpolateText(command.text, worldStateRef.current);
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(command.elementId) || {};
+          if (existing.text === text) return prev; // no churn on repeated ticks
+          overrides.set(command.elementId, { ...existing, text });
+          return { ...prev, elementOverrides: overrides };
+        });
+        return true;
+      }
+
+      case 'AUTOPLAY': {
+        setState(prev => ({ ...prev, isAutoPlay: command.enabled }));
+        return true;
+      }
 
       case 'BIND': {
         if (!BINDABLE_PROPERTIES.has(command.property)) {

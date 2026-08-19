@@ -359,6 +359,29 @@ Releases a property binding created with BIND. The element keeps its last driven
 [UNBIND siphon_arm.rotation]
 ```
 
+#### `SET_TEXT`
+
+Sets a stage element's text (balloons: news tickers, signs, counters). {variable} placeholders interpolate current worldState values at display time — numbers round to one decimal. Typically driven from a TICK body to make a live, non-blocking news readout. Repeated identical updates are free.
+
+**Syntax:**
+```
+[SET_TEXT element_id "text"]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element_id` | string | The ID of the stage element (usually a BALLOON) |
+| `text` | string | The text to display; {varName} interpolates worldState |
+
+**Example:**
+```
+[SET_TEXT news_ticker "WAGES FALL TO {wages} — RENT CLIMBS TO {rent}"]
+[IF crisis == 1]
+[SET_TEXT news_ticker "PANIC! MARKETS SEIZE — PRODUCT HALVED"]
+[ENDIF]
+```
+
 ---
 
 ### Button Commands
@@ -677,6 +700,26 @@ Yields flow control to the Narraton selector (the 1986 King of Chicago storytell
 [NARRATON pool=era2_extraction]
 ```
 
+#### `AUTOPLAY`
+
+Turns dialogue auto-advance on or off from script. Use for autopilot modes where the episode plays itself; the player can still toggle manually.
+
+**Syntax:**
+```
+[AUTOPLAY on|off]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `state` | string | on or off |
+
+**Example:**
+```
+[AUTOPLAY on]
+[SCENE the_machine]
+```
+
 #### `COMMENT`
 
 A comment line that is ignored during execution. Useful for notes and documentation.
@@ -761,7 +804,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **28 commands documented**
+✅ **30 commands documented**
 
 ---
 

@@ -29,6 +29,8 @@ export type ScriptCommandType =
   | 'HIDE_SLIDER'
   | 'HIDE_GAUGE'
   | 'NARRATON'
+  | 'SET_TEXT'
+  | 'AUTOPLAY'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -203,6 +205,20 @@ export interface NarratonCommand {
   pool: string;
 }
 
+// Set a stage element's text (balloons: news tickers, signs, counters).
+// {variable} placeholders interpolate worldState values at display time.
+export interface SetTextCommand {
+  type: 'SET_TEXT';
+  elementId: string;
+  text: string;
+}
+
+// Toggle dialogue auto-advance from script (autopilot modes).
+export interface AutoplayCommand {
+  type: 'AUTOPLAY';
+  enabled: boolean;
+}
+
 export interface CommentCommand {
   type: 'COMMENT';
   text: string;
@@ -247,6 +263,8 @@ export type ScriptCommand =
   | HideSliderCommand
   | HideGaugeCommand
   | NarratonCommand
+  | SetTextCommand
+  | AutoplayCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -546,6 +564,18 @@ function parseLine(line: string): ScriptCommand | null {
       return { type: 'NARRATON', pool: narratonMatch[1] || 'main' };
     }
 
+    // SET_TEXT element_id "text with {variable} interpolation"
+    const setTextMatch = content.match(/^SET_TEXT\s+(\w+)\s+"([^"]*)"$/i);
+    if (setTextMatch) {
+      return { type: 'SET_TEXT', elementId: setTextMatch[1], text: setTextMatch[2] };
+    }
+
+    // AUTOPLAY on / AUTOPLAY off
+    const autoplayMatch = content.match(/^AUTOPLAY\s+(on|off)$/i);
+    if (autoplayMatch) {
+      return { type: 'AUTOPLAY', enabled: autoplayMatch[1].toLowerCase() === 'on' };
+    }
+
     // HIDE_SLIDER var / HIDE_GAUGE var
     const hideSliderMatch = content.match(/^HIDE_SLIDER\s+(\w+)$/i);
     if (hideSliderMatch) {
@@ -816,6 +846,10 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[HIDE_GAUGE ${cmd.variable}]`;
     case 'NARRATON':
       return `[NARRATON pool=${cmd.pool}]`;
+    case 'SET_TEXT':
+      return `[SET_TEXT ${cmd.elementId} "${cmd.text}"]`;
+    case 'AUTOPLAY':
+      return `[AUTOPLAY ${cmd.enabled ? 'on' : 'off'}]`;
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -889,6 +923,10 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'HIDE_GAUGE', variable: 'myVar' };
     case 'NARRATON':
       return { type: 'NARRATON', pool: 'main' };
+    case 'SET_TEXT':
+      return { type: 'SET_TEXT', elementId: 'element', text: 'Text' };
+    case 'AUTOPLAY':
+      return { type: 'AUTOPLAY', enabled: true };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':

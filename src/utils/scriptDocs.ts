@@ -390,6 +390,33 @@ Narrator: "The humans are starving."
     implemented: true,
   },
 
+  {
+    type: 'SET_TEXT',
+    category: 'effect',
+    syntax: '[SET_TEXT element_id "text"]',
+    description: 'Sets a stage element\'s text (balloons: news tickers, signs, counters). {variable} placeholders interpolate current worldState values at display time — numbers round to one decimal. Typically driven from a TICK body to make a live, non-blocking news readout. Repeated identical updates are free.',
+    parameters: [
+      { name: 'element_id', type: 'string', description: 'The ID of the stage element (usually a BALLOON)' },
+      { name: 'text', type: 'string', description: 'The text to display; {varName} interpolates worldState' },
+    ],
+    example: `[SET_TEXT news_ticker "WAGES FALL TO {wages} — RENT CLIMBS TO {rent}"]
+[IF crisis == 1]
+[SET_TEXT news_ticker "PANIC! MARKETS SEIZE — PRODUCT HALVED"]
+[ENDIF]`,
+    implemented: true,
+  },
+  {
+    type: 'AUTOPLAY',
+    category: 'flow',
+    syntax: '[AUTOPLAY on|off]',
+    description: 'Turns dialogue auto-advance on or off from script. Use for autopilot modes where the episode plays itself; the player can still toggle manually.',
+    parameters: [
+      { name: 'state', type: 'string', description: 'on or off' },
+    ],
+    example: '[AUTOPLAY on]\n[SCENE the_machine]',
+    implemented: true,
+  },
+
   // ============ SPECIAL ============
   {
     type: 'COMMENT',
@@ -489,6 +516,8 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'HIDE_SLIDER', label: 'HIDE_SLIDER', insertText: 'HIDE_SLIDER ', description: 'Hide a slider' },
   { type: 'HIDE_GAUGE', label: 'HIDE_GAUGE', insertText: 'HIDE_GAUGE ', description: 'Hide a gauge' },
   { type: 'NARRATON', label: 'NARRATON', insertText: 'NARRATON pool=main]', description: 'Let the storyteller pick the next scene' },
+  { type: 'SET_TEXT', label: 'SET_TEXT', insertText: 'SET_TEXT ', description: 'Set element text ({var} interpolates)' },
+  { type: 'AUTOPLAY', label: 'AUTOPLAY', insertText: 'AUTOPLAY on]', description: 'Toggle dialogue auto-advance' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
 ];
 
@@ -500,7 +529,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
-    'NARRATON',
+    'NARRATON', 'SET_TEXT', 'AUTOPLAY',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   
