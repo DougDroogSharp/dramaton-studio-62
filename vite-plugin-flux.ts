@@ -74,7 +74,22 @@ function loadStylePack(dir: string | undefined): StylePack {
     console.warn(`🎨 STYLE_REF_DIR not readable: ${dir}`);
     return EMPTY_PACK;
   }
-  const picked = entries.slice(0, MAX_PACK_IMAGES);
+  // Prefer files under the size cap (huge refs bloat every request);
+  // fall back to smallest-first if nothing fits.
+  const MAX_REF_BYTES = 2 * 1024 * 1024;
+  const sized = entries.map(f => {
+    let size = Infinity;
+    try { size = statSync(join(dir, f)).size; } catch { /* skip */ }
+    return { f, size };
+  }).filter(e => Number.isFinite(e.size));
+  const underCap = sized.filter(e => e.size <= MAX_REF_BYTES).map(e => e.f);
+  const picked = (underCap.length > 0
+    ? underCap
+    : sized.sort((a, b) => a.size - b.size).map(e => e.f)
+  ).slice(0, MAX_PACK_IMAGES);
+  if (picked.length < Math.min(entries.length, MAX_PACK_IMAGES)) {
+    console.warn(`🎨 Style pack: some refs in ${dir} exceed 2MB and were skipped — smaller versions would strengthen the style signal`);
+  }
   const key = dir + '|' + picked.map(f => {
     try { return f + ':' + statSync(join(dir, f)).mtimeMs; } catch { return f; }
   }).join(',') + '|' + (() => {
