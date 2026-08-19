@@ -67,6 +67,32 @@ describe('machine-toy.json', () => {
     for (const scene of game.scenes) walk(parseScript(scene.script || ''));
   });
 
+  it('the tuning cockpit exposes every coefficient and keeps ticking', () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'machine_tuning' }));
+
+      expect(result.current.state.activeSliders.size).toBe(32);
+      expect(result.current.state.activeGauges.size).toBe(5);
+      expect(result.current.state.activeButtons.has('back_button')).toBe(true);
+      // every c_* coefficient in worldState is on a slider
+      const sliderVars = new Set(result.current.state.activeSliders.keys());
+      for (const key of Object.keys(loadGame().info.worldState)) {
+        if (key.startsWith('c_') && key !== 'c_collapseTicks' && key !== 'c_reconTicks' && key !== 'c_reconEduMin') {
+          expect(sliderVars.has(key), `coefficient ${key} missing from cockpit`).toBe(true);
+        }
+      }
+
+      // the economy ticks here too
+      act(() => { vi.advanceTimersByTime(3000); });
+      expect(Number(result.current.state.worldState.product)).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
+  });
+
   it('the witness pool has candidates and the lever scene is gated', () => {
     const pool = game.scenes.filter(s => s.narraton?.pool === 'witness');
     expect(pool.length).toBeGreaterThanOrEqual(4);

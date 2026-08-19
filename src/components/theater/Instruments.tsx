@@ -43,7 +43,7 @@ export const DieselSlider: React.FC<DieselSliderProps> = ({ config, value, onCha
     if (v !== null) onChange(v);
   };
 
-  const decimals = step > 0 && step < 1 ? 2 : 0;
+  const decimals = step >= 1 || step <= 0 ? 0 : step >= 0.01 ? 2 : 3;
 
   return (
     <div
