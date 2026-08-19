@@ -193,6 +193,13 @@ const chapterIntro = (ch) => {
     script: lines(
       `# ============ CHAPTER ${ch.n} — ${ch.title} (${ch.year}) ============`,
       '# Era lever presets + legacy continuity. Numbers are guesses: tune live.',
+      '',
+      '# Re-entering the chapter you are already in resumes it untouched',
+      '# (menu round-trips, tuning trips)',
+      `[IF chapter == ${ch.n}]`,
+      `[SCENE ch${ch.n}_machine]`,
+      '[ENDIF]',
+      '',
       setLines(TRANSIENT_RESET),
       '',
       carry,
@@ -243,7 +250,7 @@ const chapterHub = (ch) => machineHubScene({
   name: `${ch.title} — The Machine`,
   pool: `ch${ch.n}`,
   endings: true,
-  buttons: ['tune_button'],
+  buttons: ['tune_button', 'menu_button'],
 });
 
 // ---------------------------------------------------------------- fixed scenes
@@ -291,7 +298,7 @@ const sandboxHub = machineHubScene({
   name: 'Sandbox — The Machine',
   pool: 'witness',
   endings: false,
-  buttons: ['tune_button'],
+  buttons: ['tune_button', 'menu_button'],
 });
 
 const endingCollapse = {
@@ -378,6 +385,11 @@ const game = {
     {
       id: 'back_button', name: 'Back', label: 'BACK',
       x: 5, y: 5, width: 8, height: 6,
+      targetSceneId: 'menu', status: 'work',
+    },
+    {
+      id: 'menu_button', name: 'Chapters', label: 'CHAPTERS',
+      x: 16, y: 5, width: 11, height: 6,
       targetSceneId: 'menu', status: 'work',
     },
   ],

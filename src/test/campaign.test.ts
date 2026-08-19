@@ -159,6 +159,23 @@ describe('hvb-campaign.json', () => {
       expect(ws.education).toBe(10); // Leopold preset
     });
 
+    it('re-entering the current chapter resumes it untouched', () => {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
+      act(() => {
+        result.current.setVariable('chapter', 3);
+        result.current.setVariable('hoard', 250);
+        result.current.setVariable('singleTax', 1);
+      });
+      // menu round-trip back into the same chapter (e.g. after tuning)
+      act(() => { result.current.goToScene('ch3_intro'); });
+      clickThrough(result, 'ch3_machine');
+
+      const ws = result.current.state.worldState;
+      expect(result.current.state.currentSceneId).toBe('ch3_machine');
+      expect(ws.hoard).toBe(250);     // nothing reset
+      expect(ws.singleTax).toBe(1);   // even the lever survives a resume
+    });
+
     it('chapter 1 always starts the ledger empty (even after sandbox)', () => {
       const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
       act(() => {
