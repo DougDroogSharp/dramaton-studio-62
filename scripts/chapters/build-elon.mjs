@@ -147,6 +147,9 @@ scenes.push({
     '- "Gut the moderation — disband Trust & Safety" -> elon_gut',
     '- "Just post through it" -> elon_gut',
     '- "Voices of the Feed" -> elon_voices',
+    '- "Duets" -> elon_duets',
+    '- "Aftermaths" -> elon_aftermaths',
+    '- "The Record" -> elon_record',
     '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
     '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
     '- "Enter the Machine" -> el_machine',
@@ -1253,6 +1256,9 @@ scenes.push({
     'Narrator: "Ten moments in the record. Pick one, and hear who\'s talking."',
     '[CHOICE]',
     ...EVENTS.map((ev) => `- "${ev.name}" -> vox_${ev.id}`),
+    '- "Duets" -> elon_duets',
+    '- "Aftermaths" -> elon_aftermaths',
+    '- "The Record" -> elon_record',
     '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
     '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
     '- "See the Machine itself" -> el_machine',
@@ -1482,6 +1488,1550 @@ scenes.push(machineHubScene({
 }));
 
 const machineSceneCount = scenes.length - voicesSceneCount;
+const expansionStart = scenes.length;
+
+// ================================================================ DUETS
+// Seven two-hander conversations, each a four-scene chain. Hub-wired via
+// elon_duets; every content scene carries Narraton metadata in the
+// elon_reactions pool. Register: caricature for Elon and the Lieutenant
+// only; everyone else plays it straight. Sourced quotes stay verbatim.
+
+const rn = (exposure, prestige) => ({
+  pool: 'elon_reactions', keys: nkeys(exposure, prestige), repeatable: true, weight: 1,
+});
+
+// --- duets hub -------------------------------------------------------------
+scenes.push({
+  id: 'elon_duets',
+  name: 'Duets',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('du_hub_e', 'elon_musk', 24, 62, 2.0),
+    el('du_hub_r', 'elon_reporter', 76, 62, 2.0),
+  ],
+  script: lines(
+    'Narrator: "Two people in a room. Seven rooms. Pick one."',
+    '[CHOICE]',
+    '- "The Interviews — Elon and the Reporter" -> duet_press_1',
+    '- "The Metrics Meeting — Elon and the Lieutenant" -> duet_metrics_1',
+    '- "The NDA — the Worker and the Lawyer" -> duet_nda_1',
+    '- "On the Record — the Reporter and the Lawyer" -> duet_record_1',
+    '- "Elon and the Feed" -> duet_feed_1',
+    '- "The Organizing Conversation — the Worker and the Workers" -> duet_org_1',
+    '- "The Ratio — the Fans and the Reporter" -> duet_ratio_1',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- A. The Interviews (Elon × Reporter, three escalating + a coda) -------
+scenes.push({
+  id: 'duet_press_1',
+  name: 'Interview One: The Access',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dp1_e', 'elon_musk', 30, 62), el('dp1_r', 'elon_reporter', 70, 62)],
+  narraton: rn(10, 95),
+  script: lines(
+    'Narrator: "2022. The first interview. He grants it like a favor."',
+    'Elon (Pointing/Smug): "Forty-five minutes. I\'m saving humanity on a schedule."',
+    'Reporter: "Then I\'ll be quick. How do you count injuries at your launch sites?"',
+    'Elon (Pointing/Smug): "We count everything. We\'re a data company that makes rockets."',
+    'Reporter: "Good. Then the numbers exist."',
+    'Elon: "Obviously."',
+    'Reporter (Closeup/Determined): "Noted. That\'s all I needed today."',
+    'Narrator: "He thinks he won the interview. She got the only quote she came for: the numbers exist."',
+    '[CHOICE]',
+    '- "Interview two — the questions" -> duet_press_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_press_2',
+  name: 'Interview Two: The Questions',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dp2_e', 'elon_musk', 30, 62), el('dp2_r', 'elon_reporter', 70, 62)],
+  narraton: rn(40, 80),
+  script: lines(
+    'Narrator: "2023. The second interview. This time she requested it."',
+    'Reporter (Closeup/Determined): "I have injury records from your own filings. Brownsville: 4.8 per 100 workers. The industry average is 0.8."',
+    'Elon: "Rockets are hard. Averages are for people who don\'t build anything."',
+    'Reporter: "Other rocket companies report 0.8. They build things."',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "Who leaked the numbers?"',
+    'Reporter: "Nobody. They\'re public records. I requested them."',
+    'Elon (Panicked): "You can just... DO that?"',
+    'Reporter: "That\'s the job. A written list of questions is coming. Answer or don\'t — I\'m filing either way."',
+    '[CHOICE]',
+    '- "Interview three — publication day" -> duet_press_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_press_3',
+  name: 'Interview Three: Publication Day',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dp3_e', 'elon_musk', 30, 62), el('dp3_r', 'elon_reporter', 70, 62)],
+  narraton: rn(70, 55),
+  script: lines(
+    'Narrator: "10 November 2023. The story is live: more than 600 documented injuries since 2014. One death. He called this meeting."',
+    '[POSE elon_musk expression=Panicked]',
+    'Elon: "Retract it. Name your price. Everyone at a newspaper has a price, that\'s why they\'re at a newspaper."',
+    'Reporter: "The story is made of public records and named sources. There\'s nothing to retract and nothing to buy."',
+    'Elon: "Then I\'ll post the REAL numbers."',
+    'Reporter (Closeup/Determined): "Please do. Publishing your numbers next to OSHA\'s is called a follow-up. I get paid for those."',
+    'Elon (Crouch/Scared): "This conversation is off the record!"',
+    'Reporter: "You didn\'t ask that at the start. You never ask at the start."',
+    'Narrator: "Escalation complete: from granting access, to demanding silence, to begging. The record did that."',
+    '[CHOICE]',
+    '- "The coda — after the Pulitzer" -> duet_press_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_press_4',
+  name: 'The Coda: After the Pulitzer',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dp4_e', 'elon_musk', 30, 62), el('dp4_r', 'elon_reporter', 70, 62)],
+  narraton: rn(85, 40),
+  script: lines(
+    'Narrator: "2024. The investigation wins the Pulitzer Prize for National Reporting. Now HE requests the interview."',
+    'Elon: "I\'m offering you an exclusive. Me. Unfiltered. The mission, in my own words."',
+    'Reporter: "What changed at the test stands since November?"',
+    'Elon (Pointing/Smug): "We\'ve announced a Mars update. Huge one."',
+    'Reporter: "That\'s not a safety answer. Has the injury rate come down?"',
+    'Elon: "...Next question."',
+    'Reporter (Closeup/Determined): "That was the only question. It\'s always been the only question."',
+    'Narrator: "She doesn\'t need him anymore. The documents speak. That\'s what a Pulitzer certifies."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- B. The Metrics Meeting (Elon × Lieutenant — dashboard theater) --------
+scenes.push({
+  id: 'duet_metrics_1',
+  name: 'The Metrics Meeting',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('dm1_e', 'elon_musk', 30, 62),
+    el('dm1_l', 'elon_hypebro', 70, 63),
+    balloon('metric_board', 'ALL-HANDS METRICS — LIVE', 45, 95),
+  ],
+  narraton: rn(30, 90),
+  script: lines(
+    '[SET mIdx = 0]',
+    '[TICK 1500ms]',
+    '[SET mIdx = mIdx + 1]',
+    '[IF mIdx > 2]',
+    '[SET mIdx = 0]',
+    '[ENDIF]',
+    '[IF mIdx == 0]',
+    '[SET_TEXT metric_board "ENGAGEMENT: UP AND TO THE RIGHT (AXIS UNLABELED)"]',
+    '[ENDIF]',
+    '[IF mIdx == 1]',
+    '[SET_TEXT metric_board "IMPRESSIONS: RECORD HIGH (INCLUDES THE ANGRY ONES)"]',
+    '[ENDIF]',
+    '[IF mIdx == 2]',
+    '[SET_TEXT metric_board "VIBES: GREEN (METHODOLOGY: VIBES)"]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "The weekly metrics meeting. Every chart the Lieutenant brings is green. That is the Lieutenant\'s actual job."',
+    'Lieutenant: "Boss. Engagement: up. Impressions: up. Everything that can be up: up."',
+    'Elon (Pointing/Smug): "Number go up. This is why we win."',
+    'Lieutenant: "The axis is... the axis is proprietary, boss."',
+    '[CHOICE]',
+    '- "What the charts don\'t count" -> duet_metrics_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_metrics_2',
+  name: 'What the Charts Don\'t Count',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('dm2_e', 'elon_musk', 30, 62),
+    el('dm2_l', 'elon_hypebro', 70, 63),
+  ],
+  narraton: rn(40, 85),
+  script: lines(
+    'Elon: "Where\'s the advertiser chart? There\'s usually an advertiser chart."',
+    'Lieutenant: "That one\'s, um. In the appendix. The appendix is at the printer. The printer is on fire."',
+    'Elon (Sit/Angry): "Show me the chart."',
+    'Lieutenant: "Okay so — technically it also goes up, if you rotate the tablet."',
+    'Narrator: "Advertisers keep \'pausing.\' Which is like leaving, but with a press release."',
+    'Elon: "And the injury dashboard?"',
+    'Lieutenant: "Company dashboard: green. The other dashboard is, uh. Reuters runs the other dashboard now."',
+    '[CHOICE]',
+    '- "The gratitude metric" -> duet_metrics_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_metrics_3',
+  name: 'The Gratitude Metric',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('dm3_e', 'elon_musk', 30, 62),
+    el('dm3_l', 'elon_hypebro', 70, 63),
+  ],
+  narraton: rn(45, 80),
+  script: lines(
+    'Elon: "I want a metric for how much humanity appreciates me."',
+    'Lieutenant: "On it. Working title: \'Impressions of Gratitude.\'"',
+    'Elon (Pointing/Smug): "Perfect. Weight my replies by follower count."',
+    'Lieutenant: "Then the top of the gratitude chart is... you, boss. Thanking yourself."',
+    'Elon: "And is the number up?"',
+    'Lieutenant: "The number is EXTREMELY up. I made the number this morning."',
+    'Narrator: "Dashboard theater, defined: when the instrument exists to please the pilot, it stops being an instrument."',
+    '[CHOICE]',
+    '- "After the meeting" -> duet_metrics_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_metrics_4',
+  name: 'After the Meeting',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('dm4_l', 'elon_hypebro', 50, 63, 2.6),
+  ],
+  narraton: rn(50, 75),
+  script: lines(
+    'Narrator: "The room empties. The Lieutenant stays behind with the real numbers."',
+    'Lieutenant: "Okay. Real talk. Just me and the spreadsheet."',
+    'Lieutenant: "Advertisers: leaving. Injury rate: six times the average. Debt: forty-four billion reasons."',
+    'Lieutenant: "I could tell him. I could just... walk in and tell him."',
+    'Narrator: "He opens the door. He closes the door."',
+    'Lieutenant: "New plan: I make the font on the green charts bigger."',
+    'Narrator: "Every court has one courtier who knows. Knowing is not the hard part. It never was."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- C. The NDA (Worker × Lawyer) ------------------------------------------
+scenes.push({
+  id: 'duet_nda_1',
+  name: 'The Paper on the Table',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [el('dn1_w', 'elon_worker', 30, 62), el('dn1_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(35, 75),
+  script: lines(
+    'Narrator: "A conference room. A settlement offer. A worker who got hurt on the line, and the company\'s lawyer."',
+    'Lawyer: "The offer is fair. Sign, and the check clears in thirty days."',
+    'Worker: "And the clause on page four?"',
+    'Lawyer: "Confidentiality. Standard language. Everyone signs it."',
+    'Worker: "Standard for who?"',
+    'Lawyer: "For every case I have ever settled. That is rather the point of me."',
+    'Narrator: "The number on page one is real money. The clause on page four is why the number exists."',
+    '[CHOICE]',
+    '- "What silence costs" -> duet_nda_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_nda_2',
+  name: 'What Silence Costs',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_court_drop'),
+  stage: [el('dn2_w', 'elon_worker', 30, 62), el('dn2_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(40, 70),
+  script: lines(
+    'Worker: "If I sign, I can\'t talk to the reporter."',
+    'Lawyer: "Correct."',
+    'Worker: "Or the labor board. Or the next guy on my shift who asks what happened."',
+    'Lawyer: "You may speak to regulators. The clause is not magic. It is merely expensive to test."',
+    'Worker (Pointing/Angry): "My medical bills are due now. My story is the only thing they want to buy."',
+    'Lawyer: "That is an accurate summary of the market, yes."',
+    'Narrator: "This is the choice the system builds: rent versus record. Sign, or don\'t."',
+    '[CHOICE]',
+    '- "Sign it" -> duet_nda_sign',
+    '- "Don\'t sign" -> duet_nda_refuse',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_nda_sign',
+  name: 'The Signature',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [el('dns_w', 'elon_worker', 30, 62), el('dns_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(45, 70),
+  script: lines(
+    'Narrator: "The pen moves. The check clears. The bills get paid — that part is real, and it matters."',
+    'Worker: "So that\'s it. My accident never happened."',
+    'Lawyer: "It happened. It is simply no longer... citable."',
+    'Worker: "The reporter called again yesterday. I let it ring."',
+    'Lawyer: "For what it is worth: settlements are documents too. Discovery finds neat rows of them. It always does."',
+    'Narrator: "One name comes off the story. The story runs anyway — six hundred injuries have a lot of names."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_nda_refuse',
+  name: 'The Unsigned Page',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [el('dnr_w', 'elon_worker', 30, 62), el('dnr_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(55, 65),
+  script: lines(
+    'Worker: "No. My name stays mine."',
+    'Lawyer: "The offer expires when I leave this room."',
+    'Worker (Pointing/Angry): "So did Lonnie LeBlanc. And his family didn\'t even get the file for nine years. Someone has to be a name on the record."',
+    'Lawyer: "...For the record, and strictly off it: that is what the clause is priced against."',
+    'Narrator: "No check. Real consequences — bills, fear, a long wait. And one more named source in a documented six hundred."',
+    'Narrator: "The Reuters investigation was built out of exactly this arithmetic: people who kept their names."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- D. On the Record (Reporter × Lawyer) ----------------------------------
+scenes.push({
+  id: 'duet_record_1',
+  name: 'Definitions First',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dr1_r', 'elon_reporter', 30, 62), el('dr1_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(50, 65),
+  script: lines(
+    'Narrator: "A phone call before publication. The company\'s lawyer, and the reporter. Both professionals. Both counting words."',
+    'Lawyer: "Before we begin: this call is off the record."',
+    'Reporter: "I haven\'t agreed to that. Off the record is a contract, not a greeting."',
+    'Lawyer: "...Correct. I withdraw the greeting."',
+    'Reporter (Closeup/Determined): "On the record, on background, or goodbye. Pick one."',
+    'Lawyer: "Background. Attributable to \'a person familiar with the company\'s thinking.\'"',
+    'Reporter: "I know the company\'s thinking. I\'ve read its filings. Try again."',
+    '[CHOICE]',
+    '- "The statement" -> duet_record_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_record_2',
+  name: 'The Statement',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dr2_r', 'elon_reporter', 30, 62), el('dr2_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(55, 60),
+  script: lines(
+    'Lawyer: "Fine. A statement, on the record: \'Safety is our highest priority.\'"',
+    'Reporter: "Reading it back: safety is your highest priority. Brownsville logged 4.8 injuries per 100 workers. The industry average is 0.8. Shall I print both sentences together?"',
+    'Lawyer: "...I would prefer you did not."',
+    'Reporter: "I know. That\'s how I know it\'s the right layout."',
+    'Narrator: "A statement is not a shield. Next to the numbers, it is a caption."',
+    '[CHOICE]',
+    '- "What she already has" -> duet_record_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_record_3',
+  name: 'What She Already Has',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dr3_r', 'elon_reporter', 30, 62), el('dr3_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(60, 55),
+  script: lines(
+    'Lawyer: "May I ask what documents you are working from?"',
+    'Reporter (Closeup/Determined): "Injury logs. OSHA files. Court records. Your own appeal contesting an $18,475 fine toward $475."',
+    'Lawyer: "That appeal is procedurally routine."',
+    'Reporter: "The procedure fractured Francisco Cabada\'s skull. I\'m not asking you to confirm the documents. They confirm themselves."',
+    'Lawyer: "Then why call me at all?"',
+    'Reporter: "Fairness. The story will say I called. What it says next is up to your client."',
+    '[CHOICE]',
+    '- "The last sentence" -> duet_record_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_record_4',
+  name: 'The Last Sentence',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('dr4_r', 'elon_reporter', 30, 62), el('dr4_l', 'elon_lawyer', 70, 62)],
+  narraton: rn(65, 50),
+  script: lines(
+    'Lawyer: "My client\'s instruction is: no comment."',
+    'Reporter: "Then the last sentence writes itself: \'did not respond to requests for comment.\'"',
+    'Lawyer: "You say that like a threat."',
+    'Reporter: "It\'s a vacancy. Readers fill it with the worst thing they can imagine."',
+    'Lawyer: "...And the documents are worse."',
+    'Reporter (Closeup/Determined): "The documents are worse. Good night, counselor."',
+    'Narrator: "Two professionals, one record. Only one of them is allowed to want it published. Both know it will be."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- E. Elon × the Feed (the replies as SET_TEXT) --------------------------
+scenes.push({
+  id: 'duet_feed_1',
+  name: 'The Post',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('df1_e', 'elon_musk', 34, 62, 2.6),
+    balloon('feed_replies', 'THE REPLIES — LIVE', 45, 95),
+  ],
+  narraton: rn(45, 75),
+  script: lines(
+    'Narrator: "A duet for one man and two hundred million strangers. He posts. The feed answers."',
+    'Elon (Pointing/Smug): "Posting: \'The legacy media hates progress. We are literally saving humanity.\'"',
+    '[SET_TEXT feed_replies "REPLY: WE LOVE YOU KING 🚀 | REPLY: sir this is about the injury report"]',
+    'Elon: "See? Love. Mostly love."',
+    '[SET_TEXT feed_replies "REPLY: 4.8 per 100 workers. industry is 0.8. explain? | REPLY: source??? | REPLY: the source is reuters. it\'s always reuters"]',
+    'Elon: "Ignore. Scroll. Ignore."',
+    '[SET_TEXT feed_replies "TOP REPLY: a man died holding down insulation with his body weight. $7,000 fine."]',
+    'Elon (Panicked): "Who pinned that? WHY is that the top reply?"',
+    'Narrator: "The algorithm ranks by engagement. He built it that way. It is very engaged."',
+    '[CHOICE]',
+    '- "The ratio arrives" -> duet_feed_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_feed_2',
+  name: 'The Ratio',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('df2_e', 'elon_musk', 34, 62, 2.6),
+    balloon('ratio_board', 'REPLIES vs LIKES', 45, 95),
+  ],
+  narraton: rn(55, 65),
+  script: lines(
+    '[SET rratio = 2]',
+    '[TICK 1200ms]',
+    '[SET rratio = min(rratio * 2, 512)]',
+    '[SET_TEXT ratio_board "REPLIES OUTNUMBER LIKES {rratio} TO 1 — AND CLIMBING"]',
+    '[/TICK]',
+    'Narrator: "On the feed, a post with more replies than likes is a verdict. The count is on the wall."',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "The ratio is a false metric. I should know. I own the metrics."',
+    'Elon: "Options: delete the post, or post again, harder."',
+    'Elon (Pointing/Smug): "Posting again. Harder."',
+    'Narrator: "The feed\'s one law, which no owner has ever repealed: you cannot ratio your way out of a ratio."',
+    '[CHOICE]',
+    '- "Three in the morning" -> duet_feed_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_feed_3',
+  name: 'Draft, Delete, Draft',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_bedroom_drop'),
+  stage: [
+    el('df3_e', 'elon_musk', 50, 64, 2.8),
+    balloon('draft_box', 'DRAFTS', 45, 95),
+  ],
+  narraton: rn(60, 60),
+  script: lines(
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Narrator: "3AM. The duet\'s quiet movement. He types to the feed, and deletes before the feed can answer."',
+    '[SET_TEXT draft_box "DRAFT: the reporter is lying and here is a 40-part thread — DELETED"]',
+    'Elon (thinking): "Too defensive."',
+    '[SET_TEXT draft_box "DRAFT: I have always cared deeply about worker safety — DELETED"]',
+    'Elon (thinking): "The replies would just post the fine. $475. They always post the fine."',
+    '[SET_TEXT draft_box "DRAFT: (blank) — 14 MINUTES, NO TEXT"]',
+    'Elon (Panicked): "Why is the blank one the hardest?"',
+    'Narrator: "Because the feed can answer anything except silence. And silence is the one thing he cannot post."',
+    '[CHOICE]',
+    '- "The poll" -> duet_feed_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_feed_4',
+  name: 'The Poll',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('df4_e', 'elon_musk', 34, 62, 2.6),
+    balloon('poll_board', 'POLL — LIVE', 45, 95),
+  ],
+  narraton: rn(65, 55),
+  script: lines(
+    'Narrator: "December 2022. Documented: he polls the feed on whether he should step down as its head, and promises to abide by the result."',
+    'Elon (Pointing/Smug): "The people love a decisive leader. Watch this."',
+    '[SET_TEXT poll_board "SHOULD HE STEP DOWN? — VOTING OPEN"]',
+    '[WAIT 2s]',
+    '[SET_TEXT poll_board "17.5 MILLION VOTES. YES: 57.5%"]',
+    'Elon (Crouch/Scared): "The poll is being manipulated. By voters."',
+    'Narrator: "He later hands the CEO title to someone else — and keeps the feed, the servers, and the algorithm."',
+    'Narrator: "The duet ends the only way it can: the feed gets the last word. It is made entirely of last words."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- F. The Organizing Conversation (Worker × Workers) ---------------------
+scenes.push({
+  id: 'duet_org_1',
+  name: 'The Break Room',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('do1_w', 'elon_worker', 30, 62), el('do1_ws', 'elon_workers', 72, 63)],
+  narraton: rn(30, 80),
+  script: lines(
+    'Narrator: "A break room. Fifteen minutes. The conversation that starts every union that has ever existed."',
+    'Worker: "Got a second? Not about the game. About Tuesday. About Maria\'s wrist."',
+    'Workers: "We heard. Line didn\'t even stop."',
+    'Worker: "It never stops. That\'s the point. There\'s a meeting Thursday. Off-site."',
+    'Workers: "Whose meeting?"',
+    'Worker: "Ours. That\'s the whole idea. Ours."',
+    '[CHOICE]',
+    '- "The fear" -> duet_org_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_org_2',
+  name: 'The Fear',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('do2_w', 'elon_worker', 30, 62), el('do2_ws', 'elon_workers', 72, 63)],
+  narraton: rn(35, 78),
+  script: lines(
+    'Workers: "You know what happens to people who organize here. Badge stops working. \'Performance.\'"',
+    'Worker: "I know. Workers who spoke up alleged exactly that — retaliation. It\'s in the filings."',
+    'Workers: "I\'ve got a mortgage. Kids. I can\'t be a test case."',
+    'Worker: "Nobody\'s asking you to be first. First already happened. The 2017 crew talked to the UAW, and a safety study came out of it."',
+    'Workers: "And what did the study change?"',
+    'Worker (Pointing/Angry): "It made the count public. Everything since — the exposés, the suits — started with a count someone made public."',
+    '[CHOICE]',
+    '- "The notebook" -> duet_org_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_org_3',
+  name: 'The Notebook',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('do3_w', 'elon_worker', 30, 62), el('do3_ws', 'elon_workers', 72, 63)],
+  narraton: rn(40, 75),
+  script: lines(
+    'Worker: "Here\'s all Thursday is: a notebook. Every injury, every near-miss, every unlogged incident. Date, shift, witness."',
+    'Workers: "The company has a log."',
+    'Worker: "The company\'s log is the dashboard that stays green. Ours doesn\'t get appealed."',
+    'Workers: "And if they find the notebook?"',
+    'Worker: "There are copies. That\'s the other whole idea. Copies."',
+    'Narrator: "Reveal\'s 2018 reporting alleged injuries kept off Tesla\'s official books. The counter-log is not paranoia. It is method."',
+    '[CHOICE]',
+    '- "What paper does" -> duet_org_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_org_4',
+  name: 'What Paper Does',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('do4_w', 'elon_worker', 30, 62), el('do4_ws', 'elon_workers', 72, 63)],
+  narraton: rn(50, 70),
+  script: lines(
+    'Workers: "Say we fill the notebook. Then what? He\'s worth more than the state budget."',
+    'Worker: "Then it goes where paper goes. Reporters. The labor board. The civil-rights department took hundreds of complaints from one plant before it sued."',
+    'Workers: "Hundreds. From people like us?"',
+    'Worker: "Exactly like us. One complaint is a grudge. Hundreds are a pattern. A pattern is a case."',
+    'Workers: "...Thursday, you said."',
+    'Worker: "Thursday. Bring a pen."',
+    'Narrator: "This is the resistance mechanism of the whole era, at kitchen-table scale: organize, document, publish."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- G. The Ratio (Fans × Reporter — defending vs the documents) -----------
+scenes.push({
+  id: 'duet_ratio_1',
+  name: 'The Pile-On',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('dg1_f', 'elon_fans', 30, 63), el('dg1_r', 'elon_reporter', 72, 62)],
+  narraton: rn(55, 60),
+  script: lines(
+    'Narrator: "The exposé is out. The fans find the reporter\'s account within the hour."',
+    'Fans: "FUD merchant. Legacy media hit piece. Who paid you?"',
+    'Fans: "600 injuries at a ROCKET company over NINE YEARS. Do you even math?"',
+    'Reporter: "..."',
+    'Fans: "She\'s not even replying. Ratio her into the sun, boys."',
+    'Narrator: "She is not replying because she is at her desk, doing the one thing the pile-on cannot do: filing the next records request."',
+    '[CHOICE]',
+    '- "She replies once" -> duet_ratio_2',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_ratio_2',
+  name: 'One Reply',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('dg2_f', 'elon_fans', 30, 63), el('dg2_r', 'elon_reporter', 72, 62)],
+  narraton: rn(60, 55),
+  script: lines(
+    'Reporter (Closeup/Determined): "One reply, pinned: the documents. OSHA files. Injury logs. Court records. No adjectives. Links only."',
+    'Fans: "Links?? Nobody clicks links. Post a take like a normal person."',
+    'Fans: "I\'m not reading all that. Imagine reading. Couldn\'t be me."',
+    'Reporter: "The documents don\'t need you to read them today. They\'ll still be there when you do."',
+    'Narrator: "An opinion ages. A record waits. That asymmetry is the whole fight."',
+    '[CHOICE]',
+    '- "One fan reads it" -> duet_ratio_3',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_ratio_3',
+  name: 'One Fan Reads It',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('dg3_f', 'elon_fans', 50, 63, 2.6)],
+  narraton: rn(65, 50),
+  script: lines(
+    'Narrator: "Somewhere in the pile-on, one account goes quiet for two hours. He clicked the link."',
+    'Fans: "Okay. The Brownsville number is real. It\'s in the government table. I checked the table myself."',
+    'Fans: "The wind gust one. The Marine. I keep re-reading the wind gust one."',
+    'Fans: "I came here to dunk on her. I\'ve got nothing for the wind gust."',
+    'Narrator: "He doesn\'t post an apology. Almost nobody does. He just stops posting the other thing."',
+    '[CHOICE]',
+    '- "The quiet unfollow" -> duet_ratio_4',
+    '- "Back to the Duets" -> elon_duets',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'duet_ratio_4',
+  name: 'The Quiet Unfollow',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('dg4_f', 'elon_fans', 30, 63),
+    el('dg4_r', 'elon_reporter', 72, 62),
+    balloon('follow_count', 'THE COUNT', 45, 95),
+  ],
+  narraton: rn(70, 45),
+  script: lines(
+    '[SET_TEXT follow_count "UNFOLLOWED. NO ANNOUNCEMENT. NO THREAD."]',
+    'Narrator: "Nobody ratios their way out of a fandom. They walk out the back, one at a time, without a word."',
+    'Fans: "It\'s not that I hate him now. I just... stopped defending the fine. $475 for a skull. I can\'t type around that."',
+    'Reporter: "For every hundred who pile on, a few click through. That\'s not a ratio. That\'s a readership."',
+    'Narrator: "Education corroding prestige is not a stampede. It is this: one quiet unfollow at a time, at scale."',
+    '[CHOICE]',
+    '- "Back to the Duets" -> elon_duets',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+const duetsEnd = scenes.length;
+
+// ================================================================ AFTERMATHS
+// Four documented events, each followed through time from two perspectives:
+// that week / a year on / the long view. LeBlanc carries an extra beat —
+// the Pulitzer citation — because the record carried his name that far.
+
+scenes.push({
+  id: 'elon_aftermaths',
+  name: 'Aftermaths',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('af_hub_w', 'elon_workers', 26, 63, 2.2),
+    el('af_hub_r', 'elon_reporter', 74, 62, 2.2),
+  ],
+  script: lines(
+    'Narrator: "An event is a day. An aftermath is everyone\'s calendar afterward. Four events, followed through time."',
+    '[CHOICE]',
+    '- "LeBlanc\'s death — the family" -> aft_leblanc_family_week',
+    '- "LeBlanc\'s death — the crew" -> aft_leblanc_crew_week',
+    '- "The platform purchase — the staff" -> aft_buyout_staff_week',
+    '- "The platform purchase — the fans" -> aft_buyout_fans_week',
+    '- "The Reuters investigation — the reporter" -> aft_reuters_rep_week',
+    '- "The Reuters investigation — Elon" -> aft_reuters_elon_week',
+    '- "The Diaz verdict — Owen Diaz" -> aft_diaz_owen_week',
+    '- "The Diaz verdict — the floor" -> aft_diaz_floor_week',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- LeBlanc: the family ----------------------------------------------------
+scenes.push({
+  id: 'aft_leblanc_family_week',
+  name: 'LeBlanc: That Week — The Family',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [balloon('alf_card', 'McGREGOR, TEXAS — JUNE 2014', 50, 22, { zIndex: 2 })],
+  narraton: rn(20, 90),
+  script: lines(
+    'Narrator: "June 2014. The family of Lonnie LeBlanc, thirty-eight, buries a Marine who survived his service and died moving insulation."',
+    'Narrator: "They are told there was an accident. A gust of wind. That is true, and it is not the whole file."',
+    'Narrator: "They are not told that federal investigators opened a case. They are not told it settles, quietly, for $7,000."',
+    'Narrator: "A family cannot ask questions about a file it does not know exists. That is what the quiet is for."',
+    '[CHOICE]',
+    '- "A year on" -> aft_leblanc_family_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_leblanc_family_year',
+  name: 'LeBlanc: A Year On — The Family',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [balloon('alfy_card', 'JUNE 2015', 50, 22, { zIndex: 2 })],
+  narraton: rn(25, 88),
+  script: lines(
+    'Narrator: "June 2015. One year. No call from the company\'s famous owner. No letter about an investigation. No finding to read."',
+    'Narrator: "Grief without facts doesn\'t close. It circles. Was it preventable? Was anyone told anything? Did anything change?"',
+    'Narrator: "The answers existed the whole time, in a government file with his name on it."',
+    'Narrator: "The file waits eight more years for a stranger with a press badge."',
+    '[CHOICE]',
+    '- "The long view: the call" -> aft_leblanc_call',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- LeBlanc: the crew ------------------------------------------------------
+scenes.push({
+  id: 'aft_leblanc_crew_week',
+  name: 'LeBlanc: That Week — The Crew',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('alcw_ws', 'elon_workers', 50, 64, 2.4)],
+  narraton: rn(22, 90),
+  script: lines(
+    'Narrator: "The yard at McGregor, the week after. The test schedule holds."',
+    'Workers: "There are straps on the trailers now. Boxes of them. Overnight."',
+    'Workers: "Nobody had to requisition straps last month either. Somebody just had to go get them."',
+    'Workers: "A minute of silence on the pad. The schedule took it back by lunch."',
+    'Narrator: "The cheapest safety equipment on any site is hindsight. It is always fully stocked, one week late."',
+    '[CHOICE]',
+    '- "A year on" -> aft_leblanc_crew_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_leblanc_crew_year',
+  name: 'LeBlanc: A Year On — The Crew',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('alcy_ws', 'elon_workers', 50, 64, 2.4)],
+  narraton: rn(28, 87),
+  script: lines(
+    'Narrator: "A year on. The fine — $7,000 — is settled and filed. The Mars timeline has not moved an inch to the left."',
+    'Workers: "New guys don\'t know the name Lonnie. Nobody briefs it. It\'s not in the onboarding."',
+    'Workers: "We tell them ourselves, in the truck, off the clock."',
+    'Workers: "That\'s the whole memorial: word of mouth, against a company that owns the dashboard."',
+    'Narrator: "By 2023, Reuters will count more than 600 documented injuries at the company since his death. The count started here."',
+    '[CHOICE]',
+    '- "The long view: the call" -> aft_leblanc_call',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- LeBlanc: the long view -------------------------------------------------
+scenes.push({
+  id: 'aft_leblanc_call',
+  name: 'LeBlanc: The Call, Nine Years Later',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('alc_r', 'elon_reporter', 50, 62, 2.6)],
+  narraton: rn(60, 60),
+  script: lines(
+    'Narrator: "2023. A Reuters reporter, working the injury records, reaches the LeBlanc family. Nine years after the yard at McGregor."',
+    'Reporter: "They didn\'t know. Nine years, and the family never knew OSHA had investigated. I had to be the one to tell them."',
+    'Reporter (Closeup/Determined): "That call is the story. Not the fine. The silence."',
+    'Narrator: "Ron Weimer, Lonnie\'s uncle, to Reuters: \'There\'s a way to do dangerous work… without people dying.\'"',
+    'Narrator: "A sentence that waited nine years for someone to ask the question."',
+    '[CHOICE]',
+    '- "The name in the citation" -> aft_leblanc_citation',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_leblanc_citation',
+  name: 'LeBlanc: The Name in the Citation',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [balloon('alp_card', 'PULITZER PRIZE FOR NATIONAL REPORTING — 2024', 50, 22, { zIndex: 2 })],
+  narraton: rn(85, 40),
+  script: lines(
+    'Narrator: "2024. The Reuters investigation wins the Pulitzer Prize for National Reporting."',
+    'Narrator: "Inside the prize-winning work is a name: Lonnie LeBlanc, thirty-eight, retired Marine. The death the mission never mentioned."',
+    'Narrator: "A company kept his file quiet for nine years. The record answered by keeping his name permanently."',
+    'Narrator: "That is the long view: the quiet was rented. The record is owned."',
+    '[CHOICE]',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Buyout: the staff ------------------------------------------------------
+scenes.push({
+  id: 'aft_buyout_staff_week',
+  name: 'The Purchase: That Week — The Staff',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('abs_ws', 'elon_workers', 50, 63, 2.4)],
+  narraton: rn(30, 90),
+  script: lines(
+    'Narrator: "November 2022. The deal closes, and within about a week roughly half of 7,500 jobs are gone."',
+    'Workers: "The email came at midnight. Subject line: \'Your role at the company.\' You knew from the subject line."',
+    'Workers: "Some people found out when the laptop locked mid-sentence."',
+    'Workers: "The Trust and Safety folks were on the list. The people whose whole job was the worst of the feed."',
+    'Narrator: "That week, the platform\'s institutional memory left the building carrying a cardboard box."',
+    '[CHOICE]',
+    '- "A year on" -> aft_buyout_staff_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_buyout_staff_year',
+  name: 'The Purchase: A Year On — The Staff',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('absy_ws', 'elon_workers', 50, 63, 2.4)],
+  narraton: rn(45, 75),
+  script: lines(
+    'Narrator: "Late 2023. A year out from the midnight emails."',
+    'Workers: "The severance suits became a genre. Some settled. Some are still in line."',
+    'Workers: "Most of us landed somewhere. Some built the competitors. Grudges ship features."',
+    'Workers: "And the group chat still lights up every time the site breaks in a way only Deb knew how to fix."',
+    'Narrator: "A layoff deletes salaries in a day and knowledge forever. Only one of those was on the spreadsheet."',
+    '[CHOICE]',
+    '- "The long view" -> aft_buyout_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Buyout: the fans -------------------------------------------------------
+scenes.push({
+  id: 'aft_buyout_fans_week',
+  name: 'The Purchase: That Week — The Fans',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('abf_f', 'elon_fans', 50, 63, 2.4)],
+  narraton: rn(15, 98),
+  script: lines(
+    'Narrator: "October 2022. Sink week. The fans\' finest hour."',
+    'Fans: "HE BOUGHT THE BIRD APP. Best timeline. Free speech is BACK, baby."',
+    'Fans: "\'Let that sink in.\' He carried a SINK. Cinema. I\'ve watched it forty times."',
+    'Fans: "Everything is going to be different now. Better different."',
+    'Narrator: "Everything was going to be different. On that single point, the fans were completely correct."',
+    '[CHOICE]',
+    '- "A year on" -> aft_buyout_fans_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_buyout_fans_year',
+  name: 'The Purchase: A Year On — The Fans',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('abfy_f', 'elon_fans', 50, 63, 2.4)],
+  narraton: rn(45, 70),
+  script: lines(
+    'Narrator: "A year on. The feed the fans defended is measurably not the feed they defended."',
+    'Fans: "My replies got dark. Really dark. I muted forty accounts this week alone."',
+    'Fans: "Researchers published the audit — hate-speech impressions up after the moderation rollback. I read it to dunk on it. Couldn\'t."',
+    'Fans: "Half my mutuals moved to the other apps. The group chat has three apps now. THREE."',
+    'Narrator: "The bird was freed. Where it flew was documented."',
+    '[CHOICE]',
+    '- "The long view" -> aft_buyout_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_buyout_long',
+  name: 'The Purchase: The Long View',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [balloon('abl_card', 'THE TOWN SQUARE — WITH A LANDLORD', 50, 22, { zIndex: 2 })],
+  narraton: rn(60, 60),
+  script: lines(
+    'Narrator: "The long view. $44 billion bought the megaphone — and proved what a megaphone cannot do."',
+    'Narrator: "It could not bury the Reuters investigation; his own attacks on it worked as free distribution."',
+    'Narrator: "It could not repeal the audits, the advertiser exits, or the poll where 57.5% of his own feed voted him out of the chair."',
+    'Narrator: "Henry George\'s question fits a platform as well as a field: when the town square has a landlord, who collects the rent — and who pays it?"',
+    '[CHOICE]',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Reuters: the reporter --------------------------------------------------
+scenes.push({
+  id: 'aft_reuters_rep_week',
+  name: 'The Investigation: That Week — The Reporter',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('arw_r', 'elon_reporter', 50, 62, 2.6)],
+  narraton: rn(65, 55),
+  script: lines(
+    'Narrator: "10 November 2023. \'At SpaceX, worker injuries soar in Elon Musk\'s rush to Mars.\' Publication day, plus six."',
+    'Reporter: "The inbox is two kinds of email now. Lawyers, and sources."',
+    'Reporter (Closeup/Determined): "Every exposé works like a net. You publish what you can prove, and the people who lived the rest come find you."',
+    'Reporter: "Three new workers this week. Two with photos. One with a spreadsheet."',
+    'Narrator: "The story about six hundred injuries begins collecting the six hundred and first."',
+    '[CHOICE]',
+    '- "A year on" -> aft_reuters_rep_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_reuters_rep_year',
+  name: 'The Investigation: A Year On — The Reporter',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('ary_r', 'elon_reporter', 50, 62, 2.6)],
+  narraton: rn(85, 40),
+  script: lines(
+    'Narrator: "2024. The Pulitzer Prize for National Reporting."',
+    'Reporter: "The prize week was strange. The work is about people who got hurt. You accept it on their behalf or not at all."',
+    'Reporter (Closeup/Determined): "What it actually changes: editors approve the next records request faster. Sources return calls a day sooner."',
+    'Reporter: "That\'s the whole machine of accountability journalism. Speed of trust."',
+    'Narrator: "Education corroding prestige, certified by committee."',
+    '[CHOICE]',
+    '- "The long view" -> aft_reuters_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Reuters: Elon ------------------------------------------------------------
+scenes.push({
+  id: 'aft_reuters_elon_week',
+  name: 'The Investigation: That Week — Elon',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_bedroom_drop'),
+  stage: [el('aew_e', 'elon_musk', 50, 64, 2.8)],
+  narraton: rn(70, 55),
+  script: lines(
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Narrator: "The same week, at the other end of the story."',
+    'Elon: "Day one: ignore it. Legacy media. Irrelevant."',
+    'Elon: "Day three: okay, everyone is quoting the Brownsville number. Posting the mission statement."',
+    'Elon (Panicked): "Day five: the mission statement is getting ratio\'d by the wind gust. You can\'t argue with a wind gust!"',
+    'Elon (thinking): "Day six, 3AM: does a mission need a body count to be real?"',
+    'Narrator: "He deletes the thought. The feed never sees it. This is as close as the week gets to a comment."',
+    '[CHOICE]',
+    '- "A year on" -> aft_reuters_elon_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_reuters_elon_year',
+  name: 'The Investigation: A Year On — Elon',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [el('aey_e', 'elon_musk', 50, 62, 2.6)],
+  narraton: rn(75, 50),
+  script: lines(
+    'Elon (Pointing/Smug): "A year later and we\'re still standing. Rockets still fly. Told you it was nothing."',
+    'Narrator: "A year later: the fine for Francisco Cabada\'s skull is still being contested toward $475. The test cadence is still the test cadence."',
+    'Narrator: "Structurally, nothing the story documented has been publicly dismantled. That is also part of the record."',
+    'Elon: "See? Immune."',
+    'Narrator: "Not immune. Priced. The suits are on the docket, the audits are published, and every future jury pool has read the story."',
+    '[CHOICE]',
+    '- "The long view" -> aft_reuters_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_reuters_long',
+  name: 'The Investigation: The Long View',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [balloon('arl_card', '600+ DOCUMENTED. PERMANENT.', 50, 22, { zIndex: 2 })],
+  narraton: rn(85, 40),
+  script: lines(
+    'Narrator: "The long view. An exposé does not fire an executive or fix a test stand. It does something slower."',
+    'Narrator: "It moves facts from \'alleged\' to \'documented.\' Documented facts compound: every future filing cites them, every regulator starts from them."',
+    'Narrator: "And it lowers the price of the next truth. The next whistleblower is believed a day faster. The next family gets its call nine years sooner. Maybe."',
+    'Narrator: "The record is the resistance. This is what that sentence means, operationally."',
+    '[CHOICE]',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Diaz: Owen Diaz ----------------------------------------------------------
+scenes.push({
+  id: 'aft_diaz_owen_week',
+  name: 'The Verdict: That Week — Owen Diaz',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [balloon('adw_card', 'U.S. DISTRICT COURT — 4 OCTOBER 2021', 50, 22, { zIndex: 2 })],
+  narraton: rn(45, 70),
+  script: lines(
+    'Narrator: "4 October 2021. A federal jury hears what Owen Diaz heard, daily, running an elevator at the Fremont plant in 2015 and 2016."',
+    'Narrator: "The award: $137 million. $130 million of it punitive. Punitive means the jury wanted it to hurt."',
+    'Narrator: "For one week, a contract elevator operator\'s testimony outweighs the richest company narrative on Earth."',
+    'Narrator: "He told the truth about a floor, and twelve strangers believed him. That week, that was the entire system working."',
+    '[CHOICE]',
+    '- "A year on" -> aft_diaz_owen_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_diaz_owen_year',
+  name: 'The Verdict: A Year On — Owen Diaz',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [balloon('ady_card', 'THE APPEALS', 50, 22, { zIndex: 2 })],
+  narraton: rn(50, 65),
+  script: lines(
+    'Narrator: "A year on, the number shrinks: $15 million in 2022. About $3.2 million at retrial in 2023."',
+    'Narrator: "Appeals courts trim awards. They did not trim the finding: a racially hostile workplace, proven to a federal jury."',
+    'Narrator: "Diaz spent years of his life re-testifying to the worst days of it. That is the tax the process charges the person who was right."',
+    'Narrator: "The money got smaller. What happened to him didn\'t."',
+    '[CHOICE]',
+    '- "The long view" -> aft_diaz_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- Diaz: the floor ----------------------------------------------------------
+scenes.push({
+  id: 'aft_diaz_floor_week',
+  name: 'The Verdict: That Week — The Floor',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('adf_ws', 'elon_workers', 50, 64, 2.4)],
+  narraton: rn(45, 70),
+  script: lines(
+    'Narrator: "The Fremont floor, the week the verdict lands."',
+    'Workers: "Everybody on that floor knew what Owen was hearing. Now twelve jurors know too."',
+    'Workers: "Some of us heard the same words. We believed him before the jury did."',
+    'Workers: "The foremen got quieter this week. Quieter is not fixed. But we notice quieter."',
+    'Narrator: "A verdict does not clean a floor. It tells the floor that testimony works. Floors remember that."',
+    '[CHOICE]',
+    '- "A year on" -> aft_diaz_floor_year',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_diaz_floor_year',
+  name: 'The Verdict: A Year On — The Floor',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [el('adfy_ws', 'elon_workers', 50, 64, 2.4)],
+  narraton: rn(55, 62),
+  script: lines(
+    'Narrator: "9 February 2022. Four months after the verdict, the state sues."',
+    'Narrator: "Kevin Kish, California Civil Rights Department, after a nearly three-year investigation and hundreds of complaints: Tesla operates \'a racially segregated workplace.\'"',
+    'Workers: "Hundreds of complaints. Ours included. One verdict turned them from a stack into a case."',
+    'Workers: "That\'s what Owen bought the floor with those years: the state stopped filing us under \'anecdote.\'"',
+    'Narrator: "Verdicts breed filings. The lawyer said it as a warning. The floor hears it as a promise."',
+    '[CHOICE]',
+    '- "The long view" -> aft_diaz_long',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'aft_diaz_long',
+  name: 'The Verdict: The Long View',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [balloon('adl_card', 'VERDICT → CRD SUIT → EEOC SUIT', 50, 22, { zIndex: 2 })],
+  narraton: rn(65, 55),
+  script: lines(
+    'Narrator: "The long view. October 2021: the Diaz verdict. February 2022: the California CRD suit. September 2023: the federal EEOC files its own."',
+    'Narrator: "One man\'s testimony, then a state agency, then the federal government — each filing standing on the one before."',
+    'Narrator: "This is how accountability actually compounds: not one giant reckoning, but a chain of documents, each making the next one cheaper to file."',
+    'Narrator: "The chain is still being written. That is what \'no ending yet\' means in this chapter."',
+    '[CHOICE]',
+    '- "Back to the Aftermaths" -> elon_aftermaths',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+const aftermathsEnd = scenes.length;
+
+// ================================================================ THE RECORD
+// Twelve documented items the main story doesn't stage: studies, suits,
+// filings, meetings, memes, votes. Uncovered research, played straight.
+
+scenes.push({
+  id: 'elon_record',
+  name: 'The Record',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rec_hub_l', 'elon_lawyer', 26, 62, 2.2),
+    el('rec_hub_r', 'elon_reporter', 74, 62, 2.2),
+  ],
+  script: lines(
+    'Narrator: "Twelve items from the record the story hasn\'t staged yet. Studies, suits, meetings, memes, votes. Pick a file."',
+    '[CHOICE]',
+    '- "2017: The Worksafe study" -> rec_worksafe',
+    '- "2018: The Reveal exposé" -> rec_reveal',
+    '- "2018: Tesla\'s denial" -> rec_reveal_denial',
+    '- "2022: The CRD suit, filing day" -> rec_crd',
+    '- "2023: The EEOC suit" -> rec_eeoc',
+    '- "2022: Trust & Safety\'s final meeting" -> rec_tsc',
+    '- "2022: The sink walk-in" -> rec_sink',
+    '- "2018: The pay package vote" -> rec_pay_2018',
+    '- "2024: The package, voided" -> rec_pay_voided',
+    '- "2024: The re-vote" -> rec_pay_revote',
+    '- "Starbase: shift change, 4.8 per 100" -> rec_starbase',
+    '- "The testimony: Moline and Carson" -> rec_testimony',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_worksafe',
+  name: 'The Worksafe Study',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    el('rws_w', 'elon_worker', 30, 62),
+    balloon('rws_card', 'WORKSAFE — 2017', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(20, 88),
+  script: lines(
+    'Narrator: "2017. Amid UAW organizing at Fremont, the nonprofit Worksafe examines Tesla\'s own injury data."',
+    'Worker: "It wasn\'t a leak. It wasn\'t a raid. It was our numbers, read by someone who knew how to read them."',
+    'Narrator: "The finding: Tesla\'s rate of serious injuries ran well above the industry average — the severe-injury rate reported 83% higher."',
+    'Worker: "The company said the study was union propaganda. The study said: here is the math, check it."',
+    'Narrator: "A commissioned study is organizing in document form. It set the table for everything Reveal printed a year later."',
+    '[CHOICE]',
+    '- "Next file: the Reveal exposé" -> rec_reveal',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_reveal',
+  name: 'The Reveal Exposé',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rrv_r', 'elon_reporter', 50, 62, 2.6),
+    balloon('rrv_card', 'REVEAL / CIR — APRIL 2018', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(30, 85),
+  script: lines(
+    'Narrator: "April 2018. Reveal, from the Center for Investigative Reporting: Will Evans and Alyssa Jeong Perry publish the Tesla injury investigation."',
+    'Reporter: "722 recorded injuries at Fremont in 2017. About two a day."',
+    'Reporter (Closeup/Determined): "And the harder finding: workers alleging injuries kept off the official logs — mislabeled, minimized, made to disappear."',
+    'Narrator: "An injury that never reaches the log never reaches the regulator, the insurer, or the average. Undercounting is not paperwork. It is policy."',
+    '[CHOICE]',
+    '- "Next file: Tesla\'s denial" -> rec_reveal_denial',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_reveal_denial',
+  name: 'The Denial',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rrd_e', 'elon_musk', 30, 62),
+    el('rrd_l', 'elon_hypebro', 70, 63),
+  ],
+  narraton: rn(32, 85),
+  script: lines(
+    'Narrator: "Tesla\'s response, same week: dispute everything. The company attacked the reporting as ideologically motivated and the outlet as an extremist operation."',
+    'Elon (Pointing/Smug): "It\'s not an injury problem. It\'s a narrative problem. Fix the narrative."',
+    'Lieutenant: "Drafting the rebuttal now, boss. Strong words. So many strong words."',
+    'Elon: "And the injuries?"',
+    'Lieutenant: "The rebuttal doesn\'t... strictly... mention those, boss."',
+    'Narrator: "Note the shape — it recurs for a decade: dispute the count, attack the counter, leave the counted exactly where they were."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Next file: the CRD suit" -> rec_crd',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_crd',
+  name: 'Filing Day: The CRD Suit',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rcr_l', 'elon_lawyer', 50, 62, 2.6),
+    balloon('rcr_card', 'CALIFORNIA CIVIL RIGHTS DEPARTMENT — 9 FEB 2022', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(55, 62),
+  script: lines(
+    'Narrator: "9 February 2022. After a nearly three-year investigation and hundreds of worker complaints, the State of California sues Tesla."',
+    'Narrator: "Kevin Kish, the department\'s director, announcing the suit: Tesla operates \'a racially segregated workplace.\'"',
+    'Lawyer: "Understand what a state filing is: an agency staking its own credibility on the pattern. Agencies do not do that for anecdotes."',
+    'Lawyer: "Hundreds of complaints, three years of investigation, one sentence. That sentence took the longest."',
+    'Narrator: "Four months after a federal jury believed Owen Diaz, the state put its name under his."',
+    '[CHOICE]',
+    '- "Next file: the EEOC suit" -> rec_eeoc',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_eeoc',
+  name: 'The EEOC Suit',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('ree_l', 'elon_lawyer', 50, 62, 2.6),
+    balloon('ree_card', 'U.S. EEOC v. TESLA — 28 SEP 2023', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(62, 55),
+  script: lines(
+    'Narrator: "28 September 2023. The federal Equal Employment Opportunity Commission files its own suit over the Fremont plant."',
+    'Narrator: "The allegation: severe or pervasive racial harassment — and retaliation against workers who reported it."',
+    'Lawyer: "Now count the layers, sir. A federal jury. A state agency. A federal agency. Same plant. Same pattern."',
+    'Lawyer: "One of those you can call an outlier. Three is called a record."',
+    'Narrator: "Retaliation is the tell. Harassment is a floor failing its workers. Retaliation is a company defending the failure."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Next file: Trust & Safety" -> rec_tsc',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_tsc',
+  name: 'Trust & Safety: The Final Meeting',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    balloon('rts_card', 'TRUST & SAFETY COUNCIL — DECEMBER 2022', 50, 22, { zIndex: 2 }),
+    balloon('rts_screen', 'WAITING FOR HOST TO START THE MEETING…', 45, 95),
+  ],
+  narraton: rn(40, 78),
+  script: lines(
+    'Narrator: "December 2022. The Trust and Safety Council — outside experts on child safety, hate speech, self-harm — has a meeting on the calendar."',
+    'Narrator: "The volunteers log on early. They always logged on early. The work was grim and they did it for free."',
+    '[SET_TEXT rts_screen "INBOX (1): \'…the Council is no longer the best structure…\' — DISSOLVED, EFFECTIVE IMMEDIATELY"]',
+    'Narrator: "The email arrives shortly before the meeting starts. The council is dissolved by form letter. The call never begins."',
+    'Narrator: "Researchers auditing the platform afterward documented the rise in hate-speech impressions. The volunteers had been the unpaid brake."',
+    'Narrator: "The final meeting of the Trust and Safety Council is an empty video call. Minutes: none. Attendance: everyone. Host: never came."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Next file: the sink" -> rec_sink',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_sink',
+  name: 'The Sink Walk-In',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rsk_e', 'elon_musk', 40, 62, 2.6),
+    balloon('rsk_prop', 'ONE (1) SINK', 62, 40, { zIndex: 4 }),
+    balloon('rsk_caption', 'THE MEME — LIVE', 45, 95),
+  ],
+  narraton: rn(20, 96),
+  script: lines(
+    'Narrator: "26 October 2022. He enters the platform\'s headquarters carrying a sink, films it, and posts the clip himself."',
+    'Elon (Pointing/Smug): "\'Let that sink in.\' Do you get it? The sink. Is IN. I wrote it in the car."',
+    '[SET_TEXT rsk_caption "POSTED: \'let that sink in\' — VIEWS: EVERYONE, INSTANTLY"]',
+    'Narrator: "It is, on its own terms, a perfect meme. That was the point: a $44 billion acquisition premiered as content."',
+    'Elon: "Nobody remembers a filing. EVERYBODY remembers a sink."',
+    '[SET_TEXT rsk_caption "ALSO THAT WEEK: LAYOFF LISTS DRAFTED. MODERATION CUTS SCOPED."]',
+    'Narrator: "The sink was staged for the cameras. The week around it wasn\'t. The record keeps both clips."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Next file: the pay package" -> rec_pay_2018',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_pay_2018',
+  name: 'The Pay Package: The 2018 Vote',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rp1_e', 'elon_musk', 30, 62),
+    el('rp1_l', 'elon_hypebro', 70, 63),
+    balloon('rp1_card', 'SHAREHOLDER VOTE — MARCH 2018', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(25, 92),
+  script: lines(
+    'Narrator: "March 2018. Tesla shareholders approve a CEO pay package unlike any in corporate history: all stock, tied to milestones, eventually valued around $56 billion."',
+    'Lieutenant: "Boss, if every target hits, it\'s the largest compensation deal ever constructed by mammals."',
+    'Elon (Pointing/Smug): "It\'s not pay. It\'s alignment. I only win if everybody wins."',
+    'Narrator: "The fine print alignment: the targets reward market capitalization — the price of the story — not injury rates, not verdicts, not the floor."',
+    'Narrator: "A pay deal is a company saying out loud what it actually optimizes. This one said: the number. File that for 2024."',
+    '[CHOICE]',
+    '- "Next file: voided" -> rec_pay_voided',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_pay_voided',
+  name: 'The Pay Package: Voided',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rp2_l', 'elon_lawyer', 70, 62),
+    el('rp2_e', 'elon_musk', 30, 62),
+    balloon('rp2_card', 'DELAWARE COURT OF CHANCERY — JAN 2024', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(60, 60),
+  script: lines(
+    'Narrator: "January 2024. A Delaware court voids the entire package. A shareholder sued, and the court found the board\'s process failed its owners."',
+    'Lawyer: "The finding, plainly: the negotiation was not adversarial. The people setting your pay were not independent of you."',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "A judge un-paid me $56 billion. UN-PAID. Is that even a verb?"',
+    'Lawyer: "In Delaware it is now, sir."',
+    'Narrator: "The same governance that waved through the package had also priced the fines, the floors, and the dashboards. One court finally read the minutes."',
+    '[CHOICE]',
+    '- "Next file: the re-vote" -> rec_pay_revote',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_pay_revote',
+  name: 'The Pay Package: The Re-Vote',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rp3_e', 'elon_musk', 30, 62),
+    el('rp3_l', 'elon_hypebro', 70, 63),
+    balloon('rp3_card', 'SHAREHOLDER RE-VOTE — JUNE 2024', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(62, 62),
+  script: lines(
+    'Narrator: "June 2024. Tesla asks shareholders to approve the same package again — a ratification vote staged as a rally."',
+    'Lieutenant: "The vibes are IMMACULATE, boss. Retail loves you. The proxy fight is a fan convention."',
+    'Elon (Pointing/Smug): "The people are un-un-paying me. Democracy!"',
+    'Narrator: "Shareholders approve it. The court fight continues anyway — a ratified package and a voided one, wrestling in the filings."',
+    'Narrator: "Meanwhile, for scale: the fine for Francisco Cabada\'s fractured skull was still being contested toward $475. Both numbers are true at once. That is the chapter."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Next file: Starbase, shift change" -> rec_starbase',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_starbase',
+  name: 'Starbase: Shift Change',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    el('rsb_w', 'elon_worker', 30, 62),
+    el('rsb_ws', 'elon_workers', 72, 63),
+    balloon('rsb_card', 'STARBASE, BROWNSVILLE — SHIFT CHANGE', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(35, 80),
+  script: lines(
+    'Narrator: "Starbase, Brownsville. The gate at shift change — day crew out, night crew in. Two minutes of overlap."',
+    'Worker: "Heads up tonight. Stand three\'s running hot again. Torres caught a pinch on it Tuesday."',
+    'Workers: "Logged?"',
+    'Worker: "Company log, \'first aid only.\' Our notebook: page nine."',
+    'Workers: "You see the Reuters table? Us: 4.8 per 100. Industry: 0.8. We\'re the six-times site."',
+    'Worker (Pointing/Angry): "Six times isn\'t bad luck. Six times is a management decision with a schedule attached."',
+    'Workers: "...Watch stand three. Pass it down the line."',
+    'Narrator: "\'Pass it down the line\' — the oldest safety system in the world, and at 4.8 per 100, still the most reliable one on site."',
+    '[CHOICE]',
+    '- "Next file: the testimony" -> rec_testimony',
+    '- "Back to the Record" -> elon_record',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_testimony',
+  name: 'The Testimony: Moline and Carson',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rtm_r', 'elon_reporter', 50, 62, 2.6),
+    balloon('rtm_card', 'ON THE RECORD — REUTERS, 2023', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(70, 50),
+  script: lines(
+    'Narrator: "Two former SpaceX employees put their names on the record for the Reuters investigation. Names cost. Read what the names bought."',
+    'Reporter: "Tom Moline, former SpaceX engineer: \'Elon\'s concept that SpaceX is on this mission to go to Mars as fast as possible and save humanity permeates every part of the company. The company justifies casting aside anything that could stand in the way… including worker safety.\'"',
+    'Reporter (Closeup/Determined): "Travis Carson, former supervisor: \'SpaceX\'s idea of safety is: We\'ll let you decide what\'s safe for you\' — \'which really means there was no accountability.\'"',
+    'Narrator: "Every anonymous tip needs a named source to stand behind it before it can print. Moline and Carson are why six hundred injuries read as fact, not rumor."',
+    'Narrator: "The record is people. It always was."',
+    '[CHOICE]',
+    '- "Back to the Record" -> elon_record',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+const recordEnd = scenes.length;
 
 // ---------------------------------------------------------------- game
 
@@ -1542,7 +3092,28 @@ const game = {
       id: 'ep_elon_machine',
       name: 'The Machine, 2026',
       description: 'Two witness cutscenes from the record — McGregor, June 2014 and the injury dashboard — their impact on the Georgist variables, and the Machine itself, pre-seeded with the 2026 configuration. Narraton pool: elon_reactions.',
-      sceneIds: scenes.slice(voicesSceneCount).map((s) => s.id),
+      sceneIds: scenes.slice(voicesSceneCount, expansionStart).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_duets',
+      name: 'Duets',
+      description: 'Seven two-handers: the three escalating interviews, the metrics meeting, the NDA, on-the-record negotiation, Elon versus his own feed, the organizing conversation, and the ratio. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(expansionStart, duetsEnd).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_aftermaths',
+      name: 'Aftermaths',
+      description: 'Four documented events — LeBlanc\'s death, the platform purchase, the Reuters investigation, the Diaz verdict — followed through that week, a year on, and the long view, from two perspectives each. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(duetsEnd, aftermathsEnd).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_record',
+      name: 'The Record',
+      description: 'Twelve uncovered files: the Worksafe study, the Reveal exposé and Tesla\'s denial, the CRD and EEOC suits, Trust & Safety\'s final meeting, the sink walk-in, the pay-package votes, Starbase at shift change, and the named testimony. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(aftermathsEnd, recordEnd).map((s) => s.id),
       status: 'work',
     },
   ],
@@ -1551,5 +3122,5 @@ const game = {
 const outPath = resolve(root, 'public', 'hvb-elon.json');
 const json = JSON.stringify(game);
 writeFileSync(outPath, json + '\n', 'utf8');
-console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes [${storySceneCount} story + ${voicesSceneCount - storySceneCount} voices (${vignetteCount} vignettes) + ${machineSceneCount} machine], ${drops.length} drops, ${game.actors.length} actors)`);
+console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes [${storySceneCount} story + ${voicesSceneCount - storySceneCount} voices (${vignetteCount} vignettes) + ${machineSceneCount} machine + ${duetsEnd - expansionStart} duets + ${aftermathsEnd - duetsEnd} aftermaths + ${recordEnd - aftermathsEnd} record], ${drops.length} drops, ${game.actors.length} actors)`);
 console.log('Play: http://localhost:8080/theater?game=/hvb-elon.json');

@@ -139,6 +139,9 @@ const scenes = [
       '- "Buy the precinct captains quietly" -> cap_cic_money',
       '- "Let Cicero vote — this once" -> cap_cic_stayout',
       '- "Voices of Chicago — hear the witnesses" -> cap_voices',
+      '- "Duets — two voices at a table" -> cap_duets',
+      '- "Aftermaths — what it cost later" -> cap_aftermaths',
+      '- "The Record — the uncovered files" -> cap_record',
       '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
       '- "Witness: The Rate Goes Up" -> cap_cut_rate',
       '- "Enter the Machine" -> cap_machine',
@@ -1324,6 +1327,9 @@ scenes.push({
     ...REVENTS.map((ev) => `- "${ev.name}" -> capch_${ev.id}`),
     '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
     '- "Witness: The Rate Goes Up" -> cap_cut_rate',
+    '- "Duets — two voices at a table" -> cap_duets',
+    '- "Aftermaths — what it cost later" -> cap_aftermaths',
+    '- "The Record — the uncovered files" -> cap_record',
     '- "Return to Cicero, 1924" -> cap_cicero',
     '[/CHOICE]',
   ),
@@ -1502,6 +1508,671 @@ scenes.push({
   ),
   status: 'work',
 });
+
+// ==========================================================================
+// EXPANSION — three new families off the hub:
+//   DUETS         — two voices at a table, four beats each (7 x 4 = 28).
+//   AFTERMATHS    — that night / months later / years later, four events
+//                   x two perspectives (20).
+//   THE RECORD    — uncovered research staged as exhibits (12).
+// Chain heads and standalone exhibits carry Narraton metadata in the
+// 'capone_reactions' pool so the Machine can pull them as commentary.
+// Acting tags only where sprites exist (Capone Pointing/Angry, Wave/Happy,
+// Sit/Confused; Torrio Lean/Tired; Wilson Closeup/Determined); everyone
+// else speaks untagged. Aftermath, never gore. Short lines, 1986 mood.
+// ==========================================================================
+
+const xsign = (id, text) => balloon(`${id}_sign`, text, 50, 10, { zIndex: 4 });
+const xtwo = (id, a, b, sa = 2.4, sb = 2.4) =>
+  [spr(`${id}_a`, a, 32, 62, sa), spr(`${id}_b`, b, 70, 62, sb)];
+const xone = (id, a, s = 2.4) => [spr(`${id}_a`, a, 42, 62, s)];
+
+// WITNESS-scene shell. narr (optional): narraton keys for the pool.
+const xw = (id, name, dropId, stage, script, narr = null) => ({
+  id, name, sceneType: 'WITNESS', dropId, stage, script: lines(...script),
+  ...(narr ? { narraton: { pool: RPOOL, keys: narr, repeatable: true } } : {}),
+  status: 'work',
+});
+
+const EXPANSION = [
+
+  // ------------------------------------------------------------ hubs (3)
+  {
+    id: 'cap_duets',
+    name: 'Duets — Two Voices at a Table',
+    sceneType: 'AGENCY',
+    dropId: dropLexington,
+    stage: [xsign('cap_duets', 'DUETS — TWO VOICES AT A TABLE'),
+      spr('cap_duets_a', 'capone', 32, 62), spr('cap_duets_b', 'torrio', 70, 62)],
+    script: lines(
+      'Narrator: "Two chairs, one subject. Some of these conversations history staged. Some it never dared — those are flagged. Pick a table."',
+      '[CHOICE]',
+      '- "Capone & Torrio — retire like me" -> capd_retire_1',
+      '- "Capone & Wilson — the interview that never happened" -> capd_interview_1',
+      '- "Wilson & Ness — raids vs receipts" -> capd_methods_1',
+      '- "Capone & the Newsboy — buying the headline" -> capd_headline_1',
+      '- "Torrio & Ness — the old fox and the young lawman" -> capd_fox_1',
+      '- "The Workman & the Breadline — taking the soup" -> capd_takesoup_1',
+      '- "Capone & the mirror — Public Enemy, 2 A.M." -> capd_mirror_1',
+      '- "Aftermaths — what it cost later" -> cap_aftermaths',
+      '- "The Record — the uncovered files" -> cap_record',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+  {
+    id: 'cap_aftermaths',
+    name: 'Aftermaths — What It Cost Later',
+    sceneType: 'AGENCY',
+    dropId: dropGarage,
+    stage: [xsign('cap_aftermaths', 'AFTERMATHS — THAT NIGHT / MONTHS / YEARS')],
+    script: lines(
+      'Narrator: "Every event has three clocks: that night, months later, years later. Four events, two witnesses each. Choose where to stand."',
+      '[CHOICE]',
+      '- "Cicero — the family" -> capa_cic_fam_1',
+      '- "Cicero — the town that got bought" -> capa_cic_town_1',
+      '- "The massacre — the city desk" -> capa_mas_press_1',
+      '- "The massacre — the street" -> capa_mas_street_1',
+      '- "The soup kitchen — the workman" -> capa_soup_work_1',
+      '- "The soup kitchen — the proprietor" -> capa_soup_cap_1',
+      '- "The verdict — the convict" -> capa_ver_cap_1',
+      '- "The verdict — the accountant" -> capa_ver_wil_1',
+      '- "Duets — two voices at a table" -> cap_duets',
+      '- "The Record — the uncovered files" -> cap_record',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+  {
+    id: 'cap_record',
+    name: 'The Record — Uncovered Files',
+    sceneType: 'AGENCY',
+    dropId: dropCourt,
+    stage: [xsign('cap_record', 'THE RECORD — UNCOVERED FILES'),
+      spr('cap_record_a', 'wilson', 42, 62)],
+    script: lines(
+      'Narrator: "Files the main story stepped past. Entered as exhibits, without objection."',
+      '[CHOICE]',
+      '- "U.S. v. Sullivan, 1927 — the ruling" -> capr_sullivan_1',
+      '- "The Hawthorne lunch counter, 1926" -> capr_lunch',
+      '- "The Adonis Social Club, 1925" -> capr_adonis',
+      '- "Frank Capone — April 1, 1924" -> capr_frank_1',
+      '- "The plea Wilkerson threw out, 1931" -> capr_plea',
+      '- "The brewery raids" -> capr_raids_1',
+      '- "McGurn, 1936 — an aftermath" -> capr_mcgurn',
+      '- "Repeal, 1933 — the empty speakeasy" -> capr_repeal_1',
+      '- "Duets — two voices at a table" -> cap_duets',
+      '- "Aftermaths — what it cost later" -> cap_aftermaths',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  // ------------------------------------------- DUET 1: Retire Like Me (4)
+  xw('capd_retire_1', 'Duet: Retire Like Me — I', dropLexington,
+    [xsign('capd_retire_1', 'THE LEXINGTON — AFTER HOURS'), ...xtwo('capd_retire_1', 'capone', 'torrio')],
+    [
+      'Narrator: "After hours at the Lexington. Two chairs, one bottle of the good import. The oldest argument the Outfit owns."',
+      'Torrio (Lean/Tired): "Brooklyn, Al. A house, a garden, a wife who stops listening for cars."',
+      'Capone: "You sound like a travel agent, Johnny."',
+      'Torrio: "I sound like a man five bullets couldn\'t finish. That makes me an expert on timing."',
+      '[SCENE capd_retire_2]',
+    ], { respect: { target: 50, scale: 40 }, heat: { target: 40, scale: 50 } }),
+  xw('capd_retire_2', 'Duet: Retire Like Me — II', dropLexington,
+    xtwo('capd_retire_2', 'capone', 'torrio'),
+    [
+      'Capone: "Walk away from what? A hundred million a year? The city knows my name."',
+      'Torrio: "The city knew Colosimo\'s name. I stood at his funeral. Big Jim had lovely flowers."',
+      'Capone (Pointing/Angry): "Colosimo wouldn\'t move with the times. I AM the times."',
+      'Torrio: "The times end, Al. Mine did. I was there when they ended."',
+      '[SCENE capd_retire_3]',
+    ]),
+  xw('capd_retire_3', 'Duet: The Empire Argument', dropLexington,
+    xtwo('capd_retire_3', 'capone', 'torrio'),
+    [
+      'Capone: "You built a railroad and jumped off it. I\'m building an empire. Empires don\'t have a door marked EXIT."',
+      'Torrio (Lean/Tired): "That\'s the flaw in empires, Al. Not a feature."',
+      'Capone: "Rome lasted."',
+      'Torrio: "Rome delegated. You sign everything with your face."',
+      'Narrator: "The bottle goes down an inch. Neither man moves the other. Neither ever will."',
+      '[SCENE capd_retire_4]',
+    ]),
+  xw('capd_retire_4', 'Duet: Retire Like Me — IV', dropLexington,
+    xtwo('capd_retire_4', 'capone', 'torrio'),
+    [
+      'Torrio: "Last offer. Come to Brooklyn. Buy the house next to mine. Grow figs badly."',
+      'Capone (Wave/Happy): "Send me a postcard, Johnny."',
+      'Torrio: "I\'ll send you a lawyer. You\'ll need him sooner."',
+      'Narrator: "Torrio retired in 1925 and died in a barber chair in 1957 — of old age, which in this business counts as a triumph. Capone got six more years of empire. Then the arithmetic."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // ------------------- DUET 2: The Interview That Never Happened (4)
+  xw('capd_interview_1', 'Duet: The Interview That Never Happened — I', dropLexington,
+    [xsign('capd_interview_1', 'A MEETING THE RECORD DOES NOT CONTAIN'), ...xtwo('capd_interview_1', 'capone', 'wilson')],
+    [
+      'Narrator: "Flag this scene counterfactual: it never happened. Frank Wilson hunted Al Capone for three years through paper and never once sat across from him with the ledgers open. Stage it anyway. Some arguments deserve a room."',
+      'Capone (Wave/Happy): "Coffee? I own the coffee. I own the cups."',
+      'Wilson: "You don\'t own anything, Mr. Capone. That\'s my whole case. Nothing is in your name — no account, no deed, not this suite."',
+      'Capone: "A careful man keeps a clean signature."',
+      'Wilson: "A clean signature and a quarter million a year in spending. The gap between them is where I live."',
+      '[SCENE capd_interview_2]',
+    ], { evidence: { target: 60, scale: 40 }, prestige: { target: 50, scale: 50 } }),
+  xw('capd_interview_2', 'Duet: The Businessman Lines', dropLexington,
+    xtwo('capd_interview_2', 'capone', 'wilson'),
+    [
+      'Capone: "I\'m a businessman. I\'ve made my money supplying a popular demand."',
+      'Wilson (Closeup/Determined): "Businessmen file returns. I\'ve read every return you never filed. They\'re very short."',
+      'Capone: "The country wanted booze and I organized it. Why should I be called a public enemy?"',
+      'Wilson: "I don\'t call you anything. I add you up."',
+      '[SCENE capd_interview_3]',
+    ]),
+  xw('capd_interview_3', 'Duet: The Threats', dropLexington,
+    xtwo('capd_interview_3', 'capone', 'wilson'),
+    [
+      'Capone (Pointing/Angry): "You know what happens to men who add me up?"',
+      'Wilson: "Yes. I got the death threats. I moved hotels and kept adding."',
+      'Narrator: "That much is true: Wilson worked the case under threat of murder, in a locked room, at night. The counterfactual here is only the coffee."',
+      'Capone (Sit/Confused): "What do you want, Wilson? Everybody wants something. That\'s my whole business."',
+      'Wilson: "A number, Mr. Capone. Your number. And I already have it."',
+      '[SCENE capd_interview_4]',
+    ]),
+  xw('capd_interview_4', 'Duet: The Ledger Answers', dropLexington,
+    xtwo('capd_interview_4', 'capone', 'wilson'),
+    [
+      'Wilson: "Hawthorne Smoke Shop. Net profits, initialed. Cashier\'s checks endorsed by your men. A ledger a raid took in 1926 that nobody read until me."',
+      'Capone: "Some call it bootlegging. Some call it racketeering. I call it a business."',
+      'Wilson (Closeup/Determined): "Then we agree. Business keeps books. Yours kept mine."',
+      'Narrator: "The interview never happened. The verdict happened anyway — which tells you which of the two men needed the meeting."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // --------------------------- DUET 3: Raids vs Receipts (4)
+  xw('capd_methods_1', 'Duet: Raids vs Receipts — I', null,
+    [xsign('capd_methods_1', 'TWO FEDERAL METHODS, ONE TARGET'), ...xtwo('capd_methods_1', 'wilson', 'ness')],
+    [
+      'Ness: "We hit the brewery on South Wabash last night. Steel ram on a flatbed, straight through the doors. Nineteen trucks, seized."',
+      'Wilson: "How many years does a truck testify to?"',
+      'Ness: "It\'s not about testimony, Frank. It\'s cash flow. Every barrel we axe, the Outfit earns less."',
+      'Wilson: "And every barrel makes a headline. Headlines warn a man to hide his paper."',
+      '[SCENE capd_methods_2]',
+    ], { evidence: { target: 70, scale: 40 }, regulation: { target: 20, scale: 40 } }),
+  xw('capd_methods_2', 'Duet: The Envelope Returned', null,
+    xtwo('capd_methods_2', 'wilson', 'ness'),
+    [
+      'Ness: "They offered my men two thousand a week to look away. My men threw it back. The papers called us Untouchable."',
+      'Wilson (Closeup/Determined): "Nobody offers an accountant anything. We\'re invisible. That\'s the whole method."',
+      'Ness: "Invisible doesn\'t scare anyone."',
+      'Wilson: "Neither does scared. Frightened men hide. Bored men file. I want him bored."',
+      '[SCENE capd_methods_3]',
+    ]),
+  xw('capd_methods_3', 'Duet: Pressure and Paper', null,
+    xtwo('capd_methods_3', 'wilson', 'ness'),
+    [
+      'Ness: "You think the raids were theater."',
+      'Wilson: "I think the raids were pressure, and pressure is useful. A man being raided spends faster, moves money clumsier, trusts fewer clerks. Clumsy is legible."',
+      'Ness: "So my ram feeds your ledger."',
+      'Wilson: "Every method in this building feeds the ledger. The ledger is the only thing the jury will ever see."',
+      '[SCENE capd_methods_4]',
+    ]),
+  xw('capd_methods_4', 'Duet: Who Gets the Credit', null,
+    xtwo('capd_methods_4', 'wilson', 'ness'),
+    [
+      'Ness: "Eleven years, and the counts were yours. You know what my squad got him? Five thousand dollars, contempt of court. A footnote."',
+      'Wilson: "Your footnote cut his income in half while I counted the other half. Take the win, Eliot."',
+      'Narrator: "History took Ness\'s legend and Wilson\'s arithmetic and mostly confused the two. The receipts convicted him. The raids sold the movie."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // --------------------------- DUET 4: Buying the Headline (4)
+  xw('capd_headline_1', 'Duet: Buying the Headline — I', dropSoup,
+    [xsign('capd_headline_1', 'A CORNER ON SOUTH STATE STREET'),
+      spr('capd_headline_1_a', 'capone', 32, 62), spr('capd_headline_1_b', 'newsboy', 70, 66, 1.8)],
+    [
+      'Newsboy: "Extra! Public Enemy Number One! — oh. Morning, Mr. Capone."',
+      'Capone (Wave/Happy): "Morning, kid. How\'s the paper selling?"',
+      'Newsboy: "Your face sells everything, mister. Good days and bad."',
+      'Capone: "Give me the stack. All of it."',
+      '[SCENE capd_headline_2]',
+    ], { prestige: { target: 60, scale: 40 }, heat: { target: 45, scale: 50 } }),
+  xw('capd_headline_2', 'Duet: The Whole Stack', dropSoup,
+    [spr('capd_headline_2_a', 'capone', 32, 62), spr('capd_headline_2_b', 'newsboy', 70, 66, 1.8)],
+    [
+      'Newsboy: "The whole stack? That\'s two hundred papers."',
+      'Capone: "And a dollar for the empty bag. A man shouldn\'t stand all day under a headline like that."',
+      'Newsboy: "Buying them don\'t un-print them, Mr. Capone. There\'s a truck brings more at noon."',
+      'Capone (Sit/Confused): "Yeah. There\'s always a truck at noon."',
+      '[SCENE capd_headline_3]',
+    ]),
+  xw('capd_headline_3', 'Duet: Both Editions', dropSoup,
+    [spr('capd_headline_3_a', 'capone', 32, 62), spr('capd_headline_3_b', 'newsboy', 70, 66, 1.8)],
+    [
+      'Newsboy: "Can I ask you something, mister? My ma says you feed people. My pop says you shoot people. Which paper\'s right?"',
+      'Capone: "Both editions, kid. Same publisher."',
+      'Narrator: "It is the only wholly honest quote in this scene, and it is invented. The real ones are worse."',
+      '[SCENE capd_headline_4]',
+    ]),
+  xw('capd_headline_4', 'Duet: The Noon Truck', dropSoup,
+    [spr('capd_headline_4_a', 'capone', 32, 62), spr('capd_headline_4_b', 'newsboy', 70, 66, 1.8)],
+    [
+      'Capone: "Keep the change. Buy your ma something."',
+      'Newsboy: "You tip like the headline\'s true, mister."',
+      'Narrator: "He walked off with two hundred copies of his own name. The noon truck came at noon. It always does. You cannot corner a market in ink — a lesson he learned slower than any in his life."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // ------------------- DUET 5: The Old Fox and the Young Lawman (4)
+  xw('capd_fox_1', 'Duet: The Old Fox — I', null,
+    [xsign('capd_fox_1', 'A RAILWAY PLATFORM, POINTS EAST'), ...xtwo('capd_fox_1', 'torrio', 'ness')],
+    [
+      'Narrator: "Another meeting the record doesn\'t show: the man who built the Outfit and the man sent to break it, on a platform between trains. Grant it the length of one cigarette."',
+      'Ness: "Johnny Torrio. You\'re supposed to be in Brooklyn."',
+      'Torrio: "I\'m supposed to be dead, officer. Brooklyn is the compromise."',
+      'Ness: "Agent. Ness. Prohibition Bureau."',
+      'Torrio (Lean/Tired): "I know who you are. I read the papers I used to own."',
+      '[SCENE capd_fox_2]',
+    ], { heat: { target: 50, scale: 50 }, respect: { target: 40, scale: 50 } }),
+  xw('capd_fox_2', 'Duet: The Thirst Stays', null,
+    xtwo('capd_fox_2', 'torrio', 'ness'),
+    [
+      'Ness: "You built the thing I\'m taking apart. That doesn\'t trouble you?"',
+      'Torrio: "Young man, I built a delivery service for a thirst the law invented. Take it apart. The thirst stays. Someone reassembles it by Thursday."',
+      'Ness: "That\'s a tired man\'s excuse."',
+      'Torrio: "It\'s a tired man\'s inventory."',
+      '[SCENE capd_fox_3]',
+    ]),
+  xw('capd_fox_3', 'Duet: One True Thing', null,
+    xtwo('capd_fox_3', 'torrio', 'ness'),
+    [
+      'Ness: "Al Capone. Give me one true thing about him."',
+      'Torrio (Lean/Tired): "He was the best second-in-command I ever had, and the worst first. Some men are engines. Never make an engine the driver."',
+      'Ness: "And you?"',
+      'Torrio: "I was a timetable. Timetables retire."',
+      '[SCENE capd_fox_4]',
+    ]),
+  xw('capd_fox_4', 'Duet: What Breaks', null,
+    xtwo('capd_fox_4', 'torrio', 'ness'),
+    [
+      'Ness: "If I ever get him — really get him — what breaks?"',
+      'Torrio: "Nothing, agent. That\'s the answer nobody wants. The Outfit isn\'t a man. It\'s a rent, and rents outlive their collectors."',
+      'Narrator: "The train east took the old fox back to his garden. History records no such platform. It records the rent, still collecting, decades after both men were gone."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // --------------------------- DUET 6: Taking the Soup (4)
+  xw('capd_takesoup_1', 'Duet: Taking the Soup — I', dropSoup,
+    [xsign('capd_takesoup_1', 'FREE SOUP COFFEE AND DOUGHNUTS'),
+      spr('capd_takesoup_1_a', 'workman', 32, 62), spr('capd_takesoup_1_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Workman: "First time in this line. I keep my collar up like somebody might know me."',
+      'The Breadline: "Everybody in this line keeps the collar up, friend. Nobody\'s looking. That\'s the one mercy of it."',
+      'Workman: "Two years at Pullman. I built things. Now I\'m queueing for a gangster\'s stew."',
+      'The Breadline: "The stew don\'t ask where you worked. Move up."',
+      '[SCENE capd_takesoup_2]',
+    ], { prestige: { target: 55, scale: 40 }, rent: { target: 20, scale: 30 } }),
+  xw('capd_takesoup_2', 'Duet: What It Costs', dropSoup,
+    [spr('capd_takesoup_2_a', 'workman', 32, 62), spr('capd_takesoup_2_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Workman: "Does it cost anything? There\'s always a cost."',
+      'The Breadline: "No sermon, no name at the door, no fee. That\'s the sales pitch and it\'s true."',
+      'Workman: "Then what does he get?"',
+      'The Breadline: "He gets you standing here, thinking well of him. Cheaper than a lawyer, better than a billboard."',
+      '[SCENE capd_takesoup_3]',
+    ]),
+  xw('capd_takesoup_3', 'Duet: The Catechism', dropSoup,
+    [spr('capd_takesoup_3_a', 'workman', 32, 62), spr('capd_takesoup_3_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Workman: "My kid asked who pays for the soup. I said a rich man. She asked if he was good. I said eat your soup."',
+      'The Breadline: "That\'s the whole catechism, friend. Every man in this line has said it."',
+      'Workman: "Gratitude to a man like that — it sits in the chest like a stone."',
+      'The Breadline: "It\'s winter. Stones are warm compared."',
+      '[SCENE capd_takesoup_4]',
+    ]),
+  xw('capd_takesoup_4', 'Duet: A Line, Not a Jury', dropSoup,
+    [spr('capd_takesoup_4_a', 'workman', 32, 62), spr('capd_takesoup_4_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Workman: "If they ever put him on trial, what do we say? He fed us?"',
+      'The Breadline: "We say nothing. We\'re a line, not a jury."',
+      'Narrator: "In October 1931 a jury of farmers and clerks said it instead. The kitchen ran a while longer, quieter, and closed in the spring of 1932. The line re-formed at the churches, which had less stew and fewer photographers."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // ------------------- DUET 7: Public Enemy at the Mirror (4)
+  xw('capd_mirror_1', 'Duet: The Mirror — 2 A.M.', dropLexington,
+    [xsign('capd_mirror_1', 'THE LEXINGTON — 2 A.M.'),
+      balloon('capd_mirror_1_radio', 'RADIO — ALL-NIGHT', 76, 24, { zIndex: 4 }),
+      spr('capd_mirror_1_a', 'capone', 42, 62)],
+    [
+      'Narrator: "Two in the morning at the Lexington. The bodyguards are in the hall. The only company left is the mirror and the radio, and neither one works for him."',
+      'Narrator: "The radio, softly: —named by the Chicago Crime Commission as Public Enemy Number One, the hoodlum Alphonse Capone—"',
+      'Capone (Pointing/Angry): "Hoodlum. I employ more men than the stockyards."',
+      'Narrator: "The mirror declines to argue."',
+      '[SCENE capd_mirror_2]',
+    ], { heat: { target: 70, scale: 40 }, prestige: { target: 40, scale: 50 } }),
+  xw('capd_mirror_2', 'Duet: The Goat', dropLexington,
+    [balloon('capd_mirror_2_radio', 'RADIO — ALL-NIGHT', 76, 24, { zIndex: 4 }), ...xone('capd_mirror_2', 'capone')],
+    [
+      'Capone: "It seems like I\'m all the government talks about. They\'ve got to have a goat, and I\'m it."',
+      'Narrator: "The radio: —lines at the Capone soup kitchen stretched past police headquarters again today—"',
+      'Capone (Wave/Happy): "Hear that? Five thousand on Thanksgiving. Ask the line who the enemy is."',
+      'Narrator: "The radio, not listening: —in Washington, the Treasury declined to comment on the Capone investigation—"',
+      '[SCENE capd_mirror_3]',
+    ]),
+  xw('capd_mirror_3', 'Duet: Say It Back', dropLexington,
+    [balloon('capd_mirror_3_radio', 'RADIO — ALL-NIGHT', 76, 24, { zIndex: 4 }), ...xone('capd_mirror_3', 'capone')],
+    [
+      'Capone (Sit/Confused): "Declined to comment. That\'s the sound a trap makes before it\'s a trap."',
+      'Capone: "I\'m a businessman. Say it back to me, mirror. Somebody in this room should say it back."',
+      'Narrator: "The mirror shows a heavy man in silk pajamas, alone at two in the morning, rehearsing his defense to a piece of furniture."',
+      '[SCENE capd_mirror_4]',
+    ]),
+  xw('capd_mirror_4', 'Duet: Nobody Turns It Off', dropLexington,
+    [balloon('capd_mirror_4_radio', 'RADIO — ALL-NIGHT', 76, 24, { zIndex: 4 }), ...xone('capd_mirror_4', 'capone')],
+    [
+      'Narrator: "The radio: —repeating tonight\'s headline: PUBLIC ENEMY NUMBER ONE—"',
+      'Capone: "Turn it off."',
+      'Narrator: "Nobody turns it off. The bodyguards are in the hall, and a man doesn\'t cross his own suite twice in one night for a radio."',
+      'Narrator: "He let it play. That is the whole scene, and the closest thing to a confession the Lexington ever heard."',
+      '[SCENE cap_duets]',
+    ]),
+
+  // ============ AFTERMATH CHAINS — Cicero: the family (3) ============
+  xw('capa_cic_fam_1', 'Cicero, That Night — the Family', dropCicero,
+    [xsign('capa_cic_fam_1', 'APRIL 1, 1924 — THAT NIGHT'), ...xtwo('capa_cic_fam_1', 'capone', 'torrio')],
+    [
+      'Narrator: "Election night in Cicero. The town is won. In a front parlor, the family sits with the winning and the cost: Frank Capone, shot dead by plainclothes police outside a polling place, aged 29."',
+      'Capone: "They\'ll say he drew first. Twenty plainclothes men, and my brother drew first."',
+      'Torrio (Lean/Tired): "Tonight you say nothing, Al. Tonight you sit with your mother."',
+      'Capone: "Cicero\'s ours, Johnny. We won."',
+      'Torrio: "Yes. Notice how it tastes."',
+      '[SCENE capa_cic_fam_2]',
+    ], { respect: { target: 55, scale: 40 }, heat: { target: 35, scale: 40 } }),
+  xw('capa_cic_fam_2', 'Cicero, Months Later — the Family', dropCicero,
+    xtwo('capa_cic_fam_2', 'capone', 'torrio'),
+    [
+      'Narrator: "Months later. The funeral is already legend: twenty thousand dollars of flowers, and Cicero\'s shops shuttered two hours in respect — ordered respect, but shuttered all the same."',
+      'Capone: "Every saloon in Cicero closed for Frank. You know what closes a saloon in Cicero? Nothing. Nothing closes them. They closed."',
+      'Torrio: "Fear closes them, Al. Try not to bank it as love."',
+      'Narrator: "The polling places that cost Frank his life delivered their majorities on schedule, every election after. The town stayed bought for a decade."',
+      '[SCENE capa_cic_fam_3]',
+    ]),
+  xw('capa_cic_fam_3', 'Cicero, Years Later — the Family', dropCicero,
+    xone('capa_cic_fam_3', 'capone'),
+    [
+      'Narrator: "Years later. Palm Island, the 1940s. The mind going, the empire gone, the visitors few."',
+      'Capone (Sit/Confused): "Frank was the gentle one. Everybody said it backwards — they thought I was the businessman and Frank was the gun. It was backwards."',
+      'Narrator: "He tended the story like a garden by then, moving the stones around. Some days Frank died at the polls. Some days Frank was still coming to dinner."',
+      'Narrator: "Cicero, for the record, is still there. The election of 1924 is a plaque nobody put up."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Cicero: the town (2) -------------------
+  xw('capa_cic_town_1', 'Cicero, That Night — the Town', dropCicero,
+    [spr('capa_cic_town_1_a', 'workman', 32, 62), spr('capa_cic_town_1_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Narrator: "Election night, seen from a kitchen window on 22nd Street. The cars with no plates are finally parked."',
+      'Workman: "We voted. That\'s what the radio will say. There were men at the booth with coats too heavy for April."',
+      'Workman: "My wife asked who won. I said: they did. She asked who\'s they. I said: don\'t ask that on a night the cars are out."',
+      'The Breadline: "Every porch light on the block went dark by nine. A town learns fast what not to see."',
+      '[SCENE capa_cic_town_2]',
+    ], { regulation: { target: 15, scale: 35 }, repression: { target: 40, scale: 40 } }),
+  xw('capa_cic_town_2', 'Cicero, Years Later — the Town', dropCicero,
+    [spr('capa_cic_town_2_a', 'workman', 32, 62), spr('capa_cic_town_2_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Narrator: "Years later. The Hawthorne got shot up in 1926, the Outfit moved its flag back to Chicago, the papers moved on. Cicero stayed governed."',
+      'Workman: "You can live a whole life in a bought town. You pay rent twice and vote once, and the once doesn\'t count."',
+      'Workman: "My kid did a school report: CICERO, GATEWAY TO THE WEST. Not one word in it was a lie, and not one word in it was the truth."',
+      'The Breadline: "In a bought town, the breadline is the opposition party. Nobody buys us. Nobody has to."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Massacre: the city desk (3) -------------------
+  xw('capa_mas_press_1', 'The Massacre, That Night — the City Desk', dropGarage,
+    [xsign('capa_mas_press_1', 'FEBRUARY 14, 1929 — THAT NIGHT'), ...xone('capa_mas_press_1', 'press', 2.6)],
+    [
+      'The Press: "Nobody went home. The composing room set SEVEN SLAIN three different sizes and the editor kept saying bigger."',
+      'The Press: "A photographer came back shaking, and his plates were the story of the century. We ran them. God help us, we measured them for columns first."',
+      'Narrator: "Aftermath only, here as everywhere: the wall, the chalk, the hats still on their hooks. The pictures did the rest to the country\'s stomach."',
+      '[SCENE capa_mas_press_2]',
+    ], { heat: { target: 75, scale: 30 }, prestige: { target: 30, scale: 50 } }),
+  xw('capa_mas_press_2', 'The Massacre, Months Later — the City Desk', dropGarage,
+    xone('capa_mas_press_2', 'press', 2.6),
+    [
+      'The Press: "The fun went out of the gangster story. That\'s the phrase that went around the desk, and it was exact."',
+      'The Press: "For ten years he was colorful copy — the soup, the quips, the fedora. After Clark Street, every column read like an accessory after the fact."',
+      'Narrator: "In 1930 the Crime Commission handed the desks a new noun: Public Enemy. It fit an eight-column line, and it fit the mood."',
+      '[SCENE capa_mas_press_3]',
+    ]),
+  xw('capa_mas_press_3', 'The Massacre, Years Later — the City Desk', dropGarage,
+    xone('capa_mas_press_3', 'press', 2.6),
+    [
+      'The Press: "The garage came down eventually. Souvenir men sold the bricks — the actual bricks, numbered."',
+      'The Press: "We printed the address of the wall more often than the names of the seven. Ask the copy desk to name them today. Then ask the wall."',
+      'Narrator: "Peter Gusenberg. Frank Gusenberg. James Clark. Adam Heyer. Reinhardt Schwimmer. Albert Weinshank. John May. The paper of record, catching up."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Massacre: the street (2) -------------------
+  xw('capa_mas_street_1', 'The Massacre, That Night — the Street', dropGarage,
+    [spr('capa_mas_street_1_a', 'workman', 32, 62), spr('capa_mas_street_1_b', 'breadline', 70, 62, 2.6)],
+    [
+      'The Breadline: "The radio said seven. The corner said don\'t say anything."',
+      'Workman: "I walked home the long way. Everybody walked home the long way. Clark Street got wide that night."',
+      'The Breadline: "The dog in that garage barked till morning. The whole block heard it. Nobody went to look twice."',
+      '[SCENE capa_mas_street_2]',
+    ], { repression: { target: 60, scale: 40 }, heat: { target: 70, scale: 40 } }),
+  xw('capa_mas_street_2', 'The Massacre, Years Later — the Street', dropGarage,
+    [spr('capa_mas_street_2_a', 'workman', 32, 62), spr('capa_mas_street_2_b', 'breadline', 70, 62, 2.6)],
+    [
+      'Workman: "For years you\'d point it out to visitors — there, that garage. Then you\'d feel cheap for pointing."',
+      'The Breadline: "The ones who lined men up against a wall — mostly they got walls of their own, one by one. The street kept score. The street always keeps score."',
+      'Narrator: "Aftermath as geography: a plain brick building, then a parking lot, then a lawn. Cities heal by forgetting, and forget by paving."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Soup kitchen: the workman (3) -------------------
+  xw('capa_soup_work_1', 'The Soup, That Night — the Workman', dropSoup,
+    [xsign('capa_soup_work_1', 'NOVEMBER 1930 — THAT NIGHT'), ...xone('capa_soup_work_1', 'workman')],
+    [
+      'Workman: "First night after my first bowl. Slept without the hunger dream, first time in a month."',
+      'Workman: "Woke at three anyway, out of habit. Lay there doing the arithmetic — whose beef, whose bread, whose ladle."',
+      'Workman: "Fell back asleep mid-sum. The stomach outvotes the arithmetic every time."',
+      '[SCENE capa_soup_work_2]',
+    ], { prestige: { target: 65, scale: 35 }, rent: { target: 15, scale: 30 } }),
+  xw('capa_soup_work_2', 'The Soup, Months Later — the Workman', dropSoup,
+    xone('capa_soup_work_2', 'workman'),
+    [
+      'Workman: "The line got to be a job. Same faces, same hour. We nod like men clocking in."',
+      'Workman: "October, a fellow ran down the line yelling GUILTY, ELEVEN YEARS. The line didn\'t cheer and didn\'t cry. It shuffled up one place, same as ever."',
+      '[SCENE capa_soup_work_3]',
+    ]),
+  xw('capa_soup_work_3', 'The Soup, Years Later — the Workman', dropSoup,
+    xone('capa_soup_work_3', 'workman'),
+    [
+      'Narrator: "The kitchen closed in April 1932 — the man in prison, the associates unsentimental. The churches took the line back, at church portions."',
+      'Workman: "Got work in 1936, WPA. Government soup, you could call it, and I ate that too."',
+      'Workman: "You want the honest accounting? He fed me a winter, and it bought him nothing in the end, and it fed me a winter. Both entries stand."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Soup kitchen: the proprietor (2) -------------------
+  xw('capa_soup_cap_1', 'The Soup, That Night — the Proprietor', dropSoup,
+    [xsign('capa_soup_cap_1', 'NOVEMBER 1930 — THAT NIGHT'), ...xone('capa_soup_cap_1', 'capone')],
+    [
+      'Capone (Wave/Happy): "Get the Tribune the meal count. Twenty-two hundred. And nobody preaches in my kitchen — a man can eat without a sermon."',
+      'Narrator: "That night the count went to the Tribune, and the Tribune printed it, and somewhere downtown a man named Wilson clipped the article for a folder marked SPENDING."',
+      '[SCENE capa_soup_cap_2]',
+    ], { prestige: { target: 70, scale: 35 }, heat: { target: 55, scale: 50 } }),
+  xw('capa_soup_cap_2', 'The Soup, Years Later — the Proprietor', dropSoup,
+    xone('capa_soup_cap_2', 'capone'),
+    [
+      'Narrator: "Alcatraz mess hall, the mid-1930s. Register 85 eats what everyone eats: no menu, no photographers, no count to the Tribune."',
+      'Capone (Sit/Confused): "I fed five thousand men on a Thanksgiving. Ask anybody. Ask the Tribune."',
+      'Narrator: "The man on the next bench didn\'t look up. On the Rock, everybody used to be somebody, and the soup is the same for all of them."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Verdict: the convict (3) -------------------
+  xw('capa_ver_cap_1', 'The Verdict, That Night — Cook County Jail', dropCourt,
+    [xsign('capa_ver_cap_1', 'OCTOBER 17, 1931 — THAT NIGHT'), ...xone('capa_ver_cap_1', 'capone')],
+    [
+      'Narrator: "The night of the verdict, Cook County Jail. The suite at the Lexington stands empty; the suit is on a hanger; the man is in a cell that a bribed guard can improve but not open."',
+      'Capone (Sit/Confused): "Eleven years. For paperwork."',
+      'Capone: "It seems like I\'m all the government talks about. They\'ve got to have a goat, and I\'m it."',
+      'Narrator: "Down the block, the night edition was already selling. He could hear the newsboys through the window if the wind sat right. Some nights the wind sat right."',
+      '[SCENE capa_ver_cap_2]',
+    ], { evidence: { target: 90, scale: 40 }, heat: { target: 60, scale: 50 } }),
+  xw('capa_ver_cap_2', 'The Verdict, Later — Register 85', dropCourt,
+    [balloon('capa_ver_cap_2_card', 'ALCATRAZ — REGISTER No. 85', 50, 18, { zIndex: 3 }), ...xone('capa_ver_cap_2', 'capone')],
+    [
+      'Narrator: "Atlanta first, where money still worked a little. Then August 1934: the train with the barred windows, the bay, the Rock."',
+      'Capone: "I\'m Al Capone."',
+      'Narrator: "The guard wrote 85 and pointed down the corridor. That was the entire exchange, and the entire sentence in miniature: the name confiscated, the number issued."',
+      'Narrator: "Cell, workshop, laundry. He mopped floors. Other men decided what he was worth now, and the number came out low."',
+      '[SCENE capa_ver_cap_3]',
+    ]),
+  xw('capa_ver_cap_3', 'The Verdict, Years Later — Palm Island, 1947', dropCourt,
+    [balloon('capa_ver_cap_3_card', '93 PALM ISLAND — JANUARY 1947', 50, 18, { zIndex: 3 }), ...xone('capa_ver_cap_3', 'capone')],
+    [
+      'Narrator: "Palm Island, January 1947. Released in 1939, the illness eating the mind for years — by the end, the doctors said, the reasoning of a twelve-year-old."',
+      'Capone (Sit/Confused): "Johnny\'s coming to dinner. Johnny Torrio. And Frank. Set two more places."',
+      'Narrator: "Nobody corrected him. The dock, the bathrobe, the fishing rod nobody mentions. He died in bed on January 25, the family around him, aged 48."',
+      'Narrator: "The Outfit did not miss a payment that week. The record should show he was mourned, and the rent was collected, and neither fact touched the other."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ------------------- Verdict: the accountant (2) -------------------
+  xw('capa_ver_wil_1', 'The Verdict, That Night — the Accountant', null,
+    [xsign('capa_ver_wil_1', 'OCTOBER 17, 1931 — THAT NIGHT'), ...xone('capa_ver_wil_1', 'wilson')],
+    [
+      'Wilson: "The night of the verdict I checked out of my hotel under my own name, first time in two years. Small pleasure. I recommend it."',
+      'Wilson (Closeup/Determined): "People wanted a celebration. I filed the workpapers. The case was never against a man. It was against a gap in a column, and the column closed."',
+      '[SCENE capa_ver_wil_2]',
+    ], { evidence: { target: 95, scale: 30 }, regulation: { target: 40, scale: 50 } }),
+  xw('capa_ver_wil_2', 'The Verdict, Years Later — the Precedent', null,
+    xone('capa_ver_wil_2', 'wilson'),
+    [
+      'Narrator: "Years later. Wilson went on to run the Secret Service, chase counterfeiters, and die in bed — the accountant\'s ending, earned."',
+      'Wilson: "The thing that outlived us all is a sentence of law: illegal income is taxable. Sullivan, 1927. Every ambitious prosecutor since has kept it in the top drawer."',
+      'Wilson: "They still say bullets couldn\'t get him and arithmetic did. Close. Patience did. Arithmetic was just how the patience kept score."',
+      '[SCENE cap_aftermaths]',
+    ]),
+
+  // ================== THE RECORD — uncovered files (12) ==================
+  xw('capr_sullivan_1', 'The Record: U.S. v. Sullivan — I', dropCourt,
+    [xsign('capr_sullivan_1', 'SUPREME COURT — MAY 16, 1927'), ...xone('capr_sullivan_1', 'wilson')],
+    [
+      'Narrator: "Washington, 1927. A South Carolina bootlegger named Manly Sullivan argues he can\'t be taxed on illegal income — filing a return would incriminate him, and the Fifth Amendment forbids that."',
+      'Narrator: "Justice Oliver Wendell Holmes, 86 years old, disposes of the argument in a few dry pages: gains from illicit traffic are income, and the Fifth is not a license to file nothing."',
+      'Wilson: "Read it again. Slower. That ruling is a key, and somewhere in Chicago is the lock."',
+      '[SCENE capr_sullivan_2]',
+    ], { evidence: { target: 50, scale: 50 }, regulation: { target: 30, scale: 50 } }),
+  xw('capr_sullivan_2', 'The Record: U.S. v. Sullivan — II', dropCourt,
+    xone('capr_sullivan_2', 'wilson'),
+    [
+      'Wilson (Closeup/Determined): "Before Sullivan, a criminal fortune was unreachable — you couldn\'t tax what the law refused to see. After Sullivan, every dollar is visible to the Treasury, however it was earned."',
+      'Wilson: "Capone never filed a return in his life. Until 1927 that was caution. After 1927 it was twenty-two counts waiting for a clerk to type them."',
+      'Narrator: "The most important gunfire in this story is a pen in Washington, and it made no sound at all."',
+      '[SCENE cap_record]',
+    ]),
+
+  xw('capr_lunch', 'The Record: The Lunch Counter', dropCicero,
+    [xsign('capr_lunch', 'HAWTHORNE RESTAURANT — AFTER THE GUNS'), ...xone('capr_lunch', 'capone')],
+    [
+      'Narrator: "September 20, 1926, ten minutes after. The eleventh car is gone. The Hawthorne\'s lunch counter is a beach of glass. Coffee still steams in cups whose saucers have been shot away."',
+      'Narrator: "Capone gets up off the floor where his bodyguard threw him. Outside, a bystander — Mrs. Freeman, her little boy in the car — has been hurt by flying debris. Her eye will need specialists."',
+      'Capone: "Every bill. The specialists too. And the shops on the block — every window, every splinter, paid by Friday."',
+      'Narrator: "He paid — thousands. Aftermath, itemized: the glazier\'s invoice as public relations. It worked, which is the part worth studying."',
+      '[SCENE cap_record]',
+    ], { heat: { target: 55, scale: 40 }, prestige: { target: 45, scale: 50 } }),
+
+  xw('capr_adonis', 'The Record: The Adonis Social Club', null,
+    [xsign('capr_adonis', 'BROOKLYN — DECEMBER 26, 1925'), ...xone('capr_adonis', 'ness')],
+    [
+      'Narrator: "Brooklyn, the night after Christmas, 1925. Capone is back east, visiting. At the Adonis Social Club the lights go out during a party, and when they come back on the White Hand gang is short its leadership — Peg-Leg Lonergan among the dead."',
+      'Ness: "Capone was in the room. Arrested, questioned, released. No witness in the borough could recall a single thing about the loudest event of their year."',
+      'Narrator: "No charges, ever. File it as the East Coast rehearsal: the lights, the silence after, the code holding. Chicago would get the finished performance."',
+      '[SCENE cap_record]',
+    ], { repression: { target: 50, scale: 40 }, heat: { target: 45, scale: 50 } }),
+
+  xw('capr_frank_1', 'The Record: Frank Capone — I', dropCicero,
+    [xsign('capr_frank_1', 'CICERO — APRIL 1, 1924'), ...xtwo('capr_frank_1', 'capone', 'torrio')],
+    [
+      'Narrator: "Election day, Cicero, late afternoon. A squad of Chicago police in plain clothes — sent into a town not their jurisdiction, in unmarked cars, with shotguns — meets Frank Capone near a polling place on 22nd Street."',
+      'Narrator: "The police say he drew. The volley is not in dispute. Frank Capone — the Outfit\'s smooth front man, the brother with the banker\'s manners — dies on the street at 29."',
+      'Capone (Pointing/Angry): "Plainclothes. No badges showing. You tell me what that is, if a man like us does it."',
+      '[SCENE capr_frank_2]',
+    ], { heat: { target: 35, scale: 40 }, respect: { target: 50, scale: 40 } }),
+  xw('capr_frank_2', 'The Record: Frank Capone — II', dropCicero,
+    xtwo('capr_frank_2', 'capone', 'torrio'),
+    [
+      'Narrator: "The funeral: a silver-plated casket, twenty thousand dollars in flowers, and Cicero\'s saloons dark for two hours by order. The coroner\'s jury found the police acted in the line of duty. No officer was charged."',
+      'Torrio (Lean/Tired): "Mark the exchange rate, Al. One election, one brother. The books say Cicero was cheap. The books lie by omission."',
+      'Narrator: "Al buried the gentle brother and kept the town. Which was the bargain — and no one who made it ever said the price out loud again."',
+      '[SCENE cap_record]',
+    ]),
+
+  xw('capr_plea', 'The Record: The Plea Wilkerson Threw Out', dropCourt,
+    [xsign('capr_plea', 'SUMMER 1931 — THE BARGAIN'), ...xtwo('capr_plea', 'capone', 'wilson')],
+    [
+      'Narrator: "June 1931. The deal is done and the papers know it: Capone will plead guilty, serve about two and a half years, and the government will be spared a trial it might lose. He hands out smiles on the courthouse steps."',
+      'Narrator: "July 30. Judge James Wilkerson, from the bench: the court will make no bargain with a defendant. The parties may have an understanding. The court has none."',
+      'Capone (Sit/Confused): "They shook on it. In this town a handshake IS the paper."',
+      'Wilson: "That\'s the town, Mr. Capone. This is a courtroom that doesn\'t eat in it."',
+      'Narrator: "The plea came back out; the trial went forward; the jury got swapped; the counts ran their course. The last fix he ever bought was the one that never existed."',
+      '[SCENE cap_record]',
+    ], { evidence: { target: 85, scale: 40 }, heat: { target: 55, scale: 50 } }),
+
+  xw('capr_raids_1', 'The Record: The Brewery Raids — I', null,
+    [xsign('capr_raids_1', 'SOUTH WABASH — 5 A.M.'), ...xone('capr_raids_1', 'ness')],
+    [
+      'Narrator: "1930. A ten-ton flatbed with a steel ram idles in the dark outside a warehouse full of beer. Behind the wheel, a federal agent twenty-seven years old, named Eliot Ness."',
+      'Ness: "Through the doors at five sharp. Nineteen trucks, forty-five thousand gallons, seized before the coffee was cold. We photographed everything and smiled for nobody."',
+      'Narrator: "Raid after raid, brewery after brewery — the Outfit\'s cash flow cut by an axe blade wearing a badge."',
+      '[SCENE capr_raids_2]',
+    ], { regulation: { target: 25, scale: 40 }, evidence: { target: 60, scale: 50 } }),
+  xw('capr_raids_2', 'The Record: The Brewery Raids — II', null,
+    xone('capr_raids_2', 'ness'),
+    [
+      'Ness: "They tried money — an envelope on the car seat, two thousand a week, per man. My men handed it back with the window open, driving. A reporter heard. UNTOUCHABLES."',
+      'Ness: "You want the honest ledger? We never convicted him of a count that stuck to the sentence. What we took was the money that fed the fixes — and we made honesty look employable, in a town that had forgotten the look of it."',
+      'Narrator: "Legend inflated the squad later; the movies inflated the legend. The gallons were real. So was the returned envelope — which, in 1930 Chicago, is the more improbable object."',
+      '[SCENE cap_record]',
+    ]),
+
+  xw('capr_mcgurn', 'The Record: McGurn — an Aftermath', null,
+    [xsign('capr_mcgurn', 'MILWAUKEE AVENUE — FEBRUARY 1936'), ...xone('capr_mcgurn', 'press', 2.6)],
+    [
+      'Narrator: "February 1936, a second-floor bowling alley on Milwaukee Avenue, minutes past midnight — seven years, almost to the hour, after Clark Street. Machine Gun Jack McGurn, the massacre\'s suspected stage manager, bowls his last frame."',
+      'Narrator: "Aftermath only, as always in this telling: the pins standing, the alley gone quiet, and beside him a nickel comic valentine — a joke card about hard times, left by men who wanted the date noticed."',
+      'The Press: "Nobody charged, of course. The story wrote its own headline: the massacre reaching forward through seven years to collect its author. Filed under: the street keeps score."',
+      '[SCENE cap_record]',
+    ], { repression: { target: 65, scale: 40 }, heat: { target: 50, scale: 60 } }),
+
+  xw('capr_repeal_1', 'The Record: Repeal — I', null,
+    [xsign('capr_repeal_1', 'DECEMBER 5, 1933 — 5:32 P.M.'),
+      spr('capr_repeal_1_a', 'newsboy', 32, 66, 1.8), spr('capr_repeal_1_b', 'workman', 70, 62)],
+    [
+      'Narrator: "December 5, 1933. Utah ratifies, the wire flashes, and at 5:32 Eastern the Twenty-first Amendment repeals the Eighteenth. Prohibition ends the way it began — with a signature."',
+      'Newsboy: "Extra! PROHIBITION DEAD! Legal liquor by Christmas! ...Extra?"',
+      'Narrator: "He\'s calling it down a street where the speakeasy door already hangs open. Nobody inside but chairs on tables. The password was the product; the product is legal; the door is just a door."',
+      '[SCENE capr_repeal_2]',
+    ], { greed: { target: 40, scale: 50 }, prestige: { target: 35, scale: 50 } }),
+  xw('capr_repeal_2', 'The Record: Repeal — II', null,
+    [spr('capr_repeal_2_a', 'newsboy', 32, 66, 1.8), spr('capr_repeal_2_b', 'workman', 70, 62)],
+    [
+      'Workman: "Fourteen years they charged us triple for the privilege of a locked door. Now the tavern on the corner sells it with a license in the window — taxed, and boring."',
+      'Narrator: "The black market that grossed the Outfit a hundred and five million dollars in a year drained like a tub. The empire\'s founding commodity became a line at the grocery."',
+      'Narrator: "The Outfit shrugged and moved deeper into the rackets that never needed Prohibition — the unions, the wire, the rent. The lesson, one last time: outlaw a thirst and you print money for gunmen. Legalize it, and the gunmen go back to collecting rent. The rent was always the business."',
+      '[SCENE cap_record]',
+    ]),
+];
+
+scenes.push(...EXPANSION);
+console.log(`Expansion: ${EXPANSION.length} scenes (3 hubs, 28 duet beats, 20 aftermath beats, 12 record exhibits).`);
 
 // ==========================================================================
 // THE MACHINE, 1929 — the shared Georgist rig, seeded with Chicago's
