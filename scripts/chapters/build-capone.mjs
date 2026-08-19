@@ -1521,7 +1521,8 @@ scenes.push({
 //   DUETS         — two voices at a table, four beats each (7 x 4 = 28).
 //   AFTERMATHS    — that night / months later / years later, four events
 //                   x two perspectives (20).
-//   THE RECORD    — uncovered research staged as exhibits (12).
+//   THE RECORD    — uncovered research staged as exhibits (26, two drawers;
+//                   the second drawer is the Pass 2 deep-dive material).
 // Chain heads and standalone exhibits carry Narraton metadata in the
 // 'capone_reactions' pool so the Machine can pull them as commentary.
 // Acting tags only where sprites exist (Capone Pointing/Angry, Wave/Happy,
@@ -2344,7 +2345,7 @@ const EXPANSION = [
 ];
 
 scenes.push(...EXPANSION);
-console.log(`Expansion: ${EXPANSION.length} scenes (3 hubs, 28 duet beats, 20 aftermath beats, 12 record exhibits).`);
+console.log(`Expansion: ${EXPANSION.length} scenes (4 hubs, 28 duet beats, 20 aftermath beats, 26 record exhibits in two drawers).`);
 
 // ==========================================================================
 // THE MACHINE, 1929 — the shared Georgist rig, seeded with Chicago's

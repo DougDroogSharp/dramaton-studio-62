@@ -1,6 +1,9 @@
 // Builds public/hvb-elon.json — the standalone ELON MUSK (2020s)
 // chapter of Humans vs Billionaires. All content sourced from
-// docs/HVB_RESEARCH.md Chapter 5 (Reuters investigation, court records).
+// docs/HVB_RESEARCH.md Chapter 5 (Reuters investigation, court records)
+// and docs/HVB_RESEARCH_2.md Chapter 4 (the Pass 2 deep dive: SEC
+// settlement, text troves, DealBook, Tornetta/Delaware, Foundation math,
+// the prestige machine, the injury taxonomy).
 //
 // Run: node scripts/chapters/build-elon.mjs
 // Play: http://localhost:8080/theater?game=/hvb-elon.json
@@ -2704,8 +2707,13 @@ scenes.push({
 const aftermathsEnd = scenes.length;
 
 // ================================================================ THE RECORD
-// Twelve documented items the main story doesn't stage: studies, suits,
-// filings, meetings, memes, votes. Uncovered research, played straight.
+// Documented items the main story doesn't stage, in two drawers.
+// Drawer one (12 files): studies, suits, filings, meetings, memes, votes.
+// Drawer two (12 deep-dive files, HVB_RESEARCH_2.md ch.4): the SEC
+// settlement, the released text troves, DealBook, Tornetta, the Delaware
+// escape, the Foundation math, the prestige machine, the injury taxonomy,
+// the insulating layer, Cabada v. SpaceX, and the flagged 2025 beat.
+// Uncovered research, played straight.
 
 scenes.push({
   id: 'elon_record',
@@ -3044,6 +3052,381 @@ scenes.push({
   status: 'work',
 });
 
+// --------------------------------------------------------------- drawer two
+// Pass 2 deep-dive files (HVB_RESEARCH_2.md ch.4): the SEC settlement, the
+// released text troves, DealBook, Tornetta and the Delaware escape, the
+// Foundation math, the prestige machine in Georgist terms, the injury
+// taxonomy, the insulating executive layer, the Cabada suit, and the
+// flagged DOGE beat. Verbatim quotes stay verbatim; victims stay dignified.
+
+scenes.push({
+  id: 'elon_record_2',
+  name: 'The Record: The Second Drawer',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rec2_hub_l', 'elon_lawyer', 26, 62, 2.2),
+    el('rec2_hub_r', 'elon_reporter', 74, 62, 2.2),
+  ],
+  script: lines(
+    'Narrator: "The second drawer: twelve deep-dive files. Settlements, text troves, a chancellor, a foundation, a flag on the newest one. Pick."',
+    '[CHOICE]',
+    '- "2018: Funding secured" -> rec_sec',
+    '- "2022: The Agrawal texts" -> rec_texts_agrawal',
+    '- "2022: The believers\' texts" -> rec_texts_believers',
+    '- "2023: DealBook — \'Go. Fuck. Yourself.\'" -> rec_dealbook',
+    '- "The plaintiff with nine shares" -> rec_tornetta',
+    '- "The Delaware escape" -> rec_delaware',
+    '- "The Foundation math" -> rec_foundation',
+    '- "The prestige machine" -> rec_prestige',
+    '- "The taxonomy of the 600" -> rec_six_hundred',
+    '- "The insulating layer" -> rec_insulation',
+    '- "Cabada v. SpaceX" -> rec_cabada_suit',
+    '- "2025: The flagged file" -> rec_doge',
+    '- "Back to drawer one" -> elon_record',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_sec',
+  name: 'Funding Secured',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rsec_e', 'elon_musk', 30, 62),
+    el('rsec_l', 'elon_lawyer', 70, 62),
+    balloon('rsec_card', 'SEC v. MUSK — 2018', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(35, 85),
+  script: lines(
+    'Narrator: "7 August 2018. He posts, verbatim: \'Am considering taking Tesla private at $420. Funding secured.\' Tesla stock spikes about 14% on the tweet."',
+    'Lawyer: "The funding was not secured, sir. The SEC noticed. They charge securities fraud."',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "It was a joke. 420. A GOOD joke. The market laughed fourteen percent."',
+    'Lawyer: "The settlement: you pay $20 million. Tesla pays another $20 million. You step down as chairman for three years. And every market-moving tweet now requires pre-approval by a lawyer — the press calls it the \'Twitter sitter.\'"',
+    'Elon: "A babysitter. For MY posts. On MY feed."',
+    'Narrator: "For the record\'s completeness: in 2023, a separate shareholder class action went to a jury — and found him not liable for the tweets. Two proceedings, two answers. Both are in the file."',
+    'Narrator: "Note what the fine did not do: four years later he bought the whole feed. The sitter never stood a chance."',
+    '[CHOICE]',
+    '- "Next file: the Agrawal texts" -> rec_texts_agrawal',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_texts_agrawal',
+  name: 'The Agrawal Texts',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('rta_e', 'elon_musk', 40, 62, 2.6),
+    balloon('rta_card', 'RELEASED IN DELAWARE LITIGATION — SEPT 2022', 50, 20, { zIndex: 2 }),
+    balloon('rta_phone', 'THE THREAD', 45, 95),
+  ],
+  narraton: rn(30, 88),
+  script: lines(
+    'Narrator: "April 2022. Parag Agrawal, Twitter\'s CEO, texts the man about to become his largest shareholder. The thread surfaces months later in the Delaware litigation — verbatim, timestamped."',
+    '[SET_TEXT rta_phone "AGRAWAL: \'You are free to tweet \'is Twitter dying?\' or anything else about Twitter — but it\'s my responsibility to tell you that it\'s not helping me make Twitter better in the current context.\'"]',
+    'Narrator: "A CEO, gently, to his incoming owner: please stop hurting the company. The reply lands in under a minute."',
+    '[SET_TEXT rta_phone "MUSK: \'What did you get done this week?\'"]',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "What did you get done this week? I\'m not joining the board. This is a waste of time. Will make an offer to take Twitter private."',
+    'Narrator: "All verbatim. A $44 billion decision, made in the time it takes to lose your temper at a text."',
+    'Narrator: "And this, also his, also verbatim, from the same trove: \'Frankly, I hate doing mgmt stuff. I kinda don\'t think I should be the boss of anyone. But I love helping solve technical/product design problems.\' He then bought a company of 7,500 people."',
+    '[CHOICE]',
+    '- "Next file: the believers\' texts" -> rec_texts_believers',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_texts_believers',
+  name: 'The Believers\' Texts',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('rtb_e', 'elon_musk', 40, 62, 2.6),
+    balloon('rtb_card', 'THE TEXT TROVE — RELEASED SEPT 2022', 50, 20, { zIndex: 2 }),
+    balloon('rtb_phone', 'INBOX', 45, 95),
+  ],
+  narraton: rn(25, 92),
+  script: lines(
+    'Narrator: "The same released trove shows Silicon Valley\'s most powerful jostling to get in on the deal. Read the inbox of a man nobody says no to."',
+    '[SET_TEXT rtb_phone "ELLISON: COMMITS $2,000,000,000 — BY TEXT MESSAGE"]',
+    'Narrator: "Larry Ellison put two billion dollars into the deal over text. Two billion. By text."',
+    '[SET_TEXT rtb_phone "DORSEY: \'I tried my hardest to get you on our board, and the board said no… That\'s about the time I decided I need to work to leave.\'"]',
+    'Narrator: "Jack Dorsey, Twitter\'s founder, verbatim. And publicly, 26 April 2022: \'Elon is the singular solution I trust… I trust his mission to extend the light of consciousness.\'"',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "The singular solution. That\'s me. Print it on the hats."',
+    'Narrator: "Dorsey later brokered a meeting between Musk and Agrawal. It failed. His text afterward, verbatim and dry: \'At least it became clear that you can\'t work together. That was clarifying.\'"',
+    'Narrator: "This is what the prestige machine looks like from inside: billions moving on belief, by text, between men who never have to explain. The court made it public. That is what courts are for."',
+    '[CHOICE]',
+    '- "Next file: DealBook" -> rec_dealbook',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_dealbook',
+  name: 'DealBook, 29 November 2023',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rdb_e', 'elon_musk', 40, 62, 2.6),
+    balloon('rdb_card', 'DEALBOOK SUMMIT — ON VIDEO, VERBATIM', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(78, 42),
+  script: lines(
+    'Narrator: "29 November 2023. Advertisers are fleeing X over his posts. On stage at the DealBook Summit, Andrew Ross Sorkin asks about the boycott. What follows is on video, verbatim."',
+    '[POSE elon_musk pose=Sit expression=Angry]',
+    'Elon: "If somebody\'s going to try to blackmail me with advertising, blackmail me with money? Go fuck yourself."',
+    'Elon: "Go. Fuck. Yourself. Is that clear?"',
+    'Narrator: "Then, to Disney\'s Bob Iger, sitting in the audience: \'Hey, Bob.\'"',
+    'Elon: "I have no problem being hated. Hate away."',
+    'Narrator: "And, quieter, in the same interview: \'I handed a loaded gun to those who hate me.\' Even he could hear it."',
+    'Narrator: "Linda Yaccarino, the CEO he hired to win the advertisers back, publicly defended him afterward. Her job that week is not in the record. It is legible from orbit."',
+    'Narrator: "The prestige shell, rupturing on camera, in real time, at the mission\'s own asking price: the advertisers were the revenue. That is what a PRESTIGE crisis looks like when the armor is the man."',
+    '[CHOICE]',
+    '- "Next file: the plaintiff with nine shares" -> rec_tornetta',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_tornetta',
+  name: 'The Plaintiff With Nine Shares',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rtn_l', 'elon_lawyer', 50, 62, 2.6),
+    balloon('rtn_card', 'TORNETTA v. MUSK', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(55, 60),
+  script: lines(
+    'Narrator: "The case that voided the largest pay package in human history was brought by Richard Tornetta — a heavy-metal drummer from Pennsylvania who owned nine shares of Tesla."',
+    'Lawyer: "Nine shares. Against fifty-six billion dollars. Delaware law does not weigh the plaintiff. It weighs the process."',
+    'Narrator: "Chancellor Kathaleen McCormick weighed the process for 201 pages and found the board was not independent, the negotiation was not adversarial, and the sum was \'unfathomable.\'"',
+    'Lawyer: "Understand what that means structurally: any owner — nine shares or nine million — can make the record speak. That is the whole design. That is why the next file exists."',
+    'Narrator: "Because when the process finally bit, the response was not to fix the process. It was to leave the state."',
+    '[CHOICE]',
+    '- "Next file: the Delaware escape" -> rec_delaware',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_delaware',
+  name: 'The Delaware Escape',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rde_e', 'elon_musk', 30, 62),
+    el('rde_l', 'elon_hypebro', 70, 63),
+    balloon('rde_card', 'STATE OF INCORPORATION — DEPARTING', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(60, 58),
+  script: lines(
+    '[GAUGE regulation at 87,20 min=0 max=100 label="REGULATION"]',
+    '[TICK 400ms]',
+    '[IF regulation > 15]',
+    '[SET regulation = max(regulation - 1, 15)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "The ruling lands. His response, verbatim: \'Never incorporate your company in the state of Delaware.\' Then he does it: SpaceX reincorporates in Texas, Neuralink in Nevada — and Tesla\'s shareholders vote the company out of Delaware to Texas."',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "If the referee calls a foul, you don\'t argue. You buy a league with friendlier referees."',
+    'Lieutenant: "Filing the moving paperwork now, boss. Texas has GREAT weather for corporate charters."',
+    'Narrator: "Watch the needle. This is the oldest move in the book, staged as a moving van: when regulation bites, you do not comply — you relocate to where it can\'t. Leopold bribed the press. Capone bought the aldermen. He shops jurisdictions."',
+    'Narrator: "Same mechanic, every era: spend hoard or prestige to corrode the rule. And the same counter, every era — the corrosion is itself a document. The escape is now the most-cited exhibit for why the rule was needed."',
+    '[CHOICE]',
+    '- "Next file: the Foundation math" -> rec_foundation',
+    '- "See it feed the Machine" -> el_machine',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_foundation',
+  name: 'The Foundation Math',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rfm_r', 'elon_reporter', 50, 62, 2.6),
+    balloon('rfm_card', 'THE MUSK FOUNDATION — NYT, 2024', 50, 20, { zIndex: 2 }),
+    balloon('rfm_ticker', 'THE 5% RULE', 45, 95),
+  ],
+  narraton: rn(55, 68),
+  script: lines(
+    'Narrator: "US law asks one thing of a private foundation: disburse roughly 5% of assets a year. In 2024, the New York Times — David Fahrenthold, Ryan Mac, Teddy Schleifer — ran the Musk Foundation\'s numbers."',
+    '[SET_TEXT rfm_ticker "2021: SHORT ~$41 MILLION"]',
+    'Reporter: "Short $41 million in 2021."',
+    '[SET_TEXT rfm_ticker "2022: SHORT ~$234 MILLION — ~2.25% GIVEN OF ~$7 BILLION IN ASSETS"]',
+    'Reporter: "Short $234 million in 2022 — about 2.25% given, of roughly $7 billion."',
+    '[SET_TEXT rfm_ticker "2023: SHORT ~$421 MILLION"]',
+    'Reporter (Closeup/Determined): "Short $421 million in 2023. And of what it did give in 2021 and 2022, roughly half benefited his own interests, partners, or family — the Ad Astra school, where several students were his own children, and a $100 million grant to a charity run by Jared Birchall, the head of his family office."',
+    'Narrator: "The foundation has no employees. Its directors reportedly spent about two hours a week on it. ProPublica later lists 2024 expenses of $475 million against $463 million in total assets — the numbers moving, at last, under scrutiny."',
+    'Narrator: "This is the chapter\'s litmus question with a ledger attached: philanthropy as prestige-laundering, or extraction actually stopped? The 5% rule is the smallest possible test. Read the ticker again."',
+    '[CHOICE]',
+    '- "Next file: the prestige machine" -> rec_prestige',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_prestige',
+  name: 'The Prestige Machine',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('rpm_e', 'elon_musk', 30, 62),
+    el('rpm_f', 'elon_fans', 72, 63),
+    balloon('rpm_card', 'PRESTIGE-AS-ARMOR — THE MECHANISM', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(45, 88),
+  script: lines(
+    '[GAUGE prestige at 87,20 min=0 max=100 label="PRESTIGE"]',
+    '[GAUGE education at 87,44 min=0 max=100 label="EDUCATION"]',
+    'Narrator: "Take the machine apart. Component one: the mission. \'Saving humanity\' reframes every cost — the injuries, the fines, the firings — as friction on the way to Mars. Nobody audits a mission."',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "Time Person of the Year, 2021. They gave the armor a cover shoot."',
+    'Narrator: "Component two: the fan armies. Every exposé arrives pre-ratioed; the meme is the moat. Free reputational infantry, paid in belonging."',
+    'Fans: "The haters have articles. WE have the mission."',
+    'Narrator: "Component three: the megaphone itself, purchased for $44 billion. And yet — Community Notes, on his own platform, now sometimes corrects his own posts. The armor is showing seams from the inside."',
+    'Narrator: "In the Machine\'s terms: prestige is a depletable buffer that repression can rupture and education corrodes. Leopold\'s buffer was a museum. Capone\'s was a soup kitchen. His is a mission — and every gauge on this wall says the same thing: buffers run out."',
+    '[CHOICE]',
+    '- "Next file: the taxonomy of the 600" -> rec_six_hundred',
+    '- "See it feed the Machine" -> el_machine',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_six_hundred',
+  name: 'The Taxonomy of the 600',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    el('rsh_ws', 'elon_workers', 50, 64, 2.4),
+    balloon('rsh_card', 'REUTERS, 10 NOV 2023 — THE COUNT, ITEMIZED', 50, 20, { zIndex: 2 }),
+    balloon('rsh_ticker', 'AT LEAST 600 PREVIOUSLY UNREPORTED INJURIES SINCE 2014', 45, 95),
+  ],
+  narraton: rn(62, 52),
+  script: lines(
+    'Narrator: "Six hundred is a number. The record itemizes it. Read slowly — each line is people."',
+    '[SET_TEXT rsh_ticker "MORE THAN 100 CUTS AND LACERATIONS"]',
+    'Workers: "The gloves budget was \'under review\' for two quarters."',
+    '[SET_TEXT rsh_ticker "29 BROKEN BONES AND DISLOCATIONS • 17 CRUSHED HANDS AND FINGERS"]',
+    'Workers: "Seventeen crushed hands. We build rockets with our hands."',
+    '[SET_TEXT rsh_ticker "9 HEAD INJURIES • 8 AMPUTATIONS"]',
+    'Workers: "Eight amputations. Eight people learning to live in a different body, on a schedule that never slowed for any of them."',
+    '[SET_TEXT rsh_ticker "5 BURNS • 5 ELECTROCUTIONS • 7 EYE INJURIES"]',
+    'Workers: "And Lonnie. The count starts with Lonnie."',
+    '[SET_TEXT rsh_ticker "ROUGHLY 400 CAME IN YEARS SPACEX REPORTED NOTHING TO OSHA"]',
+    'Narrator: "Roughly four hundred of the six hundred happened in years the company filed no injury data to the regulator at all. An injury that is never reported never becomes a rate, and a rate that doesn\'t exist never slows a schedule. The taxonomy is the resistance."',
+    '[CHOICE]',
+    '- "Next file: the insulating layer" -> rec_insulation',
+    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_insulation',
+  name: 'The Insulating Layer',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('ril_e', 'elon_musk', 30, 62),
+    el('ril_l', 'elon_hypebro', 70, 63),
+    balloon('ril_card', 'THE OPERATIONAL LAYER', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(35, 82),
+  script: lines(
+    'Narrator: "Between the feed and the floor sits a layer of executives the public rarely sees: Gwynne Shotwell running SpaceX day to day, Steve Davis, Omead Afshar. The researchers call it the insulating layer."',
+    'Lieutenant: "Boss posts at 3am, Shotwell answers the customers at 9am. It\'s a system. It\'s LOAD-BEARING."',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "I do vision. Other people do... whichever days the vision isn\'t on."',
+    'Narrator: "The layer works in both directions. It keeps the companies running through the chaos — and it keeps the chaos deniable. Contracts survive the posts because a professional is always standing just behind the man yelling at the feed."',
+    'Narrator: "Note it in the mechanism: prestige armor is not only memes and missions. It is competent people whose competence gets billed to the myth. Every launch that lands is credited to the account that posts."',
+    '[CHOICE]',
+    '- "Next file: Cabada v. SpaceX" -> rec_cabada_suit',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_cabada_suit',
+  name: 'Cabada v. SpaceX',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('rcs_l', 'elon_lawyer', 30, 62),
+    el('rcs_w', 'elon_worker', 70, 62),
+    balloon('rcs_card', 'FILED JANUARY 2024', 50, 22, { zIndex: 2 }),
+  ],
+  narraton: rn(58, 55),
+  script: lines(
+    'Narrator: "18 January 2022. Hawthorne. During a pressure test of a Raptor V2 engine, a part flies off and fractures the skull of Francisco Cabada, an integration technician. He does not wake up. Years pass. He still has not woken up."',
+    'Worker: "Frank\'s wife, Ydy, kept visiting. Kept waiting for a call from the top that never came. Her words, to Reuters: \'It would have been nice to get a call from Elon Musk… But I guess workers are just disposable to them.\'"',
+    'Lawyer: "The state\'s response: CalOSHA fined SpaceX $18,475. The company appealed — seeking a reduction toward $475."',
+    'Worker (Pointing/Angry): "Four hundred seventy-five dollars. For Frank\'s skull."',
+    'Lawyer: "In January 2024, Ydy Cabada filed a negligence suit. A fine can be ground down by an appeals board. A civil suit takes depositions. Discovery. Testimony under oath about what that test cell was like, on the record, forever."',
+    'Narrator: "This file is a person: a technician who ran that cell for years, a family that would not be priced. The record is people. It always was."',
+    '[CHOICE]',
+    '- "Next file: the flagged one" -> rec_doge',
+    '- "Back to the second drawer" -> elon_record_2',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'rec_doge',
+  name: 'The Flagged File',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('rdg_r', 'elon_reporter', 50, 62, 2.6),
+    balloon('rdg_card', 'FLAG: RECENT AND EVOLVING — NOT SETTLED HISTORY', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(72, 48),
+  script: lines(
+    'Narrator: "The last file in the drawer carries a flag, and the flag is the point: this one is still being written."',
+    'Reporter: "2025. He is handed a government initiative — DOGE — and widely reported cuts sweep the federal workforce, including the agencies that regulate his own companies."',
+    'Reporter (Closeup/Determined): "You\'ve seen this mechanic all chapter: corroding regulation with money and prestige. The reporting frames this as the same arc — but it is recent, contested, and evolving. So this game does what the record does: states the claim, states the flag, and waits for the documents."',
+    'Narrator: "Every other file in these drawers began exactly here — as a developing story someone insisted was too soon to judge. The Worksafe study. The Reveal count. McGregor. Give it the years, and the FOIA requests, and the depositions."',
+    'Narrator: "The drawer stays open. That is the ending this era can honestly offer: the record accumulates whether or not the feed acknowledges it."',
+    '[CHOICE]',
+    '- "Back to the second drawer" -> elon_record_2',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
 const recordEnd = scenes.length;
 
 // ---------------------------------------------------------------- game
@@ -3125,7 +3508,7 @@ const game = {
     {
       id: 'ep_elon_record',
       name: 'The Record',
-      description: 'Twelve uncovered files: the Worksafe study, the Reveal exposé and Tesla\'s denial, the CRD and EEOC suits, Trust & Safety\'s final meeting, the sink walk-in, the pay-package votes, Starbase at shift change, and the named testimony. Narraton pool: elon_reactions.',
+      description: 'Two drawers of uncovered files. Drawer one: the Worksafe study, the Reveal exposé and Tesla\'s denial, the CRD and EEOC suits, Trust & Safety\'s final meeting, the sink walk-in, the pay-package votes, Starbase at shift change, and the named testimony. Drawer two (the deep dive): the SEC settlement, the Agrawal and believers\' texts, DealBook, Tornetta and the Delaware escape, the Foundation math, the prestige machine, the taxonomy of the 600, the insulating layer, Cabada v. SpaceX, and the flagged 2025 file. Narraton pool: elon_reactions.',
       sceneIds: scenes.slice(aftermathsEnd, recordEnd).map((s) => s.id),
       status: 'work',
     },
