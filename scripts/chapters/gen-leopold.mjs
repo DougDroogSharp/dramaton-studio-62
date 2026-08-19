@@ -6,7 +6,7 @@
 //
 // Run: node scripts/chapters/gen-leopold.mjs
 
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
@@ -54,6 +54,46 @@ const MANIFEST = [
     prompt: 'A 1900s box Kodak camera standing alone on a wooden tripod, leather-covered box body, brass lens, seen slightly from the side, full object, nothing else.',
     fallback: 'An antique early box camera on a wooden tripod, circa 1900, leather box body with brass lens, standing alone, full object.',
   },
+  {
+    file: 'leopold_docks.png', isCharacter: false,
+    prompt: 'Liverpool docks, 1900: a wet stone quayside at dusk, moored steamships with tall funnels, cranes, stacked cargo crates, and at one side the lit window of a small shipping ledger office, papers visible on a high desk inside. No people.',
+    fallback: 'An Edwardian-era British dockside at dusk: steamships, cranes, stacked crates, and a small lamplit clerk\'s office with ledgers at a high desk. No people.',
+  },
+  {
+    file: 'leopold_lecture.png', isCharacter: false,
+    prompt: 'A darkened British lecture hall, 1906: rows of audience silhouettes seen from behind, a magic lantern projector on a stand casting a bright beam, and on the far wall a large projected rectangle of white light, empty. Dust motes in the beam. No faces visible.',
+    fallback: 'A darkened Edwardian lecture hall: audience silhouettes from behind, a magic lantern projector beam, a blank bright projected frame on the wall. No faces.',
+  },
+];
+
+// Mid-scene pose variants. Each uses the existing keyed sprite as a
+// full-body reference so face and costume stay consistent across poses.
+const VARIANTS = [
+  {
+    file: 'leopold_king_sit.png', ref: ['..', 'leopold_king.png'],
+    prompt: 'The same elderly bearded king in the same dark uniform with medals, now SEATED in a carved chair at a huge desk, leaning back, hands folded over his stomach, smug satisfied expression, full body including chair, facing slightly right.',
+    fallback: 'The same bearded elderly monarch in dark uniform, seated in an ornate chair at a desk, leaning back with a self-satisfied expression, full body, facing slightly right.',
+  },
+  {
+    file: 'leopold_king_point.png', ref: ['..', 'leopold_king.png'],
+    prompt: 'The same elderly bearded king in the same dark uniform with medals, now standing and POINTING sharply forward with his right arm fully extended, angry commanding expression, full body, facing slightly left.',
+    fallback: 'The same bearded elderly monarch in dark uniform, standing and pointing forward with an outstretched arm, stern commanding face, full body, facing slightly left.',
+  },
+  {
+    file: 'leopold_casement_closeup.png', ref: ['..', 'leopold_casement.png'],
+    prompt: 'The same bearded Edwardian consul in the same dark suit, close-up from the chest up, pen in hand over a page of a handwritten report, jaw set, determined focused expression, looking down at the page.',
+    fallback: 'The same bearded Edwardian gentleman in a dark suit, chest-up close view, writing with a pen on a report page, determined concentrated expression.',
+  },
+  {
+    file: 'leopold_morel_point.png', ref: ['leopold_morel.png'],
+    prompt: 'The same moustached Edwardian shipping clerk in the same dark suit and bowler hat, now POINTING with one arm at something off-frame while his other hand holds an open ledger, eyes wide, surprised astonished expression, full body, facing slightly right.',
+    fallback: 'The same moustached clerk in dark suit and bowler hat, pointing with one arm, open ledger in the other hand, astonished wide-eyed expression, full body, facing slightly right.',
+  },
+  {
+    file: 'leopold_harris_crouch.png', ref: ['leopold_harris.png'],
+    prompt: 'The same Edwardian missionary woman in the same high-collared blouse, long dark skirt and sun hat, now CROUCHING low on one knee, steadying her box Kodak camera at eye level to frame a photograph, determined resolute expression, full body, facing slightly left.',
+    fallback: 'The same Edwardian woman in blouse, long skirt and sun hat, kneeling low and holding an early box camera up to frame a shot, focused resolute expression, full body, facing slightly left.',
+  },
 ];
 
 // Green screen removal (same key as scripts/generate-art.mjs).
@@ -73,7 +113,7 @@ function chromaKey(pngBuffer) {
   return PNG.sync.write(png);
 }
 
-async function generate(prompt, isCharacter) {
+async function generate(prompt, isCharacter, referenceImageFullBody = null) {
   const resp = await fetch(BRIDGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -82,6 +122,7 @@ async function generate(prompt, isCharacter) {
       isCharacter,
       stylePack: STYLE,
       aspectRatio: isCharacter ? '2:3' : '16:9',
+      ...(referenceImageFullBody ? { referenceImageFullBody } : {}),
     }),
   });
   const data = await resp.json();
@@ -120,6 +161,47 @@ for (const item of MANIFEST) {
     }
   }
   if (item.isCharacter) buf = chromaKey(buf);
+  writeFileSync(outPath, buf);
+  console.log(`ok (${Math.round(buf.length / 1024)} KB)`);
+  generated++;
+}
+
+// ---- Pose variants (reference-driven, keyed like all characters) ----
+for (const item of VARIANTS) {
+  const outPath = resolve(outDir, item.file);
+  if (existsSync(outPath)) {
+    console.log(`- ${item.file} exists, skipping`);
+    skipped++;
+    continue;
+  }
+  const refPath = resolve(outDir, ...item.ref);
+  if (!existsSync(refPath)) {
+    console.log(`- ${item.file} SKIPPED: reference ${item.ref.join('/')} missing`);
+    failed++;
+    continue;
+  }
+  const refDataUrl = `data:image/png;base64,${readFileSync(refPath).toString('base64')}`;
+  process.stdout.write(`* ${item.file} generating (ref: ${item.ref[item.ref.length - 1]})... `);
+  let buf = null;
+  try {
+    buf = await generate(item.prompt, true, refDataUrl);
+  } catch (err) {
+    if (/content_policy/i.test(err.message) && item.fallback) {
+      process.stdout.write(`policy hit, retrying restrained... `);
+      try {
+        buf = await generate(item.fallback, true, refDataUrl);
+      } catch (err2) {
+        console.log(`FAILED: ${err2.message}`);
+        failed++;
+        continue;
+      }
+    } else {
+      console.log(`FAILED: ${err.message}`);
+      failed++;
+      continue;
+    }
+  }
+  buf = chromaKey(buf);
   writeFileSync(outPath, buf);
   console.log(`ok (${Math.round(buf.length / 1024)} KB)`);
   generated++;

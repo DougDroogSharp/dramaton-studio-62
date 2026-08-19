@@ -6,7 +6,7 @@
 //
 // Run: node scripts/chapters/gen-elon.mjs
 
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
@@ -48,6 +48,43 @@ const MANIFEST = [
     prompt: 'A trial lawyer: crisp dark suit, leather briefcase in one hand and a sheaf of court papers in the other, steely confident expression, standing, full body, facing slightly right.',
     alt: 'An attorney in a sharp suit carrying a briefcase and legal documents, calm and confident, standing, full body, facing slightly right.',
   },
+  // ---- new backdrops -----------------------------------------------------
+  {
+    file: 'courtroom.png', isCharacter: false,
+    prompt: 'A federal courtroom interior: raised judge\'s bench with a carved seal, witness stand, empty jury box, wood paneling, an American flag, cold institutional light through tall windows. Wide empty middle ground for characters. No people.',
+    alt: 'An empty courtroom: judge\'s bench, witness box, jury seats, dark wood paneling, flag, harsh overhead light. Empty middle ground. No people.',
+  },
+  {
+    file: 'bedroom3am.png', isCharacter: false,
+    prompt: 'A dark billionaire bedroom at 3am, comic-page composition: an enormous rumpled bed in shadow, a smartphone lying on the sheets glowing cold blue and throwing the only light in the room, a big empty white thought-cloud shape hovering above the bed, city lights faint through a huge window. Wide empty middle ground for characters. No people.',
+    alt: 'A shadowy bedroom at night: huge messy bed, a glowing phone on the sheets casting cold blue light, an empty cartoon thought bubble floating above the bed, dark window behind. Empty middle ground. No people.',
+  },
+  // ---- pose variants (built from the keyed base sprites via reference) ----
+  {
+    file: 'elon_point_smug.png', isCharacter: true, ref: 'elon_musk.png',
+    prompt: 'Elon Musk caricature, triumphant announcement: one arm fully outstretched pointing forward, chin raised, smug self-satisfied grin, half-lidded eyes, black t-shirt with a small rocket logo, standing, full body, facing slightly left.',
+    alt: 'A smug billionaire tech CEO caricature pointing grandly with an outstretched arm, self-satisfied grin, black t-shirt with a rocket logo, standing, full body, facing slightly left.',
+  },
+  {
+    file: 'elon_crouch_scared.png', isCharacter: true, ref: 'elon_musk.png',
+    prompt: 'Elon Musk caricature, terrified: crouching low with knees deeply bent, arms pulled in protectively over his head, eyes huge with fear, cartoon sweat drops flying, black t-shirt with a small rocket logo, full body, facing slightly left.',
+    alt: 'A terrified billionaire tech CEO caricature crouching low, arms shielding his head, bulging frightened eyes, cartoon sweat beads, black t-shirt with rocket logo, full body, facing slightly left.',
+  },
+  {
+    file: 'elon_sit_angry.png', isCharacter: true, ref: 'elon_musk.png',
+    prompt: 'Elon Musk caricature posting at 3am: sitting cross-legged in rumpled bedsheets, hunched over a glowing smartphone, furious scowl lit cold blue from below, dark bags under his eyes, thumbs jabbing at the screen, black t-shirt with a small rocket logo, full body.',
+    alt: 'An angry billionaire tech CEO caricature sitting cross-legged in bedsheets, hunched over a glowing phone, scowling face lit from below, dark eye bags, black t-shirt with rocket logo, full body.',
+  },
+  {
+    file: 'reporter_closeup_determined.png', isCharacter: true, ref: 'elon_reporter.png',
+    prompt: 'A newspaper reporter, dramatic close-up from the chest up: notebook and pen raised mid-note, steady unblinking determined gaze, jaw set hard, press lanyard around the neck.',
+    alt: 'Close-up of a journalist from the chest up, holding a notebook and pen, determined focused expression, set jaw, press badge on a lanyard.',
+  },
+  {
+    file: 'worker_point_angry.png', isCharacter: true, ref: 'elon/worker.png',
+    prompt: 'A factory worker in a high-visibility orange safety vest and hard hat, pointing accusingly with a fully outstretched arm, angry shouting expression, mouth open mid-yell, work gloves, standing, full body, facing slightly left.',
+    alt: 'An industrial worker in hi-vis vest and hard hat pointing an accusing finger, furious shouting face, work gloves, standing, full body, facing slightly left.',
+  },
 ];
 
 // ---------------------------------------------------------------- chroma key
@@ -70,16 +107,31 @@ function chromaKey(pngBuffer) {
 
 // ---------------------------------------------------------------- run
 
-async function generate(prompt, isCharacter) {
+const artRoot = resolve(here, '..', '..', 'art-demo');
+
+// Load an existing keyed sprite as a data URL to use as a full-body
+// reference for pose variants. Returns null if the file is missing.
+function refDataUrl(relPath) {
+  const p = resolve(artRoot, relPath);
+  if (!existsSync(p)) return null;
+  return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
+}
+
+async function generate(prompt, isCharacter, ref) {
+  const body = {
+    prompt,
+    isCharacter,
+    stylePack: 'Elon',
+    aspectRatio: isCharacter ? '2:3' : '16:9',
+  };
+  if (ref) {
+    const dataUrl = refDataUrl(ref);
+    if (dataUrl) body.referenceImageFullBody = dataUrl;
+  }
   const resp = await fetch(BRIDGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      isCharacter,
-      stylePack: 'Elon',
-      aspectRatio: isCharacter ? '2:3' : '16:9',
-    }),
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -100,11 +152,11 @@ for (const item of MANIFEST) {
   try {
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter);
+      buf = await generate(item.prompt, item.isCharacter, item.ref);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.alt) {
         process.stdout.write(`policy hit, rephrasing... `);
-        buf = await generate(item.alt, item.isCharacter);
+        buf = await generate(item.alt, item.isCharacter, item.ref);
       } else {
         throw err;
       }

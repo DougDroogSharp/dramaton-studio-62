@@ -27,10 +27,24 @@ const speakerColor = (name: string): string => {
   return SPEAKER_COLORS[h % SPEAKER_COLORS.length];
 };
 
+// Pick a portrait for this utterance: prefer Closeup graphics, and vary
+// the expression per line (stable hash of the text) so a speaker's face
+// changes utterance to utterance as their pose matrix fills in.
+const pickPortrait = (actor: Actor | undefined, text: string) => {
+  const graphics = (actor?.graphics ?? []).filter(g => g.image);
+  if (graphics.length === 0) return undefined;
+  const closeups = graphics.filter(g => g.pose === 'Closeup');
+  const pool = closeups.length > 0 ? closeups : graphics;
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return pool[h % pool.length];
+};
+
 export const DialogueBox: React.FC<DialogueBoxProps> = ({ dialogue, actor, onAdvance }) => {
   const isThought = dialogue.style === 'thought';
   const isNarration = dialogue.actorName.trim().toLowerCase() === 'narrator';
   const color = isNarration ? undefined : speakerColor(dialogue.actorName.trim().toLowerCase());
+  const portrait = isNarration ? undefined : pickPortrait(actor, dialogue.text);
 
   return (
     <div
@@ -65,32 +79,39 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({ dialogue, actor, onAdv
           <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-diesel-rust" />
           <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-diesel-rust" />
           
-          {/* Actor portrait (if available) */}
-          {actor?.graphics[0]?.image && (
-            <div className="absolute -left-20 bottom-0 w-16 h-20 hidden md:block">
-              <img
-                src={actor.graphics[0].image}
-                alt={actor.name}
-                className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-          
-          {/* Text content: narration is italic neutral; speech carries
-              the speaker's color */}
-          <p
-            className={`text-lg leading-relaxed ${isNarration ? 'italic text-diesel-paper/75' : 'text-diesel-paper'}`}
-            style={color ? { color } : undefined}
-          >
-            {isThought && <span className="text-diesel-steel">(</span>}
-            {dialogue.displayedText}
-            <span className={`inline-block w-2 h-5 ml-1 align-middle ${
-              dialogue.isComplete ? 'bg-diesel-gold animate-pulse' : 'bg-diesel-paper'
-            }`} />
-            {isThought && dialogue.displayedText.length === dialogue.text.length && (
-              <span className="text-diesel-steel">)</span>
+          <div className="flex gap-4 items-start">
+            {/* Speaker portrait beside the speech: head-cropped, framed
+                in the speaker's color; expression varies per utterance */}
+            {portrait && (
+              <div
+                className="shrink-0 w-20 h-20 md:w-24 md:h-24 bg-diesel-panel border-2 overflow-hidden"
+                style={{ borderColor: color }}
+              >
+                <img
+                  src={portrait.image}
+                  alt={`${dialogue.actorName} (${portrait.expression})`}
+                  className="w-full h-full object-cover"
+                  style={{ objectPosition: 'top' }}
+                />
+              </div>
             )}
-          </p>
+
+            {/* Text content: narration is italic neutral; speech carries
+                the speaker's color */}
+            <p
+              className={`text-lg leading-relaxed flex-1 ${isNarration ? 'italic text-diesel-paper/75' : 'text-diesel-paper'}`}
+              style={color ? { color } : undefined}
+            >
+              {isThought && <span className="text-diesel-steel">(</span>}
+              {dialogue.displayedText}
+              <span className={`inline-block w-2 h-5 ml-1 align-middle ${
+                dialogue.isComplete ? 'bg-diesel-gold animate-pulse' : 'bg-diesel-paper'
+              }`} />
+              {isThought && dialogue.displayedText.length === dialogue.text.length && (
+                <span className="text-diesel-steel">)</span>
+              )}
+            </p>
+          </div>
           
           {/* Continue indicator */}
           {dialogue.isComplete && (

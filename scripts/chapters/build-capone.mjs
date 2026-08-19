@@ -27,16 +27,31 @@ const art = (...rel) => {
   return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 };
 
-const actor = (id, name, ...rel) => {
-  const img = rel.length ? art(...rel) : null;
-  return {
-    id,
-    name,
-    graphics: img
-      ? [{ id: `${id}_g`, pose: 'Neutral', expression: 'Neutral', angle: 0, image: img }]
-      : [],
-    status: 'work',
-  };
+// variants: [{ pose, expression, rel: [...path] }] — mid-scene sprites
+// generated with the base sprite as identity reference. A missing PNG
+// just drops the variant; [POSE] lines are guarded by poseCmd below.
+const actor = (id, name, rel = null, variants = []) => {
+  const graphics = [];
+  const img = rel ? art(...rel) : null;
+  if (img) graphics.push({ id: `${id}_g`, pose: 'Neutral', expression: 'Neutral', angle: 0, image: img });
+  for (const v of variants) {
+    const vimg = art(...v.rel);
+    if (vimg) graphics.push({ id: `${id}_g_${v.pose}_${v.expression}`.toLowerCase(), pose: v.pose, expression: v.expression, angle: 0, image: vimg });
+  }
+  return { id, name, graphics, status: 'work' };
+};
+
+// Emit a [POSE] line only when the actor has that exact pose/expression
+// graphic at angle 0 — the renderer needs an exact triple match.
+// POSE targets the STAGE ELEMENT id, not the actor id.
+const poseCmd = (elementId, actorId, pose, expression) => {
+  const a = actors.find((x) => x.id === actorId);
+  const hit = a?.graphics.some((g) => g.pose === pose && g.expression === expression && g.angle === 0);
+  if (!hit) {
+    console.warn(`  (no ${pose}/${expression} sprite for ${actorId} — POSE on ${elementId} skipped)`);
+    return '';
+  }
+  return `[POSE ${elementId} pose=${pose} expression=${expression}]`;
 };
 
 const drops = [];
@@ -54,22 +69,212 @@ const spr = (id, assetId, x, y, scale = 2.4) => ({
 // ---------------------------------------------------------------- assets
 
 const actors = [
-  actor('capone', 'Capone', 'capone_boss.png'),
-  actor('wilson', 'Wilson', 'capone_wilson.png'),
-  actor('torrio', 'Torrio', 'capone', 'capone_torrio.png'),
-  actor('ness', 'Ness', 'capone', 'capone_ness.png'),
-  actor('workman', 'Workman', 'capone', 'capone_breadline.png'),
-  actor('newsboy', 'Newsboy', 'capone', 'capone_newsboy.png'),
+  actor('capone', 'Capone', ['capone_boss.png'], [
+    { pose: 'Pointing', expression: 'Angry', rel: ['capone', 'capone_point_angry.png'] },
+    { pose: 'Wave', expression: 'Happy', rel: ['capone', 'capone_wave_happy.png'] },
+    { pose: 'Sit', expression: 'Confused', rel: ['capone', 'capone_sit_confused.png'] },
+  ]),
+  actor('wilson', 'Wilson', ['capone_wilson.png'], [
+    { pose: 'Closeup', expression: 'Determined', rel: ['capone', 'wilson_closeup_determined.png'] },
+  ]),
+  actor('torrio', 'Torrio', ['capone', 'capone_torrio.png'], [
+    { pose: 'Lean', expression: 'Tired', rel: ['capone', 'torrio_lean_tired.png'] },
+  ]),
+  actor('ness', 'Ness', ['capone', 'capone_ness.png']),
+  actor('workman', 'Workman', ['capone', 'capone_breadline.png']),
+  actor('newsboy', 'Newsboy', ['capone', 'capone_newsboy.png']),
   actor('narrator', 'Narrator'),
 ];
 
 const dropLexington = drop('capone_lexington', 'Lexington Hotel Suite', 'capone', 'capone_lexington.png');
 const dropSoup = drop('capone_soupkitchen', 'Capone Free Soup Kitchen', 'capone', 'capone_soupkitchen.png');
 const dropGarage = drop('capone_garage', 'Clark Street Garage', 'capone_garage.png');
+const dropCourt = drop('capone_courtroom', 'Federal Courtroom 1931', 'capone', 'capone_courtroom.png');
+const dropCicero = drop('capone_cicero', 'Cicero Polling Place 1924', 'capone', 'capone_cicero.png');
+
+// The two mood dials of the 1986 game, reborn: HEAT is police and
+// public attention, RESPECT is standing inside the Outfit. Choices move
+// both; the ending reads HEAT.
+const GAUGES = [
+  '[GAUGE heat at 8,12 min=0 max=100 label="HEAT"]',
+  '[GAUGE respect at 8,22 min=0 max=100 label="RESPECT"]',
+];
 
 // ---------------------------------------------------------------- scenes
 
 const scenes = [
+  // 0 — CICERO, 1924: the Outfit learns to own an election.
+  {
+    id: 'cap_cicero',
+    name: 'Cicero — Election Day 1924',
+    sceneType: 'AGENCY',
+    dropId: dropCicero,
+    stage: [
+      spr('st_cic_capone', 'capone', 32, 62),
+      spr('st_cic_torrio', 'torrio', 70, 62),
+    ],
+    script: lines(
+      ...GAUGES,
+      'Narrator: "Cicero, Illinois. April 1, 1924. Chicago elected a reform mayor, so the Outfit moved to the suburbs. Today Cicero votes — on whether it belongs to its citizens or to the organization. Two dials will follow you through this story: HEAT, how hard the law and the public are looking at you. RESPECT, how the Outfit rates the man at the top."',
+      'Torrio: "Al. An election is just a market with one product. You can buy it loud, buy it quiet, or let the customers have it. Each price is different."',
+      'Capone: "This town is the whole operation, Johnny. Breweries, the Hawthorne, the wire rooms. If Cicero votes wrong, we\'re commuters."',
+      'Torrio: "Then choose. And remember what I keep telling you — violence is overhead."',
+      '[CHOICE]',
+      '- "Flood the polls with muscle" -> cap_cic_muscle',
+      '- "Buy the precinct captains quietly" -> cap_cic_money',
+      '- "Let Cicero vote — this once" -> cap_cic_stayout',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  // 0a — muscle: the historical election-day takeover, and its bill.
+  {
+    id: 'cap_cic_muscle',
+    name: 'Cicero: The Muscle',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_cicm_capone', 'capone', 32, 62), spr('st_cicm_torrio', 'torrio', 70, 62)],
+    script: lines(
+      poseCmd('st_cicm_capone', 'capone', 'Pointing', 'Angry'),
+      'Capone: "Every polling place gets a car and four men. Voters who look undecided get walked in and shown how to decide."',
+      '[SET heat = heat + 15]',
+      '[SET respect = respect + 10]',
+      '[SET repression = repression + 15]',
+      'Narrator: "Gunmen worked the polls all day — ballots inspected, election judges driven off, poll watchers escorted out of town. Cicero voted the Outfit\'s way. By evening the family had a bill of its own: Al\'s brother Frank, dead in a volley from plainclothes police outside a polling place."',
+      'Torrio: "You bought the town, Al. The flowers alone cost twenty thousand. That is what overhead means."',
+      'Narrator: "Cicero belonged to the organization. And every paper in Chicago now knew the name Capone."',
+      '[SCENE cap_hawthorne]',
+    ),
+    status: 'work',
+  },
+
+  // 0b — money: quieter, cheaper, corrosive.
+  {
+    id: 'cap_cic_money',
+    name: 'Cicero: The Envelope',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_cicq_capone', 'capone', 32, 62), spr('st_cicq_torrio', 'torrio', 70, 62)],
+    script: lines(
+      '[SET heat = heat + 5]',
+      '[SET respect = respect + 5]',
+      '[SET regulation = regulation - 15]',
+      'Capone: "No cars, no bats. Precinct captains have mortgages like everybody else."',
+      'Narrator: "The envelopes went out a week early. Cicero\'s machine discovered it had always admired the Outfit. The count came in right, and hardly anyone had to be pushed down a staircase."',
+      'Torrio: "Cheap, quiet, repeatable. That is how a racket becomes a government."',
+      'Narrator: "The law in Cicero was now a subscription service. The town was theirs — on paper, which is the strongest way to own anything."',
+      '[SCENE cap_hawthorne]',
+    ),
+    status: 'work',
+  },
+
+  // 0c — restraint: history rolls on anyway, but the Outfit remembers.
+  {
+    id: 'cap_cic_stayout',
+    name: 'Cicero: Hands Off',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_cics_capone', 'capone', 32, 62), spr('st_cics_torrio', 'torrio', 70, 62)],
+    script: lines(
+      '[SET respect = respect - 10]',
+      'Capone: "Let them vote. We\'ll rent the winners afterward."',
+      'Narrator: "Cicero voted, more or less freely. The Outfit still ended up with the Hawthorne, the wire rooms, and most of the winners\' evenings — money finds the door either way. But inside the organization, the soldiers muttered: the big fellow blinked."',
+      'Torrio: "Restraint reads as weakness to men who only count calibers. Watch your lieutenants, Al."',
+      '[SCENE cap_hawthorne]',
+    ),
+    status: 'work',
+  },
+
+  // 0.5 — THE HAWTHORNE, 1926: a thousand rounds, and three answers.
+  {
+    id: 'cap_hawthorne',
+    name: 'The Hawthorne — September 1926',
+    sceneType: 'AGENCY',
+    dropId: dropCicero,
+    stage: [
+      balloon('haw_sign', 'HAWTHORNE HOTEL — CICERO', 50, 14, { zIndex: 4 }),
+      spr('st_haw_capone', 'capone', 32, 62),
+      spr('st_haw_torrio', 'torrio', 70, 62),
+    ],
+    script: lines(
+      ...GAUGES,
+      '[EFFECT shake_all on haw_sign]',
+      'Narrator: "September 20, 1926. Eleven cars roll past the Hawthorne Hotel in broad daylight and rake it with more than a thousand rounds. Machine guns, methodical, car after car. When it ends: glass on every table, splinters where the lobby was, a bystander — Mrs. Freeman — hit in the eye by flying debris. Capone, face down on a restaurant floor, unhurt."',
+      '[CLEAR_EFFECT shake_all from haw_sign]',
+      poseCmd('st_haw_torrio', 'torrio', 'Lean', 'Tired'),
+      'Torrio: "I retired the year they nearly settled me, Al. Look at this room. This is what the business looks like when the overhead comes due."',
+      'Capone: "Moran and Weiss just shot up my town in daylight, Johnny. The whole street was watching. Whatever I do next, the street sees it."',
+      'Torrio: "Then pick what they see."',
+      '[CHOICE]',
+      '- "Answer in kind — settle it" -> cap_haw_retaliate',
+      '- "Let Torrio broker a peace" -> cap_haw_negotiate',
+      '- "Absorb it — pay the bills, play it calm" -> cap_haw_absorb',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  // 0.5a — retaliation: Weiss, three weeks later.
+  {
+    id: 'cap_haw_retaliate',
+    name: 'The Answer',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_hawr_capone', 'capone', 32, 62), spr('st_hawr_torrio', 'torrio', 70, 62)],
+    script: lines(
+      poseCmd('st_hawr_capone', 'capone', 'Pointing', 'Angry'),
+      '[SET heat = heat + 20]',
+      '[SET respect = respect + 15]',
+      '[SET hawthorne = 1]',
+      'Capone: "A thousand rounds through my windows? Then somebody rents the room over the flower shop on State Street and waits."',
+      'Narrator: "Three weeks later Hymie Weiss crossed Superior Street toward Holy Name Cathedral and did not reach the steps. The florist\'s window over the way had been rented by quiet men. Chicago read the signature. The cathedral\'s cornerstone still carries the chips."',
+      'Torrio: "The street respects it. The street also remembers it, Al. Remembering is what juries are for."',
+      '[SCENE cap_lexington]',
+    ),
+    status: 'work',
+  },
+
+  // 0.5b — the Sherman peace: October 1926, the amnesty that held a while.
+  {
+    id: 'cap_haw_negotiate',
+    name: 'The Sherman Peace',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_hawn_capone', 'capone', 32, 62), spr('st_hawn_torrio', 'torrio', 70, 62)],
+    script: lines(
+      poseCmd('st_hawn_torrio', 'torrio', 'Lean', 'Tired'),
+      '[SET heat = heat - 10]',
+      '[SET respect = respect - 5]',
+      'Torrio: "A room at the Hotel Sherman. Every gang at one table. Territories on a map, like railroads dividing a continent. Nobody shoots a customer of the peace."',
+      'Narrator: "October 1926. The amnesty conference carved Chicago into markets, and for a while the trucks rolled unhijacked. Businessmen, dividing trade. The papers called it a treaty; nobody was charged with anything."',
+      'Capone: "See, Johnny? I always said I was a businessman. Today it was even true."',
+      'Narrator: "Some of the soldiers thought the big fellow had paid for peace with prestige. Peace is like that."',
+      '[SCENE cap_lexington]',
+    ),
+    status: 'work',
+  },
+
+  // 0.5c — absorb it: the show of calm, the hospital bill.
+  {
+    id: 'cap_haw_absorb',
+    name: 'The Calm Front',
+    sceneType: 'WITNESS',
+    dropId: dropCicero,
+    stage: [spr('st_hawa_capone', 'capone', 32, 62), spr('st_hawa_torrio', 'torrio', 70, 62)],
+    script: lines(
+      poseCmd('st_hawa_capone', 'capone', 'Wave', 'Happy'),
+      '[SET heat = heat - 5]',
+      '[SET respect = respect + 10]',
+      '[SET prestige = prestige + 5]',
+      'Capone: "Reopen the restaurant tonight. Coffee for the reporters. And find the woman who caught the glass — Mrs. Freeman. Every hospital bill she has is mine. All of it, the eye specialists too."',
+      'Narrator: "He paid — thousands, the papers said — and stood in the shot-up doorway smiling for photographs. The message read two ways at once: nothing frightens this man, and this man decides what Cicero costs."',
+      'Torrio: "Generosity as armor. You learned the expensive lesson cheap, Al."',
+      '[SCENE cap_lexington]',
+    ),
+    status: 'work',
+  },
+
   // 1 — THE LEXINGTON SUITE: Torrio counsels; the player gives the order.
   {
     id: 'cap_lexington',
@@ -81,7 +286,14 @@ const scenes = [
       spr('st_torrio', 'torrio', 70, 62),
     ],
     script: lines(
+      ...GAUGES,
       'Narrator: "Chicago, 1928. The Lexington Hotel, fourth floor. The Outfit grossed $105 million last year — Guinness will record it as the highest income a private citizen ever took in. The racket is rent, and the rent is due."',
+      '[IF hawthorne == 1]',
+      'Torrio: "Superior Street bought you two quiet years, Al. Quiet is not the same as forgotten — the Hawthorne ledger still has an open line, and Moran keeps books too."',
+      '[ENDIF]',
+      '[IF respect < 35]',
+      'Torrio: "And mind your own house. The soldiers think the big fellow has gone soft. A boss whose men shrug is a boss on a clock."',
+      '[ENDIF]',
       'Torrio: "Al. I built this thing on one rule: violence is overhead. Every bullet costs more than it buys. Handle it like a business."',
       'Capone: "Some call it bootlegging. Some call it racketeering. I call it a business. I supply a popular demand."',
       'Torrio: "Then decide like a businessman. Moran\'s North Siders are hijacking your trucks. The aldermen are getting expensive. And every speakeasy in the Loop is behind on its protection."',
@@ -106,6 +318,9 @@ const scenes = [
     script: lines(
       '[SET rent = rent + 15]',
       '[SET repression = repression + 10]',
+      '[SET heat = heat + 10]',
+      '[SET respect = respect + 5]',
+      poseCmd('st_capone2', 'capone', 'Pointing', 'Angry'),
       'Capone: "Every shop on the block pays to exist. Call it protection. Call it rent. Same thing."',
       'Narrator: "The enforcers went out that week. Shopkeepers and unions paid for the privilege of staying open — the racket as rent, collected door to door. The ones who refused found out what the overhead was for."',
       'Torrio: "Money in. But every squeezed grocer is a witness, Al. And witnesses add up."',
@@ -125,6 +340,7 @@ const scenes = [
     script: lines(
       '[SET regulation = regulation - 20]',
       '[SET prestige = prestige + 5]',
+      '[SET heat = heat - 5]',
       'Capone: "Every policeman in this town gets some of his bread and butter from the taxes I pay."',
       'Narrator: "The envelopes went out — police captains, aldermen, judges. Cicero had already shown the method in 1924: control the votes, control the officials, and the law becomes a line item. The citizens\' own taxes paid the police who looked away."',
       'Torrio: "Cheaper than bullets. But a bought law protects nobody — including us — when Washington sends men who don\'t take the envelope."',
@@ -143,7 +359,10 @@ const scenes = [
     stage: [spr('st_capone4', 'capone', 32, 62), spr('st_torrio4', 'torrio', 70, 62)],
     script: lines(
       '[SET repression = repression + 20]',
+      '[SET heat = heat + 25]',
+      '[SET respect = respect + 10]',
       'Torrio: "Al. In \'26 they drove past the Hawthorne and put a thousand rounds through your windows. I know what settling means. I retired the day it nearly settled me."',
+      poseCmd('st_capone4', 'capone', 'Pointing', 'Angry'),
       'Capone: "Then you know it never stays settled until somebody settles it."',
       'Narrator: "The order went to a hit squad in February 1929. Two of the men would wear police uniforms. What happened next put an address into the history books: 2122 North Clark Street."',
       '[SCENE cap_garage]',
@@ -172,6 +391,10 @@ const scenes = [
       'Narrator: "By the time the real police arrived there was nothing to see but the brick and what the brick had stopped. This scene shows you the wall. The rest, Chicago already knows."',
       'Ness: "Frank Gusenberg lived long enough to be asked who did it. Fourteen bullets in him, and the man told the officers — nobody shot me. He died without another word. That\'s the code we\'re up against."',
       'Ness: "Capone was in Florida with an alibi you could frame. But everyone in this city can read a signature, even written in .45 caliber."',
+      '[SET heat = heat + 15]',
+      '[IF hawthorne == 1]',
+      'Ness: "And this wall answers an older one. A thousand rounds through the Hawthorne, a florist\'s window on Superior Street, and now Clark Street. Ledgers everywhere in this town — even the kind written in brick."',
+      '[ENDIF]',
       'Narrator: "The Chicago Crime Commission answered with a new kind of list. In 1930 they named Al Capone Public Enemy Number One. The publicity that built him began to turn."',
       'Narrator: "And a man who has become Public Enemy Number One needs the public to remember why they liked him."',
       '[SCENE cap_soupkitchen]',
@@ -193,7 +416,8 @@ const scenes = [
       spr('st_newsboy', 'newsboy', 86, 68, 1.8),
     ],
     script: lines(
-      '[GAUGE prestige at 8,20 min=0 max=100 label="PRESTIGE"]',
+      ...GAUGES,
+      '[GAUGE prestige at 8,32 min=0 max=100 label="PRESTIGE"]',
       '[EFFECT gold_glow on soup_sign]',
       '',
       '# The Tribune cycle: headlines rotate while prestige launders upward.',

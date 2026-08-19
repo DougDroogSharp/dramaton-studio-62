@@ -7,7 +7,7 @@
 //
 // Run: node scripts/chapters/gen-capone.mjs
 
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
@@ -16,6 +16,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(here, '..', '..', 'art-demo', 'capone');
 const BRIDGE = 'http://localhost:8080/api/flux-generate';
 const STYLE = 'King of Chicago';
+
+// Existing keyed sprites double as identity references for pose variants.
+const artDemo = resolve(here, '..', '..', 'art-demo');
+const refDataUrl = (...rel) => {
+  const p = resolve(artDemo, ...rel);
+  if (!existsSync(p)) return null;
+  return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
+};
 
 const MANIFEST = [
   // Backdrops
@@ -51,6 +59,46 @@ const MANIFEST = [
     prompt: 'A Chicago newsboy, 1930: boy in a flat cap, knickers and suspenders, waving a folded newspaper overhead, mouth open mid-shout, standing, full body, facing slightly left.',
     fallback: 'A 1930 newsboy: flat cap, knickers, suspenders, holding up a folded newspaper, shouting, standing, full body, facing slightly left.',
   },
+
+  // New backdrops (deepening pass)
+  {
+    file: 'capone_courtroom.png', isCharacter: false,
+    prompt: 'Interior of a federal courtroom, Chicago 1931: dark wood paneling, high judge\'s bench with an American flag, empty jury box of twelve chairs along one wall, defense table with scattered papers, tall windows with pale morning light, hanging globe lamps. No people.',
+    fallback: 'A 1931 American courtroom interior: dark wood paneling, high judge\'s bench, flag, empty jury box, defense table with papers, tall windows, hanging lamps. No people.',
+  },
+  {
+    file: 'capone_cicero.png', isCharacter: false,
+    prompt: 'Exterior of a polling place in Cicero, Illinois, election day 1924: brick storefront with a "POLLING PLACE — VOTE HERE" banner, American bunting over the door, a black 1920s sedan parked at the curb, gray overcast sky, wind-blown handbills on the sidewalk. No people.',
+    fallback: 'A 1924 American small-town polling place exterior: brick storefront, "VOTE HERE" banner, bunting, a black 1920s sedan at the curb, overcast sky, papers blowing on the sidewalk. No people.',
+  },
+
+  // Mid-scene pose variants — same identity, new pose+expression.
+  // ref = existing keyed sprite passed as referenceImageFullBody.
+  {
+    file: 'capone_point_angry.png', isCharacter: true, ref: ['capone_boss.png'],
+    prompt: 'Al Capone, 1928, same man as the reference image: heavyset in a pinstripe suit and white fedora, now pointing forcefully forward with his right arm fully extended, index finger out, angry scowling expression, jaw set, giving an order, standing, full body, facing slightly right.',
+    fallback: 'A heavyset 1928 boss in a pinstripe suit and white fedora, matching the reference image, pointing forcefully forward with an angry scowl, giving an order, standing, full body, facing slightly right.',
+  },
+  {
+    file: 'capone_wave_happy.png', isCharacter: true, ref: ['capone_boss.png'],
+    prompt: 'Al Capone, 1930, same man as the reference image: heavyset in a pinstripe suit and white fedora, one arm raised high waving warmly to a crowd, broad happy grin, playing the benefactor, standing, full body, facing slightly left.',
+    fallback: 'A heavyset 1930 man in a pinstripe suit and white fedora, matching the reference image, waving warmly overhead with a broad grin, standing, full body, facing slightly left.',
+  },
+  {
+    file: 'capone_sit_confused.png', isCharacter: true, ref: ['capone_boss.png'],
+    prompt: 'Al Capone, 1931, same man as the reference image: heavyset in a pinstripe suit, no hat, sitting slumped on a plain wooden courtroom chair, hands loose in his lap, confused uncertain expression, brow knitted, watching something slip away, full body, facing slightly right.',
+    fallback: 'A heavyset 1931 man in a pinstripe suit, matching the reference image, sitting slumped on a wooden chair, hands in his lap, confused uncertain expression, full body, facing slightly right.',
+  },
+  {
+    file: 'wilson_closeup_determined.png', isCharacter: true, ref: ['capone_wilson.png'],
+    prompt: 'IRS agent Frank Wilson, 1931, same man as the reference image: close-up portrait from the chest up, round wire-rim glasses, neat dark suit and tie, bent over an open ledger he holds up near his face, determined narrowed eyes, lamplight from below, facing slightly left.',
+    fallback: 'A 1931 accountant investigator matching the reference image: chest-up close-up, wire-rim glasses, dark suit, holding an open ledger, determined narrowed eyes, lamplight, facing slightly left.',
+  },
+  {
+    file: 'torrio_lean_tired.png', isCharacter: true, ref: ['capone', 'capone_torrio.png'],
+    prompt: 'Johnny Torrio, 1928, same man as the reference image: slight older strategist in a gray three-piece suit and homburg, leaning wearily against a door frame with one shoulder, arms folded, tired heavy-lidded eyes, counseling caution, full body, facing slightly right.',
+    fallback: 'A slight older 1928 businessman matching the reference image: gray three-piece suit, homburg, leaning wearily against a door frame, arms folded, tired eyes, full body, facing slightly right.',
+  },
 ];
 
 // Remove the green screen: fully green pixels go transparent, edge
@@ -71,16 +119,18 @@ function chromaKey(pngBuffer) {
   return PNG.sync.write(png);
 }
 
-async function generate(prompt, isCharacter) {
+async function generate(prompt, isCharacter, referenceImageFullBody) {
+  const body = {
+    prompt,
+    isCharacter,
+    stylePack: STYLE,
+    aspectRatio: isCharacter ? '2:3' : '16:9',
+  };
+  if (referenceImageFullBody) body.referenceImageFullBody = referenceImageFullBody;
   const resp = await fetch(BRIDGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      isCharacter,
-      stylePack: STYLE,
-      aspectRatio: isCharacter ? '2:3' : '16:9',
-    }),
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -99,13 +149,15 @@ for (const item of MANIFEST) {
   }
   process.stdout.write(`* ${item.file} generating... `);
   try {
+    const ref = item.ref ? refDataUrl(...item.ref) : null;
+    if (item.ref && !ref) process.stdout.write(`(reference missing, generating unreferenced) `);
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter);
+      buf = await generate(item.prompt, item.isCharacter, ref);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.fallback) {
         process.stdout.write(`policy block, rephrasing... `);
-        buf = await generate(item.fallback, item.isCharacter);
+        buf = await generate(item.fallback, item.isCharacter, ref);
       } else {
         throw err;
       }

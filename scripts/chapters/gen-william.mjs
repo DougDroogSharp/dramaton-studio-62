@@ -6,7 +6,7 @@
 //
 // Run: node scripts/chapters/gen-william.mjs
 
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
@@ -53,6 +53,40 @@ const MANIFEST = [
     file: 'orderic.png', isCharacter: true,
     prompt: 'Orderic Vitalis, Anglo-Norman monk chronicler: tonsured young monk in a plain black Benedictine habit, holding a quill pen and a parchment book, gentle sorrowful face, standing, full body, facing slightly right.',
   },
+  // New backdrops (deepening pass)
+  {
+    file: 'rouen_chamber.png', isCharacter: false,
+    prompt: 'A stone chamber in the priory of Saint Gervase near Rouen, September 1087: a wooden bed with rumpled linens, a single guttering candle, an overturned coffer with its lid open and emptied, bare stone walls, a small arched window with grey dawn light. Sombre, stripped, abandoned. No people.',
+  },
+  {
+    file: 'motte_castle.png', isCharacter: false,
+    prompt: 'A Norman motte-and-bailey castle under construction, 1070: a huge raw earth mound with a timber keep half-built on top, wooden scaffolding and palisade stakes, and at its base the razed remains of Saxon houses — charred beams, flattened plots. Winter light, muddy ground. No people.',
+  },
+  // Pose/expression variants (deepening pass) — each generated with the
+  // character's existing keyed sprite as a full-body reference so face
+  // and costume stay identical across poses.
+  {
+    file: 'william_pointing_angry.png', isCharacter: true,
+    ref: ['..', 'william_king.png'],
+    prompt: 'William the Conqueror giving a furious command: stern bearded Norman king, gold crown, chain mail hauberk under a long red cloak, right arm fully outstretched pointing forward, face contorted in rage, shouting, standing, full body, facing slightly left. Same face, crown, and costume as the reference.',
+    retry: 'William the Conqueror, Norman king, arm outstretched pointing forward, angry commanding expression, gold crown, chain mail and long red cloak, standing, full body, facing slightly left. Same face and costume as the reference.',
+  },
+  {
+    file: 'william_sit_sad.png', isCharacter: true,
+    ref: ['..', 'william_king.png'],
+    prompt: 'William the Conqueror dying: the same bearded Norman king, gold crown set beside him, chain mail and long red cloak, seated slumped on a low wooden bench, shoulders bowed, grief-stricken sorrowful face, hands loose in his lap, full body, facing slightly left. Same face and costume as the reference.',
+  },
+  {
+    file: 'hereward_attack.png', isCharacter: true,
+    ref: ['hereward.png'],
+    prompt: 'Hereward the Wake mid-attack: the same long-haired bearded Saxon warrior in a mud-spattered leather jerkin and wool cloak, round shield raised on his left arm, short axe swung high overhead in his right hand, lunging forward, fierce determined face, full body, facing slightly right. Same face and costume as the reference.',
+    retry: 'Hereward the Wake, Saxon warrior of the fens, axe raised high, shield up, charging stance, determined expression, leather jerkin and wool cloak, full body, facing slightly right. Same face and costume as the reference.',
+  },
+  {
+    file: 'odo_pointing_smug.png', isCharacter: true,
+    ref: ['..', 'william_odo.png'],
+    prompt: 'Bishop Odo of Bayeux pointing with a self-satisfied smirk: the same tonsured Norman bishop in his vestments, one arm extended pointing forward, the other hand resting on his belt, smug knowing smile, standing, full body, facing slightly right. Same face and costume as the reference.',
+  },
 ];
 
 // Remove the green screen: fully green pixels go transparent, edge
@@ -73,16 +107,33 @@ function chromaKey(pngBuffer) {
   return PNG.sync.write(png);
 }
 
-async function generate(prompt, isCharacter) {
+// Optional full-body reference: item.ref is a path (array of segments)
+// relative to art-demo/william/, loaded as a data URL so the bridge can
+// hold face/costume identical across pose variants.
+const refDataUrl = (ref) => {
+  const p = resolve(outDir, ...ref);
+  if (!existsSync(p)) {
+    console.warn(`  (missing reference ${ref.join('/')} — generating without it)`);
+    return null;
+  }
+  return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
+};
+
+async function generate(prompt, isCharacter, ref) {
+  const body = {
+    prompt,
+    isCharacter,
+    stylePack: STYLE,
+    aspectRatio: isCharacter ? '2:3' : '16:9',
+  };
+  if (ref) {
+    const dataUrl = refDataUrl(ref);
+    if (dataUrl) body.referenceImageFullBody = dataUrl;
+  }
   const resp = await fetch(BRIDGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      isCharacter,
-      stylePack: STYLE,
-      aspectRatio: isCharacter ? '2:3' : '16:9',
-    }),
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -103,11 +154,11 @@ for (const item of MANIFEST) {
   try {
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter);
+      buf = await generate(item.prompt, item.isCharacter, item.ref);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.retry) {
         process.stdout.write(`policy hit, rephrasing... `);
-        buf = await generate(item.retry, item.isCharacter);
+        buf = await generate(item.retry, item.isCharacter, item.ref);
       } else throw err;
     }
     if (item.isCharacter) buf = chromaKey(buf);
