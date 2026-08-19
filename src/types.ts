@@ -52,6 +52,7 @@ export interface StageElement {
   scale: number;
   zIndex: number;
   rotation: number;
+  opacity?: number;  // 0-1; undefined = fully opaque (runtime/BIND-driven)
   pose?: string;
   expression?: string;
   spriteAngle?: number;

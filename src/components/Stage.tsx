@@ -133,6 +133,7 @@ export const Stage: React.FC<StageProps> = ({
           top: `${el.y}%`,
           transform: `translate(-50%, -50%) scale(${el.scale}) rotate(${el.rotation}deg)`,
           zIndex: draggingId === element.id ? 1000 : el.zIndex,
+          ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
           // MOVE animates at its scripted duration; ENTER snaps (0)
           ...(override?.transitionDuration !== undefined
             ? { transitionDuration: `${override.transitionDuration}s` }

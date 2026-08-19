@@ -157,6 +157,35 @@ Alice (thinking): "What should I do next?"`,
     implemented: true,
   },
 
+  {
+    type: 'BIND',
+    category: 'effect',
+    syntax: '[BIND element_id.property to expression]',
+    description: 'Live-binds a stage element property to an expression over world state variables. The binding re-evaluates whenever variables change (SET, TICK, sliders), driving the element continuously. Bindable properties: x, y, scale, rotation, opacity, zIndex. Bindings clear on scene change. Bad expressions evaluate to 0 with a console warning.',
+    parameters: [
+      { name: 'element_id', type: 'string', description: 'The ID of the stage element to drive' },
+      { name: 'property', type: 'string', description: 'One of: x, y, scale, rotation, opacity, zIndex' },
+      { name: 'expression', type: 'string', description: 'Arithmetic expression (same grammar as SET)' },
+    ],
+    example: `[BIND siphon_arm.rotation to rent * 0.9]
+[BIND reservoir.scale to 0.5 + hoard / 200]
+[BIND margin_floor.y to 80 - marginHeight]
+[BIND prestige_shell.opacity to prestige / 100]`,
+    implemented: true,
+  },
+  {
+    type: 'UNBIND',
+    category: 'effect',
+    syntax: '[UNBIND element_id.property]',
+    description: 'Releases a property binding created with BIND. The element keeps its last driven value.',
+    parameters: [
+      { name: 'element_id', type: 'string', description: 'The ID of the stage element' },
+      { name: 'property', type: 'string', description: 'The bound property to release' },
+    ],
+    example: '[UNBIND siphon_arm.rotation]',
+    implemented: true,
+  },
+
   // ============ BUTTON COMMANDS ============
   {
     type: 'BUTTON',
@@ -376,6 +405,8 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'SET', label: 'SET', insertText: 'SET ', description: 'Set variable (literal or expression)' },
   { type: 'IF', label: 'IF', insertText: 'IF ', description: 'Conditional block' },
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
+  { type: 'BIND', label: 'BIND', insertText: 'BIND ', description: 'Drive element property from expression' },
+  { type: 'UNBIND', label: 'UNBIND', insertText: 'UNBIND ', description: 'Release a bound property' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
 ];
 
@@ -385,6 +416,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
     'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
+    'BIND', 'UNBIND',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   

@@ -1,7 +1,16 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride } from '@/types';
 import { parseScript, ScriptCommand, IfCommand, TickCommand, findActorByName } from '@/utils/scriptParser';
-import { resolveSetValue, evaluateIfCondition, warnOnce, WorldVars } from '@/utils/expression';
+import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
+
+// Properties BIND may drive on a stage element
+const BINDABLE_PROPERTIES = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'zIndex']);
+
+interface Binding {
+  elementId: string;
+  property: string;
+  expression: string;
+}
 
 // Flattened execution node. IF blocks flatten to a test node followed by
 // their body; jumpTo is the index just past the body, taken when the
@@ -134,6 +143,37 @@ export function useScriptRunner({
   // continuation here; the command's timeout invokes it.
   const resumeAfterWaitRef = useRef<(() => void) | null>(null);
   const runFromRef = useRef<(index: number) => void>(() => {});
+
+  // Active BIND bindings, keyed "elementId.property". Cleared on scene
+  // change. Re-evaluated on every worldState write.
+  const bindingsRef = useRef<Map<string, Binding>>(new Map());
+  const currentSceneRef = useRef<Scene | undefined>(undefined);
+  currentSceneRef.current = currentScene;
+
+  // Evaluate every active binding and write the results into
+  // elementOverrides. Runs after each SET and each BIND.
+  const applyBindings = useCallback(() => {
+    if (bindingsRef.current.size === 0) return;
+    const results: Array<{ elementId: string; property: string; value: number }> = [];
+    for (const binding of bindingsRef.current.values()) {
+      let value = evaluateExpressionSource(binding.expression, worldStateRef.current);
+      if (binding.property === 'opacity') value = Math.min(1, Math.max(0, value));
+      if (binding.property === 'zIndex') value = Math.round(value);
+      results.push({ elementId: binding.elementId, property: binding.property, value });
+    }
+    setState(prev => {
+      const overrides = new Map(prev.elementOverrides);
+      let changed = false;
+      for (const r of results) {
+        const existing = overrides.get(r.elementId) || {};
+        if ((existing as Record<string, unknown>)[r.property] !== r.value) {
+          overrides.set(r.elementId, { ...existing, [r.property]: r.value });
+          changed = true;
+        }
+      }
+      return changed ? { ...prev, elementOverrides: overrides } : prev;
+    });
+  }, []);
 
   // Clear all timeouts
   const clearTimeouts = useCallback(() => {
@@ -313,6 +353,7 @@ export function useScriptRunner({
       
       case 'SCENE': {
         clearTimeouts();
+        bindingsRef.current = new Map();
         onSceneChange?.(command.sceneId);
         setState(prev => ({
           ...prev,
@@ -348,6 +389,7 @@ export function useScriptRunner({
         worldStateRef.current = { ...worldStateRef.current, [command.variable]: resolved };
         const snapshot = worldStateRef.current;
         setState(prev => ({ ...prev, worldState: snapshot }));
+        applyBindings();
         return true;
       }
 
@@ -378,11 +420,35 @@ export function useScriptRunner({
         // Declaration only: the interval effect below picks it up.
         return true;
 
+      case 'BIND': {
+        if (!BINDABLE_PROPERTIES.has(command.property)) {
+          warnOnce(`BIND: "${command.property}" is not bindable (use x, y, scale, rotation, opacity, zIndex); ignored`);
+          return true;
+        }
+        const stage = currentSceneRef.current?.stage;
+        if (stage && !stage.some(e => e.id === command.elementId)) {
+          warnOnce(`BIND: no stage element "${command.elementId}" in scene "${currentSceneRef.current?.id}" (binding anyway)`);
+        }
+        bindingsRef.current.set(`${command.elementId}.${command.property}`, {
+          elementId: command.elementId,
+          property: command.property,
+          expression: command.expression,
+        });
+        applyBindings();
+        return true;
+      }
+
+      case 'UNBIND': {
+        // The element keeps its last driven value
+        bindingsRef.current.delete(`${command.elementId}.${command.property}`);
+        return true;
+      }
+
       case 'COMMENT':
       case 'UNKNOWN':
         return true; // Skip
     }
-  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
+  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts, applyBindings]);
 
   // Execute a TICK body: non-blocking commands only, run against the
   // live worldState ref, never touching the yield/advance machinery.
@@ -507,12 +573,13 @@ export function useScriptRunner({
   // Handle choice selection
   const selectChoice = useCallback((index: number) => {
     if (!state.choices) return;
-    
+
     const option = state.choices.options[index];
     if (!option) return;
-    
+
     // Navigate to target scene
     clearTimeouts();
+    bindingsRef.current = new Map();
     onSceneChange?.(option.target);
     setState(prev => ({
       ...prev,
@@ -554,6 +621,7 @@ export function useScriptRunner({
   // Reset to a specific scene
   const goToScene = useCallback((sceneId: string) => {
     clearTimeouts();
+    bindingsRef.current = new Map();
     onSceneChange?.(sceneId);
     setState(prev => ({
       ...prev,

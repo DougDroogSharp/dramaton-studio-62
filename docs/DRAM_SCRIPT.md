@@ -314,6 +314,50 @@ Removes a previously applied visual effect from an actor or element.
 [CLEAR_EFFECT glow from detective]
 ```
 
+#### `BIND`
+
+Live-binds a stage element property to an expression over world state variables. The binding re-evaluates whenever variables change (SET, TICK, sliders), driving the element continuously. Bindable properties: x, y, scale, rotation, opacity, zIndex. Bindings clear on scene change. Bad expressions evaluate to 0 with a console warning.
+
+**Syntax:**
+```
+[BIND element_id.property to expression]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element_id` | string | The ID of the stage element to drive |
+| `property` | string | One of: x, y, scale, rotation, opacity, zIndex |
+| `expression` | string | Arithmetic expression (same grammar as SET) |
+
+**Example:**
+```
+[BIND siphon_arm.rotation to rent * 0.9]
+[BIND reservoir.scale to 0.5 + hoard / 200]
+[BIND margin_floor.y to 80 - marginHeight]
+[BIND prestige_shell.opacity to prestige / 100]
+```
+
+#### `UNBIND`
+
+Releases a property binding created with BIND. The element keeps its last driven value.
+
+**Syntax:**
+```
+[UNBIND element_id.property]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element_id` | string | The ID of the stage element |
+| `property` | string | The bound property to release |
+
+**Example:**
+```
+[UNBIND siphon_arm.rotation]
+```
+
 ---
 
 ### Button Commands
@@ -599,7 +643,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **21 commands documented**
+✅ **23 commands documented**
 
 ---
 

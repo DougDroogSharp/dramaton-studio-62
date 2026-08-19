@@ -22,6 +22,8 @@ export type ScriptCommandType =
   | 'IF'
   | 'ENDIF'
   | 'TICK'
+  | 'BIND'
+  | 'UNBIND'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -141,6 +143,21 @@ export interface TickCommand {
   commands: ScriptCommand[];
 }
 
+// Live-bind a stage element property to an expression; the runner
+// re-evaluates whenever the world state changes.
+export interface BindCommand {
+  type: 'BIND';
+  elementId: string;
+  property: string;
+  expression: string; // raw expression source
+}
+
+export interface UnbindCommand {
+  type: 'UNBIND';
+  elementId: string;
+  property: string;
+}
+
 export interface CommentCommand {
   type: 'COMMENT';
   text: string;
@@ -178,6 +195,8 @@ export type ScriptCommand =
   | SetCommand
   | IfCommand
   | TickCommand
+  | BindCommand
+  | UnbindCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -417,6 +436,27 @@ function parseLine(line: string): ScriptCommand | null {
       return { type: 'ENDIF' } as unknown as ScriptCommand;
     }
     
+    // BIND element_id.property to expression
+    const bindMatch = content.match(/^BIND\s+(\w+)\.(\w+)\s+to\s+(.+)$/i);
+    if (bindMatch) {
+      return {
+        type: 'BIND',
+        elementId: bindMatch[1],
+        property: bindMatch[2],
+        expression: bindMatch[3].trim(),
+      };
+    }
+
+    // UNBIND element_id.property
+    const unbindMatch = content.match(/^UNBIND\s+(\w+)\.(\w+)$/i);
+    if (unbindMatch) {
+      return {
+        type: 'UNBIND',
+        elementId: unbindMatch[1],
+        property: unbindMatch[2],
+      };
+    }
+
     // BUTTON button_id - show a button
     const buttonMatch = content.match(/^BUTTON\s+(\w+)$/i);
     if (buttonMatch) {
@@ -658,6 +698,10 @@ export function commandToString(cmd: ScriptCommand): string {
       const inner = cmd.commands.map(c => commandToString(c)).join('\n');
       return `[TICK ${dur}]\n${inner}\n[/TICK]`;
     }
+    case 'BIND':
+      return `[BIND ${cmd.elementId}.${cmd.property} to ${cmd.expression}]`;
+    case 'UNBIND':
+      return `[UNBIND ${cmd.elementId}.${cmd.property}]`;
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -717,6 +761,10 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'CHOICE', options: [{ text: 'Option 1', target: firstSceneId }] };
     case 'TICK':
       return { type: 'TICK', interval: 1, commands: [] };
+    case 'BIND':
+      return { type: 'BIND', elementId: 'element', property: 'rotation', expression: 'myVar' };
+    case 'UNBIND':
+      return { type: 'UNBIND', elementId: 'element', property: 'rotation' };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':
