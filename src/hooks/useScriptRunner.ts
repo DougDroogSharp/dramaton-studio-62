@@ -103,7 +103,7 @@ export function useScriptRunner({
   startSceneId,
   onSceneChange,
   onAudioCommand,
-  textSpeed = 50,
+  textSpeed = 100,
   autoAdvanceDelay = 1500,
 }: UseScriptRunnerOptions) {
   const [state, setState] = useState<ScriptRunnerState>(() => ({
