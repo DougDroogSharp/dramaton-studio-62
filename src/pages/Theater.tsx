@@ -283,9 +283,53 @@ const Theater: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-diesel-black flex flex-col">
-      {/* Stage Area */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-6xl">
+      {/* Dialogue / Choice Area — on top so it never hides below the fold */}
+      <div className="px-4 pt-3 pb-1">
+        {scriptRunner.state.activeDialogue && (
+          <DialogueBox
+            dialogue={scriptRunner.state.activeDialogue}
+            actor={dialogueActor}
+            onAdvance={scriptRunner.advance}
+          />
+        )}
+
+        {scriptRunner.state.choices && (
+          <ChoicePanel
+            choices={scriptRunner.state.choices}
+            onSelect={scriptRunner.selectChoice}
+          />
+        )}
+
+        {/* Audience reaction palette — shown while a WITNESS scene plays */}
+        {currentScene?.sceneType === 'WITNESS' && (
+          <AudienceReactions key={currentScene.id} sceneName={currentScene.name} />
+        )}
+
+        {/* End of game message */}
+        {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
+          <div className="text-center py-4">
+            <p className="text-diesel-gold text-xl uppercase tracking-wider mb-4">
+              — The End —
+            </p>
+            <button
+              onClick={() => {
+                scriptRunner.goToScene(startSceneId);
+                setHasStarted(false);
+              }}
+              className="px-6 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase hover:bg-diesel-rust/30 transition-colors"
+            >
+              Return to Title
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
+      <div className="flex-1 flex items-start justify-center p-2 min-h-0">
+        <div
+          className="w-full"
+          style={{ maxWidth: 'min(72rem, calc((100vh - 190px) * 16 / 9))' }}
+        >
           {currentScene && (
             <Stage
               scene={currentScene}
@@ -304,48 +348,7 @@ const Theater: React.FC = () => {
           )}
         </div>
       </div>
-      
-      {/* Dialogue / Choice Area */}
-      <div className="px-4 pb-4">
-        {scriptRunner.state.activeDialogue && (
-          <DialogueBox
-            dialogue={scriptRunner.state.activeDialogue}
-            actor={dialogueActor}
-            onAdvance={scriptRunner.advance}
-          />
-        )}
-        
-        {scriptRunner.state.choices && (
-          <ChoicePanel
-            choices={scriptRunner.state.choices}
-            onSelect={scriptRunner.selectChoice}
-          />
-        )}
 
-        {/* Audience reaction palette — shown while a WITNESS scene plays */}
-        {currentScene?.sceneType === 'WITNESS' && (
-          <AudienceReactions key={currentScene.id} sceneName={currentScene.name} />
-        )}
-        
-        {/* End of game message */}
-        {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
-          <div className="text-center py-8">
-            <p className="text-diesel-gold text-xl uppercase tracking-wider mb-4">
-              — The End —
-            </p>
-            <button
-              onClick={() => {
-                scriptRunner.goToScene(startSceneId);
-                setHasStarted(false);
-              }}
-              className="px-6 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase hover:bg-diesel-rust/30 transition-colors"
-            >
-              Return to Title
-            </button>
-          </div>
-        )}
-      </div>
-      
       {/* Controls */}
       <TheaterControls
         isAutoPlay={scriptRunner.state.isAutoPlay}
