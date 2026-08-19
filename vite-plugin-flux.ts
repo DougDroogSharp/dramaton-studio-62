@@ -135,6 +135,81 @@ async function callFlux(apiKey: string, model: string, body: GenRequest): Promis
   }
 }
 
+// ---- fal.ai path -----------------------------------------------------
+// fal.ai keys look like "uuid:secret" (they contain a colon). fal hosts
+// Flux 2 behind its own API: POST https://fal.run/<model> with
+// Authorization: Key <key>; the call long-polls until the image is done.
+
+const FAL_BASE = 'https://fal.run';
+
+const falImageSize = (aspect: string): string => {
+  if (aspect === '1:1') return 'square_hd';
+  if (aspect === '2:3' || aspect === '3:4' || aspect === '9:16') return 'portrait_4_3';
+  return 'landscape_16_9';
+};
+
+async function callFal(apiKey: string, model: string, body: GenRequest): Promise<{ imageUrl: string }> {
+  // Reuse the same prompt assembly; collect reference images as data URIs
+  const promptParts: string[] = [];
+  const imageUrls: string[] = [];
+  const imageRoles: string[] = [];
+
+  const addImage = (dataUrl: string | undefined, role: string) => {
+    if (!dataUrl) return;
+    imageUrls.push(dataUrl); // fal accepts data URIs directly
+    imageRoles.push(`Image ${imageUrls.length}: ${role}`);
+  };
+
+  if (body.editMode && body.existingImage) {
+    addImage(body.existingImage, 'the current image — edit THIS image, keeping the overall scene');
+    addImage(body.styleGuide, 'style reference — match this art style');
+    promptParts.push(`Edit the current image according to these instructions: ${body.prompt}`);
+  } else {
+    addImage(body.styleGuide, 'style reference — match this art style exactly');
+    addImage(body.referenceImage, 'composition reference — match this layout, perspective and camera angle');
+    addImage(body.referenceImageCloseUp, 'character face reference — match these facial features exactly');
+    addImage(body.referenceImageFullBody, 'character body reference — match body proportions and clothing');
+    promptParts.push(body.prompt);
+  }
+  if (imageRoles.length > 0) promptParts.unshift(imageRoles.join('. ') + '.');
+  if (body.enforceStyleGuide) promptParts.push(ENFORCED_STYLE);
+  if (body.isCharacter) promptParts.push(GREEN_SCREEN);
+
+  // Reference images route to the model's edit variant
+  const endpoint = imageUrls.length > 0 ? `${model}/edit` : model;
+  const falBody: Record<string, unknown> = {
+    prompt: promptParts.join('\n\n'),
+    num_images: 1,
+    output_format: 'png',
+    image_size: falImageSize(body.aspectRatio || (body.isCharacter ? '2:3' : '16:9')),
+    ...(imageUrls.length > 0 ? { image_urls: imageUrls } : {}),
+  };
+
+  const resp = await fetch(`${FAL_BASE}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Key ${apiKey}` },
+    body: JSON.stringify(falBody),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    if (resp.status === 404) {
+      throw new Error(
+        `fal.ai model "${endpoint}" not found (404). Set FLUX_MODEL in .env.local to a valid ` +
+        `fal model id (e.g. fal-ai/flux-2, fal-ai/flux-2-pro). API said: ${text}`,
+      );
+    }
+    throw new Error(`fal.ai request failed (${resp.status}): ${text}`);
+  }
+  const data = await resp.json() as { images?: Array<{ url?: string }> };
+  const url = data.images?.[0]?.url;
+  if (!url) throw new Error(`fal.ai returned no image: ${JSON.stringify(data).slice(0, 300)}`);
+  if (url.startsWith('data:')) return { imageUrl: url };
+  const img = await fetch(url);
+  if (!img.ok) throw new Error(`Failed to download generated image (${img.status})`);
+  const b64 = Buffer.from(await img.arrayBuffer()).toString('base64');
+  return { imageUrl: `data:image/png;base64,${b64}` };
+}
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -157,20 +232,24 @@ export function fluxPlugin(env: Record<string, string>): Plugin {
 
         if (req.method !== 'POST') return respond(405, { error: 'POST only' });
 
-        const apiKey = env.BFL_API_KEY;
+        const apiKey = env.BFL_API_KEY || env.FAL_KEY;
         if (!apiKey) {
           return respond(500, {
-            error: 'BFL_API_KEY is not set. Create .env.local in the repo root with BFL_API_KEY=your-key and restart the dev server.',
+            error: 'No API key set. Create .env.local in the repo root with BFL_API_KEY=your-key (BFL or fal.ai key both work) and restart the dev server.',
           });
         }
-        const model = env.FLUX_MODEL || 'flux-2-pro';
+        // fal.ai keys contain a colon (uuid:secret); BFL keys do not
+        const isFal = apiKey.includes(':');
+        const model = env.FLUX_MODEL || (isFal ? 'fal-ai/flux-2-pro' : 'flux-2-pro');
 
         (async () => {
           const raw = await readBody(req);
           const body = JSON.parse(raw) as GenRequest;
           if (!body.prompt?.trim()) return respond(400, { error: 'prompt is required' });
-          console.log(`🎨 Flux ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'} — ${body.prompt.slice(0, 80)}...`);
-          const result = await callFlux(apiKey, model, body);
+          console.log(`🎨 Flux [${isFal ? 'fal.ai' : 'bfl'}] ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'} — ${body.prompt.slice(0, 80)}...`);
+          const result = isFal
+            ? await callFal(apiKey, model, body)
+            : await callFlux(apiKey, model, body);
           console.log('🎨 Flux: image ready');
           respond(200, result);
         })().catch((err: unknown) => {
