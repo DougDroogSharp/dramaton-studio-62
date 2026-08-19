@@ -20,7 +20,7 @@ const witnessScenes = toyWitnessScenes('the_machine');
 
 const game = {
   info: {
-    title: 'The Machine (Toy)',
+    title: 'Humans vs Billionaires',
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: { ...WORLD_BASE, machineIntroSeen: 0 },

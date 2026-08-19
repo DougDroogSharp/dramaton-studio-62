@@ -168,7 +168,7 @@ export interface Item {
   status?: AssetStatus;
 }
 
-export type SfxType = 'glow' | 'pulse' | 'shake' | 'jiggle' | 'fade' | 'electric';
+export type SfxType = 'glow' | 'pulse' | 'shake' | 'jiggle' | 'fade' | 'electric' | 'flame';
 export type SfxCategory = 'ATTACH' | 'DO';
 
 export interface SfxParams {

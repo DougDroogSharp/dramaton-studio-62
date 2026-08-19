@@ -125,6 +125,7 @@ export const ACTORS = [
 
 export const SFX = [
   { id: 'electric_flare', name: 'Electric Flare', type: 'electric', category: 'ATTACH', params: { intensity: 70 }, status: 'work' },
+  { id: 'flame_burn', name: 'Flame', type: 'flame', category: 'ATTACH', params: { intensity: 80 }, status: 'work' },
   { id: 'shake_all', name: 'Crisis Shake', type: 'shake', category: 'DO', params: { intensity: 70 }, status: 'work' },
   { id: 'gold_glow', name: 'Gold Glow', type: 'glow', category: 'ATTACH', params: { intensity: 60 }, status: 'work' },
 ];
@@ -232,7 +233,10 @@ export const tickEcon = () => [
 ];
 
 export const tickEffects = () => {
-  const out = ['# flare-up visuals: humans past the threshold spark'];
+  // Escalating distress: humans spark as flare-ups spread, then catch
+  // fire two levels deeper. (Visual thresholds are presentation, not
+  // economics, so they stay hardcoded.)
+  const out = ['# flare-up visuals: distress sparks, deep distress burns'];
   for (let i = 1; i <= 6; i++) {
     out.push(
       `[IF flareUps >= ${i}]`,
@@ -241,9 +245,23 @@ export const tickEffects = () => {
       `[IF flareUps < ${i}]`,
       `[CLEAR_EFFECT electric_flare from human_${i}]`,
       '[ENDIF]',
+      `[IF flareUps >= ${i + 2}]`,
+      `[EFFECT flame_burn on human_${i}]`,
+      '[ENDIF]',
+      `[IF flareUps < ${i + 2}]`,
+      `[CLEAR_EFFECT flame_burn from human_${i}]`,
+      '[ENDIF]',
     );
   }
   out.push(
+    '',
+    '# the billionaire basks while the hoard grows',
+    '[IF hoard > 100]',
+    '[EFFECT gold_glow on billionaire]',
+    '[ENDIF]',
+    '[IF hoard <= 100]',
+    '[CLEAR_EFFECT gold_glow from billionaire]',
+    '[ENDIF]',
     '',
     '# crisis shakes the wheel; a vast hoard glows',
     '[IF crisis == 1]',

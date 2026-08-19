@@ -94,8 +94,11 @@ export const Stage: React.FC<StageProps> = ({
         case 'electric':
           classes.push('animate-[sfx-electric_0.3s_ease-in-out_infinite]');
           break;
+        case 'flame':
+          classes.push('animate-[sfx-flame_0.4s_ease-in-out_infinite]');
+          break;
         case 'glow':
-          classes.push('shadow-[0_0_20px_hsl(var(--diesel-gold))]');
+          classes.push('animate-[sfx-glow_1.2s_ease-in-out_infinite]');
           break;
         case 'fade':
           classes.push('opacity-50');
