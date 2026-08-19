@@ -74,7 +74,7 @@ CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGH
 
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += `
 
 MANDATORY ART STYLE (STRICTLY ENFORCE):
@@ -391,7 +391,7 @@ CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGH
 
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += `
 
 MANDATORY ART STYLE (STRICTLY ENFORCE):
