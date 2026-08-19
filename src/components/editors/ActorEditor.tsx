@@ -706,9 +706,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
 
       {/* Pose Generator */}
       <section className="bg-diesel-black border border-diesel-gold/50 p-4">
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2">
-          <Sparkles size={14} className="inline mr-2" />
-          Pose Generator
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2 flex items-center justify-between">
+          <span>
+            <Sparkles size={14} className="inline mr-2" />
+            Pose Generator
+          </span>
+          <span className={`text-[10px] normal-case tracking-normal font-mono ${game.info.stylePack ? 'text-diesel-steel' : 'text-diesel-rust'}`}>
+            {game.info.stylePack ? `style: ${game.info.stylePack}` : '⚠ no style pack — set one in GA'}
+          </span>
         </h3>
         
         {/* Preview Image - At Top */}

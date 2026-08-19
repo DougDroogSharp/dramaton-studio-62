@@ -258,6 +258,9 @@ async function callFal(apiKey: string, model: string, body: GenRequest, stylePac
     num_images: 1,
     output_format: 'png',
     image_size: falImageSize(body.aspectRatio || (body.isCharacter ? '2:3' : '16:9')),
+    // Historical-documentary game content trips the default checker's
+    // false positives; keep the checker on but widen tolerance.
+    safety_tolerance: 4,
     ...(imageUrls.length > 0 ? { image_urls: imageUrls } : {}),
   };
 
