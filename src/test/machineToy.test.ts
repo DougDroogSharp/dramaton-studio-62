@@ -73,7 +73,7 @@ describe('machine-toy.json', () => {
     try {
       const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'machine_tuning' }));
 
-      expect(result.current.state.activeSliders.size).toBe(35);
+      expect(result.current.state.activeSliders.size).toBe(36);
       expect(result.current.state.activeGauges.size).toBe(5);
       expect(result.current.state.activeButtons.has('back_button')).toBe(true);
       // every c_* coefficient in worldState is on a slider

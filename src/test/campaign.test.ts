@@ -96,11 +96,7 @@ describe('hvb-campaign.json', () => {
 
     it('chapter intros apply era presets and reset the sim', () => {
       const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'ch2_intro' }));
-      // click through the two intro narration lines
-      for (let i = 0; i < 2; i++) {
-        act(() => { vi.advanceTimersByTime(10000); });
-        act(() => { result.current.advance(); });
-      }
+      clickThrough(result, 'ch2_machine');
       const ws = result.current.state.worldState;
       expect(result.current.state.currentSceneId).toBe('ch2_machine');
       expect(ws.greed).toBe(100);        // Leopold preset
@@ -109,11 +105,15 @@ describe('hvb-campaign.json', () => {
       expect(ws.hoard).toBe(0);          // sim reset
     });
 
-    // Click through intro narration until the target scene is reached
-    const clickThrough = (result: { current: ReturnType<typeof useScriptRunner> }, target: string, maxClicks = 8) => {
+    // Click through intro narration (answering choices with option 0 —
+    // "Take command") until the target scene is reached
+    const clickThrough = (result: { current: ReturnType<typeof useScriptRunner> }, target: string, maxClicks = 12) => {
       for (let i = 0; i < maxClicks && result.current.state.currentSceneId !== target; i++) {
         act(() => { vi.advanceTimersByTime(10000); });
-        act(() => { result.current.advance(); });
+        act(() => {
+          if (result.current.state.choices) result.current.selectChoice(0);
+          else result.current.advance();
+        });
       }
     };
 
@@ -194,9 +194,55 @@ describe('hvb-campaign.json', () => {
         const { result, unmount } = mountHub(`ch${n}_machine`);
         act(() => { vi.advanceTimersByTime(3000); });
         expect(Number(result.current.state.worldState.product), `ch${n} product`).toBeGreaterThan(0);
-        expect(result.current.state.activeSliders.size, `ch${n} panel`).toBe(7);
+        // drama panel: only the Single Tax lever remains a slider
+        expect(result.current.state.activeSliders.size, `ch${n} panel`).toBe(1);
+        expect(result.current.state.activeSliders.has('singleTax')).toBe(true);
+        // the news ticker is live
+        expect(result.current.state.elementOverrides.get('news_ticker')?.text).toBeTruthy();
+        // ORDERS is offered (autopilot off by default)
+        expect(result.current.state.activeButtons.has(`ch${n}_orders_button`)).toBe(true);
         unmount();
       }
+    });
+
+    it('orders apply their deltas and return to the machine', () => {
+      const { result } = mountHub('ch2_machine');
+      const before = Number(result.current.state.worldState.greed);
+
+      act(() => { result.current.goToScene('ch2_orders'); });
+      act(() => { vi.advanceTimersByTime(10000); });
+      act(() => { result.current.advance(); }); // lieutenant's prompt
+      expect(result.current.state.choices).toBeTruthy();
+
+      act(() => { result.current.selectChoice(0); }); // "Double the rubber quota"
+      act(() => { vi.advanceTimersByTime(10000); });
+      act(() => { result.current.advance(); }); // reaction line
+
+      expect(result.current.state.currentSceneId).toBe('ch2_machine');
+      expect(Number(result.current.state.worldState.greed)).toBe(Math.min(100, before + 15));
+      expect(Number(result.current.state.worldState.repression)).toBeGreaterThan(0);
+    });
+
+    it('autopilot drives the levers and auto-advances dialogue', () => {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
+      act(() => { result.current.setVariable('c_commentaryCooldown', 100000); });
+      act(() => { result.current.goToScene('ch3_intro'); });
+      // click to the mode choice, then pick "Let the century run itself"
+      for (let i = 0; i < 8 && !result.current.state.choices; i++) {
+        act(() => { vi.advanceTimersByTime(10000); });
+        act(() => { result.current.advance(); });
+      }
+      act(() => { result.current.selectChoice(1); });
+
+      expect(result.current.state.currentSceneId).toBe('ch3_machine');
+      expect(result.current.state.worldState.autopilot).toBe(1);
+      expect(result.current.state.isAutoPlay).toBe(true);
+      // ORDERS hidden for spectators
+      expect(result.current.state.activeButtons.has('ch3_orders_button')).toBe(false);
+
+      const greedBefore = Number(result.current.state.worldState.greed);
+      act(() => { vi.advanceTimersByTime(15000); }); // 30 ticks of drift
+      expect(Number(result.current.state.worldState.greed)).not.toBe(greedBefore);
     });
 
     it('COLLAPSE is reachable: starved wages + mass flare-ups sustained', () => {

@@ -60,6 +60,7 @@ export const WORLD_BASE = {
   chapter: 0,
   collapseTimer: 0,
   reconTimer: 0,
+  autopilot: 0, // 1 = the billionaire runs the machine himself
 
   // Coefficients — tune live in the tuning cockpit
   c_prodGrowth: 0.01,
@@ -95,6 +96,9 @@ export const WORLD_BASE = {
   c_legacyHoard: 0.6,     // the fortune endures, diminished
   c_legacyPrestige: 0.7,  // the name still opens doors
   c_legacyEdu: 0.5,       // the humans forget — but not everything
+
+  // Autopilot: how hard the billionaire drives when playing himself
+  c_autoDrift: 1,
 };
 
 // Variables reset when a chapter (or the toy) starts fresh
@@ -127,6 +131,7 @@ export const ACTORS = [
   { id: 'human', name: 'Human', graphics: [], status: 'work' },
   { id: 'witness', name: 'Witness', graphics: [], status: 'work' },
   { id: 'narrator', name: 'Narrator', graphics: [], status: 'work' },
+  { id: 'lieutenant', name: 'Lieutenant', graphics: [], status: 'work' },
 ];
 
 export const SFX = [
@@ -154,17 +159,29 @@ export const machineStage = () => [
 
   // Human tier (bottom)
   ...[0, 1, 2, 3, 4, 5].map(i => actorEl(`human_${i + 1}`, 'human', 24 + i * 7, 82)),
+
+  // News ticker (bottom strip; text driven by SET_TEXT from the tick)
+  balloon('news_ticker', 'THE DAILY LEDGER', 45, 95, { zIndex: 5 }),
 ];
 
-export const panelLines = () => [
-  '# --- Instrument panel: right = levers, left = readouts ---',
-  '[SLIDER greed at 90,8 min=0 max=100 label="GREED"]',
-  '[SLIDER speculation at 90,20 min=0 max=100 label="SPECULATION"]',
-  '[SLIDER education at 90,32 min=0 max=100 label="EDUCATION"]',
-  '[SLIDER regulation at 90,44 min=0 max=100 label="REGULATION"]',
-  '[SLIDER hierarchy at 90,56 min=0 max=100 label="HIERARCHY"]',
-  '[SLIDER repression at 90,68 min=0 max=100 label="REPRESSION"]',
-  '[SLIDER singleTax at 90,82 min=0 max=1 step=1 label="SINGLE TAX"]',
+// panel modes:
+//   'full'  — every lever on a slider (toy / sandbox)
+//   'drama' — gauges + the Single Tax lever only; every other variable
+//             moves through dramatic ORDERS scenes (campaign chapters)
+export const panelLines = (mode = 'full') => [
+  ...(mode === 'full' ? [
+    '# --- Instrument panel: right = levers, left = readouts ---',
+    '[SLIDER greed at 90,8 min=0 max=100 label="GREED"]',
+    '[SLIDER speculation at 90,20 min=0 max=100 label="SPECULATION"]',
+    '[SLIDER education at 90,32 min=0 max=100 label="EDUCATION"]',
+    '[SLIDER regulation at 90,44 min=0 max=100 label="REGULATION"]',
+    '[SLIDER hierarchy at 90,56 min=0 max=100 label="HIERARCHY"]',
+    '[SLIDER repression at 90,68 min=0 max=100 label="REPRESSION"]',
+    '[SLIDER singleTax at 90,82 min=0 max=1 step=1 label="SINGLE TAX"]',
+  ] : [
+    '# --- Drama panel: readouts + the lever; levers move via ORDERS ---',
+    '[SLIDER singleTax at 90,82 min=0 max=1 step=1 label="SINGLE TAX"]',
+  ]),
   '',
   '[GAUGE wages at 8,12 min=0 max=60 label="WAGES"]',
   '[GAUGE rent at 8,34 min=0 max=40 label="RENT"]',
@@ -286,6 +303,44 @@ export const tickEffects = () => {
   return out;
 };
 
+// Live news readout: default status line first, then escalating
+// overrides — the LAST matching SET_TEXT wins, so order = severity.
+export const tickNews = () => [
+  '# news ticker: the most dramatic true headline wins',
+  '[SET_TEXT news_ticker "THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}"]',
+  '[IF hoard > 300]',
+  '[SET_TEXT news_ticker "FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}"]',
+  '[ENDIF]',
+  '[IF wages <= c_survivalFloor + 2]',
+  '[SET_TEXT news_ticker "WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN"]',
+  '[ENDIF]',
+  '[IF flareUps >= 2]',
+  '[SET_TEXT news_ticker "UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}"]',
+  '[ENDIF]',
+  '[IF flareUps >= 4]',
+  '[SET_TEXT news_ticker "UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING"]',
+  '[ENDIF]',
+  '[IF singleTax == 1]',
+  '[SET_TEXT news_ticker "SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}"]',
+  '[ENDIF]',
+  '[IF crisis == 1]',
+  '[SET_TEXT news_ticker "PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE"]',
+  '[ENDIF]',
+];
+
+// Autopilot: the billionaire plays himself — greed and speculation
+// creep upward, repression follows unrest. Biased random walk.
+export const tickAutopilot = () => [
+  '# autopilot: the billionaire runs the machine',
+  '[IF autopilot == 1]',
+  '[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]',
+  '[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]',
+  '[IF flareUps >= 3]',
+  '[SET repression = clamp(repression + c_autoDrift, 0, 100)]',
+  '[ENDIF]',
+  '[ENDIF]',
+];
+
 export const tickCommentary = (pool) => [
   '# Narraton commentary cadence',
   '[SET commentaryTimer = commentaryTimer + 1]',
@@ -343,8 +398,13 @@ export const tickEndings = () => [
 
 // A full machine scene: rig + panel + binds + ticking economy.
 // opts: { id, name, pool, intro?: {gateVar, line}, endings?: boolean,
-//         buttons?: string[] (button ids to show) }
-export const machineHubScene = ({ id, name, pool, intro, endings = false, buttons = [] }) => ({
+//         buttons?: string[] (always shown), ordersButton?: string
+//         (shown only when autopilot is off), panel?: 'full'|'drama',
+//         autopilot?: boolean (include the self-playing drift) }
+export const machineHubScene = ({
+  id, name, pool, intro, endings = false, buttons = [],
+  ordersButton, panel = 'full', autopilot = false,
+}) => ({
   id,
   name,
   sceneType: 'AGENCY',
@@ -354,11 +414,17 @@ export const machineHubScene = ({ id, name, pool, intro, endings = false, button
     `# ============ ${name.toUpperCase()} — Georgist economy ============`,
     '# Every c_* coefficient is a worldState variable: tune live.',
     '',
-    panelLines(),
+    panelLines(panel),
     '',
     bindLines(),
     '',
     buttons.map(b => `[BUTTON ${b}]`),
+    ordersButton ? [
+      '# orders are for commanders, not spectators',
+      '[IF autopilot == 0]',
+      `[BUTTON ${ordersButton}]`,
+      '[ENDIF]',
+    ] : [],
     '',
     intro ? [
       `[IF ${intro.gateVar} == 0]`,
@@ -370,7 +436,10 @@ export const machineHubScene = ({ id, name, pool, intro, endings = false, button
     '[TICK 500ms]',
     tickEcon(),
     '',
+    ...(autopilot ? [tickAutopilot(), ''] : []),
     tickEffects(),
+    '',
+    tickNews(),
     '',
     tickCommentary(pool),
     ...(endings ? ['', tickEndings()] : []),
@@ -476,6 +545,7 @@ export const TUNING_SLIDERS = [
   ['c_legacyHoard', 'LGCY HOARD', 0, 1, 0.05],
   ['c_legacyPrestige', 'LGCY PRSTG', 0, 1, 0.05],
   ['c_legacyEdu', 'LGCY EDU', 0, 1, 0.05],
+  ['c_autoDrift', 'AUTO DRIFT', 0, 5, 0.25],
   // Column 4 — the player levers, for context while tuning
   ['greed', 'GREED', 0, 100, 1],
   ['speculation', 'SPECULATION', 0, 100, 1],

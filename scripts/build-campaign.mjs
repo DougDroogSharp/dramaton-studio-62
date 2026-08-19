@@ -15,7 +15,7 @@ import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  lines, setLines, WORLD_BASE, SIM_RESET, ACTORS, SFX,
+  lines, setLines, actorEl, WORLD_BASE, SIM_RESET, ACTORS, SFX,
   machineHubScene, witnessScene, toyWitnessScenes, tuningScene,
 } from './machine-core.mjs';
 
@@ -133,6 +133,134 @@ const CHAPTERS = [
   },
 ];
 
+// ---------------------------------------------------------------- orders
+// The dramatic lever interface: you don't drag a slider, you give an
+// order to someone. Each option is a directive scene that applies
+// variable deltas and returns to the machine. Reaction lines are
+// [TODO Doug] placeholders.
+
+const ORDERS = {
+  1: {
+    prompt: 'The steward kneels. The conquest is won, sire. The ledger is not.',
+    options: [
+      { id: 'survey', label: 'Commission the great survey — every hide taxed', deltas: { greed: 12, hierarchy: 5 },
+        line: '[TODO Doug: the Domesday clerks ride out — nothing escapes the book]' },
+      { id: 'harry', label: 'Harry the North until it kneels', deltas: { repression: 20, hierarchy: 10 },
+        line: '[TODO Doug: the North burns; the survey will later write "waste" on a hundred villages]' },
+      { id: 'church', label: 'Grant lands to the Church for your soul', deltas: { prestige: 15, greed: -5 },
+        line: '[TODO Doug: the abbots pray for you; the shell thickens]' },
+    ],
+  },
+  2: {
+    prompt: 'The agent of the Force Publique stands at attention, Majesty.',
+    options: [
+      { id: 'quota', label: 'Double the rubber quota', deltas: { greed: 15, repression: 10 },
+        line: '[TODO Doug: the quota doubles; the district officers understand what is expected]' },
+      { id: 'force', label: 'Send the Force Publique upriver', deltas: { repression: 20, education: -5 },
+        line: '[TODO Doug: the expedition departs; the villages go quiet]' },
+      { id: 'museum', label: 'Fund the museums of Brussels', deltas: { prestige: 15 },
+        line: '[TODO Doug: marble and rubber — the Tervuren gleams]' },
+      { id: 'ease', label: 'Ease the quotas — the reports grow loud', deltas: { greed: -15, prestige: 5 },
+        line: '[TODO Doug: a gesture for the newspapers; the agents wink]' },
+    ],
+  },
+  3: {
+    prompt: 'Your man from the railroad trust brings papers to sign.',
+    options: [
+      { id: 'corner', label: 'Corner the land along the right-of-way', deltas: { speculation: 15 },
+        line: '[TODO Doug: every acre for a mile each side, held empty, priced for the future]' },
+      { id: 'cutwages', label: 'Cut wages at the works', deltas: { greed: 12 },
+        line: '[TODO Doug: ten percent across the board; the foremen post the notice]' },
+      { id: 'pinkertons', label: 'Hire the Pinkertons', deltas: { repression: 15 },
+        line: '[TODO Doug: quiet men with rifles take rooms near the yards]' },
+      { id: 'university', label: 'Endow a university', deltas: { prestige: 12, education: 5 },
+        line: '[TODO Doug: your name over the library door — and books inside it, careless of you]' },
+    ],
+  },
+  4: {
+    prompt: 'Your consigliere leans in close, boss.',
+    options: [
+      { id: 'rates', label: 'Raise the protection rates', deltas: { greed: 12 },
+        line: '[TODO Doug: the block pays for permission to exist — rates up citywide]' },
+      { id: 'cicero', label: 'Send the boys to Cicero', deltas: { repression: 15 },
+        line: '[TODO Doug: the message is delivered in the usual way]' },
+      { id: 'alderman', label: 'Buy the alderman', deltas: { regulation: -10, prestige: 5 },
+        line: '[TODO Doug: an envelope changes hands at the Lexington]' },
+      { id: 'soup', label: 'Open the soup kitchens', deltas: { prestige: 10, education: 2 },
+        line: '[TODO Doug: free coffee and doughnuts for the unemployed, photographers welcome]' },
+    ],
+  },
+  5: {
+    prompt: 'Your chief of staff scrolls the feed, waiting.',
+    options: [
+      { id: 'mars', label: 'Announce the Mars colony', deltas: { speculation: 15, prestige: 8 },
+        line: '[TODO Doug: a margin that does not exist yet, already priced]' },
+      { id: 'platform', label: 'Buy the platform', deltas: { repression: 10, education: -8 },
+        line: '[TODO Doug: the algorithm learns what not to show]' },
+      { id: 'regulator', label: 'Gut the regulator', deltas: { regulation: -15 },
+        line: '[TODO Doug: the agency that watched you now reports to you]' },
+      { id: 'post', label: 'Post through it', deltas: { prestige: 8, greed: 5 },
+        line: '[TODO Doug: outsourced-gamer-cred — the simulation must be fed]' },
+    ],
+  },
+};
+
+// Consequence scenes: what the orders propagate into. Narraton surfaces
+// them when the state matches — the atrocity when greed and repression
+// run hot, the resistance when education meets unrest.
+const OUTCOMES = {
+  1: [
+    { suffix: 'atrocity', name: 'Ch1: The Wasted North',
+      requires: [{ variable: 'repression', operator: '>=', value: 85 }],
+      keys: { flareUps: { target: 4, scale: 6 } },
+      line: '[TODO Doug: "waste, waste, waste" — a hundred villages written off in the book]' },
+    { suffix: 'resistance', name: 'Ch1: The Fenland Revolt',
+      requires: [{ variable: 'education', operator: '>=', value: 25 }],
+      keys: { flareUps: { target: 3, scale: 6 } },
+      line: '[TODO Doug: Hereward in the marshes — the conquest is not yet a fact]' },
+  ],
+  2: [
+    { suffix: 'atrocity', name: 'Ch2: The Baskets',
+      requires: [{ variable: 'greed', operator: '>=', value: 80 }, { variable: 'repression', operator: '>=', value: 70 }],
+      keys: { wages: { target: 5, scale: 60 } },
+      line: '[TODO Doug: the baskets of hands — the quota enforced in limbs; this is what the greed lever DOES]' },
+    { suffix: 'resistance', name: 'Ch2: The Witnesses Speak',
+      requires: [{ variable: 'education', operator: '>=', value: 30 }],
+      keys: { prestige: { target: 40, scale: 100 } },
+      line: '[TODO Doug: Casement and Sheppard publish; the shell cracks in public]' },
+  ],
+  3: [
+    { suffix: 'atrocity', name: 'Ch3: The Strike Broken',
+      requires: [{ variable: 'repression', operator: '>=', value: 55 }, { variable: 'flareUps', operator: '>=', value: 3 }],
+      keys: { wages: { target: 8, scale: 60 } },
+      line: '[TODO Doug: Pinkertons fire into the picket line; the papers call it a riot]' },
+    { suffix: 'resistance', name: 'Ch3: The Single Tax Clubs',
+      requires: [{ variable: 'education', operator: '>=', value: 45 }],
+      keys: { flareUps: { target: 2, scale: 6 } },
+      line: '[TODO Doug: they read George aloud in union halls — the remedy has a name now]' },
+  ],
+  4: [
+    { suffix: 'atrocity', name: 'Ch4: Bodies in the River',
+      requires: [{ variable: 'greed', operator: '>=', value: 80 }, { variable: 'repression', operator: '>=', value: 65 }],
+      keys: { rent: { target: 30, scale: 40 } },
+      line: '[TODO Doug: a shopkeeper who would not pay; the block gets the message]' },
+    { suffix: 'resistance', name: 'Ch4: The Union Holds',
+      requires: [{ variable: 'education', operator: '>=', value: 40 }],
+      keys: { flareUps: { target: 3, scale: 6 } },
+      line: '[TODO Doug: the drivers refuse the racket rate together — together being the point]' },
+  ],
+  5: [
+    { suffix: 'atrocity', name: 'Ch5: The Warehouse Shift',
+      requires: [{ variable: 'greed', operator: '>=', value: 85 }],
+      keys: { wages: { target: 6, scale: 60 } },
+      line: '[TODO Doug: the injury rate is a dashboard metric; the metric is green]' },
+    { suffix: 'resistance', name: 'Ch5: The Walkout Spreads',
+      requires: [{ variable: 'education', operator: '>=', value: 50 }, { variable: 'flareUps', operator: '>=', value: 2 }],
+      keys: { flareUps: { target: 4, scale: 6 } },
+      line: '[TODO Doug: they can read the ledger now — the shell corrodes fastest in daylight]' },
+  ],
+};
+
 // ---------------------------------------------------------------- scene builders
 
 // Per-era state that never carries between chapters
@@ -209,11 +337,98 @@ const chapterIntro = (ch) => {
       `[SET chapter = ${ch.n}]`,
       '',
       ch.introLines,
-      `[SCENE ch${ch.n}_machine]`,
+      '[CHOICE]',
+      `- "Take command of the machine" -> ch${ch.n}_manual`,
+      `- "Let the century run itself" -> ch${ch.n}_auto`,
+      '[/CHOICE]',
     ),
     status: 'work',
   };
 };
+
+// Mode scenes: manual command vs autopilot spectating
+const modeScenes = (ch) => [
+  {
+    id: `ch${ch.n}_manual`,
+    name: `Ch${ch.n}: Take Command`,
+    sceneType: 'AGENCY',
+    dropId: null,
+    stage: [],
+    script: lines(
+      '[SET autopilot = 0]',
+      '[AUTOPLAY off]',
+      `[SCENE ch${ch.n}_machine]`,
+    ),
+    status: 'work',
+  },
+  {
+    id: `ch${ch.n}_auto`,
+    name: `Ch${ch.n}: Autopilot`,
+    sceneType: 'WITNESS',
+    dropId: null,
+    stage: [],
+    script: lines(
+      '[SET autopilot = 1]',
+      '[AUTOPLAY on]',
+      `[SCENE ch${ch.n}_machine]`,
+    ),
+    status: 'work',
+  },
+];
+
+// The dramatic lever interface: ORDERS button -> your lieutenant waits
+// -> a directive applies its deltas and returns to the machine.
+const ordersScenes = (ch) => {
+  const spec = ORDERS[ch.n];
+  const hub = `ch${ch.n}_machine`;
+  const menuScene = {
+    id: `ch${ch.n}_orders`,
+    name: `Ch${ch.n}: Give Orders`,
+    sceneType: 'AGENCY',
+    dropId: null,
+    stage: [actorEl('lieutenant_figure', 'lieutenant', 50, 55, { scale: 1.5 })],
+    script: lines(
+      `Lieutenant: "${spec.prompt}"`,
+      '[CHOICE]',
+      spec.options.map(o => `- "${o.label}" -> ch${ch.n}_order_${o.id}`),
+      `- "Not now — back to the machine" -> ${hub}`,
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  };
+  const directives = spec.options.map(o => ({
+    id: `ch${ch.n}_order_${o.id}`,
+    name: `Ch${ch.n}: ${o.label}`,
+    sceneType: 'AGENCY',
+    dropId: null,
+    stage: [actorEl('lieutenant_figure', 'lieutenant', 50, 55, { scale: 1.5 })],
+    script: lines(
+      Object.entries(o.deltas).map(([k, v]) =>
+        `[SET ${k} = clamp(${k} + ${v}, 0, 100)]`),
+      `Lieutenant: "${o.line}"`,
+      `[SCENE ${hub}]`,
+    ),
+    status: 'work',
+  }));
+  return [menuScene, ...directives];
+};
+
+// Consequence scenes join the chapter's Narraton pool at weight 2:
+// when the state the orders created matches, the outcome surfaces.
+const outcomeScenes = (ch) =>
+  OUTCOMES[ch.n].map(spec => witnessScene(
+    `ch${ch.n}_${spec.suffix}`,
+    spec.name,
+    {
+      pool: `ch${ch.n}`,
+      requires: spec.requires,
+      keys: spec.keys,
+      repeatable: true,
+      weight: 2,
+    },
+    `ch${ch.n}_machine`,
+    `Witness: "${spec.line}"`,
+  ));
 
 const chapterPoolScene = (ch, spec) => witnessScene(
   spec.id,
@@ -251,6 +466,9 @@ const chapterHub = (ch) => machineHubScene({
   pool: `ch${ch.n}`,
   endings: true,
   buttons: ['tune_button', 'menu_button'],
+  ordersButton: `ch${ch.n}_orders_button`,
+  panel: 'drama',    // levers move through ORDERS, not sliders
+  autopilot: true,   // the billionaire can run it himself
 });
 
 // ---------------------------------------------------------------- fixed scenes
@@ -342,8 +560,11 @@ const endingReconstitution = {
 
 const chapterScenes = CHAPTERS.flatMap(ch => [
   chapterIntro(ch),
+  ...modeScenes(ch),
   chapterHub(ch),
+  ...ordersScenes(ch),
   ...ch.poolScenes.map(s => chapterPoolScene(ch, s)),
+  ...outcomeScenes(ch),
   chapterFinale(ch),
 ]);
 
@@ -393,13 +614,25 @@ const game = {
       x: 53, y: 4, width: 12, height: 6,
       targetSceneId: 'menu', status: 'work',
     },
+    // Per-chapter ORDERS buttons (button targets are fixed, so one each)
+    ...CHAPTERS.map(ch => ({
+      id: `ch${ch.n}_orders_button`, name: `Ch${ch.n} Orders`, label: 'ORDERS',
+      x: 27, y: 4, width: 10, height: 6,
+      targetSceneId: `ch${ch.n}_orders`, status: 'work', style: 'primary',
+    })),
   ],
   episodes: [
     ...CHAPTERS.map(ch => ({
       id: `ep_ch${ch.n}`,
       name: `Chapter ${ch.n}: ${ch.title}`,
       description: `${ch.year} — [TODO Doug: chapter description]`,
-      sceneIds: [`ch${ch.n}_intro`, `ch${ch.n}_machine`, ...ch.poolScenes.map(s => s.id), `ch${ch.n}_finale`],
+      sceneIds: [
+        `ch${ch.n}_intro`, `ch${ch.n}_manual`, `ch${ch.n}_auto`, `ch${ch.n}_machine`,
+        `ch${ch.n}_orders`, ...ORDERS[ch.n].options.map(o => `ch${ch.n}_order_${o.id}`),
+        ...ch.poolScenes.map(s => s.id),
+        ...OUTCOMES[ch.n].map(o => `ch${ch.n}_${o.suffix}`),
+        `ch${ch.n}_finale`,
+      ],
       status: 'work',
     })),
     {

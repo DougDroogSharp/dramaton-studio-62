@@ -31,6 +31,7 @@
       "chapter": 0,
       "collapseTimer": 0,
       "reconTimer": 0,
+      "autopilot": 0,
       "c_prodGrowth": 0.01,
       "c_prodMax": 3,
       "c_specMargin": 0.5,
@@ -60,7 +61,8 @@
       "c_reconEduMin": 80,
       "c_legacyHoard": 0.6,
       "c_legacyPrestige": 0.7,
-      "c_legacyEdu": 0.5
+      "c_legacyEdu": 0.5,
+      "c_autoDrift": 1
     },
     "gameMode": "INTERACTIVE",
     "titleSceneId": "menu",
@@ -94,6 +96,12 @@
       "name": "Narrator",
       "graphics": [],
       "status": "work"
+    },
+    {
+      "id": "lieutenant",
+      "name": "Lieutenant",
+      "graphics": [],
+      "status": "work"
     }
   ],
   "scenes": [
@@ -112,7 +120,25 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ CHAPTER 1 — WILLIAM THE CONQUEROR (1066) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 1]\n[SCENE ch1_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# Chapter 1 always starts the ledger empty\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 5]\n[SET publicFund = 0]\n\n[SET hierarchy = 90]\n[SET repression = 80]\n[SET greed = 70]\n[SET regulation = 5]\n[SET speculation = 10]\n[SET chapter = 1]\n\nNarrator: \"1066. William takes England by the sword and keeps it by the ledger.\"\nNarrator: \"[TODO Doug: conquest becomes property, property becomes rent, loot distribution buys the barons]\"\n[SCENE ch1_machine]",
+      "script": "# ============ CHAPTER 1 — WILLIAM THE CONQUEROR (1066) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 1]\n[SCENE ch1_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# Chapter 1 always starts the ledger empty\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 5]\n[SET publicFund = 0]\n\n[SET hierarchy = 90]\n[SET repression = 80]\n[SET greed = 70]\n[SET regulation = 5]\n[SET speculation = 10]\n[SET chapter = 1]\n\nNarrator: \"1066. William takes England by the sword and keeps it by the ledger.\"\nNarrator: \"[TODO Doug: conquest becomes property, property becomes rent, loot distribution buys the barons]\"\n[CHOICE]\n- \"Take command of the machine\" -> ch1_manual\n- \"Let the century run itself\" -> ch1_auto\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_manual",
+      "name": "Ch1: Take Command",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 0]\n[AUTOPLAY off]\n[SCENE ch1_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_auto",
+      "name": "Ch1: Autopilot",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 1]\n[AUTOPLAY on]\n[SCENE ch1_machine]",
       "status": "work"
     },
     {
@@ -286,9 +312,101 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ WILLIAM THE CONQUEROR — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch1]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ WILLIAM THE CONQUEROR — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Drama panel: readouts + the lever; levers move via ORDERS ---\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n# orders are for commanders, not spectators\n[IF autopilot == 0]\n[BUTTON ch1_orders_button]\n[ENDIF]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# autopilot: the billionaire runs the machine\n[IF autopilot == 1]\n[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]\n[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]\n[IF flareUps >= 3]\n[SET repression = clamp(repression + c_autoDrift, 0, 100)]\n[ENDIF]\n[ENDIF]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch1]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_orders",
+      "name": "Ch1: Give Orders",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Lieutenant: \"The steward kneels. The conquest is won, sire. The ledger is not.\"\n[CHOICE]\n- \"Commission the great survey — every hide taxed\" -> ch1_order_survey\n- \"Harry the North until it kneels\" -> ch1_order_harry\n- \"Grant lands to the Church for your soul\" -> ch1_order_church\n- \"Not now — back to the machine\" -> ch1_machine\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_order_survey",
+      "name": "Ch1: Commission the great survey — every hide taxed",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET greed = clamp(greed + 12, 0, 100)]\n[SET hierarchy = clamp(hierarchy + 5, 0, 100)]\nLieutenant: \"[TODO Doug: the Domesday clerks ride out — nothing escapes the book]\"\n[SCENE ch1_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_order_harry",
+      "name": "Ch1: Harry the North until it kneels",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET repression = clamp(repression + 20, 0, 100)]\n[SET hierarchy = clamp(hierarchy + 10, 0, 100)]\nLieutenant: \"[TODO Doug: the North burns; the survey will later write \"waste\" on a hundred villages]\"\n[SCENE ch1_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_order_church",
+      "name": "Ch1: Grant lands to the Church for your soul",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET prestige = clamp(prestige + 15, 0, 100)]\n[SET greed = clamp(greed + -5, 0, 100)]\nLieutenant: \"[TODO Doug: the abbots pray for you; the shell thickens]\"\n[SCENE ch1_machine]",
       "status": "work"
     },
     {
@@ -386,6 +504,82 @@
       "status": "work"
     },
     {
+      "id": "ch1_atrocity",
+      "name": "Ch1: The Wasted North",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: \"waste, waste, waste\" — a hundred villages written off in the book]\"\n[SCENE ch1_machine]",
+      "narraton": {
+        "pool": "ch1",
+        "requires": [
+          {
+            "variable": "repression",
+            "operator": ">=",
+            "value": 85
+          }
+        ],
+        "keys": {
+          "flareUps": {
+            "target": 4,
+            "scale": 6
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch1_resistance",
+      "name": "Ch1: The Fenland Revolt",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: Hereward in the marshes — the conquest is not yet a fact]\"\n[SCENE ch1_machine]",
+      "narraton": {
+        "pool": "ch1",
+        "requires": [
+          {
+            "variable": "education",
+            "operator": ">=",
+            "value": 25
+          }
+        ],
+        "keys": {
+          "flareUps": {
+            "target": 3,
+            "scale": 6
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
       "id": "ch1_finale",
       "name": "Ch1 Finale",
       "sceneType": "WITNESS",
@@ -423,7 +617,25 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ CHAPTER 2 — KING LEOPOLD (1885) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 2]\n[SCENE ch2_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 1]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 10), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 1]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 10]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET greed = 100]\n[SET repression = 95]\n[SET hierarchy = 80]\n[SET regulation = 5]\n[SET speculation = 20]\n[SET chapter = 2]\n\nNarrator: \"1885. Leopold II acquires the Congo — not for Belgium, for himself.\"\nNarrator: \"[TODO Doug: rubber quotas, the Force Publique, extraction with the mask fully off]\"\n[SCENE ch2_machine]",
+      "script": "# ============ CHAPTER 2 — KING LEOPOLD (1885) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 2]\n[SCENE ch2_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 1]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 10), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 1]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 10]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET greed = 100]\n[SET repression = 95]\n[SET hierarchy = 80]\n[SET regulation = 5]\n[SET speculation = 20]\n[SET chapter = 2]\n\nNarrator: \"1885. Leopold II acquires the Congo — not for Belgium, for himself.\"\nNarrator: \"[TODO Doug: rubber quotas, the Force Publique, extraction with the mask fully off]\"\n[CHOICE]\n- \"Take command of the machine\" -> ch2_manual\n- \"Let the century run itself\" -> ch2_auto\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_manual",
+      "name": "Ch2: Take Command",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 0]\n[AUTOPLAY off]\n[SCENE ch2_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_auto",
+      "name": "Ch2: Autopilot",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 1]\n[AUTOPLAY on]\n[SCENE ch2_machine]",
       "status": "work"
     },
     {
@@ -597,9 +809,121 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ KING LEOPOLD — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch2]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ KING LEOPOLD — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Drama panel: readouts + the lever; levers move via ORDERS ---\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n# orders are for commanders, not spectators\n[IF autopilot == 0]\n[BUTTON ch2_orders_button]\n[ENDIF]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# autopilot: the billionaire runs the machine\n[IF autopilot == 1]\n[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]\n[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]\n[IF flareUps >= 3]\n[SET repression = clamp(repression + c_autoDrift, 0, 100)]\n[ENDIF]\n[ENDIF]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch2]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_orders",
+      "name": "Ch2: Give Orders",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Lieutenant: \"The agent of the Force Publique stands at attention, Majesty.\"\n[CHOICE]\n- \"Double the rubber quota\" -> ch2_order_quota\n- \"Send the Force Publique upriver\" -> ch2_order_force\n- \"Fund the museums of Brussels\" -> ch2_order_museum\n- \"Ease the quotas — the reports grow loud\" -> ch2_order_ease\n- \"Not now — back to the machine\" -> ch2_machine\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_order_quota",
+      "name": "Ch2: Double the rubber quota",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET greed = clamp(greed + 15, 0, 100)]\n[SET repression = clamp(repression + 10, 0, 100)]\nLieutenant: \"[TODO Doug: the quota doubles; the district officers understand what is expected]\"\n[SCENE ch2_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_order_force",
+      "name": "Ch2: Send the Force Publique upriver",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET repression = clamp(repression + 20, 0, 100)]\n[SET education = clamp(education + -5, 0, 100)]\nLieutenant: \"[TODO Doug: the expedition departs; the villages go quiet]\"\n[SCENE ch2_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_order_museum",
+      "name": "Ch2: Fund the museums of Brussels",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET prestige = clamp(prestige + 15, 0, 100)]\nLieutenant: \"[TODO Doug: marble and rubber — the Tervuren gleams]\"\n[SCENE ch2_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_order_ease",
+      "name": "Ch2: Ease the quotas — the reports grow loud",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET greed = clamp(greed + -15, 0, 100)]\n[SET prestige = clamp(prestige + 5, 0, 100)]\nLieutenant: \"[TODO Doug: a gesture for the newspapers; the agents wink]\"\n[SCENE ch2_machine]",
       "status": "work"
     },
     {
@@ -697,6 +1021,87 @@
       "status": "work"
     },
     {
+      "id": "ch2_atrocity",
+      "name": "Ch2: The Baskets",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the baskets of hands — the quota enforced in limbs; this is what the greed lever DOES]\"\n[SCENE ch2_machine]",
+      "narraton": {
+        "pool": "ch2",
+        "requires": [
+          {
+            "variable": "greed",
+            "operator": ">=",
+            "value": 80
+          },
+          {
+            "variable": "repression",
+            "operator": ">=",
+            "value": 70
+          }
+        ],
+        "keys": {
+          "wages": {
+            "target": 5,
+            "scale": 60
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch2_resistance",
+      "name": "Ch2: The Witnesses Speak",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: Casement and Sheppard publish; the shell cracks in public]\"\n[SCENE ch2_machine]",
+      "narraton": {
+        "pool": "ch2",
+        "requires": [
+          {
+            "variable": "education",
+            "operator": ">=",
+            "value": 30
+          }
+        ],
+        "keys": {
+          "prestige": {
+            "target": 40,
+            "scale": 100
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
       "id": "ch2_finale",
       "name": "Ch2 Finale",
       "sceneType": "WITNESS",
@@ -734,7 +1139,25 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ CHAPTER 3 — GILDED AGE AMERICA (1879) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 3]\n[SCENE ch3_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 2]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 30), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 2]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 30]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET speculation = 85]\n[SET greed = 80]\n[SET regulation = 10]\n[SET hierarchy = 60]\n[SET repression = 40]\n[SET chapter = 3]\n\nNarrator: \"1879. The exact year Henry George publishes. Railroads, land grants, panics.\"\nNarrator: \"[TODO Doug: the era the machine was built to explain — speculation as the brake]\"\n[SCENE ch3_machine]",
+      "script": "# ============ CHAPTER 3 — GILDED AGE AMERICA (1879) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 3]\n[SCENE ch3_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 2]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 30), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 2]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 30]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET speculation = 85]\n[SET greed = 80]\n[SET regulation = 10]\n[SET hierarchy = 60]\n[SET repression = 40]\n[SET chapter = 3]\n\nNarrator: \"1879. The exact year Henry George publishes. Railroads, land grants, panics.\"\nNarrator: \"[TODO Doug: the era the machine was built to explain — speculation as the brake]\"\n[CHOICE]\n- \"Take command of the machine\" -> ch3_manual\n- \"Let the century run itself\" -> ch3_auto\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_manual",
+      "name": "Ch3: Take Command",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 0]\n[AUTOPLAY off]\n[SCENE ch3_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_auto",
+      "name": "Ch3: Autopilot",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 1]\n[AUTOPLAY on]\n[SCENE ch3_machine]",
       "status": "work"
     },
     {
@@ -908,9 +1331,121 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ GILDED AGE AMERICA — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch3]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ GILDED AGE AMERICA — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Drama panel: readouts + the lever; levers move via ORDERS ---\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n# orders are for commanders, not spectators\n[IF autopilot == 0]\n[BUTTON ch3_orders_button]\n[ENDIF]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# autopilot: the billionaire runs the machine\n[IF autopilot == 1]\n[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]\n[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]\n[IF flareUps >= 3]\n[SET repression = clamp(repression + c_autoDrift, 0, 100)]\n[ENDIF]\n[ENDIF]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch3]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_orders",
+      "name": "Ch3: Give Orders",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Lieutenant: \"Your man from the railroad trust brings papers to sign.\"\n[CHOICE]\n- \"Corner the land along the right-of-way\" -> ch3_order_corner\n- \"Cut wages at the works\" -> ch3_order_cutwages\n- \"Hire the Pinkertons\" -> ch3_order_pinkertons\n- \"Endow a university\" -> ch3_order_university\n- \"Not now — back to the machine\" -> ch3_machine\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_order_corner",
+      "name": "Ch3: Corner the land along the right-of-way",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET speculation = clamp(speculation + 15, 0, 100)]\nLieutenant: \"[TODO Doug: every acre for a mile each side, held empty, priced for the future]\"\n[SCENE ch3_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_order_cutwages",
+      "name": "Ch3: Cut wages at the works",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET greed = clamp(greed + 12, 0, 100)]\nLieutenant: \"[TODO Doug: ten percent across the board; the foremen post the notice]\"\n[SCENE ch3_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_order_pinkertons",
+      "name": "Ch3: Hire the Pinkertons",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET repression = clamp(repression + 15, 0, 100)]\nLieutenant: \"[TODO Doug: quiet men with rifles take rooms near the yards]\"\n[SCENE ch3_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_order_university",
+      "name": "Ch3: Endow a university",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET prestige = clamp(prestige + 12, 0, 100)]\n[SET education = clamp(education + 5, 0, 100)]\nLieutenant: \"[TODO Doug: your name over the library door — and books inside it, careless of you]\"\n[SCENE ch3_machine]",
       "status": "work"
     },
     {
@@ -1006,6 +1541,87 @@
       "status": "work"
     },
     {
+      "id": "ch3_atrocity",
+      "name": "Ch3: The Strike Broken",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: Pinkertons fire into the picket line; the papers call it a riot]\"\n[SCENE ch3_machine]",
+      "narraton": {
+        "pool": "ch3",
+        "requires": [
+          {
+            "variable": "repression",
+            "operator": ">=",
+            "value": 55
+          },
+          {
+            "variable": "flareUps",
+            "operator": ">=",
+            "value": 3
+          }
+        ],
+        "keys": {
+          "wages": {
+            "target": 8,
+            "scale": 60
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch3_resistance",
+      "name": "Ch3: The Single Tax Clubs",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: they read George aloud in union halls — the remedy has a name now]\"\n[SCENE ch3_machine]",
+      "narraton": {
+        "pool": "ch3",
+        "requires": [
+          {
+            "variable": "education",
+            "operator": ">=",
+            "value": 45
+          }
+        ],
+        "keys": {
+          "flareUps": {
+            "target": 2,
+            "scale": 6
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
       "id": "ch3_finale",
       "name": "Ch3 Finale",
       "sceneType": "WITNESS",
@@ -1043,7 +1659,25 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ CHAPTER 4 — KING OF CHICAGO (1929) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 4]\n[SCENE ch4_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 3]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 35), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 3]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 35]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET repression = 60]\n[SET greed = 75]\n[SET regulation = 15]\n[SET hierarchy = 60]\n[SET speculation = 50]\n[SET chapter = 4]\n\nNarrator: \"1929. Chicago. The racket is just rent with a tommy gun.\"\nNarrator: \"[TODO Doug: protection money as land rent — the 1986 game returns to its subject]\"\n[SCENE ch4_machine]",
+      "script": "# ============ CHAPTER 4 — KING OF CHICAGO (1929) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 4]\n[SCENE ch4_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 3]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 35), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 3]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 35]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET repression = 60]\n[SET greed = 75]\n[SET regulation = 15]\n[SET hierarchy = 60]\n[SET speculation = 50]\n[SET chapter = 4]\n\nNarrator: \"1929. Chicago. The racket is just rent with a tommy gun.\"\nNarrator: \"[TODO Doug: protection money as land rent — the 1986 game returns to its subject]\"\n[CHOICE]\n- \"Take command of the machine\" -> ch4_manual\n- \"Let the century run itself\" -> ch4_auto\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_manual",
+      "name": "Ch4: Take Command",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 0]\n[AUTOPLAY off]\n[SCENE ch4_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_auto",
+      "name": "Ch4: Autopilot",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 1]\n[AUTOPLAY on]\n[SCENE ch4_machine]",
       "status": "work"
     },
     {
@@ -1217,9 +1851,121 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ KING OF CHICAGO — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch4]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ KING OF CHICAGO — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Drama panel: readouts + the lever; levers move via ORDERS ---\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n# orders are for commanders, not spectators\n[IF autopilot == 0]\n[BUTTON ch4_orders_button]\n[ENDIF]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# autopilot: the billionaire runs the machine\n[IF autopilot == 1]\n[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]\n[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]\n[IF flareUps >= 3]\n[SET repression = clamp(repression + c_autoDrift, 0, 100)]\n[ENDIF]\n[ENDIF]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch4]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_orders",
+      "name": "Ch4: Give Orders",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Lieutenant: \"Your consigliere leans in close, boss.\"\n[CHOICE]\n- \"Raise the protection rates\" -> ch4_order_rates\n- \"Send the boys to Cicero\" -> ch4_order_cicero\n- \"Buy the alderman\" -> ch4_order_alderman\n- \"Open the soup kitchens\" -> ch4_order_soup\n- \"Not now — back to the machine\" -> ch4_machine\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_order_rates",
+      "name": "Ch4: Raise the protection rates",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET greed = clamp(greed + 12, 0, 100)]\nLieutenant: \"[TODO Doug: the block pays for permission to exist — rates up citywide]\"\n[SCENE ch4_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_order_cicero",
+      "name": "Ch4: Send the boys to Cicero",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET repression = clamp(repression + 15, 0, 100)]\nLieutenant: \"[TODO Doug: the message is delivered in the usual way]\"\n[SCENE ch4_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_order_alderman",
+      "name": "Ch4: Buy the alderman",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET regulation = clamp(regulation + -10, 0, 100)]\n[SET prestige = clamp(prestige + 5, 0, 100)]\nLieutenant: \"[TODO Doug: an envelope changes hands at the Lexington]\"\n[SCENE ch4_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_order_soup",
+      "name": "Ch4: Open the soup kitchens",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET prestige = clamp(prestige + 10, 0, 100)]\n[SET education = clamp(education + 2, 0, 100)]\nLieutenant: \"[TODO Doug: free coffee and doughnuts for the unemployed, photographers welcome]\"\n[SCENE ch4_machine]",
       "status": "work"
     },
     {
@@ -1313,6 +2059,87 @@
       "status": "work"
     },
     {
+      "id": "ch4_atrocity",
+      "name": "Ch4: Bodies in the River",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: a shopkeeper who would not pay; the block gets the message]\"\n[SCENE ch4_machine]",
+      "narraton": {
+        "pool": "ch4",
+        "requires": [
+          {
+            "variable": "greed",
+            "operator": ">=",
+            "value": 80
+          },
+          {
+            "variable": "repression",
+            "operator": ">=",
+            "value": 65
+          }
+        ],
+        "keys": {
+          "rent": {
+            "target": 30,
+            "scale": 40
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch4_resistance",
+      "name": "Ch4: The Union Holds",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the drivers refuse the racket rate together — together being the point]\"\n[SCENE ch4_machine]",
+      "narraton": {
+        "pool": "ch4",
+        "requires": [
+          {
+            "variable": "education",
+            "operator": ">=",
+            "value": 40
+          }
+        ],
+        "keys": {
+          "flareUps": {
+            "target": 3,
+            "scale": 6
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
       "id": "ch4_finale",
       "name": "Ch4 Finale",
       "sceneType": "WITNESS",
@@ -1350,7 +2177,25 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ CHAPTER 5 — ELON MUSK (2026) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 5]\n[SCENE ch5_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 4]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 40), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 4]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 40]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET greed = 85]\n[SET speculation = 70]\n[SET regulation = 20]\n[SET hierarchy = 70]\n[SET repression = 30]\n[SET prestige = clamp(max(prestige, 80), 0, 100)]\n[SET chapter = 5]\n\nNarrator: \"2026. The hoard is beyond counting. The product is mostly story.\"\nNarrator: \"[TODO Doug: prestige gameplay, outsourced-gamer-cred, the simulation era — link the comic]\"\n[SCENE ch5_machine]",
+      "script": "# ============ CHAPTER 5 — ELON MUSK (2026) ============\n# Era lever presets + legacy continuity. Numbers are guesses: tune live.\n\n# Re-entering the chapter you are already in resumes it untouched\n# (menu round-trips, tuning trips)\n[IF chapter == 5]\n[SCENE ch5_machine]\n[ENDIF]\n\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET marginHeight = 100]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n\n# CONTINUITY: arriving from the previous chapter carries the\n# legacy — the fortune crosses the century. Any other entry\n# (menu jump) plays this era fresh and standalone.\n[IF chapter == 4]\n[SET hoard = hoard * c_legacyHoard]\n[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]\n[SET education = clamp(max(education * c_legacyEdu, 40), 0, 100)]\n[SET publicFund = publicFund * 0.25]\n# productivity carries untouched: progress does not regress\nNarrator: \"The fortune crosses the century. The hoard endures. The humans forget — but not everything.\"\n[ENDIF]\n[IF chapter != 4]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET productivity = 1.5]\n[SET education = 40]\n[SET publicFund = 0]\n[ENDIF]\n\n[SET greed = 85]\n[SET speculation = 70]\n[SET regulation = 20]\n[SET hierarchy = 70]\n[SET repression = 30]\n[SET prestige = clamp(max(prestige, 80), 0, 100)]\n[SET chapter = 5]\n\nNarrator: \"2026. The hoard is beyond counting. The product is mostly story.\"\nNarrator: \"[TODO Doug: prestige gameplay, outsourced-gamer-cred, the simulation era — link the comic]\"\n[CHOICE]\n- \"Take command of the machine\" -> ch5_manual\n- \"Let the century run itself\" -> ch5_auto\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_manual",
+      "name": "Ch5: Take Command",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 0]\n[AUTOPLAY off]\n[SCENE ch5_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_auto",
+      "name": "Ch5: Autopilot",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "[SET autopilot = 1]\n[AUTOPLAY on]\n[SCENE ch5_machine]",
       "status": "work"
     },
     {
@@ -1524,9 +2369,121 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ ELON MUSK — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch5]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ ELON MUSK — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Drama panel: readouts + the lever; levers move via ORDERS ---\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n# orders are for commanders, not spectators\n[IF autopilot == 0]\n[BUTTON ch5_orders_button]\n[ENDIF]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# autopilot: the billionaire runs the machine\n[IF autopilot == 1]\n[SET greed = clamp(greed + c_autoDrift * (rand() - 0.35), 0, 100)]\n[SET speculation = clamp(speculation + c_autoDrift * (rand() - 0.4), 0, 100)]\n[IF flareUps >= 3]\n[SET repression = clamp(repression + c_autoDrift, 0, 100)]\n[ENDIF]\n[ENDIF]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch5]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_orders",
+      "name": "Ch5: Give Orders",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Lieutenant: \"Your chief of staff scrolls the feed, waiting.\"\n[CHOICE]\n- \"Announce the Mars colony\" -> ch5_order_mars\n- \"Buy the platform\" -> ch5_order_platform\n- \"Gut the regulator\" -> ch5_order_regulator\n- \"Post through it\" -> ch5_order_post\n- \"Not now — back to the machine\" -> ch5_machine\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_order_mars",
+      "name": "Ch5: Announce the Mars colony",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET speculation = clamp(speculation + 15, 0, 100)]\n[SET prestige = clamp(prestige + 8, 0, 100)]\nLieutenant: \"[TODO Doug: a margin that does not exist yet, already priced]\"\n[SCENE ch5_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_order_platform",
+      "name": "Ch5: Buy the platform",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET repression = clamp(repression + 10, 0, 100)]\n[SET education = clamp(education + -8, 0, 100)]\nLieutenant: \"[TODO Doug: the algorithm learns what not to show]\"\n[SCENE ch5_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_order_regulator",
+      "name": "Ch5: Gut the regulator",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET regulation = clamp(regulation + -15, 0, 100)]\nLieutenant: \"[TODO Doug: the agency that watched you now reports to you]\"\n[SCENE ch5_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_order_post",
+      "name": "Ch5: Post through it",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "lieutenant_figure",
+          "assetId": "lieutenant",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 55,
+          "scale": 1.5,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "[SET prestige = clamp(prestige + 8, 0, 100)]\n[SET greed = clamp(greed + 5, 0, 100)]\nLieutenant: \"[TODO Doug: outsourced-gamer-cred — the simulation must be fed]\"\n[SCENE ch5_machine]",
       "status": "work"
     },
     {
@@ -1620,6 +2577,87 @@
           }
         },
         "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_atrocity",
+      "name": "Ch5: The Warehouse Shift",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the injury rate is a dashboard metric; the metric is green]\"\n[SCENE ch5_machine]",
+      "narraton": {
+        "pool": "ch5",
+        "requires": [
+          {
+            "variable": "greed",
+            "operator": ">=",
+            "value": 85
+          }
+        ],
+        "keys": {
+          "wages": {
+            "target": 6,
+            "scale": 60
+          }
+        },
+        "repeatable": true,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_resistance",
+      "name": "Ch5: The Walkout Spreads",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: they can read the ledger now — the shell corrodes fastest in daylight]\"\n[SCENE ch5_machine]",
+      "narraton": {
+        "pool": "ch5",
+        "requires": [
+          {
+            "variable": "education",
+            "operator": ">=",
+            "value": 50
+          },
+          {
+            "variable": "flareUps",
+            "operator": ">=",
+            "value": 2
+          }
+        ],
+        "keys": {
+          "flareUps": {
+            "target": 4,
+            "scale": 6
+          }
+        },
+        "repeatable": true,
+        "weight": 2
       },
       "status": "work"
     },
@@ -1835,9 +2873,21 @@
           "scale": 1,
           "zIndex": 3,
           "rotation": 0
+        },
+        {
+          "id": "news_ticker",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 45,
+          "y": 95,
+          "scale": 1,
+          "zIndex": 5,
+          "rotation": 0,
+          "text": "THE DAILY LEDGER",
+          "balloonType": "SPEECH"
         }
       ],
-      "script": "# ============ SANDBOX — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=witness]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "script": "# ============ SANDBOX — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n[BUTTON menu_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: distress sparks, deep distress burns\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT flame_burn on human_1]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT flame_burn from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT flame_burn on human_2]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT flame_burn from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT flame_burn on human_3]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT flame_burn from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT flame_burn on human_4]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT flame_burn from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 7]\n[EFFECT flame_burn on human_5]\n[ENDIF]\n[IF flareUps < 7]\n[CLEAR_EFFECT flame_burn from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n[IF flareUps >= 8]\n[EFFECT flame_burn on human_6]\n[ENDIF]\n[IF flareUps < 8]\n[CLEAR_EFFECT flame_burn from human_6]\n[ENDIF]\n\n# the billionaire basks while the hoard grows\n[IF hoard > 100]\n[EFFECT gold_glow on billionaire]\n[ENDIF]\n[IF hoard <= 100]\n[CLEAR_EFFECT gold_glow from billionaire]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# news ticker: the most dramatic true headline wins\n[SET_TEXT news_ticker \"THE DAILY LEDGER — PRODUCT {product} · WAGES {wages} · RENT {rent}\"]\n[IF hoard > 300]\n[SET_TEXT news_ticker \"FORTUNE OF {hoard} — SOCIETY PAGES SWOON — WAGES {wages}\"]\n[ENDIF]\n[IF wages <= c_survivalFloor + 2]\n[SET_TEXT news_ticker \"WAGES AT SURVIVAL — {wages} — BREADLINES LENGTHEN\"]\n[ENDIF]\n[IF flareUps >= 2]\n[SET_TEXT news_ticker \"UNREST REPORTED — {flareUps} DISTRICTS RESTIVE — WAGES {wages}\"]\n[ENDIF]\n[IF flareUps >= 4]\n[SET_TEXT news_ticker \"UPRISINGS SPREAD — {flareUps} DISTRICTS BURNING\"]\n[ENDIF]\n[IF singleTax == 1]\n[SET_TEXT news_ticker \"SINGLE TAX IN EFFECT — PUBLIC FUND AT {publicFund} — MARGIN {marginHeight}\"]\n[ENDIF]\n[IF crisis == 1]\n[SET_TEXT news_ticker \"PANIC! SPECULATION OUTRUNS PRODUCTION — MARKETS SEIZE\"]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=witness]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
       "status": "work"
     },
     {
@@ -2071,7 +3121,7 @@
       "sceneType": "AGENCY",
       "dropId": null,
       "stage": [],
-      "script": "# ============ TUNING COCKPIT ============\n# Every coefficient live. The economy keeps ticking while you turn\n# the dials; tuned values persist when you go back.\n\n[GAUGE wages at 14,8 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 32,8 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 50,8 min=0 max=100 label=\"MARGIN\"]\n[GAUGE product at 68,8 min=0 max=150 label=\"PRODUCT\"]\n[GAUGE hoard at 86,8 min=0 max=600 label=\"HOARD\"]\n\n[SLIDER c_prodGrowth at 14,21 min=0 max=0.05 step=0.002 label=\"PROD GROWTH\"]\n[SLIDER c_prodMax at 14,30.5 min=1 max=6 step=0.5 label=\"PROD MAX\"]\n[SLIDER c_specMargin at 14,40 min=0 max=1 step=0.05 label=\"SPEC>MARGIN\"]\n[SLIDER c_greedMargin at 14,49.5 min=0 max=1 step=0.05 label=\"GREED>MARGIN\"]\n[SLIDER c_regMargin at 14,59 min=0 max=1 step=0.05 label=\"REG>MARGIN\"]\n[SLIDER c_taxMargin at 14,68.5 min=0 max=60 step=2 label=\"TAX>MARGIN\"]\n[SLIDER laborForce at 14,78 min=5 max=100 step=5 label=\"LABOR FORCE\"]\n[SLIDER c_survivalFloor at 14,87.5 min=0 max=20 label=\"SURVIVAL FLR\"]\n[SLIDER c_rentGreedDiv at 14,96 min=10 max=200 step=5 label=\"RENT DIV\"]\n[SLIDER c_interestShare at 38,21 min=0 max=1 step=0.05 label=\"INT SHARE\"]\n[SLIDER c_prestigeSpend at 38,30.5 min=0 max=2 step=0.1 label=\"PRSTG SPEND\"]\n[SLIDER c_eduPrestige at 38,40 min=0 max=0.05 step=0.002 label=\"EDU>PRSTG\"]\n[SLIDER c_repressionCost at 38,49.5 min=0 max=0.2 step=0.01 label=\"REPR COST\"]\n[SLIDER c_taxRedirect at 38,59 min=0 max=1 step=0.05 label=\"TAX REDIRECT\"]\n[SLIDER c_fundMargin at 38,68.5 min=0 max=0.05 step=0.002 label=\"FUND>MARGIN\"]\n[SLIDER c_fundEdu at 38,78 min=0 max=0.05 step=0.002 label=\"FUND>EDU\"]\n[SLIDER c_flareBase at 38,87.5 min=0 max=50 label=\"FLARE BASE\"]\n[SLIDER c_flareHier at 38,96 min=0 max=1 step=0.05 label=\"HIER>FLARE\"]\n[SLIDER c_flareEdu at 62,21 min=0 max=1 step=0.05 label=\"EDU>FLARE\"]\n[SLIDER c_flareDiv at 62,30.5 min=1 max=10 step=0.5 label=\"FLARE DIV\"]\n[SLIDER c_crisisSpecMin at 62,40 min=0 max=100 step=5 label=\"CRISIS SPEC\"]\n[SLIDER c_crisisChance at 62,49.5 min=0 max=0.5 step=0.01 label=\"CRISIS ODDS\"]\n[SLIDER c_commentaryCooldown at 62,59 min=0 max=120 step=5 label=\"STORY CD\"]\n[SLIDER c_commentaryFlareMin at 62,68.5 min=0 max=6 label=\"STORY FLARES\"]\n[SLIDER c_wheelSpeed at 62,78 min=0 max=2 step=0.1 label=\"WHEEL SPEED\"]\n[SLIDER c_legacyHoard at 62,87.5 min=0 max=1 step=0.05 label=\"LGCY HOARD\"]\n[SLIDER c_legacyPrestige at 62,96 min=0 max=1 step=0.05 label=\"LGCY PRSTG\"]\n[SLIDER c_legacyEdu at 86,21 min=0 max=1 step=0.05 label=\"LGCY EDU\"]\n[SLIDER greed at 86,30.5 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 86,40 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 86,49.5 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 86,59 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 86,68.5 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 86,78 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 86,87.5 min=0 max=1 label=\"SINGLE TAX\"]\n\n[BUTTON back_button]\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n[/TICK]\n\n[WAIT 999999s]",
+      "script": "# ============ TUNING COCKPIT ============\n# Every coefficient live. The economy keeps ticking while you turn\n# the dials; tuned values persist when you go back.\n\n[GAUGE wages at 14,8 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 32,8 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 50,8 min=0 max=100 label=\"MARGIN\"]\n[GAUGE product at 68,8 min=0 max=150 label=\"PRODUCT\"]\n[GAUGE hoard at 86,8 min=0 max=600 label=\"HOARD\"]\n\n[SLIDER c_prodGrowth at 14,21 min=0 max=0.05 step=0.002 label=\"PROD GROWTH\"]\n[SLIDER c_prodMax at 14,30.5 min=1 max=6 step=0.5 label=\"PROD MAX\"]\n[SLIDER c_specMargin at 14,40 min=0 max=1 step=0.05 label=\"SPEC>MARGIN\"]\n[SLIDER c_greedMargin at 14,49.5 min=0 max=1 step=0.05 label=\"GREED>MARGIN\"]\n[SLIDER c_regMargin at 14,59 min=0 max=1 step=0.05 label=\"REG>MARGIN\"]\n[SLIDER c_taxMargin at 14,68.5 min=0 max=60 step=2 label=\"TAX>MARGIN\"]\n[SLIDER laborForce at 14,78 min=5 max=100 step=5 label=\"LABOR FORCE\"]\n[SLIDER c_survivalFloor at 14,87.5 min=0 max=20 label=\"SURVIVAL FLR\"]\n[SLIDER c_rentGreedDiv at 14,96 min=10 max=200 step=5 label=\"RENT DIV\"]\n[SLIDER c_interestShare at 38,21 min=0 max=1 step=0.05 label=\"INT SHARE\"]\n[SLIDER c_prestigeSpend at 38,30.5 min=0 max=2 step=0.1 label=\"PRSTG SPEND\"]\n[SLIDER c_eduPrestige at 38,40 min=0 max=0.05 step=0.002 label=\"EDU>PRSTG\"]\n[SLIDER c_repressionCost at 38,49.5 min=0 max=0.2 step=0.01 label=\"REPR COST\"]\n[SLIDER c_taxRedirect at 38,59 min=0 max=1 step=0.05 label=\"TAX REDIRECT\"]\n[SLIDER c_fundMargin at 38,68.5 min=0 max=0.05 step=0.002 label=\"FUND>MARGIN\"]\n[SLIDER c_fundEdu at 38,78 min=0 max=0.05 step=0.002 label=\"FUND>EDU\"]\n[SLIDER c_flareBase at 38,87.5 min=0 max=50 label=\"FLARE BASE\"]\n[SLIDER c_flareHier at 38,96 min=0 max=1 step=0.05 label=\"HIER>FLARE\"]\n[SLIDER c_flareEdu at 62,21 min=0 max=1 step=0.05 label=\"EDU>FLARE\"]\n[SLIDER c_flareDiv at 62,30.5 min=1 max=10 step=0.5 label=\"FLARE DIV\"]\n[SLIDER c_crisisSpecMin at 62,40 min=0 max=100 step=5 label=\"CRISIS SPEC\"]\n[SLIDER c_crisisChance at 62,49.5 min=0 max=0.5 step=0.01 label=\"CRISIS ODDS\"]\n[SLIDER c_commentaryCooldown at 62,59 min=0 max=120 step=5 label=\"STORY CD\"]\n[SLIDER c_commentaryFlareMin at 62,68.5 min=0 max=6 label=\"STORY FLARES\"]\n[SLIDER c_wheelSpeed at 62,78 min=0 max=2 step=0.1 label=\"WHEEL SPEED\"]\n[SLIDER c_legacyHoard at 62,87.5 min=0 max=1 step=0.05 label=\"LGCY HOARD\"]\n[SLIDER c_legacyPrestige at 62,96 min=0 max=1 step=0.05 label=\"LGCY PRSTG\"]\n[SLIDER c_legacyEdu at 86,21 min=0 max=1 step=0.05 label=\"LGCY EDU\"]\n[SLIDER c_autoDrift at 86,30.5 min=0 max=5 step=0.25 label=\"AUTO DRIFT\"]\n[SLIDER greed at 86,40 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 86,49.5 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 86,59 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 86,68.5 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 86,78 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 86,87.5 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 86,96 min=0 max=1 label=\"SINGLE TAX\"]\n\n[BUTTON back_button]\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n[/TICK]\n\n[WAIT 999999s]",
       "status": "work"
     }
   ],
@@ -2152,6 +3202,66 @@
       "height": 6,
       "targetSceneId": "menu",
       "status": "work"
+    },
+    {
+      "id": "ch1_orders_button",
+      "name": "Ch1 Orders",
+      "label": "ORDERS",
+      "x": 27,
+      "y": 4,
+      "width": 10,
+      "height": 6,
+      "targetSceneId": "ch1_orders",
+      "status": "work",
+      "style": "primary"
+    },
+    {
+      "id": "ch2_orders_button",
+      "name": "Ch2 Orders",
+      "label": "ORDERS",
+      "x": 27,
+      "y": 4,
+      "width": 10,
+      "height": 6,
+      "targetSceneId": "ch2_orders",
+      "status": "work",
+      "style": "primary"
+    },
+    {
+      "id": "ch3_orders_button",
+      "name": "Ch3 Orders",
+      "label": "ORDERS",
+      "x": 27,
+      "y": 4,
+      "width": 10,
+      "height": 6,
+      "targetSceneId": "ch3_orders",
+      "status": "work",
+      "style": "primary"
+    },
+    {
+      "id": "ch4_orders_button",
+      "name": "Ch4 Orders",
+      "label": "ORDERS",
+      "x": 27,
+      "y": 4,
+      "width": 10,
+      "height": 6,
+      "targetSceneId": "ch4_orders",
+      "status": "work",
+      "style": "primary"
+    },
+    {
+      "id": "ch5_orders_button",
+      "name": "Ch5 Orders",
+      "label": "ORDERS",
+      "x": 27,
+      "y": 4,
+      "width": 10,
+      "height": 6,
+      "targetSceneId": "ch5_orders",
+      "status": "work",
+      "style": "primary"
     }
   ],
   "episodes": [
@@ -2161,10 +3271,18 @@
       "description": "1066 — [TODO Doug: chapter description]",
       "sceneIds": [
         "ch1_intro",
+        "ch1_manual",
+        "ch1_auto",
         "ch1_machine",
+        "ch1_orders",
+        "ch1_order_survey",
+        "ch1_order_harry",
+        "ch1_order_church",
         "ch1_domesday",
         "ch1_barons",
         "ch1_harrying",
+        "ch1_atrocity",
+        "ch1_resistance",
         "ch1_finale"
       ],
       "status": "work"
@@ -2175,10 +3293,19 @@
       "description": "1885 — [TODO Doug: chapter description]",
       "sceneIds": [
         "ch2_intro",
+        "ch2_manual",
+        "ch2_auto",
         "ch2_machine",
+        "ch2_orders",
+        "ch2_order_quota",
+        "ch2_order_force",
+        "ch2_order_museum",
+        "ch2_order_ease",
         "ch2_quota",
         "ch2_report",
         "ch2_philanthropy",
+        "ch2_atrocity",
+        "ch2_resistance",
         "ch2_finale"
       ],
       "status": "work"
@@ -2189,10 +3316,19 @@
       "description": "1879 — [TODO Doug: chapter description]",
       "sceneIds": [
         "ch3_intro",
+        "ch3_manual",
+        "ch3_auto",
         "ch3_machine",
+        "ch3_orders",
+        "ch3_order_corner",
+        "ch3_order_cutwages",
+        "ch3_order_pinkertons",
+        "ch3_order_university",
         "ch3_landgrant",
         "ch3_panic",
         "ch3_george",
+        "ch3_atrocity",
+        "ch3_resistance",
         "ch3_finale"
       ],
       "status": "work"
@@ -2203,10 +3339,19 @@
       "description": "1929 — [TODO Doug: chapter description]",
       "sceneIds": [
         "ch4_intro",
+        "ch4_manual",
+        "ch4_auto",
         "ch4_machine",
+        "ch4_orders",
+        "ch4_order_rates",
+        "ch4_order_cicero",
+        "ch4_order_alderman",
+        "ch4_order_soup",
         "ch4_protection",
         "ch4_cityhall",
         "ch4_massacre",
+        "ch4_atrocity",
+        "ch4_resistance",
         "ch4_finale"
       ],
       "status": "work"
@@ -2217,10 +3362,19 @@
       "description": "2026 — [TODO Doug: chapter description]",
       "sceneIds": [
         "ch5_intro",
+        "ch5_manual",
+        "ch5_auto",
         "ch5_machine",
+        "ch5_orders",
+        "ch5_order_mars",
+        "ch5_order_platform",
+        "ch5_order_regulator",
+        "ch5_order_post",
         "ch5_memes",
         "ch5_mars",
         "ch5_walkout",
+        "ch5_atrocity",
+        "ch5_resistance",
         "ch5_finale"
       ],
       "status": "work"
