@@ -74,11 +74,16 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const selectedElement = selectedScene?.stage?.find(e => e.id === selectedElementId);
   const generatorActor = actorGenerator.actorId ? game.actors.find(a => a.id === actorGenerator.actorId) : null;
 
-  const createScene = () => {
+  // New scenes must choose a backdrop up front (changeable later in
+  // Scene Info); the picker dialog calls this with the choice.
+  const [showBackdropPicker, setShowBackdropPicker] = useState(false);
+
+  const createScene = (dropId: string | null) => {
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
       name: 'New Scene',
       sceneType: 'AGENCY',
+      dropId,
       stage: [],
       script: '',
       status: 'new',
@@ -86,6 +91,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     };
     onChange({ ...game, scenes: [...game.scenes, newScene] });
     onSelect('scene', newScene.id);
+    setShowBackdropPicker(false);
   };
 
   // Update scene with auto-promotion to 'work' when content changes
@@ -637,13 +643,61 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             {game.scenes.length} scene{game.scenes.length !== 1 ? 's' : ''} defined
           </p>
           <button
-            onClick={createScene}
+            onClick={() => setShowBackdropPicker(true)}
             className="flex items-center gap-2 px-3 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/30 transition-colors"
           >
             <Plus size={14} />
             New Scene
           </button>
         </div>
+
+        {/* Backdrop picker: every new scene starts with a chosen backdrop */}
+        <Dialog open={showBackdropPicker} onOpenChange={setShowBackdropPicker}>
+          <DialogContent className="max-w-2xl bg-diesel-dark border-diesel-border">
+            <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-1">
+              Choose a Backdrop
+            </h3>
+            <p className="text-xs text-diesel-steel mb-3">
+              Every scene starts on a backdrop. You can change it later in Scene Info.
+            </p>
+            <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+              {game.drops.map(drop => (
+                <button
+                  key={drop.id}
+                  onClick={() => createScene(drop.id)}
+                  className="group border border-diesel-border hover:border-diesel-gold transition-colors text-left"
+                >
+                  <div className="aspect-video bg-diesel-black overflow-hidden">
+                    {drop.image ? (
+                      <img src={drop.image} alt={drop.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-diesel-steel text-xs">
+                        (no image yet)
+                      </div>
+                    )}
+                  </div>
+                  <p className="p-1.5 text-xs text-diesel-paper truncate group-hover:text-diesel-gold">
+                    {drop.name}
+                  </p>
+                </button>
+              ))}
+              <button
+                onClick={() => createScene(null)}
+                className="border border-dashed border-diesel-border hover:border-diesel-steel transition-colors"
+              >
+                <div className="aspect-video flex items-center justify-center text-diesel-steel text-xs">
+                  (None — no backdrop)
+                </div>
+                <p className="p-1.5 text-xs text-diesel-steel">Empty black stage</p>
+              </button>
+            </div>
+            {game.drops.length === 0 && (
+              <p className="text-diesel-rust text-xs mt-2">
+                No drops yet — create backdrops in the DR tab, or start with none.
+              </p>
+            )}
+          </DialogContent>
+        </Dialog>
         
         <div className="space-y-2">
           {game.scenes.map((scene, idx) => {
