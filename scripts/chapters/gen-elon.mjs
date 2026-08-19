@@ -75,6 +75,17 @@ const MANIFEST = [
     prompt: 'Elon Musk caricature posting at 3am: sitting cross-legged in rumpled bedsheets, hunched over a glowing smartphone, furious scowl lit cold blue from below, dark bags under his eyes, thumbs jabbing at the screen, black t-shirt with a small rocket logo, full body.',
     alt: 'An angry billionaire tech CEO caricature sitting cross-legged in bedsheets, hunched over a glowing phone, scowling face lit from below, dark eye bags, black t-shirt with rocket logo, full body.',
   },
+  // ---- crowd sprites (the reaction layer's mass responders) --------------
+  {
+    file: 'workers_crowd.png', isCharacter: true,
+    prompt: 'A crowd of factory workers in safety vests standing together, arms crossed: a tight group of five or six industrial workers in hi-vis vests and hard hats, shoulder to shoulder, arms folded, grim solidarity on their faces, standing, full bodies, facing slightly right.',
+    alt: 'A group of industrial workers in high-visibility vests and hard hats standing shoulder to shoulder with arms crossed, stern determined faces, full bodies, facing slightly right.',
+  },
+  {
+    file: 'fans_crowd.png', isCharacter: true,
+    prompt: 'A crowd of phone-waving superfans with glowing screens, adoring faces: a tight cluster of five or six eager fans holding smartphones aloft, screens glowing on their upturned worshipful faces, mouths open in cheers, standing, full bodies, facing slightly left.',
+    alt: 'A cluster of adoring fans waving glowing smartphones overhead, ecstatic worshipful expressions lit by their screens, standing, full bodies, facing slightly left.',
+  },
   {
     file: 'reporter_closeup_determined.png', isCharacter: true, ref: 'elon_reporter.png',
     prompt: 'A newspaper reporter, dramatic close-up from the chest up: notebook and pen raised mid-note, steady unblinking determined gaze, jaw set hard, press lanyard around the neck.',

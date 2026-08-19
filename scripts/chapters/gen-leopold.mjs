@@ -55,6 +55,16 @@ const MANIFEST = [
     fallback: 'An antique early box camera on a wooden tripod, circa 1900, leather box body with brass lens, standing alone, full object.',
   },
   {
+    file: 'leopold_community.png', isCharacter: true,
+    prompt: 'A group of Congolese villagers standing together for a formal photograph, circa 1904: men, women and elders in wraps and cloth garments, dignified, composed, direct gazes at the camera, standing close together as a community, full bodies, formal group portrait.',
+    fallback: 'A dignified group of central African villagers posed for a formal photograph, circa 1904: calm direct gazes, traditional cloth garments, standing together, full bodies, formal group portrait.',
+  },
+  {
+    file: 'leopold_movement.png', isCharacter: true,
+    prompt: 'A crowd at a Liverpool reform meeting, 1904: Edwardian men and women packed together, hats raised in the air, cloth banners held aloft, earnest determined faces, full bodies, formal group photograph.',
+    fallback: 'An Edwardian public meeting crowd, 1904: men and women in period dress, hats raised, banners held up, determined expressions, full bodies, group photograph.',
+  },
+  {
     file: 'leopold_docks.png', isCharacter: false,
     prompt: 'Liverpool docks, 1900: a wet stone quayside at dusk, moored steamships with tall funnels, cranes, stacked cargo crates, and at one side the lit window of a small shipping ledger office, papers visible on a high desk inside. No people.',
     fallback: 'An Edwardian-era British dockside at dusk: steamships, cranes, stacked crates, and a small lamplit clerk\'s office with ledgers at a high desk. No people.',

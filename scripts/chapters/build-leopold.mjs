@@ -39,6 +39,8 @@ const ART = {
   kodak: art('leopold', 'leopold_kodak.png'),
   docks: art('leopold', 'leopold_docks.png'),
   lecture: art('leopold', 'leopold_lecture.png'),
+  community: art('leopold', 'leopold_community.png'),
+  movement: art('leopold', 'leopold_movement.png'),
   // Mid-scene pose variants (reference-consistent with the base sprites).
   kingSit: art('leopold', 'leopold_king_sit.png'),
   kingPoint: art('leopold', 'leopold_king_point.png'),
@@ -84,6 +86,7 @@ const el = (id, assetId, x, y, scale = 2.4) =>
 const KEY_OF = {
   leopold: 'king', casement: 'casement', morel: 'morel', harris: 'harris',
   officer: 'officer', sheppard: 'sheppard', kodak: 'kodak',
+  community: 'community', movement: 'movement',
 };
 
 const stage = (...els) => els.filter(Boolean);
@@ -122,6 +125,8 @@ const game = {
     actor('officer', 'Officer', ART.officer),
     actor('sheppard', 'Sheppard', ART.sheppard),
     actor('kodak', 'The Kodak', ART.kodak),
+    actor('community', 'The Community', ART.community),
+    actor('movement', 'The Movement', ART.movement),
   ].filter(Boolean),
 
   drops: [
@@ -158,6 +163,7 @@ const game = {
         '[CHOICE]',
         '- "Double the rubber quota — the returns must not fall" -> lp_quota',
         '- "Order hostages taken until the villages comply" -> lp_hostages',
+        '- "Voices of the Congo — the record, moment by moment" -> lp_voices',
         '[/CHOICE]',
       ),
       status: 'work',

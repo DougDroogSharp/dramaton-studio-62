@@ -72,6 +72,18 @@ const MANIFEST = [
     fallback: 'A 1924 American small-town polling place exterior: brick storefront, "VOTE HERE" banner, bunting, a black 1920s sedan at the curb, overcast sky, papers blowing on the sidewalk. No people.',
   },
 
+  // Crowd sprites (reaction layer): the street and the press, en masse.
+  {
+    file: 'capone_crowd_breadline.png', isCharacter: true,
+    prompt: 'a Depression breadline crowd of men in caps and coats, waiting',
+    fallback: 'A group of 1930 unemployed men in flat caps and worn coats standing in a line, waiting, full bodies.',
+  },
+  {
+    file: 'capone_crowd_press.png', isCharacter: true,
+    prompt: 'a crowd of reporters with flash cameras and notebooks pressing forward',
+    fallback: 'A group of 1930 newspaper reporters in fedoras with press cards, flash cameras and notebooks, leaning forward, full bodies.',
+  },
+
   // Mid-scene pose variants — same identity, new pose+expression.
   // ref = existing keyed sprite passed as referenceImageFullBody.
   {

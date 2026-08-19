@@ -82,6 +82,18 @@ const MANIFEST = [
     prompt: 'Hereward the Wake mid-attack: the same long-haired bearded Saxon warrior in a mud-spattered leather jerkin and wool cloak, round shield raised on his left arm, short axe swung high overhead in his right hand, lunging forward, fierce determined face, full body, facing slightly right. Same face and costume as the reference.',
     retry: 'Hereward the Wake, Saxon warrior of the fens, axe raised high, shield up, charging stance, determined expression, leather jerkin and wool cloak, full body, facing slightly right. Same face and costume as the reference.',
   },
+  // Crowd sprites (reaction-layer pass) — the village en masse.
+  {
+    file: 'crowd_calm.png', isCharacter: true,
+    prompt: 'A huddled group of Saxon villagers, women and men together, wary faces: rough wool tunics, hoods and headscarves, standing close in a tight cluster, watchful and quiet, full bodies, facing slightly left.',
+    retry: 'A small tight group of medieval Saxon villagers, men and women in rough wool clothing, huddled together with cautious wary expressions, standing, full bodies, facing slightly left.',
+  },
+  {
+    file: 'crowd_angry.png', isCharacter: true,
+    ref: ['crowd_calm.png'],
+    prompt: 'A crowd of Saxon villagers with raised fists and farm tools, defiant: the same men and women in rough wool tunics and hoods, now shouting, fists and pitchforks and scythes lifted high, angry determined faces, full bodies, facing slightly left. Same people and costumes as the reference.',
+    retry: 'A group of medieval Saxon villagers protesting, arms and farm tools raised, defiant angry expressions, rough wool clothing, full bodies, facing slightly left. Same people and costumes as the reference.',
+  },
   {
     file: 'odo_pointing_smug.png', isCharacter: true,
     ref: ['..', 'william_odo.png'],

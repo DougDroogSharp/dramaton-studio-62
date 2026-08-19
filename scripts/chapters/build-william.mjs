@@ -57,6 +57,10 @@ const actors = [
   ]),
   mkActor('peasant', 'Aldric', graphic('peasant_g', 'Neutral', 'Neutral', art('william', 'peasant.png'))),
   mkActor('orderic', 'Orderic', graphic('orderic_g', 'Neutral', 'Neutral', art('william', 'orderic.png'))),
+  mkActor('crowd', 'The Village', [
+    ...graphic('crowd_calm_g', 'Neutral', 'Neutral', art('william', 'crowd_calm.png')),
+    ...graphic('crowd_angry_g', 'Attack', 'Angry', art('william', 'crowd_angry.png')),
+  ]),
 ].filter(Boolean);
 
 const haveActor = (assetId) => actors.some((a) => a.id === assetId);
@@ -141,6 +145,7 @@ scenes.push({
     '[CHOICE]',
     '- "Give the order — harry the North into famine" -> wm_order',
     '- "Refuse the order — hold the knights back" -> wm_refuse',
+    '- "Voices of the Conquest — hear the witnesses" -> wm_hub',
     '[/CHOICE]',
   ),
   status: 'work',
@@ -612,6 +617,587 @@ scenes.push({
     '[WAIT 1s]',
     '[CHOICE]',
     '- "Play the chapter again" -> wm_court',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// ==========================================================================
+// REACTION LAYER — "Voices of the Conquest": ~100 episode vignettes.
+// Data-driven: EVENTS x RESPONDERS, plus defiant/resigned stance variants
+// for the human responders on the four harshest events. Every vignette
+// carries narraton metadata (pool 'william_reactions') keyed to the
+// event's economic state per HVB_RESEARCH.md gates, so the campaign
+// machine can later select them as commentary. First-pass prose for Doug
+// to edit; disputed facts stay framed as chronicler claims.
+// ==========================================================================
+
+const RPOOL = 'william_reactions';
+const HARSH = new Set(['coronation', 'harrying', 'burning', 'famine']);
+
+// Narraton keys follow the research gates: the Harrying chain wants
+// repression high + flare-ups; Domesday/Salisbury/forest are greed/rent
+// states; the early events sit lower on both axes.
+const EVENTS = [
+  { id: 'pevensey', name: 'The Landing at Pevensey', sign: 'PEVENSEY, 28 SEPTEMBER 1066',
+    drop: ['wm_salisbury', null],
+    intro: '28 September 1066. The Norman fleet lands unopposed at Pevensey while Harold\'s army is far to the north. Who speaks?',
+    keys: { greed: { target: 50, scale: 60 }, flareUps: { target: 1, scale: 4 } } },
+  { id: 'hastings', name: 'Hastings', sign: 'SENLAC RIDGE, 14 OCTOBER 1066',
+    drop: ['wm_salisbury', null],
+    intro: '14 October 1066. Nine hours on Senlac ridge end with Harold dead and England\'s door broken open. Who speaks?',
+    keys: { repression: { target: 60, scale: 50 }, flareUps: { target: 2, scale: 5 } } },
+  { id: 'coronation', name: 'The Coronation Riot', sign: 'WESTMINSTER, CHRISTMAS DAY 1066',
+    drop: ['wm_hall', null],
+    intro: 'Christmas Day 1066. William is crowned at Westminster while his guards, mistaking English cheers for riot, fire the surrounding houses. Who speaks?',
+    keys: { repression: { target: 70, scale: 40 }, flareUps: { target: 3, scale: 5 } } },
+  { id: 'harrying', name: 'The Harrying Order', sign: 'THE KING\'S CAMP, WINTER 1069',
+    drop: ['wm_hall', null],
+    intro: 'Winter 1069. The order goes out: burn everything north of the Humber that can feed a rebel. Who speaks?',
+    keys: { repression: { target: 85, scale: 30 }, flareUps: { target: 4, scale: 5 } } },
+  { id: 'burning', name: 'The Burning of the North', sign: 'YORKSHIRE, WINTER 1069-70',
+    drop: ['wm_village', null],
+    intro: 'Winter 1069-70. The columns move village to village; the North becomes smoke. Who speaks?',
+    keys: { repression: { target: 95, scale: 25 }, flareUps: { target: 5, scale: 5 } } },
+  { id: 'famine', name: 'The Famine Winter', sign: 'THE NORTH, 1070',
+    drop: ['wm_village', null],
+    intro: 'The hungry winter, 1070. Famine follows the fires; the king\'s own survey will still say "vasta" seventeen years on. Who speaks?',
+    keys: { repression: { target: 90, scale: 30 }, greed: { target: 70, scale: 50 } } },
+  { id: 'castles', name: 'The Castles Rise', sign: 'A CASTLERY, 1067-1087',
+    drop: ['wm_motte_drop', 'wm_village'],
+    intro: '1067 to 1087. Some five hundred castles rise in a generation, many on razed streets. Who speaks?',
+    keys: { repression: { target: 75, scale: 40 }, flareUps: { target: 2, scale: 6 } } },
+  { id: 'forest', name: 'The Forest Law', sign: 'THE NEW FOREST, c.1079',
+    drop: ['wm_ely', null],
+    intro: 'Around 1079. Forest law closes the woods; the New Forest is set aside for the king\'s deer. Who speaks?',
+    keys: { greed: { target: 70, scale: 40 }, repression: { target: 60, scale: 50 } } },
+  { id: 'domesday', name: 'The Domesday Survey', sign: 'THE SHIRES, 1086',
+    drop: ['wm_scriptorium', null],
+    intro: '1086. Royal commissioners survey every hide in England for the king\'s book — more than thirteen thousand places. Who speaks?',
+    keys: { greed: { target: 80, scale: 35 }, repression: { target: 55, scale: 60 } } },
+  { id: 'salisbury', name: 'The Oath of Salisbury', sign: 'SALISBURY PLAIN, 1 AUGUST 1086',
+    drop: ['wm_salisbury', null],
+    intro: '1 August 1086. The landholders of England swear to William directly, over their own lords\' heads. Who speaks?',
+    keys: { greed: { target: 75, scale: 45 }, repression: { target: 65, scale: 60 } } },
+];
+
+const RESPONDERS = [
+  { key: 'william', actorId: 'william_king', label: 'William', opts: {} },
+  { key: 'odo', actorId: 'william_odo', label: 'Odo', opts: {} },
+  { key: 'hereward', actorId: 'hereward', label: 'Hereward', opts: {} },
+  { key: 'orderic', actorId: 'orderic', label: 'Orderic', opts: {} },
+  { key: 'aldric', actorId: 'peasant', label: 'Aldric', opts: {} },
+  { key: 'crowd', actorId: 'crowd', label: 'The village', opts: { scale: 2.6 } },
+];
+
+// Acting tags used below only where the sprite exists: William (Angry),
+// (Pointing/Angry), (Sit/Sad); Odo (Pointing/Smug); Hereward
+// (Attack/Determined); The Village (Attack/Angry). Aldric and Orderic
+// have single sprites — no tags.
+const VOICES = {
+  pevensey: {
+    william: [
+      'William: "The beach was empty. Harold is in the north, burying his own brother at Stamford Bridge — every enemy of mine is generous in his timing."',
+      'William (Angry): "They will say I stumbled coming ashore. Write it thus: I seized England with both hands."',
+      'Narrator: "The stumble and the answer are chroniclers\' polish; the unopposed landing is fact."',
+    ],
+    odo: [
+      'Odo: "A bishop may not shed blood, so I carry a mace. The Church is nothing if not exact."',
+      'Odo (Pointing/Smug): "Look there — the castle came off the ships in numbered timbers, before the horses. We brought England its future flat-packed."',
+    ],
+    hereward: [
+      'Hereward: "I was out of England when the ships came. A man misses one autumn and comes home to a country with a new landlord."',
+      'Hereward (Attack/Determined): "Let them dig in at Pevensey. Sand holds no oath, and neither do we."',
+    ],
+    orderic: [
+      'Orderic: "I was born nine years after that landing, of an English mother and a Norman father. The wound runs through my own blood."',
+      'Orderic: "The chroniclers say the wind changed at Michaelmas and carried the fleet over. It has never changed back."',
+    ],
+    aldric: [
+      'Aldric: "Word came up the road: ships at Pevensey, more masts than trees. We asked what it meant for the harvest."',
+      'Aldric: "The reeve said, pray. My father said, hide the seed corn. My father was right."',
+    ],
+    crowd: [
+      'The Village: "Ships. Hundreds of ships. Whose men are they? And what will they eat — ours?"',
+      'The Village (Attack/Angry): "If they come up this road they will find the wells fouled and the byres empty!"',
+    ],
+  },
+  hastings: {
+    william: [
+      'William: "Nine hours on that ridge. Their shield wall stood like a sworn debt — it broke only when hope did."',
+      'William (Pointing/Angry): "Harold swore on relics and took my crown anyway. God has ruled on perjury today."',
+      'Narrator: "That the cause was Harold\'s oath-breaking is Norman framing; the arrow in his eye is tapestry tradition, not certainty."',
+    ],
+    odo: [
+      'Odo: "I blessed the army at dawn and rallied the rout at noon. The Tapestry will show me with a mace, cheering on the boys."',
+      'Odo (Pointing/Smug): "One afternoon, brother. One afternoon bought a kingdom worth a thousand years of rent."',
+    ],
+    hereward: [
+      'Hereward: "They say the housecarls died where they stood, around the standard, axes in hand. That is how the old England ended — standing."',
+      'Hereward (Attack/Determined): "It is not how it will end everywhere. The fens have no ridge to lose."',
+    ],
+    orderic: [
+      'Orderic: "So many fell that the chroniclers wrote the ground itself was sown with corpses. Victory abbeys grow well in such soil."',
+      'Orderic: "The king raised Battle Abbey on the spot where Harold fell. Penance, or a receipt — I have never decided."',
+    ],
+    aldric: [
+      'Aldric: "Our thegn marched south with eight men. None came back. His hall has a Norman in it now who cannot say our names."',
+      'Aldric: "They tell us one battle settled it. No one asked the fields, and the fields must pay for it."',
+    ],
+    crowd: [
+      'The Village: "The king is dead. The other king is dead too. Which king is ours now?"',
+      'The Village (Attack/Angry): "Whoever he is, he was not chosen here!"',
+    ],
+  },
+  coronation: {
+    william: [
+      'William: "On the day of my crowning, my own guards heard English cheering and mistook it for revolt. They fired the houses around the abbey."',
+      'William: "I finished the rite in an emptying church that smelled of smoke. Mark what my reign learned at the altar: acclaim and riot sound alike."',
+    ],
+    william_defiant: [
+      'William (Pointing/Angry): "Let it burn, then. A king anointed in smoke is still anointed — and London learned in one hour what obedience costs."',
+      'William: "I trembled at the altar, the monks say. Kings may tremble. Kings may not stop."',
+    ],
+    william_resigned: [
+      'William (Sit/Sad): "Christmas Day, and my crowning smelled of burning thatch. I trembled — that much of the story is true."',
+      'William: "I wanted Edward\'s crown, not Edward\'s city in ashes. Wanting, I have learned, is not a term the sword recognizes."',
+    ],
+    odo: [
+      'Odo: "A misunderstanding, a few streets — coronations are untidy. What matters is that the oath was said and the crown stayed on."',
+      'Odo (Pointing/Smug): "And every burned plot is now available. Note that. Everything after a fire is available."',
+    ],
+    odo_defiant: [
+      'Odo (Pointing/Smug): "I would order it again. A capital that fears its king on the first day saves years of instruction."',
+      'Odo: "Call it liturgy. Fire is how a conquest says amen."',
+    ],
+    odo_resigned: [
+      'Odo: "Between us: it was a blunder. Frightened guards, torches, and a city taught to hate us by supper."',
+      'Odo: "We spent the next decade paying in castles for one hour of panic."',
+    ],
+    hereward: [
+      'Hereward: "They crowned him in Edward\'s church while his men torched the streets outside. That is the whole reign in one morning."',
+      'Hereward (Attack/Determined): "Remember it when they preach about God\'s chosen king."',
+    ],
+    hereward_defiant: [
+      'Hereward (Attack/Determined): "Smoke at the coronation — an honest omen. England saw at once what it had; now England must answer it."',
+      'Hereward: "A king made in fire can be unmade in it."',
+    ],
+    hereward_resigned: [
+      'Hereward: "I heard the news and understood: there will be no undoing this by wishing. The Godwins are dead and the Aetheling is a boy."',
+      'Hereward: "So a man keeps his axe oiled, and waits for the fen to be needed."',
+    ],
+    orderic: [
+      'Orderic: "The clergy asked the crowd, in English and in French, whether they would have William as king. The shout of assent began the burning of the houses."',
+      'Orderic: "I record it as the chroniclers gave it: consent, misheard as rebellion, answered with fire."',
+    ],
+    orderic_defiant: [
+      'Orderic: "I will write it plainly, though Norman abbots read my pages: the king\'s men burned the city on the day of his anointing."',
+      'Orderic: "A chronicle that flatters is only expensive paper."',
+    ],
+    orderic_resigned: [
+      'Orderic: "Perhaps it was fear, not malice — frightened soldiers in a foreign city. I write that possibility too."',
+      'Orderic: "It comforts no widow. But a monk must weigh even the mercies."',
+    ],
+    aldric: [
+      'Aldric: "News from London by Candlemas: the new king crowned, and the streets around the abbey burned by his own guard."',
+      'Aldric: "We understood the message even before the tax did the explaining."',
+    ],
+    aldric_defiant: [
+      'Aldric: "If cheering gets your house burned, then quiet is no safer. I said so at the moot, out loud."',
+      'Aldric: "Let them write my name in whatever book they keep for men who say so."',
+    ],
+    aldric_resigned: [
+      'Aldric: "You learn to make no sound at all while the lords are being glorious."',
+      'Aldric: "We kept Christmas quietly that year. We have kept it quietly since."',
+    ],
+    crowd: [
+      'The Village: "We shouted for the king because they told us to shout! Then the roofs were burning!"',
+      'The Village (Attack/Angry): "Cheer, and burn for cheering — what is left us? Silence? Then we will be silent the way thunder is silent!"',
+    ],
+  },
+  harrying: {
+    william: [
+      'William: "The North has risen twice and eaten my garrisons twice. Tonight I sign the remedy: nothing north of the Humber that can feed a rebel."',
+      'William (Pointing/Angry): "Granaries, byres, ploughs, seed corn. See it done before the thaw."',
+    ],
+    william_defiant: [
+      'William (Pointing/Angry): "Yes, the seed corn too. Rebellion is a harvest like any other — I am burning next year\'s crop of it."',
+      'William: "History may gasp. History has never had to hold York twice."',
+    ],
+    william_resigned: [
+      'William (Sit/Sad): "I have signed orders that killed men before. This one kills the fields themselves."',
+      'William: "I tell myself it is arithmetic. At night the arithmetic has faces."',
+    ],
+    odo: [
+      'Odo: "The order is sound, brother. A field that cannot feed a man cannot feed an army — the logic is beyond reproach."',
+      'Odo (Pointing/Smug): "And razed land re-grants cheaply. Even mercy could not price it better."',
+    ],
+    odo_defiant: [
+      'Odo (Pointing/Smug): "I will defend it from any pulpit. The Church holds a quarter of England, and order is what keeps the quarter."',
+      'Odo: "Severity now is clemency later, at compound interest."',
+    ],
+    odo_resigned: [
+      'Odo: "Privately? The order buys peace and beggars the tax rolls in the same stroke. Waste pays no geld."',
+      'Odo: "We are burning our own rents. I said nothing in the hall. Neither did anyone."',
+    ],
+    hereward: [
+      'Hereward: "An order to make winter itself a weapon. Not even the Danes did that, and we called the Danes heathen."',
+      'Hereward (Attack/Determined): "Every man who escapes it will find his way to a marsh or a wood. I will be in the marsh."',
+    ],
+    hereward_defiant: [
+      'Hereward (Attack/Determined): "Let him burn Yorkshire — he cannot burn the fen, and every fire lights recruits for me."',
+      'Hereward: "The king is minting rebels faster than Danegeld ever did."',
+    ],
+    hereward_resigned: [
+      'Hereward: "I know what a burned shire means: no bread for any rising, mine included. He is starving my war too."',
+      'Hereward: "That is the cruel cleverness of it. I hate him most for being right."',
+    ],
+    orderic: [
+      'Orderic: "I must write of it, though it dishonors the king my patrons serve: he ordered the food of a whole people destroyed in winter."',
+      'Orderic: "Nothing in my Church\'s long memory of pagan cruelty prepared me for a baptized king\'s ledger."',
+    ],
+    orderic_defiant: [
+      'Orderic: "I wrote that God would punish such a deed, and I let the words stand."',
+      'Orderic: "Let the copyists blush. The page is the one court a king cannot pack."',
+    ],
+    orderic_resigned: [
+      'Orderic: "Some brothers say: judge not — the rebellion forced his hand, and war is war. I copy their argument faithfully."',
+      'Orderic: "Then I copy the number of the dead beside it, and let the two lines look at each other."',
+    ],
+    aldric: [
+      'Aldric: "The knights came to the moot and read it out: stores forfeit, byres forfeit, seed forfeit, by the king\'s command."',
+      'Aldric: "Forfeit. As if the winter were a court, and we had already lost."',
+    ],
+    aldric_defiant: [
+      'Aldric: "We buried a third of the seed corn under the church floor the night the order was read. Under the font, where knights do not dig."',
+      'Aldric: "If that is treason, then ploughing is treason, and I am guilty every spring."',
+    ],
+    aldric_resigned: [
+      'Aldric: "You cannot argue with an order. You can only decide what to carry, and which child goes south to your sister."',
+      'Aldric: "We drew lots by the fire. I still hear the sticks."',
+    ],
+    crowd: [
+      'The Village: "They read the order at the cross: everything that feeds us is the enemy\'s now!"',
+      'The Village (Attack/Angry): "Then WE are the enemy! Say it plainly — the order makes us the enemy!"',
+    ],
+  },
+  burning: {
+    william: [
+      'William: "I rode with the columns. A king should look at what he signs — village, granary, byre, village again, until smoke was the whole weather."',
+      'William: "No one fought us. That was the strangest part. There was no one left to fight."',
+    ],
+    william_defiant: [
+      'William (Pointing/Angry): "Write what you like of me — raging lion, scourge of God. The North rose twice; count the risings since."',
+      'William: "Cruelty finishes wars. Kindness schedules them."',
+    ],
+    william_resigned: [
+      'William (Sit/Sad): "There was a child on the York road who did not beg. That is what I remember — a child past begging."',
+      'William: "I have taken towns all my life. I did not know until Yorkshire that you can take a winter."',
+    ],
+    odo: [
+      'Odo: "Efficient, as campaigns go: no sieges, no battles, minimal losses. Our losses, I mean."',
+      'Odo (Pointing/Smug): "The chronicles will handle the other column of the ledger."',
+    ],
+    odo_defiant: [
+      'Odo (Pointing/Smug): "Spare me the trembling. Every crown in Christendom rests on some winter no one writes hymns about — ours is merely recent."',
+      'Odo: "The difference between a warlord and a dynasty is one thorough season."',
+    ],
+    odo_resigned: [
+      'Odo: "I sang mass downwind of a burned village once that winter. Once was enough; I arranged to be elsewhere after."',
+      'Odo: "A bishop learns which memories to leave in the field."',
+    ],
+    hereward: [
+      'Hereward: "I crossed Yorkshire after the columns had passed. I will say only that the crows were fat, and the roads were full of people walking nowhere."',
+      'Hereward (Attack/Determined): "Every one of them that lives, the king should count as my army now."',
+    ],
+    hereward_defiant: [
+      'Hereward (Attack/Determined): "He thinks ash is obedience. Ash is kindling."',
+      'Hereward: "The fen fills nightly with men who have nothing left to lose — the one army no king can starve."',
+    ],
+    hereward_resigned: [
+      'Hereward: "You cannot raise a rising from starving men. They do not want banners, they want bread."',
+      'Hereward: "He knew that. That is why it was the food he killed."',
+    ],
+    orderic: [
+      'Orderic: "I set down what the survivors told: villages burned with their winter stores in them, and famine following the knights like a second army."',
+      'Orderic: "I put the dead at more than a hundred thousand. It is a chronicler\'s round number; the truth is a catastrophe with fewer zeros and no less shame."',
+    ],
+    orderic_defiant: [
+      'Orderic: "Let my order\'s patrons rage: I wrote that God will exact vengeance for this deed, and I signed my name beneath it."',
+      'Orderic: "Fear of a Norman abbot is a small thing next to fear of the recording angel."',
+    ],
+    orderic_resigned: [
+      'Orderic: "What can a page do against a torch? The village burns whether or not I describe it beautifully."',
+      'Orderic: "I write anyway. It is the only door I can hold open."',
+    ],
+    aldric: [
+      'Aldric: "They were quick, I will grant them that. A village is an hour\'s work when no one resists."',
+      'Aldric: "The granary went first. They know exactly what they are doing. That is the worst of it."',
+    ],
+    aldric_defiant: [
+      'Aldric: "We raised a roof again before the ash was cold, out of spite as much as need."',
+      'Aldric: "Burn it twice, then. A man who replants is not defeated. He is farming."',
+    ],
+    aldric_resigned: [
+      'Aldric: "The third village that day was ours. We had watched the smoke of the first two come up the valley, so we were already on the road."',
+      'Aldric: "You do not fight it. You walk, and you keep the children in the middle."',
+    ],
+    crowd: [
+      'The Village: "The smoke started in the next valley at dawn. By noon it was our sky too."',
+      'The Village (Attack/Angry): "They burn the food in front of the hungry! In front of us! In winter!"',
+    ],
+  },
+  famine: {
+    william: [
+      'William: "The reports come south all winter: the roads, the churchyards, the numbers. I read every one. A king does not get to look away from his own signature."',
+      'William: "Symeon will write that no village stood inhabited between York and Durham. Seventeen years on, my own survey will still say waste."',
+    ],
+    william_defiant: [
+      'William (Pointing/Angry): "And still no third rising. Tell me the policy failed — point to the rebellion. There is none. There is nothing."',
+      'William: "Nothing was the objective. I achieved it."',
+    ],
+    william_resigned: [
+      'William (Sit/Sad): "I caused the death of thousands by starvation — a monk will one day put those words in my dying mouth. Dispute them as he may, they fit."',
+      'Narrator: "The deathbed confession is Orderic\'s composition, decades later. The famine needed no author."',
+    ],
+    odo: [
+      'Odo: "Famine is the tail of the comet; every campaign has one. By spring the survivors were docile and the geld ran on schedule."',
+      'Odo (Pointing/Smug): "On reduced assessments, naturally. We are not monsters."',
+    ],
+    odo_defiant: [
+      'Odo (Pointing/Smug): "You want me ashamed of arithmetic that worked? The North is quiet to this day. Quiet is the whole product."',
+      'Odo: "Sentiment is for men who have never had to hold a frontier."',
+    ],
+    odo_resigned: [
+      'Odo: "There were reports I stopped reading that winter. A man keeps his appetite by choosing his documents."',
+      'Odo: "I have built churches since. Draw your own conclusions about why."',
+    ],
+    hereward: [
+      'Hereward: "They ate what a winter leaves: bark, roots, the seed they had hidden and then could not bear to keep hidden."',
+      'Hereward: "Some sold themselves into bondage for bread. Free English, collared like oxen, because the king burned the alternative."',
+    ],
+    hereward_defiant: [
+      'Hereward (Attack/Determined): "Every bowl of eel broth in the fen fed a man the king had marked for starving. If feeding people is rebellion, rebellion is easy."',
+      'Hereward: "We fished. That was our warfare that winter."',
+    ],
+    hereward_resigned: [
+      'Hereward: "I took in forty from the Yorkshire road. The fen feeds its own, but it does not feed multitudes."',
+      'Hereward: "Turning the forty-first away — that is a wound I carry yet."',
+    ],
+    orderic: [
+      'Orderic: "They died on the roads, in the churchyards, at the gates of monasteries whose stores were long since given out."',
+      'Orderic: "Old and young perished alike of hunger, I wrote. One chronicle says human flesh was eaten. I let that sentence stand in the sources\' own words."',
+    ],
+    orderic_defiant: [
+      'Orderic: "I name it what it was: not war\'s misfortune but war\'s design. The famine was the weapon, wielded on purpose, by the anointed."',
+      'Orderic: "If that page costs me a priory, the price is fair."',
+    ],
+    orderic_resigned: [
+      'Orderic: "At some point a chronicler stops describing and starts counting, because description fails."',
+      'Orderic: "Vasta, the survey says. Waste. Sixty entries a page, and every one was somebody\'s parish."',
+    ],
+    aldric: [
+      'Aldric: "We ate the seed corn in February. I had said we never would. Hunger does not debate."',
+      'Aldric: "Eating the seed corn means eating next year too. There is a word for that arithmetic, and it is not one I use in church."',
+    ],
+    aldric_defiant: [
+      'Aldric: "I kept back one sack. One. We went hungrier to keep it, and in spring I sowed it with the children watching."',
+      'Aldric: "That green row was the only argument I had left. It was enough."',
+    ],
+    aldric_resigned: [
+      'Aldric: "My youngest does not remember that winter, God be thanked. My eldest remembers nothing else."',
+      'Aldric: "We do not speak of who was buried when the ground softened. The parish knows. That is enough."',
+    ],
+    crowd: [
+      'The Village: "First the cattle, then the dogs, then the bark bread. When the children stopped crying — that silence is the thing you never stop hearing."',
+      'The Village (Attack/Angry): "The king kept his Christmas feast at York! At YORK! While the shire he burned was eating grass!"',
+    ],
+  },
+  castles: {
+    william: [
+      'William: "Where I halt, a castle rises: motte, bailey, palisade — timber now, stone to follow. Five hundred of them before my sons are done."',
+      'William: "The English had no castles. That is why there are no English kings."',
+    ],
+    odo: [
+      'Odo (Pointing/Smug): "Understand the instrument: a castle does not keep armies out, it keeps rent coming in. It is a strongbox you can live in."',
+      'Odo: "We cleared a hundred houses at York for the footprint, and the tenants dug the mound. Elegance."',
+    ],
+    hereward: [
+      'Hereward: "You can take a castle. We took one. Then you are holding a stone box while every other castle in the shire rides at you."',
+      'Hereward (Attack/Determined): "That is their genius — not one fortress but a net of them. The answer is water they cannot garrison."',
+    ],
+    orderic: [
+      'Orderic: "The English, my mother\'s people, built halls: open doors, long fires. The Normans build keeps: one door, high and barred."',
+      'Orderic: "You can read a whole theory of rule in that architecture."',
+    ],
+    aldric: [
+      'Aldric: "They pulled down my cousin\'s street in York for the second castle, then made the street\'s own men heap up the mound."',
+      'Aldric: "He carried earth over his own floor. He says you stop thinking about it. He says it twice."',
+    ],
+    crowd: [
+      'The Village: "Dig, they said. Your backs, your baskets, your own doorposts for the palisade."',
+      'The Village (Attack/Angry): "We built the thing that watches us! With our own hands we built it!"',
+    ],
+  },
+  forest: {
+    william: [
+      'William: "I have set aside the New Forest and its fellows: the deer, the boar, the very green of the wood, reserved to the crown."',
+      'William (Angry): "The Chronicle will sneer that I loved the tall deer as if I were their father. Fathers guard what is theirs. The wood is mine."',
+    ],
+    odo: [
+      'Odo (Pointing/Smug): "Forest law is the subtlest rent of all: we did not take their land, we took their right to use it."',
+      'Odo: "Firewood, pannage, a hare for the pot — all purchasable offenses now. The wood has become an annuity."',
+    ],
+    hereward: [
+      'Hereward: "They have made the greenwood itself a crime. Mark that word — outlaw. Men outside the law multiply in exactly such woods."',
+      'Hereward (Attack/Determined): "Every forest court fills the wild places with angry men who know the paths. They are planting stories they will not enjoy harvesting."',
+    ],
+    orderic: [
+      'Orderic: "Later tradition will say whole villages were cleared for the king\'s hunting; the true extent is disputed among us who write."',
+      'Orderic: "What is not disputed: a commoner blinded for taking a deer, under law, in a wood his grandfather gleaned freely."',
+    ],
+    aldric: [
+      'Aldric: "The wood fed us in the bad years: acorns for the pigs, deadfall for the fire, and no lord counting."',
+      'Aldric: "Now there is a verderer with a tally stick where the acorns fall. They have put a fence around the weather."',
+    ],
+    crowd: [
+      'The Village: "No wood for the fire, no mast for the pigs, no coney for the pot — but the deer may eat our crops freely."',
+      'The Village (Attack/Angry): "The king\'s deer live better than the king\'s people!"',
+    ],
+  },
+  domesday: {
+    william: [
+      'William: "Send the commissioners into every shire: every hide, every holder, every ox, every mill. Value as it was, as it is, as it might be."',
+      'William: "A conquest you cannot count is merely a raid. I intend to have been more than a raid."',
+    ],
+    odo: [
+      'Odo (Pointing/Smug): "The English named it Domesday — the book of judgment, from which there is no appeal. They meant it bitterly. I could not have flattered it better."',
+      'Odo: "The pen collects what the torch cannot: everything, forever."',
+    ],
+    hereward: [
+      'Hereward: "Men who fought them with axes are entered in their book as so many ploughs and pigs."',
+      'Hereward: "There is no entry for what we were. That is what the book is for — to replace what we were."',
+    ],
+    orderic: [
+      'Orderic: "The Chronicle says it with disgust: not one ox nor one cow nor one pig was left out of the king\'s writ."',
+      'Orderic: "It shamed even some of the men who compiled it. It also worked, which shames the rest of us."',
+    ],
+    aldric: [
+      'Aldric: "Two sets of commissioners came, the second checking the first, and asked the same questions down to the last piglet."',
+      'Aldric: "My holding is in the king\'s book now, valued at more than it yields. The book does not allow for bad harvests. The geld follows the book."',
+    ],
+    crowd: [
+      'The Village: "They counted the ploughs, the mills, the meadows, the men. They counted us."',
+      'The Village (Attack/Angry): "Numbered like cattle in a stranger\'s ledger — and taxed to the number, drought or no!"',
+    ],
+  },
+  salisbury: {
+    william: [
+      'William: "Every landholder that matters in England, gathered on one plain, swearing to me over the heads of their own lords."',
+      'William: "Fewer than two hundred men hold England of me; after today, even their men hold it of me first. There is no ground outside the system."',
+    ],
+    odo: [
+      'Odo (Pointing/Smug): "Observe the masterstroke: loyalty itself made a freehold of the crown. A vassal\'s vassal now answers to the king before his own lord."',
+      'Odo: "Twenty years from the ships to this. Show me a dynasty that consolidated faster."',
+    ],
+    hereward: [
+      'Hereward: "An oath sworn under that many spears is a receipt, not a promise."',
+      'Hereward (Attack/Determined): "English lords knelt on that plain too — the few still holding anything. Kneeling kept their acres, not their honor."',
+    ],
+    orderic: [
+      'Orderic: "I note the date beside the survey\'s completion: first the counting, then the swearing. The book and the oath are two clasps of one collar."',
+      'Orderic: "Men of law will study this day for nine hundred years. The peasants it bound did not need nine hundred years to understand it."',
+    ],
+    aldric: [
+      'Aldric: "The lords rode south to swear, and the swearing changed no furrow of my work. My rent goes up the same ladder either way."',
+      'Aldric: "But now the ladder has one top. Every ladder in England has the same top."',
+    ],
+    crowd: [
+      'The Village: "They swore the land away over our heads — every acre held of the king."',
+      'The Village (Attack/Angry): "No one asked the hands that plough it! No one has EVER asked the hands!"',
+    ],
+  },
+};
+
+// ---- vignette generator --------------------------------------------------
+
+const vignetteId = (ev, resp, stance) =>
+  `wmv_${ev.id}_${resp.key}${stance ? `_${stance}` : ''}`;
+
+const vignetteScene = (ev, resp, stance) => {
+  const voiceKey = stance ? `${resp.key}_${stance}` : resp.key;
+  const voice = VOICES[ev.id]?.[voiceKey];
+  if (!voice) throw new Error(`missing voice: ${ev.id}/${voiceKey}`);
+  const id = vignetteId(ev, resp, stance);
+  // Harsh events: the base human vignette offers the two stance variants.
+  const tail =
+    !stance && HARSH.has(ev.id) && resp.key !== 'crowd'
+      ? [
+          '[CHOICE]',
+          `- "Press them — the defiant answer" -> ${vignetteId(ev, resp, 'defiant')}`,
+          `- "Press them — the resigned answer" -> ${vignetteId(ev, resp, 'resigned')}`,
+          `- "Back to the witnesses" -> wmch_${ev.id}`,
+          '[/CHOICE]',
+        ]
+      : [`[SCENE wmch_${ev.id}]`];
+  return {
+    id,
+    name: `${ev.name} — ${resp.label}${stance ? ` (${stance})` : ''}`,
+    sceneType: 'WITNESS',
+    dropId: dropId(ev.drop[0], ev.drop[1]),
+    stage: [
+      ...el(`${id}_el`, resp.actorId, 42, 62, resp.opts),
+      ...balloon(`${id}_sign`, ev.sign, 76, 10, { scale: 0.8 }),
+    ],
+    script: lines(...voice, ...tail),
+    narraton: { pool: RPOOL, keys: ev.keys, repeatable: true },
+    status: 'work',
+  };
+};
+
+// Per-event responder chooser.
+const chooserScene = (ev) => ({
+  id: `wmch_${ev.id}`,
+  name: `Voices: ${ev.name}`,
+  sceneType: 'AGENCY',
+  dropId: dropId(ev.drop[0], ev.drop[1]),
+  stage: [...balloon(`wmch_${ev.id}_sign`, ev.sign, 50, 10, { scale: 0.9 })],
+  script: lines(
+    `Narrator: "${ev.intro}"`,
+    '[CHOICE]',
+    ...RESPONDERS.map((r) => `- "${r.label}" -> ${vignetteId(ev, r, null)}`),
+    '- "Back to the events" -> wm_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+for (const ev of EVENTS) {
+  scenes.push(chooserScene(ev));
+  for (const resp of RESPONDERS) {
+    scenes.push(vignetteScene(ev, resp, null));
+    if (HARSH.has(ev.id) && resp.key !== 'crowd') {
+      scenes.push(vignetteScene(ev, resp, 'defiant'));
+      scenes.push(vignetteScene(ev, resp, 'resigned'));
+    }
+  }
+}
+
+// The episodes hub — linked from the opening court scene.
+scenes.push({
+  id: 'wm_hub',
+  name: 'Voices of the Conquest',
+  sceneType: 'AGENCY',
+  dropId: dropId('wm_hall'),
+  stage: [
+    ...el('hub_crowd', 'crowd', 50, 62, { scale: 2.6 }),
+    ...balloon('hub_sign', 'VOICES OF THE CONQUEST, 1066-1087', 50, 10, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "Twenty-one years, ten turnings of the screw. Choose an event and hear how it landed — on the king, on his lieutenant, on the rebels, on the chronicler, on the people who ploughed."',
+    '[CHOICE]',
+    ...EVENTS.map((ev) => `- "${ev.name}" -> wmch_${ev.id}`),
+    '- "Return to the court" -> wm_court',
     '[/CHOICE]',
   ),
   status: 'work',

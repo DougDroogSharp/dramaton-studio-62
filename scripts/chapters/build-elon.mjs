@@ -69,6 +69,13 @@ const actors = [
   actorDef('elon_lawyer', 'Lawyer', [
     { pose: 'Neutral', expression: 'Neutral', files: ['elon/lawyer.png', 'elon_reporter.png'] },
   ]),
+  // Crowd actors for the reaction layer ("Voices of the Feed").
+  actorDef('elon_workers', 'Workers', [
+    { pose: 'Neutral', expression: 'Neutral', files: ['elon/workers_crowd.png', 'elon/worker.png', 'elon_reporter.png'] },
+  ]),
+  actorDef('elon_fans', 'Fans', [
+    { pose: 'Neutral', expression: 'Neutral', files: ['elon/fans_crowd.png', 'elon/hypebro.png', 'elon_musk.png'] },
+  ]),
 ];
 
 const dropDef = (id, name, ...files) => {
@@ -136,6 +143,7 @@ scenes.push({
     '- "Buy the platform — and cut the workforce" -> elon_bird',
     '- "Gut the moderation — disband Trust & Safety" -> elon_gut',
     '- "Just post through it" -> elon_gut',
+    '- "Voices of the Feed" -> elon_voices',
     '[/CHOICE]',
   ),
   status: 'work',
@@ -726,6 +734,571 @@ scenes.push({
   ),
   status: 'work',
 });
+
+// ================================================================ EPISODES
+// "Voices of the Feed" — a ~100-vignette reaction layer. Data-driven:
+// EVENTS (documented moments from HVB_RESEARCH.md ch.5) × RESPONDERS
+// (named voices plus the workers and reply-guys en masse, with stance
+// variants). Each vignette is 2-3 short lines — first-pass prose meant
+// for editing — and carries Narraton metadata in the 'elon_reactions'
+// pool so the storyteller can surface reactions that match the state.
+// Victims are named factually; the caricature register is reserved for
+// Elon and the hype-bro. Verbatim sourced quotes stay verbatim.
+
+const storySceneCount = scenes.length;
+
+// keys: least-squares targets against the running worldState.
+const nkeys = (exposure, prestige) => ({
+  exposure: { target: exposure, scale: 100 },
+  prestige: { target: prestige, scale: 100 },
+});
+
+const RESPONDERS = [
+  { id: 'elon_pub', label: 'Elon — posting through it', actor: 'elon_musk', drop: 'elon_feedroom_drop' },
+  { id: 'elon_3am', label: 'Elon — 3am, private', actor: 'elon_musk', drop: 'elon_bedroom_drop' },
+  { id: 'reporter', label: 'The Reporter', actor: 'elon_reporter', drop: 'elon_hq' },
+  { id: 'worker', label: 'The Worker', actor: 'elon_worker', drop: 'elon_factory_drop' },
+  { id: 'lawyer', label: 'The Lawyer', actor: 'elon_lawyer', drop: 'elon_court_drop' },
+  { id: 'lt', label: 'The Lieutenant', actor: 'elon_hypebro', drop: 'elon_feedroom_drop' },
+  { id: 'workers_g', label: 'The Workers — grieving', actor: 'elon_workers', drop: 'elon_factory_drop' },
+  { id: 'workers_o', label: 'The Workers — organizing', actor: 'elon_workers', drop: 'elon_factory_drop' },
+  { id: 'fans_d', label: 'The Reply Guys — defending', actor: 'elon_fans', drop: 'elon_feedroom_drop' },
+  { id: 'fans_q', label: 'The Reply Guys — doubting', actor: 'elon_fans', drop: 'elon_feedroom_drop' },
+];
+
+const EVENTS = [
+  {
+    id: 'fremont', name: 'The Fremont Speedup', drop: 'elon_factory_drop', keys: nkeys(15, 90),
+    setup: '2016–2018. Fremont runs hot: 722 recorded injuries in 2017 — about two a day — and a severe-injury rate reported 83% above the industry average. Tesla disputes the reporting. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "Fremont is the most advanced factory on Earth. The machine builds the machine."',
+        'Elon (Pointing/Smug): "Injury reports? Legacy-media FUD. The line speaks for itself."',
+        'Narrator: "The line speaks in incident reports. About two a day, in 2017."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Searching my own name plus \'injury rate.\' Again."',
+        'Elon (Panicked): "722 is just a number. Numbers are just... numbers."',
+        'Narrator: "He mutes the word \'Fremont.\' The word does not mute him."',
+      ],
+      reporter: [
+        'Reporter: "Reveal\'s Will Evans and Alyssa Jeong Perry counted: 722 injuries at Fremont in 2017. About two a day."',
+        'Reporter (Closeup/Determined): "And workers say some injuries never made the log at all. That\'s the story under the story."',
+      ],
+      worker: [
+        'Worker: "The line sped up again this shift. My wrists knew before the memo landed."',
+        'Worker (Pointing/Angry): "Two of us a day get hurt and the dashboard stays green. Whose dashboard is that?"',
+      ],
+      lawyer: [
+        'Lawyer: "Tesla disputes the Reveal numbers. For the record."',
+        'Lawyer: "Also for the record: disputing a count is not the same as lowering it."',
+      ],
+      lt: [
+        'Lieutenant: "Boss, the injury story is trending. Counter-narrative: factory tour, dramatic lighting, robots."',
+        'Lieutenant: "We\'ll call the speedup \'production hell.\' Heroic framing. People love hell when it\'s yours."',
+      ],
+      workers_g: [
+        'Workers: "Maria went out on a stretcher Tuesday. The line didn\'t even stop."',
+        'Workers: "We patch each other up in the parking lot and clock back in."',
+      ],
+      workers_o: [
+        'Workers: "The UAW commissioned a safety study. Worksafe found what our bodies already knew."',
+        'Workers: "Every unlogged injury goes in our own notebook now. Notebooks organize."',
+      ],
+      fans_d: [
+        'Fans: "722 injuries? Out of how many shifts? Do the math, haters."',
+        'Fans: "You can\'t build the future without a few bruises."',
+      ],
+      fans_q: [
+        'Fans: "Okay but... two a day is a lot of bruises."',
+        'Fans: "My cousin works the Fremont line. She says it\'s worse than the posts say."',
+      ],
+    },
+  },
+  {
+    id: 'leblanc', name: 'The Death of Lonnie LeBlanc', drop: 'elon_factory_drop', keys: nkeys(25, 85),
+    setup: 'June 2014, SpaceX McGregor, Texas. Lonnie LeBlanc, 38, a recently retired Marine, is killed when a gust blows him off a trailer — he was holding insulation down with his own body weight. OSHA settles for a $7,000 fine. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "SpaceX safety is world-class. We are literally saving humanity."',
+        'Narrator: "He never posts about McGregor, June 2014. The feed moves on. The record doesn\'t."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Legal says the LeBlanc matter is closed. Closed. Settled. 2014."',
+        'Elon (Panicked): "Then why do I remember the number? Seven thousand dollars."',
+      ],
+      reporter: [
+        'Reporter: "Lonnie LeBlanc, 38, retired Marine. No proper tie-downs, so he sat on the cargo. A gust. That was all."',
+        'Reporter (Closeup/Determined): "His family didn\'t know OSHA had investigated until I called them. Nine years later."',
+      ],
+      worker: [
+        'Worker: "They sent a man up to be a paperweight. That\'s what no tie-downs means."',
+        'Worker: "His uncle Ron Weimer said it best: \'There\'s a way to do dangerous work… without people dying.\'"',
+      ],
+      lawyer: [
+        'Lawyer: "OSHA settled at $7,000. That is the price the system put on it."',
+        'Lawyer: "For comparison, sir: your dinner tab clears that. Regularly."',
+      ],
+      lt: [
+        'Lieutenant: "Boss, nobody\'s even heard of McGregor. Zero mentions. Non-story."',
+        'Lieutenant: "...There is a reporter calling the family, though. Flagging it. Low priority. Probably."',
+      ],
+      workers_g: [
+        'Workers: "Lonnie made it through the Marines. He didn\'t make it through a gust of wind at McGregor."',
+        'Workers: "We held a minute of silence on the pad. The schedule took it back by lunch."',
+      ],
+      workers_o: [
+        'Workers: "A $7,000 fine for a death. That\'s not deterrence, that\'s a tip."',
+        'Workers: "We\'re asking OSHA to read its own file out loud. Loudly. To reporters."',
+      ],
+      fans_d: [
+        'Fans: "2014? Ancient history. Every industry has accidents. Look up fishing boats."',
+        'Fans: "The fine was only $7,000, so how bad could it have been? Checkmate."',
+      ],
+      fans_q: [
+        'Fans: "Wait. The family found out about the OSHA file from a REPORTER?"',
+        'Fans: "A man died and the feed never showed it to me. What else didn\'t it show me?"',
+      ],
+    },
+  },
+  {
+    id: 'cabada', name: 'Francisco Cabada\'s Skull', drop: 'elon_factory_drop', keys: nkeys(35, 80),
+    setup: '18 January 2022, SpaceX Hawthorne. During pressure testing, a Raptor V2 engine part flies off and fractures Francisco Cabada\'s skull, leaving him comatose. CalOSHA fines SpaceX $18,475; SpaceX appeals toward $475. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "Raptor 2 is a marvel. Full-flow staged combustion. Progress has a price."',
+        'Narrator: "The price had a name and a wife who waited by a hospital bed. He didn\'t call."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "The appeal is a PRINCIPLE. Regulators shouldn\'t tax the mission."',
+        'Elon (Panicked): "$18,475 down to $475. Someone will put that next to my net worth. Someone always does the math."',
+      ],
+      reporter: [
+        'Reporter: "Francisco Cabada, engine technician. A Raptor part fractured his skull during a pressure test. He hasn\'t woken up."',
+        'Reporter (Closeup/Determined): "His wife Ydy told me: \'It would have been nice to get a call from Elon Musk… But I guess workers are just disposable to them.\'"',
+      ],
+      worker: [
+        'Worker: "Frank ran that test cell for years. The part didn\'t care how good he was."',
+        'Worker (Pointing/Angry): "They appealed the fine for his skull. Toward $475. Say that out loud."',
+      ],
+      lawyer: [
+        'Lawyer: "The appeal is procedurally routine. Every employer contests CalOSHA."',
+        'Lawyer: "It is also arithmetic a jury can do: $475, against $300 billion. I\'d advise against a jury."',
+      ],
+      lt: [
+        'Lieutenant: "Optics check: \'comatose technician\' is polling... poorly, boss."',
+        'Lieutenant: "Recommend we announce a Mars update Thursday. A big one. A loud one."',
+      ],
+      workers_g: [
+        'Workers: "We keep a chair for Frank in the break room. Nobody sits in it."',
+        'Workers: "His wife visits the hospital every day. The company visits the appeals board."',
+      ],
+      workers_o: [
+        'Workers: "After Frank, we started our own incident log. Ours doesn\'t get appealed."',
+        'Workers: "\'You decide what\'s safe for you\' isn\'t a safety policy. It\'s the company ducking."',
+      ],
+      fans_d: [
+        'Fans: "Pressure tests are dangerous EVERYWHERE. Name one rocket program without incidents."',
+        'Fans: "The fine got reduced, so the regulators must have overcharged. System working!"',
+      ],
+      fans_q: [
+        'Fans: "They fought the fine down toward $475. For a fractured skull."',
+        'Fans: "I\'ve spent more than $475 on merch. His merch."',
+      ],
+    },
+  },
+  {
+    id: 'diaz', name: 'The Diaz Verdict', drop: 'elon_court_drop', keys: nkeys(45, 70),
+    setup: '4 October 2021. A federal jury awards Owen Diaz — a Black contract elevator operator at Fremont, 2015–16 — $137 million for a racially hostile workplace. Later reduced on appeal; the finding stands. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "We run the most scrutinized factory in America. We\'ll appeal. We always appeal."',
+        'Narrator: "The appeal worked on the number. It did not work on the finding."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "$137 million. Drafting a post about frivolous—"',
+        'Elon (Panicked): "The jury heard the evidence. Twelve people. Delete draft. Delete draft."',
+      ],
+      reporter: [
+        'Reporter: "Owen Diaz ran an elevator at Fremont and testified to what he heard on that floor. Daily."',
+        'Reporter (Closeup/Determined): "$130 million of the award was punitive. Punitive means the jury wanted it to hurt."',
+      ],
+      worker: [
+        'Worker: "Everybody on that floor knew what Owen was hearing. Now a jury knows too."',
+        'Worker: "The award got smaller on appeal. What happened to him didn\'t."',
+      ],
+      lawyer: [
+        'Lawyer: "Reduced to $15 million in 2022, about $3.2 million at retrial in 2023. Wins, on paper."',
+        'Lawyer: "Then the state civil-rights suit. Then the EEOC. Verdicts breed filings, sir."',
+        'Narrator: "Kevin Kish, California CRD, announcing the 2022 suit: Tesla operates \'a racially segregated workplace.\'"',
+      ],
+      lt: [
+        'Lieutenant: "Boss, don\'t post about the verdict. Whatever you\'re typing — don\'t."',
+        'Lieutenant: "He\'s typing. He posted. Okay. Crisis binder, page one."',
+      ],
+      workers_g: [
+        'Workers: "Owen told the truth about that floor and it cost him years of his life."',
+        'Workers: "Some of us heard the same words he heard. We believed him before the jury did."',
+      ],
+      workers_o: [
+        'Workers: "The state took hundreds of complaints from this plant before it sued. Hundreds. Ours included."',
+        'Workers: "One verdict, two agencies, one paper trail. That\'s how a floor gets safer."',
+      ],
+      fans_d: [
+        'Fans: "One contractor\'s lawsuit. Statistically zero. The media does this every time."',
+        'Fans: "It got reduced to $3 million! That\'s basically an apology from the court."',
+      ],
+      fans_q: [
+        'Fans: "A jury put $130 million of PUNITIVE on it. Juries don\'t do that for nothing."',
+        'Fans: "Then the state sued. Then the feds. That\'s... a pattern, right?"',
+      ],
+    },
+  },
+  {
+    id: 'buyout', name: 'The Platform Purchase', drop: 'elon_feedroom_drop', keys: nkeys(20, 95),
+    setup: '27 October 2022. He walks into the headquarters carrying a sink, closes the $44 billion deal, and posts: \'the bird is freed.\' Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "let that sink in"',
+        'Elon (Pointing/Smug): "the bird is freed"',
+        'Narrator: "Both verbatim, October 2022. Forty-four billion dollars for the megaphone."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "$44 billion. The banks made me overpay. The BANKS."',
+        'Elon (Panicked): "It\'s fine. It\'s a town square. Town squares definitely service debt."',
+      ],
+      reporter: [
+        'Reporter: "He paid $44 billion for the place where reporters publish. Note the incentive."',
+        'Reporter (Closeup/Determined): "Owning the megaphone doesn\'t own the story. We can print anywhere."',
+      ],
+      worker: [
+        'Worker: "$44 billion for an app. Our safety-budget requests come back \'under review.\'"',
+        'Worker: "A rocket plant, a car plant, and now the feed. Same boss. Same dashboard."',
+      ],
+      lawyer: [
+        'Lawyer: "He tried to back out. Discovery was going to be... vivid. He closed instead."',
+        'Lawyer: "Buying the court of public opinion does not recuse the actual courts."',
+      ],
+      lt: [
+        'Lieutenant: "The sink bit KILLED, boss. \'Let that sink in.\' Cinema."',
+        'Lieutenant: "Also payroll asks if we own a social network now. We do? Cool. Cool cool cool."',
+      ],
+      workers_g: [
+        'Workers: "$44 billion. Lonnie\'s fine was $7,000. We did the division on a napkin."',
+        'Workers: "The napkin is still on the break-room wall."',
+      ],
+      workers_o: [
+        'Workers: "He bought the place where our organizing threads live. Noted."',
+        'Workers: "So we backed up the contact lists. Solidarity doesn\'t need his servers."',
+      ],
+      fans_d: [
+        'Fans: "HE OWNS THE BIRD APP NOW. Best timeline. Free speech is BACK."',
+        'Fans: "The sink meme is already framed in my apartment."',
+      ],
+      fans_q: [
+        'Fans: "He said he\'d back out, then suddenly closed. What changed? Depositions, apparently."',
+        'Fans: "$44 billion... should the town square have a landlord?"',
+      ],
+    },
+  },
+  {
+    id: 'layoffs', name: 'The Layoffs Weekend', drop: 'elon_feedroom_drop', keys: nkeys(30, 85),
+    setup: 'November 2022. Within about a week of the deal closing, roughly half of the platform\'s 7,500 staff are laid off — the safety and moderation teams among them. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "Extremely hardcore. Only intense, exceptional people remain. The rest were headcount."',
+        'Narrator: "\'Headcount\' had badge photos, mortgages, and half the institutional knowledge."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Who runs two-factor auth? WHO RAN two-factor auth?"',
+        'Elon (Panicked): "He was on the list. He was ON the list. Un-list him. Can we un-list?"',
+      ],
+      reporter: [
+        'Reporter: "Roughly half of 7,500 people, cut in days, many by overnight email."',
+        'Reporter (Closeup/Determined): "The teams that kept the feed safe were, in HR terms, \'on the list.\'"',
+      ],
+      worker: [
+        'Worker: "Factory floor or feed floor — the move\'s the same. Cut deep, call it hardcore."',
+        'Worker: "The survivors do three jobs and thank him publicly. We know that shift."',
+      ],
+      lawyer: [
+        'Lawyer: "Layoff law has notice periods. Several jurisdictions have billed us their opinion."',
+        'Lawyer: "The severance lawsuits are, let\'s say, a genre now."',
+      ],
+      lt: [
+        'Lieutenant: "Boss, we cut half the staff and the site stayed up! Mostly! Largely up!"',
+        'Lieutenant: "Minor note: we may have laid off the person who knows why it stays up."',
+      ],
+      workers_g: [
+        'Workers: "Half the badge photos went dark in a weekend. We watched it like weather."',
+        'Workers: "Some found out when the laptop locked mid-sentence."',
+      ],
+      workers_o: [
+        'Workers: "Layoff by midnight email is an organizing pamphlet that writes itself."',
+        'Workers: "Their severance suits, our safety petitions — same lesson. Paper fights back."',
+      ],
+      fans_d: [
+        'Fans: "7,500 people to run a website?? He HAD to cut. Basic efficiency."',
+        'Fans: "Hardcore mode! I would work 120 hours a week for him. For FREE."',
+      ],
+      fans_q: [
+        'Fans: "My favorite support account went dark. The actual human behind it is gone."',
+        'Fans: "\'Efficiency\' is doing a lot of work for \'we fired whoever answered my tickets.\'"',
+      ],
+    },
+  },
+  {
+    id: 'trustsafety', name: 'Trust & Safety, Disbanded', drop: 'elon_feedroom_drop', keys: nkeys(40, 75),
+    setup: 'December 2022. The Trust and Safety Council is dissolved, banned accounts are reinstated, the COVID-misinformation policy is deleted. Researchers later document a measurable rise in hate-speech impressions. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "The people have spoken. Amnesty. Vox Populi, Vox Dei."',
+        'Narrator: "Researchers auditing the feed logged what the vox did next: hate-speech impressions rose."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Moderation was censorship. Deleting it was freedom. The graphs are lying."',
+        'Elon (Panicked): "Why is my mentions tab like this. Who let these people in. ...I did. Technically I did."',
+      ],
+      reporter: [
+        'Reporter: "The council of outside safety experts got a form email: dissolved."',
+        'Reporter (Closeup/Determined): "Then the audit landed: hate-speech impressions up, measurably. Not vibes. A dataset."',
+      ],
+      worker: [
+        'Worker: "Moderators were the feed\'s safety rail. We know what happens when rails come off."',
+        'Worker: "On our floor it\'s guards off the machines. Same shape. Different blood."',
+      ],
+      lawyer: [
+        'Lawyer: "Advertisers read those audits. Regulators read those audits."',
+        'Lawyer: "In Europe they don\'t just read them, sir. They invoice."',
+      ],
+      lt: [
+        'Lieutenant: "Engagement is UP, boss. Way up. Some of it is, um. The bad kind of up."',
+        'Lieutenant: "Advertisers keep \'pausing.\' Which is like leaving, but with a press release."',
+      ],
+      workers_g: [
+        'Workers: "The mod teams were people too — they saw the worst of it so the rest of us didn\'t."',
+        'Workers: "They got cut, and the worst of it came back onto everyone\'s screen."',
+      ],
+      workers_o: [
+        'Workers: "The slurs that got Owen Diaz a verdict now trend on the boss\'s own platform."',
+        'Workers: "We archive what shows up. Screenshots are testimony now."',
+      ],
+      fans_d: [
+        'Fans: "FREE SPEECH IS BACK. If you see hate speech, that\'s just other people\'s free speech."',
+        'Fans: "The council was a censorship committee. A form email was generous."',
+      ],
+      fans_q: [
+        'Fans: "My replies got dark. Really dark. Overnight."',
+        'Fans: "I muted forty accounts this week. The moderation used to do that. For free."',
+      ],
+    },
+  },
+  {
+    id: 'reuters', name: 'The Reuters Investigation', drop: 'elon_hq', keys: nkeys(65, 60),
+    setup: '10 November 2023. Reuters publishes Marisa Taylor\'s investigation, \'At SpaceX, worker injuries soar in Elon Musk\'s rush to Mars\': more than 600 documented injuries since 2014, and one death. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "Legacy media attacks the mission because the mission makes them irrelevant."',
+        'Narrator: "The \'attack\' was records. Six hundred injuries, documented, with case numbers."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Brownsville, 4.8 per 100. Industry, 0.8. She led with the ratio."',
+        'Elon (Panicked): "You can\'t ratio a ratio. Can you ratio a ratio? Drafting."',
+      ],
+      reporter: [
+        'Reporter (Closeup/Determined): "Months of records requests. Six hundred-plus injuries. Crushed limbs. One death."',
+        'Reporter: "Tom Moline, former SpaceX engineer, on the record: the company \'justifies casting aside anything that could stand in the way… including worker safety.\'"',
+      ],
+      worker: [
+        'Worker: "Travis Carson, one of our old supervisors, told Reuters: \'SpaceX\'s idea of safety is: We\'ll let you decide what\'s safe for you\' — \'which really means there was no accountability.\'"',
+        'Worker (Pointing/Angry): "We LIVED that quote. Now it has a byline."',
+      ],
+      lawyer: [
+        'Lawyer: "Every number in that story is now findable in discovery. She did plaintiffs\' homework for free."',
+        'Lawyer: "My advice remains: no posting. My expectation remains: posting."',
+      ],
+      lt: [
+        'Lieutenant: "Boss, Reuters sent detailed questions before publishing. That\'s thorough. Scary-thorough."',
+        'Lieutenant: "Our strategy of \'the press office is an emoji\' may have underperformed."',
+      ],
+      workers_g: [
+        'Workers: "Six hundred injuries. We could put a face on every kind of them."',
+        'Workers: "Lonnie\'s family learned about the OSHA file from that reporter. Nine years. It took a stranger."',
+      ],
+      workers_o: [
+        'Workers: "Six hundred documented. Our notebooks say the real count is higher."',
+        'Workers: "Reporters can only print what someone tells them. Keep talking."',
+      ],
+      fans_d: [
+        'Fans: "600 injuries over NINE YEARS at a ROCKET company. Contextless FUD."',
+        'Fans: "Reuters is jealous because journalism doesn\'t go to Mars."',
+      ],
+      fans_q: [
+        'Fans: "Six times the industry average isn\'t \'rockets are hard.\' Other rocket companies exist."',
+        'Fans: "I read the whole thing. Twice. I don\'t have a reply for the wind gust."',
+      ],
+    },
+  },
+  {
+    id: 'pulitzer', name: 'The Pulitzer', drop: 'elon_hq', keys: nkeys(80, 45),
+    setup: '2024. The Reuters SpaceX investigation wins the Pulitzer Prize for National Reporting. Education corroding prestige, in real time. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "Awards are legacy media giving itself a trophy for being legacy media."',
+        'Narrator: "He posted this on the platform he bought so the story wouldn\'t matter. It mattered."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "A Pulitzer. For MY injuries. Her prize, MY injuries—"',
+        'Elon (Panicked): "That came out wrong. That came out very wrong. Never say that in public."',
+      ],
+      reporter: [
+        'Reporter (Closeup/Determined): "The prize isn\'t the point. The point is one word: \'documented.\' Six hundred times over."',
+        'Reporter: "What a Pulitzer really buys: editors approve the next records request faster."',
+      ],
+      worker: [
+        'Worker: "A prize won\'t fix a test stand. But the foremen read the news now, before every shift."',
+        'Worker: "The company knows the world is watching the injury log. Watched logs shrink."',
+      ],
+      lawyer: [
+        'Lawyer: "Congratulating the press is not my role. Updating your risk model is."',
+        'Lawyer: "A Pulitzer footnotes every future filing. Judges read the news too, sir."',
+      ],
+      lt: [
+        'Lieutenant: "Boss, do NOT quote-post the Pulitzer announcement. It\'s bait."',
+        'Lieutenant: "He\'s typing. Of course he\'s typing."',
+      ],
+      workers_g: [
+        'Workers: "The story that won was about our people. Lonnie. Frank. The six hundred."',
+        'Workers: "Somebody finally made the country read their names."',
+      ],
+      workers_o: [
+        'Workers: "A Pulitzer means the next whistleblower gets believed a day faster."',
+        'Workers: "We taped the story inside every locker. Management removes it. We keep printing."',
+      ],
+      fans_d: [
+        'Fans: "Pulitzers are participation trophies for the MSM. Mars is the real prize."',
+        'Fans: "When the first crew lands on Mars, nobody will remember an article."',
+      ],
+      fans_q: [
+        'Fans: "The committee checked her math. Everyone checked her math. The math held."',
+        'Fans: "I used to reply \'source?\' to everything. Now the source has a Pulitzer."',
+      ],
+    },
+  },
+  {
+    id: 'trillion', name: 'The Trillion Day', drop: 'elon_feedroom_drop', keys: nkeys(50, 100),
+    setup: 'Mid-June 2026. Around SpaceX\'s Nasdaq debut he becomes the first person ever worth one trillion dollars — for about twelve days, until the shares correct. Who\'s talking?',
+    v: {
+      elon_pub: [
+        'Elon (Pointing/Smug): "First. Trillionaire. Ever. The mission is priced in. YOU\'RE priced in."',
+        'Narrator: "Twelve days later the price changed its mind. Prices do."',
+      ],
+      elon_3am: [
+        'Elon (Sit/Angry): "Refresh. Still $990 billion. Refresh. REFRESH."',
+        'Elon (Panicked): "Who sells at 3am?? Europe. Europe sells at 3am."',
+      ],
+      reporter: [
+        'Reporter: "A trillion dollars, priced on futures that haven\'t happened: Mars, robotaxis, everything."',
+        'Reporter (Closeup/Determined): "The correction took twelve days. The injury records aren\'t priced on anything. They just are."',
+      ],
+      worker: [
+        'Worker: "A trillion for one man, on paper. Frank\'s fine got appealed toward $475. Same company."',
+        'Worker: "Our raises are \'not in the budget.\' The budget has a comma problem."',
+      ],
+      lawyer: [
+        'Lawyer: "Congratulations. A larger fortune is a larger target class. Plaintiffs can read tickers."',
+        'Lawyer: "Also the estate-planning team called. All of them. At once."',
+      ],
+      lt: [
+        'Lieutenant: "T-DAY, BOSS! I made hats. \'FIRST TRILLIONAIRE.\' Four hundred units."',
+        'Lieutenant: "...Day thirteen. Do we, uh. Do we still hand out the hats?"',
+      ],
+      workers_g: [
+        'Workers: "The night he hit a trillion, the swing shift ran the stand hot. Again."',
+        'Workers: "None of that number ever reached the floor. It never does."',
+      ],
+      workers_o: [
+        'Workers: "A trillion is a bet other people place on our work staying cheap."',
+        'Workers: "Twelve days later the bet wobbled. Our petition didn\'t."',
+      ],
+      fans_d: [
+        'Fans: "FIRST TRILLIONAIRE IN HISTORY. I feel like I\'M rich. We did it!"',
+        'Fans: "The dip is FUD. Diamond hands. He\'s basically holding for humanity."',
+      ],
+      fans_q: [
+        'Fans: "We cheered a number that wasn\'t ours, and it fell twelve days later."',
+        'Fans: "I keep thinking about the napkin math. A $7,000 fine. One trillion. Explain the units to me."',
+      ],
+    },
+  },
+];
+
+// --- hub: pick an event ---------------------------------------------------
+scenes.push({
+  id: 'elon_voices',
+  name: 'Voices of the Feed',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('vox_fans', 'elon_fans', 26, 63, 2.2),
+    el('vox_workers', 'elon_workers', 74, 63, 2.2),
+  ],
+  script: lines(
+    'Narrator: "Ten moments in the record. Pick one, and hear who\'s talking."',
+    '[CHOICE]',
+    ...EVENTS.map((ev) => `- "${ev.name}" -> vox_${ev.id}`),
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// --- per-event responder choosers + vignettes -----------------------------
+for (const ev of EVENTS) {
+  // responder chooser
+  scenes.push({
+    id: `vox_${ev.id}`,
+    name: `Voices: ${ev.name}`,
+    sceneType: 'AGENCY',
+    dropId: dropId(ev.drop),
+    stage: [
+      el(`vx_${ev.id}_f`, 'elon_fans', 24, 63, 2.0),
+      el(`vx_${ev.id}_w`, 'elon_workers', 76, 63, 2.0),
+    ],
+    script: lines(
+      `Narrator: "${ev.setup}"`,
+      '[CHOICE]',
+      ...RESPONDERS.map((r) => `- "${r.label}" -> vg_${ev.id}_${r.id}`),
+      '- "Back to the events" -> elon_voices',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  });
+
+  // vignettes
+  for (const r of RESPONDERS) {
+    const body = ev.v[r.id];
+    if (!body) throw new Error(`Missing vignette: ${ev.id} / ${r.id}`);
+    scenes.push({
+      id: `vg_${ev.id}_${r.id}`,
+      name: `${ev.name} — ${r.label}`,
+      sceneType: 'WITNESS',
+      dropId: dropId(r.drop),
+      stage: [el(`vg_${ev.id}_${r.id}_a`, r.actor, 50, 62, 2.4)],
+      narraton: { pool: 'elon_reactions', keys: ev.keys, repeatable: true, weight: 1 },
+      script: lines(
+        ...body,
+        '[CHOICE]',
+        `- "Another voice on this" -> vox_${ev.id}`,
+        '- "Back to the events" -> elon_voices',
+        '[/CHOICE]',
+      ),
+      status: 'work',
+    });
+  }
+}
+
+const vignetteCount = EVENTS.length * RESPONDERS.length;
 
 // ---------------------------------------------------------------- game
 
