@@ -13,7 +13,10 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lines, balloon, actorEl, SFX } from '../machine-core.mjs';
+import {
+  lines, balloon, actorEl, SFX,
+  WORLD_BASE, ACTORS as CORE_ACTORS, SFX as CORE_SFX, machineHubScene,
+} from '../machine-core.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -88,6 +91,16 @@ const actors = [
   actor('narrator', 'Narrator'),
 ];
 
+// Core Machine cast (empty graphics — the rig is balloons + placeholder
+// actors) and core SFX: merge in whatever this chapter doesn't already have.
+for (const a of CORE_ACTORS) {
+  if (!actors.some((x) => x.id === a.id)) actors.push({ ...a, graphics: [] });
+}
+const sfx = [...SFX];
+for (const s of CORE_SFX) {
+  if (!sfx.some((x) => x.id === s.id)) sfx.push(s);
+}
+
 const dropLexington = drop('capone_lexington', 'Lexington Hotel Suite', 'capone', 'capone_lexington.png');
 const dropSoup = drop('capone_soupkitchen', 'Capone Free Soup Kitchen', 'capone', 'capone_soupkitchen.png');
 const dropGarage = drop('capone_garage', 'Clark Street Garage', 'capone_garage.png');
@@ -126,6 +139,9 @@ const scenes = [
       '- "Buy the precinct captains quietly" -> cap_cic_money',
       '- "Let Cicero vote — this once" -> cap_cic_stayout',
       '- "Voices of Chicago — hear the witnesses" -> cap_voices',
+      '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
+      '- "Witness: The Rate Goes Up" -> cap_cut_rate',
+      '- "Enter the Machine" -> cap_machine',
       '[/CHOICE]',
     ),
     status: 'work',
@@ -1306,6 +1322,8 @@ scenes.push({
     'Narrator: "Eleven years, ten turnings of the screw. Choose an event and hear how it landed — on the boss, on his mentor, on the lawmen, on the newsboy, on the breadline, on the press."',
     '[CHOICE]',
     ...REVENTS.map((ev) => `- "${ev.name}" -> capch_${ev.id}`),
+    '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
+    '- "Witness: The Rate Goes Up" -> cap_cut_rate',
     '- "Return to Cicero, 1924" -> cap_cicero',
     '[/CHOICE]',
   ),
@@ -1314,14 +1332,211 @@ scenes.push({
 
 console.log(`Reaction layer: ${vignetteCount} vignettes across ${REVENTS.length} events (+ ${REVENTS.length} choosers + 1 hub).`);
 
-// ---------------------------------------------------------------- game
+// ==========================================================================
+// CUTSCENES — non-interactive witness reels ([AUTOPLAY on] … [AUTOPLAY off]),
+// each landing on an IMPACT scene that animates the Georgist variables the
+// event moved, then offers the door into THE MACHINE.
+// ==========================================================================
+
+// The four Machine-facing gauges shown on every impact scene.
+const IMPACT_GAUGES = [
+  '[GAUGE greed at 8,12 min=0 max=100 label="RENT-AS-GREED"]',
+  '[GAUGE repression at 8,22 min=0 max=100 label="REPRESSION"]',
+  '[GAUGE regulation at 8,32 min=0 max=100 label="REGULATION"]',
+  '[GAUGE prestige at 8,42 min=0 max=100 label="PRESTIGE"]',
+];
+
+// Animated delta: compute a target once, then step toward it on the tick.
+// dir: +1 rises, -1 falls. Guarded so the tick idles once arrived.
+const impactStep = (varName, targetVar, dir) => [
+  `[IF ${varName} ${dir > 0 ? '<' : '>'} ${targetVar}]`,
+  `[SET ${varName} = clamp(${varName} ${dir > 0 ? '+' : '-'} 1, 0, 100)]`,
+  '[ENDIF]',
+];
+
+// CUTSCENE A — Clark Street, 10:30 AM. The garage, empty. Aftermath only:
+// the wall and the names; no bodies, no gore.
+scenes.push({
+  id: 'cap_cut_clark',
+  name: 'Cutscene: Clark Street, 10:30 AM',
+  sceneType: 'WITNESS',
+  dropId: dropGarage,
+  stage: [
+    balloon('ccl_wall', '2122 N. CLARK ST.', 50, 18, { zIndex: 2 }),
+    balloon('ccl_light1', 'POLICE', 10, 30, { zIndex: 4 }),
+    balloon('ccl_light2', 'POLICE', 90, 30, { zIndex: 4 }),
+    spr('ccl_newsboy', 'newsboy', 4, 70, 1.8),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    '# police-light flicker on both lamps; the newsboy crosses the frame',
+    '[EFFECT electric_flare on ccl_light1]',
+    '[EFFECT electric_flare on ccl_light2]',
+    '[MOVE ccl_newsboy to 96,70 over 8s]',
+    'Newsboy: "Extra! Extra! Massacre on North Clark Street! Seven dead in a garage! Extra!"',
+    '[WAIT 1500ms]',
+    'Narrator: "Clark Street. February 14, 1929. Half past ten in the morning. The garage is empty now — the trucks gone, the dog still barking, the coffee on the stove gone cold."',
+    '[WAIT 1500ms]',
+    '[EFFECT shake_all on ccl_wall]',
+    'Narrator: "For about ten seconds this was the loudest room in America. Around seventy rounds."',
+    '[WAIT 1200ms]',
+    '[CLEAR_EFFECT shake_all from ccl_wall]',
+    'Narrator: "There is nothing to see here but a brick wall, and what the brick stopped. No bodies in this telling. Only the wall — and seven names, read at the speed a city read them."',
+    '[WAIT 1500ms]',
+    'Narrator: "Peter Gusenberg."',
+    '[WAIT 1500ms]',
+    'Narrator: "Frank Gusenberg."',
+    '[WAIT 1500ms]',
+    'Narrator: "James Clark."',
+    '[WAIT 1500ms]',
+    'Narrator: "Adam Heyer."',
+    '[WAIT 1500ms]',
+    'Narrator: "Reinhardt Schwimmer."',
+    '[WAIT 1500ms]',
+    'Narrator: "Albert Weinshank."',
+    '[WAIT 1500ms]',
+    'Narrator: "John May."',
+    '[WAIT 2s]',
+    'Narrator: "Two of the shooters wore police uniforms. Hold that thought. The wall will hold it with you."',
+    '[WAIT 1500ms]',
+    '[AUTOPLAY off]',
+    '[SCENE cap_impact_clark]',
+  ),
+  status: 'work',
+});
+
+// CUTSCENE B — The Rate Goes Up. Protection-rent: a sign ticks the weekly
+// rate upward while the narrator does the Georgist arithmetic of the block.
+scenes.push({
+  id: 'cap_cut_rate',
+  name: 'Cutscene: The Rate Goes Up',
+  sceneType: 'WITNESS',
+  dropId: dropSoup,
+  stage: [
+    balloon('ccr_sign', 'PROTECTION — $25 A WEEK', 50, 14, { zIndex: 4 }),
+    spr('ccr_breadline', 'breadline', 38, 62, 2.6),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    '[SET_TEXT ccr_sign "PROTECTION — $25 A WEEK"]',
+    'Narrator: "A block of South State Street. Count the doors: a grocer, a barber, a lunch counter, a laundry, a funeral parlor. Each one already pays a landlord for the ground under its floor."',
+    '[WAIT 1500ms]',
+    'Narrator: "Then a second landlord arrives — one who never bought the ground. His title deed is the memory of the wall on Clark Street."',
+    '[WAIT 1500ms]',
+    '[SET_TEXT ccr_sign "PROTECTION — $40 A WEEK"]',
+    'Narrator: "The rate goes up. Notice what did not change: the grocer sells no more bread, the barber cuts no more hair. Nothing was produced. Something was only collected."',
+    '[WAIT 1800ms]',
+    '[SET_TEXT ccr_sign "PROTECTION — $60 A WEEK"]',
+    'Narrator: "Henry George had a name for a payment that buys no goods, no labor, no improvement — a payment made simply for permission to exist in a place. He called it rent. The Outfit calls it protection. Same arithmetic, different collector."',
+    '[WAIT 1800ms]',
+    '[SET_TEXT ccr_sign "PROTECTION — $85 A WEEK"]',
+    'Narrator: "The rate rises to whatever the block can bear minus what the block needs to survive — the margin, priced by force. Every dollar above the margin flows uphill and produces nothing on the way."',
+    '[WAIT 1800ms]',
+    'Narrator: "And the breadline stands still. It always stands still. The line is what the arithmetic looks like from below."',
+    '[WAIT 1500ms]',
+    '[AUTOPLAY off]',
+    '[SCENE cap_impact_rate]',
+  ),
+  status: 'work',
+});
+
+// IMPACT — Clark Street: repression up, prestige down, regulation corroded.
+scenes.push({
+  id: 'cap_impact_clark',
+  name: 'Impact: What the Wall Did',
+  sceneType: 'AGENCY',
+  dropId: dropGarage,
+  stage: [balloon('icl_sign', 'CLARK STREET — THE LEDGER MOVES', 55, 10, { zIndex: 4 })],
+  script: lines(
+    ...IMPACT_GAUGES,
+    '# targets computed once; the 300ms tick walks each needle there',
+    '[SET iclRepT = clamp(repression + 18, 0, 100)]',
+    '[SET iclPrsT = clamp(prestige - 12, 0, 100)]',
+    '[SET iclRegT = clamp(regulation - 8, 0, 100)]',
+    '[SET iclGrdT = clamp(greed + 5, 0, 100)]',
+    '[TICK 300ms]',
+    impactStep('repression', 'iclRepT', +1),
+    impactStep('prestige', 'iclPrsT', -1),
+    impactStep('regulation', 'iclRegT', -1),
+    impactStep('greed', 'iclGrdT', +1),
+    '[/TICK]',
+    'Narrator: "Watch the needles. REPRESSION climbs: the massacre is the collection arm of the racket, shown in public — the force that keeps the rate collectible."',
+    'Narrator: "The racket IS rent. Not a metaphor: permission to exist on a block, priced by force. George wrote that rent takes what labor produces above bare survival. The Thompson gun is just the deed of title."',
+    'Narrator: "REGULATION falls, because two of the shooters wore police uniforms — the law corroded so far by envelopes that its own costume works as camouflage. And PRESTIGE falls with it: the city liked its outlaw right up until the photograph of the wall."',
+    'Narrator: "Every variable that just moved is a pipe in a larger engine. You can watch that engine run."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> cap_machine',
+    '- "Back" -> cap_cicero',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// IMPACT — The Rate: rent-as-greed up, regulation corroded, prestige bought.
+scenes.push({
+  id: 'cap_impact_rate',
+  name: 'Impact: The Second Landlord',
+  sceneType: 'AGENCY',
+  dropId: dropSoup,
+  stage: [balloon('icr_sign', 'THE RATE — THE LEDGER MOVES', 55, 10, { zIndex: 4 })],
+  script: lines(
+    ...IMPACT_GAUGES,
+    '[SET icrGrdT = clamp(greed + 15, 0, 100)]',
+    '[SET icrRegT = clamp(regulation - 10, 0, 100)]',
+    '[SET icrPrsT = clamp(prestige + 5, 0, 100)]',
+    '[SET icrRepT = clamp(repression + 8, 0, 100)]',
+    '[TICK 300ms]',
+    impactStep('greed', 'icrGrdT', +1),
+    impactStep('regulation', 'icrRegT', -1),
+    impactStep('prestige', 'icrPrsT', +1),
+    impactStep('repression', 'icrRepT', +1),
+    '[/TICK]',
+    'Narrator: "RENT-AS-GREED climbs. Protection is rent in George\'s exact sense — a charge for permission to exist in a place, set not by what the payer gets but by what the collector can extract before the payer breaks."',
+    'Narrator: "REGULATION falls as the envelopes go out: the alderman, the captain, the judge. A law on the pad does not lower the rate — it becomes part of the rate, a second line on the same bill."',
+    'Narrator: "And a slice of the take comes back downhill as soup — PRESTIGE, purchased retail. Charity is cheap when the till is rent."',
+    'Narrator: "Repression to hold the block, greed to price it, regulation dissolved to keep it legal-ish, prestige to keep it liked. Four pipes, one engine."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> cap_machine',
+    '- "Back" -> cap_cicero',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// ==========================================================================
+// THE MACHINE, 1929 — the shared Georgist rig, seeded with Chicago's
+// numbers. The vignette pool doubles as its Narraton commentary.
+// ==========================================================================
+
+scenes.push(machineHubScene({
+  id: 'cap_machine',
+  name: 'The Machine, 1929',
+  pool: RPOOL,
+  panel: 'drama',
+  endings: false,
+  autopilot: false,
+  buttons: ['cap_machine_back'],
+  intro: {
+    gateVar: 'capMachineIntro',
+    line: 'This is Chicago, 1929, as an engine. The Outfit is the rent siphon; the breadline is the margin; the envelopes are the regulation valve, stuck open. Greed is set where Capone set it. Pull the one lever the era never pulled — and listen: the Voices of Chicago will cut in when the needles swing.',
+  },
+}));
 
 const game = {
   info: {
     title: 'HVB — King of Chicago',
     author: 'Doug Sharp',
     styleGuide: null,
-    worldState: { prestige: 35, evidence: 0, newsIdx: 0, rent: 0, repression: 20, regulation: 30, heat: 20, respect: 40, hawthorne: 0, juryBribe: 0 },
+    // WORLD_BASE gives the Machine its full Georgist rig; the chapter's
+    // own dials layer on top; then the 1929 Chicago pre-seed wins:
+    // greed 75 (the rate), repression 60 (the wall), regulation 15
+    // (the envelopes), prestige 65 (the soup).
+    worldState: {
+      ...WORLD_BASE,
+      evidence: 0, newsIdx: 0, rent: 0, heat: 20, respect: 40,
+      hawthorne: 0, juryBribe: 0, capMachineIntro: 0,
+      greed: 75, repression: 60, regulation: 15, prestige: 65,
+    },
     gameMode: 'INTERACTIVE',
     titleSceneId: 'cap_cicero',
     enableAutosave: true,
@@ -1330,8 +1545,14 @@ const game = {
   scenes,
   drops,
   items: [],
-  sfx: SFX,
-  buttons: [],
+  sfx,
+  buttons: [
+    {
+      id: 'cap_machine_back', name: 'Back to Chicago', label: 'CHICAGO',
+      x: 40, y: 4, width: 12, height: 6,
+      targetSceneId: 'cap_cicero', status: 'work',
+    },
+  ],
   episodes: [
     {
       id: 'ep_capone',

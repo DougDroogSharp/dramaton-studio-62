@@ -8,7 +8,10 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lines } from '../machine-core.mjs';
+import {
+  lines, machineHubScene, WORLD_BASE,
+  ACTORS as CORE_ACTORS, SFX as CORE_SFX,
+} from '../machine-core.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -144,6 +147,9 @@ scenes.push({
     '- "Gut the moderation — disband Trust & Safety" -> elon_gut',
     '- "Just post through it" -> elon_gut',
     '- "Voices of the Feed" -> elon_voices',
+    '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
+    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
+    '- "Enter the Machine" -> el_machine',
     '[/CHOICE]',
   ),
   status: 'work',
@@ -1247,6 +1253,9 @@ scenes.push({
     'Narrator: "Ten moments in the record. Pick one, and hear who\'s talking."',
     '[CHOICE]',
     ...EVENTS.map((ev) => `- "${ev.name}" -> vox_${ev.id}`),
+    '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
+    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
+    '- "See the Machine itself" -> el_machine',
     '- "Back to the story" -> elon_feed',
     '[/CHOICE]',
   ),
@@ -1299,6 +1308,180 @@ for (const ev of EVENTS) {
 }
 
 const vignetteCount = EVENTS.length * RESPONDERS.length;
+const voicesSceneCount = scenes.length;
+
+// ================================================================ CUTSCENES
+// Two non-interactive witness cutscenes ([AUTOPLAY on] … [AUTOPLAY off]).
+// The horror is carried by plainness and by the real numbers; nothing is
+// depicted. Each jumps to its IMPACT scene, which animates the Georgist
+// variables the moment moved — and offers the Machine.
+
+// C1 — McGREGOR, JUNE 2014 (the death of Lonnie LeBlanc, in plain beats)
+scenes.push({
+  id: 'el_cut_mcgregor',
+  name: 'McGregor, June 2014',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    // Stillness: no actors. A site card and a line that will become the fine.
+    balloon('mcg_card', 'SPACEX TEST SITE — McGREGOR, TEXAS', 50, 22, { zIndex: 2 }),
+    balloon('mcg_fine', 'JUNE 2014', 45, 95),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    'Narrator: "McGregor, Texas. June 2014. A rocket test site on flat land. Wind country."',
+    '[WAIT 2s]',
+    'Narrator: "A trailer is loaded with foam insulation. The load has to cross the yard."',
+    '[WAIT 2s]',
+    'Narrator: "There are no straps on the trailer. Nobody goes to get straps."',
+    '[WAIT 3s]',
+    'Narrator: "Lonnie LeBlanc, thirty-eight, a recently retired Marine, climbs up and sits on the insulation. His body weight is the tie-down."',
+    '[WAIT 3s]',
+    'Narrator: "The trailer moves. A gust of wind."',
+    '[WAIT 3s]',
+    'Narrator: "He is blown headfirst off the trailer. He dies at the scene."',
+    '[WAIT 4s]',
+    '[SET_TEXT mcg_fine "OSHA SETTLES THE CASE. THE FINE: $7,000"]',
+    '[WAIT 4s]',
+    'Narrator: "His family is not told there was an investigation."',
+    '[WAIT 9s]',
+    'Narrator: "Nine years. Then a reporter calls them."',
+    '[WAIT 2s]',
+    'Narrator: "Ron Weimer, his uncle, to Reuters: \'There\'s a way to do dangerous work… without people dying.\'"',
+    '[WAIT 3s]',
+    '[AUTOPLAY off]',
+    '[SCENE el_impact_mcgregor]',
+  ),
+  status: 'work',
+});
+
+// C2 — THE DASHBOARD IS GREEN (the injury ticker; the numbers do the horror)
+scenes.push({
+  id: 'el_cut_dashboard',
+  name: 'The Dashboard Is Green',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    el('dash_workers', 'elon_workers', 50, 64, 2.4),
+    balloon('dash_stand', 'RAPTOR TEST STAND', 50, 24, { zIndex: 2 }),
+    balloon('dash_rate', 'THE OTHER DASHBOARD', 45, 95),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    '[EFFECT electric_flare on dash_stand]',
+    'Narrator: "A test stand, flickering. The workers stand and watch the numbers they already live in. The company dashboard is green. This is the other one."',
+    '[WAIT 3s]',
+    '[SET_TEXT dash_rate "BROWNSVILLE, 2022: 4.8 INJURIES PER 100 WORKERS"]',
+    '[WAIT 3s]',
+    '[SET_TEXT dash_rate "SPACE-INDUSTRY AVERAGE: 0.8 PER 100 — BROWNSVILLE RUNS SIX TIMES THAT"]',
+    '[WAIT 3s]',
+    '[SET_TEXT dash_rate "McGREGOR: 2.7 PER 100 — THREE TIMES THE AVERAGE"]',
+    '[WAIT 3s]',
+    '[SET_TEXT dash_rate "HAWTHORNE: 1.8 PER 100 — TWICE THE AVERAGE"]',
+    '[WAIT 3s]',
+    '[SET_TEXT dash_rate "KENNEDY SPACE CENTER, 2016: 21.5 PER 100 — TWENTY-SEVEN TIMES THE AVERAGE"]',
+    '[WAIT 4s]',
+    '[SET_TEXT dash_rate "REUTERS, 2023: 600+ DOCUMENTED INJURIES SINCE 2014. ONE DEATH."]',
+    '[WAIT 4s]',
+    'Narrator: "Ydy Cabada, whose husband Francisco was left comatose by a Raptor part on that stand: \'It would have been nice to get a call from Elon Musk… But I guess workers are just disposable to them.\'"',
+    '[WAIT 4s]',
+    '[AUTOPLAY off]',
+    '[SCENE el_impact_dashboard]',
+  ),
+  status: 'work',
+});
+
+// ================================================================ IMPACT
+// The cutscene, translated into the Georgist variables — needles animated
+// by an IF-guarded [TICK 300ms], narration mapping the record onto George.
+
+// I1 — impact of McGregor: greed moves the margin; regulation corrodes.
+scenes.push({
+  id: 'el_impact_mcgregor',
+  name: 'Impact: The Price of a Gust',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_factory_drop'),
+  stage: [
+    balloon('imp1_card', 'WHAT McGREGOR DOES TO THE MACHINE', 45, 16, { zIndex: 2 }),
+  ],
+  script: lines(
+    '[GAUGE greed at 87,14 min=0 max=100 label="GREED"]',
+    '[GAUGE repression at 87,38 min=0 max=100 label="REPRESSION"]',
+    '[GAUGE regulation at 87,62 min=0 max=100 label="REGULATION"]',
+    '[TICK 300ms]',
+    '[IF greed < 92]',
+    '[SET greed = min(greed + 2, 92)]',
+    '[ENDIF]',
+    '[IF repression < 60]',
+    '[SET repression = min(repression + 2, 60)]',
+    '[ENDIF]',
+    '[IF regulation > 12]',
+    '[SET regulation = max(regulation - 1, 12)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "Watch the needles. Speed-over-safety is not a mood — it is greed moving the margin. Every point it climbs, the margin of production drops, and rent eats the difference out of wages. The straps were a cost. The Marine was not."',
+    'Narrator: "A death priced at $7,000 — and the next fine, for Francisco Cabada\'s skull, contested from $18,475 toward $475. That falling needle is regulation corroding: a rule that costs less than the profit of breaking it is not a rule. It is a price."',
+    'Narrator: "And a family kept from the file for nine years — that is repression rising: the cost of keeping the humans from comparing notes."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> el_machine',
+    '- "Back" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// I2 — impact of the exposé: education corroding prestige, Kodak-style.
+scenes.push({
+  id: 'el_impact_dashboard',
+  name: 'Impact: The Numbers Get Out',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    balloon('imp2_card', 'WHAT THE EXPOSÉ DOES TO THE MACHINE', 45, 16, { zIndex: 2 }),
+  ],
+  script: lines(
+    '[GAUGE education at 87,14 min=0 max=100 label="EDUCATION"]',
+    '[GAUGE prestige at 87,38 min=0 max=100 label="PRESTIGE"]',
+    '[GAUGE exposure at 87,62 min=0 max=100 label="EXPOSURE"]',
+    '[TICK 300ms]',
+    '[IF education < 70]',
+    '[SET education = min(education + 2, 70)]',
+    '[ENDIF]',
+    '[IF prestige > 60]',
+    '[SET prestige = max(prestige - 1, 60)]',
+    '[ENDIF]',
+    '[IF exposure < 65]',
+    '[SET exposure = min(exposure + 2, 65)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "The rates on the stand were not a leak. They were records — requested, checked, published. Publication is education, and education is the one variable that corrodes prestige directly."',
+    'Narrator: "It is the same mechanism as the Kodak in 1904: a cheap camera did to Leopold\'s rubber story what a Reuters spreadsheet does to the mission. The shell doesn\'t crack from outrage. It cracks from documentation."',
+    'Narrator: "So the needles move: education up, prestige down, exposure up. A Pulitzer in 2024 is the mechanism certifying itself. The record is the resistance."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> el_machine',
+    '- "Back" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// ================================================================ THE MACHINE
+// The shared Georgist rig, pre-seeded with the 2026 configuration.
+// Commentary draws from the elon_reactions Narraton pool (the vignettes).
+scenes.push(machineHubScene({
+  id: 'el_machine',
+  name: 'The Machine, 2026',
+  pool: 'elon_reactions',
+  panel: 'drama',
+  endings: false,
+  autopilot: false,
+  intro: {
+    gateVar: 'elMachineSeen',
+    line: 'The Machine, 2026 configuration: greed near the stops, speculation pricing a trillion-dollar future, prestige thick, education climbing on a Pulitzer. Watch the margin. Watch the wages. The lever is on the right.',
+  },
+}));
+
+const machineSceneCount = scenes.length - voicesSceneCount;
 
 // ---------------------------------------------------------------- game
 
@@ -1308,7 +1491,9 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: {
-      prestige: 100,
+      // Georgist rig: every simulation variable and coefficient.
+      ...WORLD_BASE,
+      // Chapter state.
       exposure: 0,
       injuries: 100,
       tickerIdx: 0,
@@ -1319,16 +1504,24 @@ const game = {
       attackedPress: 0,
       paidFine: 0,
       soldSpike: 0,
+      elMachineSeen: 0,
+      // Machine pre-seed: the 2026 configuration.
+      greed: 85,
+      speculation: 70,
+      prestige: 80,
+      education: 40,
     },
     gameMode: 'INTERACTIVE',
     titleSceneId: 'elon_feed',
     enableAutosave: true,
   },
-  actors,
+  // Chapter actors plus the core Machine cast (empty graphics), and the
+  // chapter SFX plus any core SFX ids the Machine tick needs (flame_burn).
+  actors: [...actors, ...CORE_ACTORS.filter((a) => !actors.some((x) => x.id === a.id))],
   scenes,
   drops,
   items: [],
-  sfx: SFX,
+  sfx: [...SFX, ...CORE_SFX.filter((s) => !SFX.some((x) => x.id === s.id))],
   buttons: [],
   episodes: [
     {
@@ -1342,7 +1535,14 @@ const game = {
       id: 'ep_elon_voices',
       name: 'Voices of the Feed',
       description: 'The reaction layer: ten documented moments × ten voices — Elon posting and Elon at 3am, the reporter, the worker, the lawyer, the lieutenant, the workers grieving and organizing, the reply guys defending and doubting. Narraton pool: elon_reactions.',
-      sceneIds: scenes.slice(storySceneCount).map((s) => s.id),
+      sceneIds: scenes.slice(storySceneCount, voicesSceneCount).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_machine',
+      name: 'The Machine, 2026',
+      description: 'Two witness cutscenes from the record — McGregor, June 2014 and the injury dashboard — their impact on the Georgist variables, and the Machine itself, pre-seeded with the 2026 configuration. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(voicesSceneCount).map((s) => s.id),
       status: 'work',
     },
   ],
@@ -1351,5 +1551,5 @@ const game = {
 const outPath = resolve(root, 'public', 'hvb-elon.json');
 const json = JSON.stringify(game);
 writeFileSync(outPath, json + '\n', 'utf8');
-console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes [${storySceneCount} story + ${scenes.length - storySceneCount} voices, ${vignetteCount} vignettes], ${drops.length} drops, ${actors.length} actors)`);
+console.log(`Wrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB, ${scenes.length} scenes [${storySceneCount} story + ${voicesSceneCount - storySceneCount} voices (${vignetteCount} vignettes) + ${machineSceneCount} machine], ${drops.length} drops, ${game.actors.length} actors)`);
 console.log('Play: http://localhost:8080/theater?game=/hvb-elon.json');

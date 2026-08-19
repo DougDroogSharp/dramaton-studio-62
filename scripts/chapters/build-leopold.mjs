@@ -9,7 +9,10 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lines, balloon } from '../machine-core.mjs';
+import {
+  lines, balloon, machineHubScene, WORLD_BASE,
+  ACTORS as CORE_ACTORS, SFX as CORE_SFX,
+} from '../machine-core.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -669,6 +672,196 @@ const voicesHub = {
 
 const VOICES_SCENES = [voicesHub, ...voiceChoosers, ...voiceVignettes];
 
+// ------------------------------------------- Cutscenes + the Georgist ledger
+// Two non-interactive documentary cutscenes ([AUTOPLAY on] .. [AUTOPLAY off]),
+// each exiting into an IMPACT scene that reads the era in Henry George's
+// terms on live gauges, then offers the Machine itself (lp_machine).
+// Register: documentary restraint — absence, aftermath, testimony, witness.
+
+const MACHINE_SCENES = [
+  // -------- Cutscene A: The Village --------
+  {
+    id: 'lp_cut_village',
+    name: 'Witness: The Village',
+    sceneType: 'WITNESS',
+    dropId: ART.village ? 'village_drop' : null,
+    stage: stage(el('lp_cv_comm', 'community', 50, 62)),
+    script: lines(
+      '[AUTOPLAY on]',
+      '[SET cvFade = 1]',
+      '[BIND lp_cv_comm.opacity to cvFade]',
+      '[WAIT 5s]',
+      'Narrator: "A village in the ABIR concession, on the Lopori river. Look at it while it is still here."',
+      '[WAIT 3s]',
+      'Narrator: "Forty houses. Gardens of manioc and plantain behind them. A smithy. Drying racks for the nets. A palaver tree where disputes were argued and marriages settled. People lived on this ground for longer than Belgium has existed."',
+      '[WAIT 4s]',
+      '[EFFECT fade_out on lp_cv_comm]',
+      'Narrator: "Then the quota. The first year, the men tapped the vines near the village and made the weight."',
+      '[SET cvFade = 0.7]',
+      '[WAIT 3s]',
+      'Narrator: "The second year the near vines were bled dead. The men walked two days into the forest, and the gardens went to weeds."',
+      '[SET cvFade = 0.45]',
+      '[WAIT 3s]',
+      'Narrator: "The third year the sentries came to live at the village, and the weighing shed was built, and those who could leave began to leave."',
+      '[SET cvFade = 0.2]',
+      '[WAIT 3s]',
+      'Narrator: "There is no fourth year to tell."',
+      '[SET cvFade = 0]',
+      '[CLEAR_EFFECT fade_out from lp_cv_comm]',
+      '[WAIT 5s]',
+      'Narrator: "The houses stand. The cooking pots sit where they were set down, mid-meal. That is the whole of what the camera finds, and the whole of what it needs."',
+      '[WAIT 5s]',
+      '[AUTOPLAY off]',
+      '[SCENE lp_impact_village]',
+    ),
+    status: 'work',
+  },
+
+  // -------- Impact A: the ledger of the quota years --------
+  {
+    id: 'lp_impact_village',
+    name: 'The Ledger: Rent at Gunpoint',
+    sceneType: 'WITNESS',
+    dropId: ART.village ? 'village_drop' : null,
+    stage: stage(
+      balloon('lp_iv_title', 'THE GEORGIST LEDGER — CONGO FREE STATE', 55, 8, { scale: 1.1, zIndex: 5 }),
+    ),
+    script: lines(
+      '[GAUGE greed at 12,18 min=0 max=100 label="GREED"]',
+      '[GAUGE repression at 12,38 min=0 max=100 label="REPRESSION"]',
+      '[GAUGE education at 12,58 min=0 max=100 label="EDUCATION"]',
+      '[GAUGE marginHeight at 12,78 min=0 max=100 label="THE MARGIN"]',
+      '# rewind the dials to the eve of the quota years, then let the era in',
+      '[SET greed = 60]',
+      '[SET repression = 45]',
+      '[SET education = 10]',
+      '[SET marginHeight = 100]',
+      '[TICK 300ms]',
+      '# the quota years, one notch at a time',
+      '[IF greed < 95]',
+      '[SET greed = min(greed + 2, 95)]',
+      '[ENDIF]',
+      '[IF repression < 90]',
+      '[SET repression = min(repression + 3, 90)]',
+      '[ENDIF]',
+      '[IF marginHeight > 12]',
+      '[SET marginHeight = max(marginHeight - 4, 12)]',
+      '[ENDIF]',
+      '[/TICK]',
+      'Narrator: "Read the village as Henry George would. The rubber quota is rent — the price of being allowed to exist on land that someone in Brussels claims to own — and it is collected at gunpoint."',
+      'Narrator: "Watch the margin. The margin is the best land free labor can still reach without paying an owner. When one man owns a million square miles, the margin is driven to the floor — and wages fall with it, everywhere, to bare survival and below."',
+      'Narrator: "Greed sets the quota. Repression enforces it. There is no wage fund and no market here: product in, guns out. The machine stands naked in the Congo — every later, politer version is built to disguise exactly this."',
+      'Narrator: "One dial has not moved: education. What the world knows. It stands at almost nothing — and it is the only counter-force this machine has ever feared."',
+      '[CHOICE]',
+      '- "See it feed the Machine" -> lp_machine',
+      '- "Back" -> lp_palace',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  // -------- Cutscene B: The Lantern Lecture --------
+  {
+    id: 'lp_cut_lantern',
+    name: 'Witness: The Lantern Lecture',
+    sceneType: 'WITNESS',
+    dropId: ART.lecture ? 'lecture_drop' : null,
+    stage: stage(
+      el('lp_cl_kodak', 'kodak', 50, 70, 1.3),
+      balloon('lp_cl_marquee', 'THE CONGO MEETING — THE EVIDENCE, WITH LANTERN ILLUSTRATIONS', 50, 10, { scale: 1.1, zIndex: 5 }),
+    ),
+    script: lines(
+      '[AUTOPLAY on]',
+      '[WAIT 4s]',
+      'Narrator: "A hall in Britain, 1906. One of hundreds this year. The Congo Reform Association does not shout. It projects."',
+      '[WAIT 3s]',
+      '[SET_TEXT lp_cl_marquee "LAKE MANTUMBA DISTRICT — 240 PERSONS, ONE TON OF FOODSTUFFS WEEKLY, 15s 10d RETURNED"]',
+      'Narrator: "The slides are places, dates, ledger entries. Every one documented. Every one has survived cross-examination."',
+      '[WAIT 4s]',
+      '[SET_TEXT lp_cl_marquee "THE ABIR CONCESSION, 1903 — AT LEAST 122 DEAD ON ONE RUBBER EXPEDITION"]',
+      '[WAIT 4s]',
+      '[SET_TEXT lp_cl_marquee "LULUABOURG, 1895 — THE FORCE PUBLIQUE TURNS ITS RIFLES ON THE REGIME"]',
+      '[WAIT 4s]',
+      '[SET_TEXT lp_cl_marquee "BOMA, FEBRUARY 1904 — THE CASEMENT REPORT: FORTY PAGES OF FINDINGS, TWENTY OF SWORN TESTIMONY"]',
+      '[WAIT 4s]',
+      '[SET_TEXT lp_cl_marquee "NSONGO DISTRICT, 1904 — NSALA OF WALA. HIS DAUGHTER WAS NAMED BOALI."]',
+      '[WAIT 5s]',
+      '[EFFECT glow on lp_cl_kodak]',
+      'Narrator: "On the table beside the lantern: a box Kodak. It has crossed the ocean twice."',
+      '[WAIT 3s]',
+      `Narrator: "Mark Twain, writing in the King's own voice: 'The kodak has been a sore calamity to us. The most powerful enemy that has confronted us, indeed.'"`,
+      '[WAIT 4s]',
+      '[CLEAR_EFFECT glow from lp_cl_kodak]',
+      'Narrator: "The audience does not move. Row after row of silhouettes, holding still, doing the one thing the whole campaign was built to make possible: looking."',
+      '[WAIT 5s]',
+      '[AUTOPLAY off]',
+      '[SCENE lp_impact_lantern]',
+    ),
+    status: 'work',
+  },
+
+  // -------- Impact B: the ledger of the counter-force --------
+  {
+    id: 'lp_impact_lantern',
+    name: 'The Ledger: The Counter-Force',
+    sceneType: 'WITNESS',
+    dropId: ART.lecture ? 'lecture_drop' : null,
+    stage: stage(
+      balloon('lp_il_title', 'THE GEORGIST LEDGER — THE REFORM MECHANISM', 55, 8, { scale: 1.1, zIndex: 5 }),
+    ),
+    script: lines(
+      '[GAUGE greed at 12,14 min=0 max=100 label="GREED"]',
+      '[GAUGE repression at 12,31 min=0 max=100 label="REPRESSION"]',
+      '[GAUGE education at 12,48 min=0 max=100 label="EDUCATION / EXPOSURE"]',
+      '[GAUGE marginHeight at 12,65 min=0 max=100 label="THE MARGIN"]',
+      '[GAUGE prestige at 12,82 min=0 max=100 label="PRESTIGE"]',
+      '# start from the quota-era floor, then let the campaign in',
+      '[SET greed = 95]',
+      '[SET repression = 90]',
+      '[SET education = 10]',
+      '[SET marginHeight = 12]',
+      '[SET prestige = 80]',
+      '[TICK 300ms]',
+      '# the reform mechanism: exposure climbs, and prestige corrodes with it',
+      '[IF education < 65]',
+      '[SET education = min(education + 2, 65)]',
+      '[ENDIF]',
+      '[IF prestige > 30]',
+      '[SET prestige = max(prestige - 2, 30)]',
+      '[ENDIF]',
+      '[IF education >= 40]',
+      '[IF repression > 70]',
+      '[SET repression = max(repression - 1, 70)]',
+      '[ENDIF]',
+      '[IF marginHeight < 30]',
+      '[SET marginHeight = min(marginHeight + 1, 30)]',
+      '[ENDIF]',
+      '[ENDIF]',
+      '[/TICK]',
+      `Narrator: "Now the counter-force, and it is not an army. Watch education climb: a consul's report, a clerk's ledgers, sixty lantern slides. What the public knows."`,
+      `Narrator: "And watch prestige fall with it. The King's whole system rests on a story — philanthropy, civilization, the suppression of slavers. Education corrodes prestige. That is the reform mechanism, the whole of it."`,
+      'Narrator: "When the story dies, the rest follows: the quota loses its respectable name, repression loses its cover, and the margin lifts off the floor — not far, and not fast, but measurably. In 1908 the corroded prestige can no longer hold the Congo, and Belgium takes it from its King."',
+      `Narrator: "George's ledger closes on the line the campaign proved: rent taken at gunpoint can outlast anything except being seen."`,
+      '[CHOICE]',
+      '- "See it feed the Machine" -> lp_machine',
+      '- "Back" -> lp_palace',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  // -------- The Machine, 1904 --------
+  machineHubScene({
+    id: 'lp_machine',
+    name: 'The Machine, 1904',
+    pool: 'leopold_reactions',
+    panel: 'drama',
+    endings: false,
+    autopilot: false,
+    buttons: ['lp_back_button'],
+  }),
+];
+
 // ---------------------------------------------------------------- game
 
 const game = {
@@ -677,6 +870,12 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: {
+      // Georgist rig baseline, pre-seeded for the Congo Free State era:
+      // naked extraction (greed 95, repression 90), a world that does not
+      // yet know (education 10), a King still applauded (prestige 80).
+      ...WORLD_BASE,
+      greed: 95, repression: 90, education: 10, prestige: 80,
+      cvFade: 1,
       exposure: 0, concealment: 0, rumor: 0,
       pressFunded: 0, commissioned: 0, quotaDoubled: 0, hostages: 0,
       testimony: 0, thinDossier: 0, celebrities: 0,
@@ -705,6 +904,8 @@ const game = {
     actor('kodak', 'The Kodak', ART.kodak),
     actor('community', 'The Community', ART.community),
     actor('movement', 'The Movement', ART.movement),
+    // Machine core cast (empty graphics — the rig renders placeholders)
+    ...CORE_ACTORS,
   ].filter(Boolean),
 
   drops: [
@@ -718,10 +919,19 @@ const game = {
   sfx: [
     { id: 'glow', name: 'Kodak Glow', type: 'glow', category: 'ATTACH', params: { intensity: 60 }, status: 'work' },
     { id: 'shake', name: 'Report Lands', type: 'shake', category: 'DO', params: { intensity: 70 }, status: 'work' },
+    { id: 'fade_out', name: 'Documentary Fade', type: 'fade', category: 'DO', params: { intensity: 50 }, status: 'work' },
+    // Machine core effects the rig's tick expects (merge missing ids only)
+    ...CORE_SFX.filter((s) => !['glow', 'shake', 'fade_out'].includes(s.id)),
   ],
 
   items: [],
-  buttons: [],
+  buttons: [
+    {
+      id: 'lp_back_button', name: 'Return to Brussels', label: 'BRUSSELS',
+      x: 50, y: 4, width: 12, height: 6,
+      targetSceneId: 'lp_palace', status: 'work',
+    },
+  ],
 
   scenes: [
     // ------------------------------------------------ 1. The palace (Leopold's seat, round 1)
@@ -742,6 +952,9 @@ const game = {
         '- "Double the rubber quota — the returns must not fall" -> lp_quota',
         '- "Order hostages taken until the villages comply" -> lp_hostages',
         '- "Voices of the Congo — the record, moment by moment" -> lp_voices',
+        '- "Witness: The Village" -> lp_cut_village',
+        '- "Witness: The Lantern Lecture" -> lp_cut_lantern',
+        '- "Enter the Machine" -> lp_machine',
         '[/CHOICE]',
       ),
       status: 'work',
@@ -1130,6 +1343,9 @@ const game = {
 
     // ------------------------------------------------ Voices of the Congo (reaction layer)
     ...VOICES_SCENES,
+
+    // ------------------------------------------------ Cutscenes, ledgers, the Machine
+    ...MACHINE_SCENES,
   ],
 
   episodes: [
@@ -1150,6 +1366,13 @@ const game = {
       name: 'Voices of the Congo',
       description: 'A documentary reaction layer: ten recorded moments of the Congo Free State, 1885-1908, answered by the people who ran, endured, exposed, and ended it.',
       sceneIds: VOICES_SCENES.map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_leopold_machine',
+      name: 'The Machine, 1904',
+      description: 'Two documentary cutscenes, their Georgist ledger readings, and the era machine itself — the Congo Free State as the naked form of the rent engine.',
+      sceneIds: MACHINE_SCENES.map((s) => s.id),
       status: 'work',
     },
   ],

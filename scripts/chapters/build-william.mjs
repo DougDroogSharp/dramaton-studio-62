@@ -13,6 +13,12 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  machineHubScene,
+  WORLD_BASE,
+  ACTORS as CORE_ACTORS,
+  SFX as CORE_SFX,
+} from '../machine-core.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -146,6 +152,9 @@ scenes.push({
     '- "Give the order — harry the North into famine" -> wm_order',
     '- "Refuse the order — hold the knights back" -> wm_refuse',
     '- "Voices of the Conquest — hear the witnesses" -> wm_hub',
+    '- "Witness: The Burning of the North" -> wm_cut_burning',
+    '- "Witness: The Book" -> wm_cut_book',
+    '- "Enter the Machine" -> wm_machine',
     '[/CHOICE]',
   ),
   status: 'work',
@@ -1197,11 +1206,224 @@ scenes.push({
     'Narrator: "Twenty-one years, ten turnings of the screw. Choose an event and hear how it landed — on the king, on his lieutenant, on the rebels, on the chronicler, on the people who ploughed."',
     '[CHOICE]',
     ...EVENTS.map((ev) => `- "${ev.name}" -> wmch_${ev.id}`),
+    '- "Witness: The Burning of the North (cutscene)" -> wm_cut_burning',
+    '- "Witness: The Book (cutscene)" -> wm_cut_book',
+    '- "Enter the Machine" -> wm_machine',
     '- "Return to the court" -> wm_court',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// ==========================================================================
+// CUTSCENES + THE GEORGIST MACHINE LAYER
+//
+// Two auto-playing cutscenes (pure show, no interaction), each ending in
+// an IMPACT scene — the Georgist ledger of what was just watched, with
+// gauges animating the deltas — and from there into wm_machine: the
+// shared campaign rig from machine-core.mjs, ticking the 1086 economy
+// with pool 'william_reactions' so the Narraton surfaces the painted
+// vignettes above as commentary while the machine runs.
+// ==========================================================================
+
+// CUTSCENE A — The Burning of the North. Horror by accumulation: fire
+// spreads element to element on timed beats, the village flees, then
+// snow falls on the ash (opacity cross-fade via BIND + TICK).
+scenes.push({
+  id: 'wm_cut_burning',
+  name: 'Cutscene: The Burning of the North',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_village'),
+  stage: [
+    ...el('cb_crowd', 'crowd', 62, 68, { scale: 2.6 }),
+    ...balloon('cb_sign', 'YORKSHIRE. A NIGHT IN WINTER, 1069.', 50, 8, { scale: 0.9 }),
+    ...balloon('cb_granary', 'THE GRANARY', 22, 30, { scale: 0.8 }),
+    ...balloon('cb_byre', 'THE BYRE', 46, 25, { scale: 0.8 }),
+    ...balloon('cb_roof', 'THE LAST ROOF', 74, 30, { scale: 0.8 }),
+    ...balloon('cb_snow', 'SNOW, FALLING ON ASH', 50, 46, { scale: 0.9 }),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    '# snow starts invisible; the burning elements will fade as it rises',
+    '[SET cb_fade = 0]',
+    '[BIND cb_snow.opacity to cb_fade / 100]',
+    '[BIND cb_granary.opacity to 1 - cb_fade / 100]',
+    '[BIND cb_byre.opacity to 1 - cb_fade / 100]',
+    '[BIND cb_roof.opacity to 1 - cb_fade / 100]',
+    'Narrator: "Night. The column reaches the village after dark, as ordered. Fire needs no daylight."',
+    '[WAIT 1s]',
+    '[EFFECT flame_burn on cb_granary]',
+    'Narrator: "The granary first. They always know where the granary is."',
+    '[WAIT 1500ms]',
+    '[EFFECT flame_burn on cb_byre]',
+    'Narrator: "Then the byre. The cattle are driven out and killed in the lane — not stolen. Killed. Food is the target."',
+    '[WAIT 1500ms]',
+    '[EFFECT flame_burn on cb_roof]',
+    '[EFFECT shake_all on stage]',
+    '[WAIT 1s]',
+    '[MOVE cb_crowd to 4,74 over 3s]',
+    'Narrator: "No one fights. The village walks into the dark with what it can carry, which is winter."',
+    '[WAIT 2s]',
+    'Narrator: "Symeon of Durham: \'Between York and Durham no village was inhabited. To the traveller there was only wasteness.\'"',
+    '[WAIT 1s]',
+    '[CLEAR_EFFECT flame_burn from cb_granary]',
+    '[CLEAR_EFFECT flame_burn from cb_byre]',
+    '[CLEAR_EFFECT flame_burn from cb_roof]',
+    '# the snow: fade the burned things out, the falling snow in',
+    '[TICK 200ms]',
+    '[IF cb_fade < 100]',
+    '[SET cb_fade = clamp(cb_fade + 5, 0, 100)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "Then it snows. It falls on the ash as it fell on the thatch, without opinion, and by morning the place is a white page."',
+    '[WAIT 2s]',
+    '[AUTOPLAY off]',
+    '[SCENE wm_impact_burning]',
+  ),
+  status: 'work',
+});
+
+// IMPACT A — the ledger of the fires. Gauges for the machine variables
+// the event moves; a short TICK animates the deltas arriving, with IF
+// guards so each variable stops at its target.
+scenes.push({
+  id: 'wm_impact_burning',
+  name: 'Impact: The Ledger of the Fires',
+  sceneType: 'AGENCY',
+  dropId: dropId('wm_village'),
+  stage: [...balloon('ib_sign', 'WHAT THE FIRE MOVED', 50, 8, { scale: 0.9 })],
+  script: lines(
+    '[GAUGE repression at 14,78 min=0 max=100 label="REPRESSION"]',
+    '[GAUGE flareUps at 50,78 min=0 max=6 label="FLARE-UPS"]',
+    '[GAUGE marginHeight at 86,78 min=0 max=100 label="MARGIN"]',
+    '# the deltas arrive while you read; guards stop each at its target',
+    '[TICK 300ms]',
+    '[IF repression < 95]',
+    '[SET repression = clamp(repression + 3, 0, 95)]',
+    '[ENDIF]',
+    '[IF flareUps < 5]',
+    '[SET flareUps = flareUps + 1]',
+    '[ENDIF]',
+    '[IF marginHeight > 45]',
+    '[SET marginHeight = clamp(marginHeight - 4, 45, 100)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "The ledger of what you watched. REPRESSION climbs toward its ceiling — the fires are the enforcement arm of the rent."',
+    'Narrator: "FLARE-UPS climb with it. Burn a shire and every survivor is a future rising; repression manufactures its own demand."',
+    'Narrator: "And THE MARGIN falls. The margin is the best land a free family can still work without paying a lord. Burn the free North, and there is nowhere left to stand outside the system."',
+    'Narrator: "Henry George, eight centuries early: when the margin falls, wages fall with it — everywhere, for everyone. Rent captures the difference. That is what the fire was for."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> wm_machine',
+    '- "Back to the voices" -> wm_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// CUTSCENE B — The Book. Bureaucratic horror: quills, a ticker counting
+// hides, one village entry written — and then revalued in one word.
+scenes.push({
+  id: 'wm_cut_book',
+  name: 'Cutscene: The Book',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_scriptorium'),
+  stage: [
+    ...el('bk_orderic', 'orderic', 24, 63),
+    ...balloon('bk_sign', 'THE SCRIPTORIUM, 1086', 50, 8, { scale: 0.9 }),
+    ...balloon('bk_quills', 'QUILLS, SCRATCHING', 78, 22, { scale: 0.7 }),
+    ...balloon('bk_ticker', 'THE SURVEY: 0 PLACES RECORDED', 50, 32, { scale: 0.9 }),
+    ...balloon('bk_page', 'THE PAGE WAITS', 60, 52, { scale: 0.85 }),
+  ],
+  script: lines(
+    '[AUTOPLAY on]',
+    '# the ticker counts hides in the background for the whole scene',
+    '[SET bk_count = 0]',
+    '[TICK 400ms]',
+    '[IF bk_count < 13418]',
+    '[SET bk_count = clamp(bk_count + 331, 0, 13418)]',
+    '[SET_TEXT bk_ticker "THE SURVEY: {bk_count} PLACES RECORDED"]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "No fire tonight. Candles, and the sound of quills. This is the other weapon."',
+    '[WAIT 1500ms]',
+    'Narrator: "Every hide, every holder, every ox, every mill, every man. The scratching does not stop for weather, mourning, or memory."',
+    '[WAIT 1500ms]',
+    '[SET_TEXT bk_page "TORP: 6 VILLEINS, 2 PLOUGHS, 1 MILL. VALUE, 40 SHILLINGS."]',
+    'Narrator: "A clerk reaches a Yorkshire entry. A village. It had six families, two ploughs, a mill. It had a name; it still has a name — names are free."',
+    '[WAIT 2s]',
+    '[EFFECT gold_glow on bk_page]',
+    '[SET_TEXT bk_page "TORP: VASTA."]',
+    'Narrator: "Then the value, as the commissioners found it, seventeen years after the fires."',
+    '[WAIT 2s]',
+    'Narrator: "Vasta. Waste. One word, sixty times a page, in the neatest hand in Europe."',
+    '[WAIT 1s]',
+    'Narrator: "The torch did the taking. The Book does the keeping: every field valued, entered, and owed — forever, to the number. This is what forever looks like written down."',
+    '[WAIT 1500ms]',
+    '[AUTOPLAY off]',
+    '[SCENE wm_impact_book]',
+  ),
+  status: 'work',
+});
+
+// IMPACT B — the ledger of the Book.
+scenes.push({
+  id: 'wm_impact_book',
+  name: 'Impact: The Ledger of the Book',
+  sceneType: 'AGENCY',
+  dropId: dropId('wm_scriptorium'),
+  stage: [...balloon('ik_sign', 'WHAT THE PEN MOVED', 50, 8, { scale: 0.9 })],
+  script: lines(
+    '[GAUGE greed at 14,78 min=0 max=100 label="GREED"]',
+    '[GAUGE marginHeight at 50,78 min=0 max=100 label="MARGIN"]',
+    '[GAUGE repression at 86,78 min=0 max=100 label="REPRESSION"]',
+    '# the deltas arrive while you read; guards stop each at its target',
+    '[TICK 300ms]',
+    '[IF greed < 85]',
+    '[SET greed = clamp(greed + 2, 0, 85)]',
+    '[ENDIF]',
+    '[IF marginHeight > 35]',
+    '[SET marginHeight = clamp(marginHeight - 3, 35, 100)]',
+    '[ENDIF]',
+    '[IF repression < 70]',
+    '[SET repression = clamp(repression + 1, 0, 70)]',
+    '[ENDIF]',
+    '[/TICK]',
+    'Narrator: "The ledger of what you watched. GREED climbs — not appetite, but appetite made permanent: every acre assessed at what it might yield, and taxed to the assessment, drought or no."',
+    'Narrator: "THE MARGIN falls again, and this time on parchment. When the Book says there is no free land, there is no free land — the record outranks the soil."',
+    'Narrator: "And REPRESSION barely needs to move. That is the pen\'s discount: a survey collects what a garrison collects, at a fraction of the knights."',
+    'Narrator: "George\'s law holds on vellum as on ash: rent captures the difference between the best land and the margin. Fix the margin in a book, and you fix wages everywhere — downward, forever."',
+    '[CHOICE]',
+    '- "See it feed the Machine" -> wm_machine',
+    '- "Back to the voices" -> wm_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// THE MACHINE, 1086 — the shared Georgist rig from machine-core.mjs,
+// drama panel (gauges + the Single Tax lever), no endings, no autopilot.
+// Commentary pool = william_reactions: while the economy ticks, the
+// Narraton surfaces the painted vignettes above as witness commentary.
+// Navigation: each vignette returns to its chooser (wmch_*), whose
+// choices lead back to wm_hub and thence the court — that is the way out.
+scenes.push(
+  machineHubScene({
+    id: 'wm_machine',
+    name: 'The Machine, 1086',
+    pool: RPOOL,
+    panel: 'drama',
+    endings: false,
+    autopilot: false,
+    newsExtra: [
+      '[IF repression >= 90]',
+      '[SET_TEXT news_ticker "THE NORTH IS QUIET — VASTA ON EVERY PAGE — WAGES {wages}"]',
+      '[ENDIF]',
+      '[IF greed >= 80]',
+      '[SET_TEXT news_ticker "THE BOOK CLOSES — EVERY ACRE ASSESSED AT WHAT IT MIGHT YIELD"]',
+      '[ENDIF]',
+    ],
+  }),
+);
 
 // ---- game ----------------------------------------------------------------
 
@@ -1210,16 +1432,37 @@ const game = {
     title: 'HVB — William the Conqueror',
     author: 'Doug Sharp',
     styleGuide: null,
-    worldState: { ash: 0, hides: 0, wave: 0, ruthless: 0, spared: 0 },
+    // The full Georgist machine state (machine-core WORLD_BASE), with
+    // era pre-seeds for 1086: conquest society — steep hierarchy, hard
+    // repression, next to no schooling, land-hunger institutionalized.
+    worldState: {
+      ...WORLD_BASE,
+      hierarchy: 90,
+      repression: 60,
+      education: 5,
+      greed: 65,
+      // chapter-local variables
+      ash: 0, hides: 0, wave: 0, ruthless: 0, spared: 0,
+      cb_fade: 0, bk_count: 0,
+    },
     gameMode: 'INTERACTIVE',
     titleSceneId: 'wm_court',
     enableAutosave: true,
   },
-  actors,
+  // Core machine actors (billionaire/human/witness/narrator/lieutenant,
+  // empty graphics — placeholder boxes) so the rig's stage elements
+  // resolve; core SFX merged without duplicating ids.
+  actors: [
+    ...actors,
+    ...CORE_ACTORS.filter((a) => !actors.some((x) => x.id === a.id)),
+  ],
   scenes,
   drops,
   items: [],
-  sfx,
+  sfx: [
+    ...sfx,
+    ...CORE_SFX.filter((s) => !sfx.some((x) => x.id === s.id)),
+  ],
   buttons: [],
   episodes: [
     {
@@ -1235,5 +1478,5 @@ const game = {
 const outPath = resolve(root, 'public', 'hvb-william.json');
 writeFileSync(outPath, JSON.stringify(game) + '\n', 'utf8');
 const mb = (JSON.stringify(game).length / 1024 / 1024).toFixed(1);
-console.log(`Wrote ${outPath} (${mb} MB, ${game.scenes.length} scenes, ${actors.length} actors, ${drops.length} drops)`);
+console.log(`Wrote ${outPath} (${mb} MB, ${game.scenes.length} scenes, ${game.actors.length} actors, ${drops.length} drops)`);
 console.log('Play: http://localhost:8080/theater?game=/hvb-william.json');
