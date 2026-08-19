@@ -112,7 +112,8 @@ const CHAPTERS = [
     n: 5, id: 'musk', title: 'ELON MUSK', year: 2026,
     // The simulation era: prestige as armor
     presets: { greed: 85, speculation: 70, education: 40, regulation: 20, hierarchy: 70, repression: 30 },
-    extraSets: { prestige: 80 },
+    // Musk-era prestige floor — respects a bigger carried legacy
+    extraLines: ['[SET prestige = clamp(max(prestige, 80), 0, 100)]'],
     introLines: [
       'Narrator: "2026. The hoard is beyond counting. The product is mostly story."',
       'Narrator: "[TODO Doug: prestige gameplay, outsourced-gamer-cred, the simulation era — link the comic]"',
@@ -134,25 +135,78 @@ const CHAPTERS = [
 
 // ---------------------------------------------------------------- scene builders
 
-const chapterIntro = (ch) => ({
-  id: `ch${ch.n}_intro`,
-  name: `Chapter ${ch.n}: ${ch.title}`,
-  sceneType: 'AGENCY',
-  dropId: null,
-  stage: [],
-  script: lines(
-    `# ============ CHAPTER ${ch.n} — ${ch.title} (${ch.year}) ============`,
-    '# Fresh sim, era presets. All numbers are starting guesses: tune live.',
-    setLines(SIM_RESET),
-    setLines(ch.presets),
-    setLines(ch.extraSets || {}),
-    `[SET chapter = ${ch.n}]`,
-    '',
-    ch.introLines,
-    `[SCENE ch${ch.n}_machine]`,
-  ),
-  status: 'work',
-});
+// Per-era state that never carries between chapters
+const TRANSIENT_RESET = {
+  product: 0,
+  rent: 0,
+  wages: 30,
+  interest: 9,
+  marginHeight: 100,
+  flareUps: 0,
+  crisis: 0,
+  wheelAngle: 0,
+  commentaryTimer: 0,
+  collapseTimer: 0,
+  reconTimer: 0,
+  singleTax: 0, // each era must re-win the lever
+};
+
+const chapterIntro = (ch) => {
+  // education is continuity-aware; the other presets are plain levers
+  const { education: presetEdu, ...leverPresets } = ch.presets;
+  const carry = ch.n > 1
+    ? [
+        '# CONTINUITY: arriving from the previous chapter carries the',
+        '# legacy — the fortune crosses the century. Any other entry',
+        '# (menu jump) plays this era fresh and standalone.',
+        `[IF chapter == ${ch.n - 1}]`,
+        '[SET hoard = hoard * c_legacyHoard]',
+        '[SET prestige = clamp(prestige * c_legacyPrestige, 10, 100)]',
+        `[SET education = clamp(max(education * c_legacyEdu, ${presetEdu}), 0, 100)]`,
+        '[SET publicFund = publicFund * 0.25]',
+        '# productivity carries untouched: progress does not regress',
+        'Narrator: "The fortune crosses the century. The hoard endures. The humans forget — but not everything."',
+        '[ENDIF]',
+        `[IF chapter != ${ch.n - 1}]`,
+        '[SET hoard = 0]',
+        '[SET prestige = 20]',
+        '[SET productivity = 1.5]',
+        `[SET education = ${presetEdu}]`,
+        '[SET publicFund = 0]',
+        '[ENDIF]',
+      ]
+    : [
+        '# Chapter 1 always starts the ledger empty',
+        '[SET hoard = 0]',
+        '[SET prestige = 20]',
+        '[SET productivity = 1.5]',
+        `[SET education = ${presetEdu}]`,
+        '[SET publicFund = 0]',
+      ];
+
+  return {
+    id: `ch${ch.n}_intro`,
+    name: `Chapter ${ch.n}: ${ch.title}`,
+    sceneType: 'AGENCY',
+    dropId: null,
+    stage: [],
+    script: lines(
+      `# ============ CHAPTER ${ch.n} — ${ch.title} (${ch.year}) ============`,
+      '# Era lever presets + legacy continuity. Numbers are guesses: tune live.',
+      setLines(TRANSIENT_RESET),
+      '',
+      carry,
+      '',
+      setLines(leverPresets),
+      ch.extraLines || [],
+      `[SET chapter = ${ch.n}]`,
+      '',
+      ch.introLines,
+      `[SCENE ch${ch.n}_machine]`,
+    ),
+    status: 'work',
+  };
+};
 
 const chapterPoolScene = (ch, spec) => witnessScene(
   spec.id,

@@ -89,6 +89,12 @@ export const WORLD_BASE = {
   c_collapseTicks: 40,
   c_reconTicks: 40,
   c_reconEduMin: 80,
+
+  // Legacy carry-over between campaign chapters: how much of the
+  // previous century survives the transition
+  c_legacyHoard: 0.6,     // the fortune endures, diminished
+  c_legacyPrestige: 0.7,  // the name still opens doors
+  c_legacyEdu: 0.5,       // the humans forget — but not everything
 };
 
 // Variables reset when a chapter (or the toy) starts fresh

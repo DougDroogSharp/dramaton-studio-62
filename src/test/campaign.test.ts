@@ -109,6 +109,69 @@ describe('hvb-campaign.json', () => {
       expect(ws.hoard).toBe(0);          // sim reset
     });
 
+    // Click through intro narration until the target scene is reached
+    const clickThrough = (result: { current: ReturnType<typeof useScriptRunner> }, target: string, maxClicks = 8) => {
+      for (let i = 0; i < maxClicks && result.current.state.currentSceneId !== target; i++) {
+        act(() => { vi.advanceTimersByTime(10000); });
+        act(() => { result.current.advance(); });
+      }
+    };
+
+    it('the legacy carries when arriving from the previous chapter', () => {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
+      // simulate the end of chapter 1: a built-up world
+      act(() => {
+        result.current.setVariable('chapter', 1);
+        result.current.setVariable('hoard', 300);
+        result.current.setVariable('prestige', 60);
+        result.current.setVariable('education', 50);
+        result.current.setVariable('productivity', 2.5);
+        result.current.setVariable('publicFund', 100);
+        result.current.setVariable('singleTax', 1);
+      });
+      act(() => { result.current.goToScene('ch2_intro'); });
+      clickThrough(result, 'ch2_machine');
+
+      const ws = result.current.state.worldState;
+      expect(result.current.state.currentSceneId).toBe('ch2_machine');
+      expect(ws.hoard).toBeCloseTo(300 * 0.6);        // c_legacyHoard
+      expect(ws.prestige).toBeCloseTo(60 * 0.7);      // c_legacyPrestige
+      expect(ws.education).toBeCloseTo(25);           // max(50*0.5, preset 10)
+      expect(ws.productivity).toBe(2.5);              // progress never regresses
+      expect(ws.publicFund).toBeCloseTo(25);
+      expect(ws.singleTax).toBe(0);                   // each era re-wins the lever
+      expect(ws.chapter).toBe(2);
+    });
+
+    it('a menu jump to a non-adjacent chapter plays fresh', () => {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
+      act(() => {
+        result.current.setVariable('chapter', 5);
+        result.current.setVariable('hoard', 900);
+        result.current.setVariable('productivity', 3);
+      });
+      act(() => { result.current.goToScene('ch2_intro'); });
+      clickThrough(result, 'ch2_machine');
+
+      const ws = result.current.state.worldState;
+      expect(ws.hoard).toBe(0);
+      expect(ws.productivity).toBe(1.5);
+      expect(ws.education).toBe(10); // Leopold preset
+    });
+
+    it('chapter 1 always starts the ledger empty (even after sandbox)', () => {
+      const { result } = renderHook(() => useScriptRunner({ game: loadGame(), startSceneId: 'menu' }));
+      act(() => {
+        result.current.setVariable('chapter', 0); // sandbox marker
+        result.current.setVariable('hoard', 500);
+      });
+      act(() => { result.current.goToScene('ch1_intro'); });
+      clickThrough(result, 'ch1_machine');
+
+      expect(result.current.state.worldState.hoard).toBe(0);
+      expect(result.current.state.worldState.chapter).toBe(1);
+    });
+
     it('every chapter hub ticks: product moves in all five', () => {
       for (let n = 1; n <= 5; n++) {
         const { result, unmount } = mountHub(`ch${n}_machine`);
