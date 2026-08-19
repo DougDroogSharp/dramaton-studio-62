@@ -16,6 +16,8 @@ npm run dev          # editor + theater at http://localhost:8080
 - **Play a game file directly** (does not touch the editor autosave):
   - Toy: `http://localhost:8080/theater?game=/machine-toy.json`
   - Campaign: `http://localhost:8080/theater?game=/hvb-campaign.json`
+  - Art demo (4 styles): `http://localhost:8080/theater?game=/hvb-art-demo.json`
+  - Era games: `/theater?game=/hvb-william.json` · `/hvb-leopold.json` · `/hvb-capone.json` · `/hvb-elon.json`
 
 ## Scripts
 
