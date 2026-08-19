@@ -75,8 +75,8 @@ const MANIFEST = [
   // Crowd sprites (reaction layer): the street and the press, en masse.
   {
     file: 'capone_crowd_breadline.png', isCharacter: true,
-    prompt: 'a Depression breadline crowd of men in caps and coats, waiting',
-    fallback: 'A group of 1930 unemployed men in flat caps and worn coats standing in a line, waiting, full bodies.',
+    prompt: 'a Depression breadline crowd of men in caps and coats, waiting: a tight group of six unemployed men in flat caps and worn overcoats standing bunched in a queue, tired faces, hands in pockets, full bodies',
+    fallback: 'A group of six 1930 unemployed men in flat caps and worn coats standing bunched together in a line, waiting, tired faces, full bodies.',
   },
   {
     file: 'capone_crowd_press.png', isCharacter: true,

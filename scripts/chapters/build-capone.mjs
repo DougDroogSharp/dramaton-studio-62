@@ -703,6 +703,617 @@ const scenes = [
   },
 ];
 
+// ==========================================================================
+// REACTION LAYER — "Voices of Chicago": ~100 episode vignettes.
+// Data-driven: REVENTS x RESPONDERS, plus stance variants on the biggest
+// events (the street's fear vs gratitude at the soup kitchen; the press
+// cynical vs sensational; etc.). Every vignette carries narraton metadata
+// (pool 'capone_reactions') keyed to the gauges that event moves, so the
+// campaign machine can later select them as commentary. First-pass prose
+// for Doug to edit; verbatim Capone quotes per HVB_RESEARCH.md Chapter 4.
+// Acting tags used only where sprites exist: Capone (Pointing/Angry),
+// (Wave/Happy), (Sit/Confused); Torrio (Lean/Tired); Wilson
+// (Closeup/Determined). Everyone else speaks untagged.
+// ==========================================================================
+
+const RPOOL = 'capone_reactions';
+
+const REVENTS = [
+  { id: 'handover', name: 'Torrio Hands Over the Outfit', sign: 'THE HANDOVER — MARCH 1925',
+    dropId: dropLexington,
+    intro: 'March 1925. Johnny Torrio, shot nearly dead at his own front door, retires and hands the whole Outfit to a 26-year-old. Who speaks?',
+    keys: { respect: { target: 50, scale: 40 }, heat: { target: 20, scale: 40 } } },
+  { id: 'cicero', name: 'The Cicero Election', sign: 'CICERO — ELECTION DAY 1924',
+    dropId: dropCicero,
+    intro: 'April 1, 1924. Gunmen work the Cicero polls all day; the town votes the Outfit\'s way; Frank Capone is dead by dusk. Who speaks?',
+    keys: { heat: { target: 35, scale: 40 }, respect: { target: 50, scale: 50 } } },
+  { id: 'hawthorne', name: 'The Hawthorne Shooting', sign: 'THE HAWTHORNE — SEPTEMBER 1926',
+    dropId: dropCicero,
+    intro: 'September 20, 1926. Eleven cars rake the Hawthorne Hotel with a thousand rounds in broad daylight; Capone walks out unhurt. Who speaks?',
+    keys: { heat: { target: 55, scale: 40 }, repression: { target: 45, scale: 40 } } },
+  { id: 'rates', name: 'The Protection Rates', sign: 'PROTECTION — THE RACKET AS RENT',
+    dropId: dropLexington,
+    intro: 'The enforcers go door to door: every shop on the block pays to exist. Protection, rent — same thing. Who speaks?',
+    keys: { rent: { target: 15, scale: 20 }, repression: { target: 40, scale: 40 } } },
+  { id: 'cityhall', name: 'The Buying of City Hall', sign: 'CITY HALL — BOUGHT AND PAID',
+    dropId: dropLexington,
+    intro: 'Envelopes to police captains, aldermen, judges. The law becomes a line item. Who speaks?',
+    keys: { regulation: { target: 10, scale: 30 }, prestige: { target: 45, scale: 50 } } },
+  { id: 'massacre', name: 'The Clark Street Massacre', sign: 'CLARK STREET — FEBRUARY 14, 1929',
+    dropId: dropGarage,
+    intro: 'St. Valentine\'s Day, 1929. Seven men against a garage wall, around seventy rounds, two shooters in police uniforms. Chicago changes its mind. Who speaks?',
+    keys: { heat: { target: 75, scale: 30 }, repression: { target: 55, scale: 40 } } },
+  { id: 'enemy', name: 'Public Enemy No. 1', sign: 'PUBLIC ENEMY NUMBER ONE — 1930',
+    dropId: dropLexington,
+    intro: '1930. The Chicago Crime Commission publishes its list, Capone at the top. The publicity that built him begins to turn. Who speaks?',
+    keys: { heat: { target: 70, scale: 40 }, prestige: { target: 30, scale: 50 } } },
+  { id: 'soup', name: 'The Soup Kitchen', sign: 'THE SOUP KITCHEN — NOVEMBER 1930',
+    dropId: dropSoup,
+    intro: 'November 1930. 935 South State Street: free soup, coffee, and doughnuts, 2,200 a day, and the breadline winds past police headquarters. Who speaks?',
+    keys: { prestige: { target: 65, scale: 35 }, heat: { target: 50, scale: 60 } } },
+  { id: 'jury', name: 'The Jury Swap', sign: 'THE JURY SWAP — OCTOBER 1931',
+    dropId: dropCourt,
+    intro: 'October 1931. The bought jury list reaches Judge Wilkerson — who trades his entire panel for Judge Woodward\'s on the first morning. Who speaks?',
+    keys: { heat: { target: 65, scale: 40 }, evidence: { target: 80, scale: 40 } } },
+  { id: 'verdict', name: 'The Verdict', sign: 'GUILTY — OCTOBER 17, 1931',
+    dropId: dropCourt,
+    intro: 'October 17, 1931. Guilty on the tax counts. Eleven years. The king of Chicago, felled by accounting. Who speaks?',
+    keys: { evidence: { target: 100, scale: 40 }, heat: { target: 60, scale: 50 } } },
+];
+
+const RESPONDERS = [
+  { key: 'capone', actorId: 'capone', label: 'Capone', scale: 2.4 },
+  { key: 'torrio', actorId: 'torrio', label: 'Torrio', scale: 2.4 },
+  { key: 'wilson', actorId: 'wilson', label: 'Wilson', scale: 2.4 },
+  { key: 'ness', actorId: 'ness', label: 'Ness', scale: 2.4 },
+  { key: 'workman', actorId: 'workman', label: 'The Workman', scale: 2.4 },
+  { key: 'newsboy', actorId: 'newsboy', label: 'The Newsboy', scale: 1.8 },
+  { key: 'breadline', actorId: 'breadline', label: 'The breadline, en masse', scale: 2.6 },
+  { key: 'press', actorId: 'press', label: 'The press, en masse', scale: 2.6 },
+];
+
+// Stance variants: [stanceKey, choiceLabel]. The base vignette for these
+// event/responder pairs ends in a chooser instead of a plain return.
+const RVARIANTS = {
+  hawthorne: { press: [['cynical', 'The cynics\' desk'], ['sensational', 'The front page']] },
+  massacre: {
+    breadline: [['fearful', 'The fear in the line'], ['hardened', 'The hard shrug in the line']],
+    press: [['cynical', 'The cynics\' desk'], ['sensational', 'The front page']],
+  },
+  enemy: {
+    breadline: [['fearful', 'The fear in the line'], ['admiring', 'The admiration in the line']],
+    press: [['cynical', 'The cynics\' desk'], ['sensational', 'The front page']],
+  },
+  soup: {
+    workman: [['fearful', 'What the bowl costs'], ['grateful', 'Who showed up for winter']],
+    breadline: [['fearful', 'The fear in the line'], ['grateful', 'The gratitude in the line']],
+    press: [['cynical', 'The cynics\' desk'], ['sensational', 'The front page']],
+  },
+  verdict: {
+    breadline: [['relieved', 'The relief in the line'], ['wary', 'The wariness in the line']],
+    press: [['cynical', 'The cynics\' desk'], ['sensational', 'The front page']],
+  },
+};
+
+const RVOICES = {
+  handover: {
+    capone: [
+      'Capone: "They shot Johnny five times at his own front door and he lived. He called me to the hospital bed and handed me a city."',
+      'Capone (Wave/Happy): "Twenty-six years old. Some men inherit a store."',
+      'Capone: "It\'s a business, like he always said. I just run it louder."',
+    ],
+    torrio: [
+      'Torrio: "Five bullets is a memo, Al. It says: retire."',
+      'Torrio (Lean/Tired): "I built the syndicate like a railroad — territories, schedules, dividends. I handed him a timetable. He heard a throne."',
+    ],
+    wilson: [
+      'Wilson: "1925. The biggest business in Illinois changes hands and no paper moves."',
+      'Wilson: "That absence is itself an entry. It told me where to look."',
+    ],
+    ness: [
+      'Ness: "Torrio was smarter than Capone and half as famous. That\'s why he died old, in bed."',
+      'Ness: "The day Al took over, the volume went up. Loud is good for us. Loud leaves marks."',
+    ],
+    workman: [
+      'Workman: "New boss on the South Side. On my street the beer changed hands, not the price."',
+      'Workman: "They say the young one smiles more. The collectors don\'t."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Torrio quits! Young Scarface takes the Outfit!"',
+      'Newsboy: "I sold out three editions on his face alone. That scar sells papers, mister."',
+    ],
+    breadline: [
+      'The Breadline: "Torrio\'s out. The kid with the scar is in."',
+      'The Breadline: "Bosses come and go. The rent stays. It always stays."',
+    ],
+    press: [
+      'The Press: "Mr. Capone! Is it true Torrio left you everything?"',
+      'The Press: "Twenty-six and running a syndicate. Page one doesn\'t care if it\'s a crime story or a business story. It\'s both."',
+    ],
+  },
+
+  cicero: {
+    capone: [
+      'Capone: "Cicero voted right. Ask anybody who watched them vote."',
+      'Capone (Pointing/Angry): "They killed my brother Frank at a polling place. Whatever Cicero cost us, we paid more."',
+    ],
+    torrio: [
+      'Torrio: "An election bought with muscle stays bought for exactly one term. Then you buy it again."',
+      'Torrio (Lean/Tired): "Frank\'s funeral carried twenty thousand dollars of flowers. Violence is overhead, Al. I keep the receipts."',
+    ],
+    wilson: [
+      'Wilson: "Election day 1924 made Cicero a subsidiary. Subsidiaries don\'t file returns either."',
+      'Wilson: "You can\'t subpoena a ballot box. You can follow what it bought."',
+    ],
+    ness: [
+      'Ness: "Voters walked to the booth between two gunmen. That was the Cicero franchise."',
+      'Ness: "Before my badge, that one. We studied it anyway: how a town gets bought in an afternoon."',
+    ],
+    workman: [
+      'Workman: "I voted in Cicero that day. A fellow leaned on the booth and asked, friendly, was I sure."',
+      'Workman: "I was sure. He was surer."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Cicero votes at gunpoint! Frank Capone dead!"',
+      'Newsboy: "Cops in plain clothes, gangsters in cop cars — some days the captions write themselves, mister."',
+    ],
+    breadline: [
+      'The Breadline: "They say Cicero voted. Cicero was voted, more like."',
+      'The Breadline: "Whoever wins, the beer truck still comes Tuesday."',
+    ],
+    press: [
+      'The Press: "Election judges driven off, poll watchers escorted to the county line, one Capone dead by dark."',
+      'The Press: "The wire wants two hundred words on democracy in Cicero. Make it a hundred. There\'s less of it than that."',
+    ],
+  },
+
+  hawthorne: {
+    capone: [
+      'Capone: "A thousand rounds and they didn\'t touch me. Write that down exactly."',
+      'Capone: "I paid Mrs. Freeman\'s hospital bills — every one, the eye specialists too. My town, my glass, my bill."',
+    ],
+    torrio: [
+      'Torrio (Lean/Tired): "Eleven cars, broad daylight, machine guns. This is what the ledger looks like when the overhead comes due."',
+      'Torrio: "They nearly settled me in \'25. I retired. Note which of us keeps getting shot at."',
+    ],
+    wilson: [
+      'Wilson: "A thousand rounds fired and no charges filed. Cicero\'s law was a wholly owned subsidiary by then."',
+      'Wilson: "Hospital bills paid in cash, thousands, no receipt requested. Generosity is spending, and spending is income. I wrote it down."',
+    ],
+    ness: [
+      'Ness: "A war over beer routes, fought with Thompsons through a hotel lobby at noon."',
+      'Ness: "Nobody talked. Nobody was charged. That silence is the thing we\'re really up against."',
+    ],
+    workman: [
+      'Workman: "I was two blocks off when it started. It went on so long men stopped ducking and started counting."',
+      'Workman: "Glass in the street like ice in September. Next morning: business as usual."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Booze war bullets rake the Hawthorne! A thousand rounds!"',
+      'Newsboy: "Scarface walks away clean! Read all about it!"',
+    ],
+    breadline: [
+      'The Breadline: "A thousand bullets in Cicero and not one arrest."',
+      'The Breadline: "When they shoot at each other, we\'re the ones standing between."',
+    ],
+    press: [
+      'The Press: "Mr. Capone! Who shot up your hotel? Any names for the record?"',
+      'The Press: "He smiled and ordered us coffee. Twenty men with notebooks, and nobody left with a fact."',
+    ],
+    press_cynical: [
+      'The Press: "A thousand rounds, zero indictments. Cicero justice. We should print the box score."',
+      'The Press: "He pays a bystander\'s hospital bill and we all write it up warm. The cheapest press agent in America is a machine gun that misses."',
+    ],
+    press_sensational: [
+      'The Press: "ELEVEN CARS OF DEATH! Hold page one!"',
+      'The Press: "Get the shot-up lobby — glass, coffee cups, bullet holes in the plaster. That picture sells five editions."',
+    ],
+  },
+
+  rates: {
+    capone: [
+      'Capone: "Every shop on the block pays to exist. Call it protection. Call it rent. Same thing."',
+      'Capone: "Some call it bootlegging. Some call it racketeering. I call it a business."',
+    ],
+    torrio: [
+      'Torrio: "Rent is the perfect racket. It collects itself monthly and never testifies."',
+      'Torrio (Lean/Tired): "But every squeezed grocer is a witness on layaway, Al. Witnesses compound like interest."',
+    ],
+    wilson: [
+      'Wilson: "Protection leaves no contract. It leaves frightened bookkeeping — the same sum missing, the same week, block after block."',
+      'Wilson: "A pattern is testimony that can\'t be intimidated."',
+    ],
+    ness: [
+      'Ness: "The grocer pays. The union pays. The laundry pays. The ones who refuse meet the overhead."',
+      'Ness: "You can raid a brewery. How do you raid fear?"',
+    ],
+    workman: [
+      'Workman: "My cousin runs a lunch counter. Every month a man in a good coat takes an envelope off him, polite as a deacon."',
+      'Workman: "Cousin calls him the second landlord. The first one only owns the building."',
+    ],
+    newsboy: [
+      'Newsboy: "Even my corner pays, mister! A nickel a week to sell the news on it!"',
+      'Newsboy: "Extra! Racket squeeze hits the Loop! Nobody quoted by name!"',
+    ],
+    breadline: [
+      'The Breadline: "Everybody on the block pays. The barber, the baker, the undertaker."',
+      'The Breadline: "You pay to work, you pay to eat, and now you pay to be left alone."',
+    ],
+    press: [
+      'The Press: "We ran a series on the rackets. Twelve shopkeepers talked — anonymously. The thirteenth had a fire."',
+      'The Press: "Protection is the one story where every source begs you not to print it."',
+    ],
+  },
+
+  cityhall: {
+    capone: [
+      'Capone: "Every policeman in this town gets some of his bread and butter from the taxes I pay."',
+      'Capone (Wave/Happy): "I don\'t break the law in Chicago. I rent it."',
+    ],
+    torrio: [
+      'Torrio: "An envelope is cheaper than a bullet and quieter than both. Corruption is the only overhead that pays a dividend."',
+      'Torrio: "But a bought law protects nobody — including us — when Washington sends men who don\'t take the envelope."',
+    ],
+    wilson: [
+      'Wilson: "We assumed every city officer was already on the payroll. So we came from outside the city."',
+      'Wilson: "You can buy an alderman. The tax code has no address to send the envelope to."',
+    ],
+    ness: [
+      'Ness: "I picked eleven men the Outfit couldn\'t buy. It took months. Eleven, out of thousands."',
+      'Ness: "They offered two thousand a week to look away. The papers called us Untouchable after that."',
+    ],
+    workman: [
+      'Workman: "My taxes pay the cop on the corner. Capone pays him more. Guess whose corner it is."',
+      'Workman: "Two fees for every permit in this town. Only one comes with a receipt."',
+    ],
+    newsboy: [
+      'Newsboy: "The alderman rides in a car the Outfit gave him! Everybody knows and nobody prints it!"',
+      'Newsboy: "City Hall, mister? That\'s just the Lexington with a flag on it."',
+    ],
+    breadline: [
+      'The Breadline: "The law\'s for sale, and we\'re not the ones buying."',
+      'The Breadline: "Complain to the alderman? He\'s ahead of you in the other line — the paying one."',
+    ],
+    press: [
+      'The Press: "We can name six captains and two judges on the pad. Legal won\'t clear one of them."',
+      'The Press: "The story isn\'t that City Hall was bought. It\'s that the price was so low."',
+    ],
+  },
+
+  massacre: {
+    capone: [
+      'Capone: "I was in Florida. Ask anybody. Ask the sun."',
+      'Capone (Sit/Confused): "They put my name on that wall anyway. The country wanted booze and I organized it — why should I be called a public enemy?"',
+    ],
+    torrio: [
+      'Torrio (Lean/Tired): "Seven men against a wall. Twenty years I taught that violence is overhead — and there\'s the whole lesson in one photograph."',
+      'Torrio: "After Clark Street there was no more business. Only heat, forever after."',
+    ],
+    wilson: [
+      'Wilson: "No witness would speak, so the case fell to me and the arithmetic."',
+      'Wilson (Closeup/Determined): "Seven dead men moved the public, and the public moved Washington. My ledgers just arrived on time."',
+    ],
+    ness: [
+      'Ness: "Frank Gusenberg took fourteen bullets and told the officers nobody shot him. That\'s the code — and that\'s why it had to be taxes."',
+      'Ness: "Two of the shooters wore police uniforms. Think what that does to a city. A uniform becomes a question."',
+    ],
+    workman: [
+      'Workman: "I walked past that garage a hundred times. Now the whole street walks on the other side."',
+      'Workman: "Seven men, and the papers printed where each one stood. No soup washes that brick."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Seven slain in Clark Street garage! Police impersonated!"',
+      'Newsboy: "Sold every paper by nine and felt bad doing it. First time that ever happened, mister."',
+    ],
+    breadline: [
+      'The Breadline: "Seven against a wall, on a Thursday morning."',
+      'The Breadline: "Say the name low. Better: say nothing at all."',
+    ],
+    breadline_fearful: [
+      'The Breadline: "If they\'ll do that to their own kind, what\'s a man in a soup line to them?"',
+      'The Breadline: "Eyes on your bowl. Don\'t see anything. Nobody saw anything."',
+    ],
+    breadline_hardened: [
+      'The Breadline: "Gangsters shooting gangsters. Sad — but none of the seven ever stood in this line."',
+      'The Breadline: "Winter kills more of us every week than Thompsons killed of them. Where\'s our headline?"',
+    ],
+    press: [
+      'The Press: "The photographers got there before the cleanup. Those pictures ended something. The fun went out of the gangster story."',
+      'The Press: "Public Enemy was born on Clark Street. We just typed it."',
+    ],
+    press_cynical: [
+      'The Press: "For ten years we made these men colorful. Colorful, right up until the wall."',
+      'The Press: "Every desk in town knew who ordered it by lunch. Not one of us can print the name over a fact."',
+    ],
+    press_sensational: [
+      'The Press: "MASSACRE! Biggest crime story since the Fair — remake page one!"',
+      'The Press: "The wall photo runs eight columns. Warn the engravers and double the print run."',
+    ],
+  },
+
+  enemy: {
+    capone: [
+      'Capone: "Public Enemy Number One. It seems like I\'m all the government talks about. They\'ve got to have a goat, and I\'m it."',
+      'Capone: "I\'m a businessman. I\'ve made my money supplying a popular demand. If I break the law, my customers are as guilty as I am."',
+    ],
+    torrio: [
+      'Torrio: "A list. No warrant, no charge — just a ranking. And it hurt him worse than any indictment yet."',
+      'Torrio (Lean/Tired): "I always told him: be rich quietly. Number One is a headline, and headlines are heat."',
+    ],
+    wilson: [
+      'Wilson: "The Commission\'s list carried no legal weight. It carried something better — permission. Juries stopped smiling at him."',
+      'Wilson: "Publicity built the man. The same tool took him apart."',
+    ],
+    ness: [
+      'Ness: "The city that cheered him at the ballpark put him top of a wanted list. Chicago finally read its own arithmetic."',
+      'Ness: "A title like that makes helping him embarrassing. Embarrassment closes more doors than warrants."',
+    ],
+    workman: [
+      'Workman: "Public Enemy Number One — and half my street still tips their cap when the car goes by."',
+      'Workman: "The other half crosses over. That\'s the whole town now: two halves of one street."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Public Enemy Number One! Capone tops the list!"',
+      'Newsboy: "He bought a paper off me once, tipped a dollar. Now his face IS the paper."',
+    ],
+    breadline: [
+      'The Breadline: "Number One. They made him a champion of something after all."',
+      'The Breadline: "Lists downtown, soup down here. Different city, same man."',
+    ],
+    breadline_fearful: [
+      'The Breadline: "Don\'t stand near his name, even in a breadline. Names like that splash."',
+      'The Breadline: "When the law finally comes for him, it\'ll come down this street first."',
+    ],
+    breadline_admiring: [
+      'The Breadline: "Enemy of who? Not of anybody standing in this line."',
+      'The Breadline: "He feeds five thousand and City Hall feeds speeches. Rank that."',
+    ],
+    press: [
+      'The Press: "Mr. Capone, any comment on the list? — He says he\'s a businessman. Again."',
+      'The Press: "The Commission understands us perfectly. A ranking is a story every single day."',
+    ],
+    press_cynical: [
+      'The Press: "We built Scarface out of ink, and now we\'re shocked at the size of him."',
+      'The Press: "Public Enemy Number One — a title we\'ll sell papers denouncing."',
+    ],
+    press_sensational: [
+      'The Press: "Run the whole list with mugshots! Readers love a league table!"',
+      'The Press: "PUBLIC ENEMY NUMBER ONE across eight columns. That\'s not a headline, that\'s a poster."',
+    ],
+  },
+
+  soup: {
+    capone: [
+      'Capone (Wave/Happy): "Nobody asks a name, nobody preaches a sermon. Three shifts a day — and get the Tribune the meal counts."',
+      'Capone: "They call me a public enemy. Count the bowls, then count what City Hall serves."',
+    ],
+    torrio: [
+      'Torrio: "Charity is the cheapest prestige on the market. The soup costs pennies. The headline is free."',
+      'Torrio (Lean/Tired): "But mark it, Al — the paper printing your meal counts is printing your indictment. You can\'t launder heat forever."',
+    ],
+    wilson: [
+      'Wilson: "The kitchen fed 2,200 a day, in cash, with no books that survived. Even his charity was structured like a getaway."',
+      'Wilson (Closeup/Determined): "I counted it anyway. Soup is spending, and spending is income."',
+    ],
+    ness: [
+      'Ness: "The line goes past police headquarters. That\'s not an accident. That\'s a billboard."',
+      'Ness: "Feed a man with one hand and it gets very hard to raid you with the other. He knew exactly what he was buying."',
+    ],
+    workman: [
+      'Workman: "Two years I built Pullman cars. Now the only man in Chicago with a job for my hands runs the rackets."',
+      'Workman: "I know what the soup is for. I ate it anyway. That\'s the whole Depression in one bowl."',
+    ],
+    workman_fearful: [
+      'Workman: "You take the bowl, you nod, you don\'t ask what pays for it."',
+      'Workman: "A man who owns your dinner owns a little of you. I felt it go with the first spoonful."',
+    ],
+    workman_grateful: [
+      'Workman: "Hoover gave me a speech about corners being turned. Capone gave me beef stew, hot."',
+      'Workman: "Judge a man by winter, mister. He\'s the only one who showed up for it."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Capone feeds five thousand on Thanksgiving!"',
+      'Newsboy: "The soup line buys no papers — but the swells buy two each to read about it."',
+    ],
+    breadline: [
+      'The Breadline: "Free soup, coffee, and doughnuts. No questions. No sermon."',
+      'The Breadline: "The line goes past police headquarters. Nobody in it laughs at that anymore."',
+    ],
+    breadline_fearful: [
+      'The Breadline: "Eat fast, thank nobody, remember whose ladle it is."',
+      'The Breadline: "The wall on Clark Street is still standing. We eat with our caps down."',
+    ],
+    breadline_grateful: [
+      'The Breadline: "The churches ran out in October. This kitchen never has."',
+      'The Breadline: "Call him what you want downtown. Down here he\'s the man with the stew."',
+    ],
+    press: [
+      'The Press: "Public Enemy Number One opens a soup kitchen. The copy desk fought over the headline for an hour."',
+      'The Press: "120,000 meals — the Tribune counted. Nobody counted what the counting was worth to him."',
+    ],
+    press_cynical: [
+      'The Press: "He breaks the town and feeds its casualties. The feeding runs page one. The breaking runs inside."',
+      'The Press: "The best press agent in America is a ladle."',
+    ],
+    press_sensational: [
+      'The Press: "SCARFACE SANTA! Get a man in that line with a camera before the competition does!"',
+      'The Press: "Thanksgiving, five thousand fed — that\'s a picture page and you know it."',
+    ],
+  },
+
+  jury: {
+    capone: [
+      'Capone (Sit/Confused): "Twenty-two counts. Lawyers lose, lists don\'t — that\'s what I said. Then the judge traded the whole room."',
+      'Capone: "Every fix I ever bought was a city fix. Nobody sold me the federal building."',
+    ],
+    torrio: [
+      'Torrio: "I told him: Wilkerson doesn\'t eat in Chicago restaurants. Some men can\'t hear the word no until a bailiff says it."',
+      'Torrio (Lean/Tired): "The list cost money. The fix cost more. The swap made both a donation."',
+    ],
+    wilson: [
+      'Wilson (Closeup/Determined): "Our informant brought the same list to me. I took it to the judge myself. He read it once and said: bring your case. Leave the rest to me."',
+      'Wilson: "The fix was in. So was the counter-fix. Ours was legal."',
+    ],
+    ness: [
+      'Ness: "Wilkerson borrowed Judge Woodward\'s entire panel — one jury out, another in, first morning, two minutes."',
+      'Ness: "Ten years of buying Chicago, beaten by one man who wasn\'t for sale and had the power to shuffle."',
+    ],
+    workman: [
+      'Workman: "They say he bought the jury and the judge swapped it like changing a tire."',
+      'Workman: "First courtroom story I ever heard where I laughed at the right end of it."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Jury switched! Capone fix foiled by federal judge!"',
+      'Newsboy: "Farmers and hardware clerks in the box now, mister. Try buying a man who never heard of you."',
+    ],
+    breadline: [
+      'The Breadline: "He bought twelve men, and the judge bought them back with a wave of his hand."',
+      'The Breadline: "So there IS a room in this town money can\'t rent. Took eleven years to find it."',
+    ],
+    press: [
+      'The Press: "The swap took two minutes and unmade seven years of fixes. Best courtroom lead any of us will ever write."',
+      'The Press: "You could see it land on him. He looked at the new twelve like a man reading a menu in the wrong language."',
+    ],
+  },
+
+  verdict: {
+    capone: [
+      'Capone (Sit/Confused): "Guilty. Not on beer, not on anything with blood in it. On arithmetic."',
+      'Capone: "It seems like I\'m all the government talks about. They\'ve got to have a goat, and I\'m it."',
+    ],
+    torrio: [
+      'Torrio (Lean/Tired): "Eleven years for unfiled paperwork. I retired on time, Al. That was the whole trick, all along."',
+      'Torrio: "The Outfit won\'t miss a payment tomorrow. Remember that when they write that one man was the machine."',
+    ],
+    wilson: [
+      'Wilson: "No tommy gun in evidence. No witness to any wall. Returns never filed, and a net worth no honest income explains."',
+      'Wilson (Closeup/Determined): "Rent leaves receipts. It always leaves receipts."',
+    ],
+    ness: [
+      'Ness: "We axed his breweries for two years, and the sentence came out of an accountant\'s briefcase. I can live with that. The point was the fall, not the credit."',
+      'Ness: "Eleven years. The loudest man in America, silenced by arithmetic."',
+    ],
+    workman: [
+      'Workman: "They got him. Not for the wall, not for Cicero. For taxes. Taxes!"',
+      'Workman: "The soup kitchen ran on a while after. Fewer photographers. Same stew."',
+    ],
+    newsboy: [
+      'Newsboy: "Extra! Capone guilty! Eleven years! Read all about it!"',
+      'Newsboy: "Biggest EXTRA since the Armistice, mister. I went home with empty bags and full pockets."',
+    ],
+    breadline: [
+      'The Breadline: "Guilty, says the radio. The line shuffled forward same as ever."',
+      'The Breadline: "They took the king of Chicago. The rent, they left."',
+    ],
+    breadline_relieved: [
+      'The Breadline: "So the big ones can fall. Took the government to do it — but they can fall."',
+      'The Breadline: "Maybe the cop on the corner works for us again. Maybe."',
+    ],
+    breadline_wary: [
+      'The Breadline: "The Outfit\'s still on the corner this morning. Same corner, same coats."',
+      'The Breadline: "They jailed the name. The business never missed a delivery."',
+    ],
+    press: [
+      'The Press: "Guilty on the tax counts, October 17, 1931. Every desk had the ending written except his."',
+      'The Press: "Felled not by bullets but by accounting. Somebody\'s typing that line right now in every city room in America."',
+    ],
+    press_cynical: [
+      'The Press: "Seven dead on Clark Street, and the charge that stuck was arithmetic. Print the irony gently. It\'s carrying eleven years."',
+      'The Press: "We spent a decade selling his face. This week we sell his fall. Circulation never takes a side."',
+    ],
+    press_sensational: [
+      'The Press: "GUILTY! ELEVEN YEARS! Clear page one, clear page two, clear the week!"',
+      'The Press: "Get the shot of him leaving the courtroom — the big fellow, small. That photo goes around the world."',
+    ],
+  },
+};
+
+// ---- vignette generator --------------------------------------------------
+
+const vignetteId = (ev, resp, stance) =>
+  `capv_${ev.id}_${resp.key}${stance ? `_${stance}` : ''}`;
+
+const vignetteScene = (ev, resp, stance) => {
+  const voiceKey = stance ? `${resp.key}_${stance}` : resp.key;
+  const voice = RVOICES[ev.id]?.[voiceKey];
+  if (!voice) throw new Error(`missing voice: ${ev.id}/${voiceKey}`);
+  const id = vignetteId(ev, resp, stance);
+  const variants = !stance ? RVARIANTS[ev.id]?.[resp.key] : null;
+  const tail = variants
+    ? [
+        '[CHOICE]',
+        ...variants.map(([vKey, vLabel]) => `- "${vLabel}" -> ${vignetteId(ev, resp, vKey)}`),
+        `- "Back to the witnesses" -> capch_${ev.id}`,
+        '[/CHOICE]',
+      ]
+    : [`[SCENE capch_${ev.id}]`];
+  return {
+    id,
+    name: `${ev.name} — ${resp.label}${stance ? ` (${stance})` : ''}`,
+    sceneType: 'WITNESS',
+    dropId: ev.dropId,
+    stage: [
+      spr(`${id}_el`, resp.actorId, 42, 62, resp.scale),
+      balloon(`${id}_sign`, ev.sign, 76, 10, { zIndex: 4 }),
+    ],
+    script: lines(...voice, ...tail),
+    narraton: { pool: RPOOL, keys: ev.keys, repeatable: true },
+    status: 'work',
+  };
+};
+
+// Per-event responder chooser.
+const chooserScene = (ev) => ({
+  id: `capch_${ev.id}`,
+  name: `Voices: ${ev.name}`,
+  sceneType: 'AGENCY',
+  dropId: ev.dropId,
+  stage: [balloon(`capch_${ev.id}_sign`, ev.sign, 50, 10, { zIndex: 4 })],
+  script: lines(
+    `Narrator: "${ev.intro}"`,
+    '[CHOICE]',
+    ...RESPONDERS.map((r) => `- "${r.label}" -> ${vignetteId(ev, r, null)}`),
+    '- "Back to the events" -> cap_voices',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+let vignetteCount = 0;
+for (const ev of REVENTS) {
+  scenes.push(chooserScene(ev));
+  for (const resp of RESPONDERS) {
+    scenes.push(vignetteScene(ev, resp, null));
+    vignetteCount++;
+    for (const [vKey] of RVARIANTS[ev.id]?.[resp.key] ?? []) {
+      scenes.push(vignetteScene(ev, resp, vKey));
+      vignetteCount++;
+    }
+  }
+}
+
+// The episodes hub — linked from the opening Cicero scene.
+scenes.push({
+  id: 'cap_voices',
+  name: 'Voices of Chicago',
+  sceneType: 'AGENCY',
+  dropId: dropSoup,
+  stage: [
+    spr('cap_voices_crowd', 'breadline', 50, 62, 2.6),
+    balloon('cap_voices_sign', 'VOICES OF CHICAGO, 1924-1931', 50, 10, { zIndex: 4 }),
+  ],
+  script: lines(
+    'Narrator: "Eleven years, ten turnings of the screw. Choose an event and hear how it landed — on the boss, on his mentor, on the lawmen, on the newsboy, on the breadline, on the press."',
+    '[CHOICE]',
+    ...REVENTS.map((ev) => `- "${ev.name}" -> capch_${ev.id}`),
+    '- "Return to Cicero, 1924" -> cap_cicero',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+console.log(`Reaction layer: ${vignetteCount} vignettes across ${REVENTS.length} events (+ ${REVENTS.length} choosers + 1 hub).`);
+
 // ---------------------------------------------------------------- game
 
 const game = {
