@@ -323,7 +323,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     
     const angleDescription = getAngleDescription(genAngle);
     
-    let prompt = `IDENTITY: Generate a character portrait of \"${actor.name}\".\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+    let prompt = `IDENTITY: Generate a character portrait of \"${actor.name}\".\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference images exactly.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
     if (styleLock) {
       prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';

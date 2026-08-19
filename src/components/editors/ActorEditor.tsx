@@ -68,7 +68,7 @@ POSE & EXPRESSION:
 
 FRAMING: ${frameInstruction}
 
-ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+ART STYLE: Match the provided style reference images exactly.
 
 CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
 
@@ -385,7 +385,7 @@ POSE & EXPRESSION:
 
 FRAMING: ${frameInstruction}
 
-ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+ART STYLE: Match the provided style reference images exactly.
 
 CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
 

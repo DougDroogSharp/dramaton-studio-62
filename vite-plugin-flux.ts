@@ -56,22 +56,30 @@ const MIME: Record<string, string> = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
 };
 
-let packCache: { key: string; images: string[] } | null = null;
+interface StylePack {
+  images: string[];
+  text: string; // from style.txt in the folder — era style words that ride every generation
+}
 
-function loadStylePack(dir: string | undefined): string[] {
-  if (!dir) return [];
+const EMPTY_PACK: StylePack = { images: [], text: '' };
+let packCache: { key: string; pack: StylePack } | null = null;
+
+function loadStylePack(dir: string | undefined): StylePack {
+  if (!dir) return EMPTY_PACK;
   let entries: string[];
   try {
     entries = readdirSync(dir).filter(f => IMAGE_EXTS.has(extname(f).toLowerCase())).sort();
   } catch {
     console.warn(`🎨 STYLE_REF_DIR not readable: ${dir}`);
-    return [];
+    return EMPTY_PACK;
   }
   const picked = entries.slice(0, MAX_PACK_IMAGES);
   const key = dir + '|' + picked.map(f => {
     try { return f + ':' + statSync(join(dir, f)).mtimeMs; } catch { return f; }
-  }).join(',');
-  if (packCache?.key === key) return packCache.images;
+  }).join(',') + '|' + (() => {
+    try { return statSync(join(dir, 'style.txt')).mtimeMs; } catch { return 0; }
+  })();
+  if (packCache?.key === key) return packCache.pack;
 
   const images: string[] = [];
   for (const f of picked) {
@@ -80,15 +88,20 @@ function loadStylePack(dir: string | undefined): string[] {
       images.push(`data:${MIME[extname(f).toLowerCase()]};base64,${b64}`);
     } catch { /* skip unreadable */ }
   }
-  if (images.length) console.log(`🎨 Style pack: ${images.length} reference(s) from ${dir}`);
-  packCache = { key, images };
-  return images;
+  let text = '';
+  try { text = readFileSync(join(dir, 'style.txt'), 'utf8').trim(); } catch { /* optional */ }
+  if (images.length || text) {
+    console.log(`🎨 Style pack: ${images.length} reference(s)${text ? ' + style.txt' : ''} from ${dir}`);
+  }
+  const pack = { images, text };
+  packCache = { key, pack };
+  return pack;
 }
 
 const stripDataUrl = (s: string): string =>
   s.replace(/^data:image\/\w+;base64,/, '');
 
-function buildFluxBody(body: GenRequest, stylePack: string[] = []): Record<string, unknown> {
+function buildFluxBody(body: GenRequest, stylePack: StylePack = EMPTY_PACK): Record<string, unknown> {
   const promptParts: string[] = [];
   const images: string[] = [];
   const imageRoles: string[] = [];
@@ -100,7 +113,7 @@ function buildFluxBody(body: GenRequest, stylePack: string[] = []): Record<strin
   };
 
   const addPack = () => {
-    for (const img of stylePack) {
+    for (const img of stylePack.images) {
       addImage(img, 'era style reference — match the art style, linework, texture and palette of this image');
     }
   };
@@ -120,7 +133,9 @@ function buildFluxBody(body: GenRequest, stylePack: string[] = []): Record<strin
   }
 
   if (imageRoles.length > 0) promptParts.unshift(imageRoles.join('. ') + '.');
-  if (body.enforceStyleGuide) promptParts.push(ENFORCED_STYLE);
+  // The era's own style words beat the generic flat-color enforcement
+  if (stylePack.text) promptParts.push(`ART STYLE (MANDATORY): ${stylePack.text}`);
+  else if (body.enforceStyleGuide) promptParts.push(ENFORCED_STYLE);
   if (body.isCharacter) promptParts.push(GREEN_SCREEN);
 
   const flux: Record<string, unknown> = {
@@ -136,7 +151,7 @@ function buildFluxBody(body: GenRequest, stylePack: string[] = []): Record<strin
   return flux;
 }
 
-async function callFlux(apiKey: string, model: string, body: GenRequest, stylePack: string[] = []): Promise<{ imageUrl: string }> {
+async function callFlux(apiKey: string, model: string, body: GenRequest, stylePack: StylePack = EMPTY_PACK): Promise<{ imageUrl: string }> {
   const fluxBody = buildFluxBody(body, stylePack);
 
   const submit = await fetch(`${BFL_BASE}/${model}`, {
@@ -198,7 +213,7 @@ const falImageSize = (aspect: string): string => {
   return 'landscape_16_9';
 };
 
-async function callFal(apiKey: string, model: string, body: GenRequest, stylePack: string[] = []): Promise<{ imageUrl: string }> {
+async function callFal(apiKey: string, model: string, body: GenRequest, stylePack: StylePack = EMPTY_PACK): Promise<{ imageUrl: string }> {
   // Reuse the same prompt assembly; collect reference images as data URIs
   const promptParts: string[] = [];
   const imageUrls: string[] = [];
@@ -211,7 +226,7 @@ async function callFal(apiKey: string, model: string, body: GenRequest, stylePac
   };
 
   const addPack = () => {
-    for (const img of stylePack) {
+    for (const img of stylePack.images) {
       addImage(img, 'era style reference — match the art style, linework, texture and palette of this image');
     }
   };
@@ -230,7 +245,9 @@ async function callFal(apiKey: string, model: string, body: GenRequest, stylePac
     promptParts.push(body.prompt);
   }
   if (imageRoles.length > 0) promptParts.unshift(imageRoles.join('. ') + '.');
-  if (body.enforceStyleGuide) promptParts.push(ENFORCED_STYLE);
+  // The era's own style words beat the generic flat-color enforcement
+  if (stylePack.text) promptParts.push(`ART STYLE (MANDATORY): ${stylePack.text}`);
+  else if (body.enforceStyleGuide) promptParts.push(ENFORCED_STYLE);
   if (body.isCharacter) promptParts.push(GREEN_SCREEN);
 
   // Reference images route to the model's edit variant
