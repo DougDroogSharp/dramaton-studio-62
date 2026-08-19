@@ -282,6 +282,10 @@ export function useScriptRunner({
           }
         }
 
+        // Balloons show their full text at once; only the narration
+        // window keeps the typewriter.
+        const isNarrator = command.actorName.trim().toLowerCase() === 'narrator';
+
         setState(prev => ({
           ...prev,
           activeDialogue: {
@@ -289,14 +293,16 @@ export function useScriptRunner({
             actorName: command.actorName,
             text: command.text,
             style: command.style,
-            displayedText: '',
-            isComplete: false,
+            displayedText: isNarrator ? '' : command.text,
+            isComplete: !isNarrator,
             ...(chosenExpression ? { expression: chosenExpression } : {}),
             ...(chosenPose ? { pose: chosenPose } : {}),
           },
         }));
-        
-        // Start typewriter effect
+
+        if (!isNarrator) return false; // wait for user to advance
+
+        // Start typewriter effect (narration only)
         let charIndex = 0;
         typewriterRef.current = setInterval(() => {
           charIndex++;

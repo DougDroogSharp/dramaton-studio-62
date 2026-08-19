@@ -31,6 +31,7 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
   // Anchor the balloon near the speaking actor's stage element
   let anchorX = 50;
   let anchorY = 68;
+  let speakerScale = 1;
   let foundSpeaker = false;
   if (dialogue?.actorId && scene?.stage) {
     const el = scene.stage.find(e => e.type === 'ACTOR' && e.assetId === dialogue.actorId);
@@ -38,11 +39,18 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
       const ov = elementOverrides.get(el.id);
       anchorX = ov?.x ?? el.x;
       anchorY = ov?.y ?? el.y;
+      speakerScale = ov?.scale ?? el.scale ?? 1;
       foundSpeaker = true;
     }
   }
-  const balloonLeft = clamp(anchorX, 20, 80);
-  const balloonTop = foundSpeaker ? clamp(anchorY - 46, 2, 52) : 8;
+  // Intelligent placement: the balloon's BOTTOM edge sits above the
+  // speaker's head (estimated from element center + scale), shifted
+  // sideways toward the emptier half of the stage so it never covers
+  // the face; the tail points back at the speaker.
+  const headTop = anchorY - clamp(12 * speakerScale, 12, 32); // % above element center
+  const sideShift = anchorX <= 50 ? 15 : -15;
+  const balloonLeft = clamp(anchorX + sideShift, 20, 80);
+  const balloonBottom = foundSpeaker ? clamp(100 - headTop + 2, 40, 92) : 88;
   const isThought = dialogue?.style === 'thought';
   const color = dialogue ? speakerColor(dialogue.actorName) : undefined;
 
@@ -52,7 +60,7 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
       {dialogue && (
         <div
           className="absolute pointer-events-auto cursor-pointer select-none"
-          style={{ left: `${balloonLeft}%`, top: `${balloonTop}%`, transform: 'translateX(-50%)', width: '36%', minWidth: '240px', maxWidth: '480px' }}
+          style={{ left: `${balloonLeft}%`, bottom: `${balloonBottom}%`, transform: 'translateX(-50%)', width: '36%', minWidth: '240px', maxWidth: '480px' }}
           onClick={onAdvance}
         >
           <div
@@ -70,29 +78,30 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
               {dialogue.actorName}
             </div>
             <p className="text-diesel-black text-base leading-snug">
-              {dialogue.displayedText}
-              <span className={`inline-block w-1.5 h-4 ml-0.5 align-middle ${
-                dialogue.isComplete ? 'bg-diesel-rust animate-pulse' : 'bg-diesel-black/60'
-              }`} />
+              {dialogue.text}
             </p>
+            <div className="text-right text-diesel-steel text-[10px] mt-0.5 animate-pulse">▸</div>
 
-            {/* Tail: pointed for speech, bubbles for thought */}
+            {/* Tail: pointed for speech, bubbles for thought — aimed at the speaker */}
             {foundSpeaker && !isThought && (
               <div
                 className="absolute -bottom-[13px]"
                 style={{
-                  left: `${clamp(50 + (anchorX - balloonLeft) * 2, 12, 88)}%`,
+                  left: `${clamp(50 + (anchorX - balloonLeft) * 2.2, 10, 90)}%`,
                   width: 0,
                   height: 0,
                   borderLeft: '10px solid transparent',
                   borderRight: '10px solid transparent',
                   borderTop: '14px solid hsl(var(--diesel-paper))',
-                  transform: 'translateX(-50%)',
+                  transform: `translateX(-50%) ${anchorX < balloonLeft ? 'skewX(14deg)' : anchorX > balloonLeft ? 'skewX(-14deg)' : ''}`,
                 }}
               />
             )}
             {foundSpeaker && isThought && (
-              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5">
+              <div
+                className="absolute -bottom-6 flex flex-col gap-0.5"
+                style={{ left: `${clamp(50 + (anchorX - balloonLeft) * 2.2, 10, 90)}%`, transform: 'translateX(-50%)', alignItems: anchorX < balloonLeft ? 'flex-start' : 'flex-end' }}
+              >
                 <span className="w-3 h-3 rounded-full bg-diesel-paper/90 border border-dashed border-diesel-steel" />
                 <span className="w-2 h-2 rounded-full bg-diesel-paper/80 border border-dashed border-diesel-steel" />
               </div>
