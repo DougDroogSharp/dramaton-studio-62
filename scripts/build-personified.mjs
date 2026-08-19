@@ -263,7 +263,7 @@ const machineScene = () => ({
     '# ---- flagship BINDs ----',
     '[BIND rifle.rotation to aim * 1.8]',
     '[BIND shell.opacity to prestige / 100]',
-    has.worker ? '[BIND worker.x to workerX]' : '[BIND worker.x to workerX]',
+    '[BIND worker.x to workerX]',
     '[BIND truth_1.opacity to truthWindow]',
     '[BIND truth_2.opacity to truthWindow]',
     '[BIND truth_3.opacity to truthWindow]',

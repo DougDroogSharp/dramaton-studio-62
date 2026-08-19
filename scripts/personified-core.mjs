@@ -279,10 +279,10 @@ export const truthLines = () => [
   '# ---- §3 truth-window: live formulas when truthWindow == 1 ----',
   '[IF truthWindow == 1]',
   '[SET_TEXT truth_1 "CRIME {crime} = HEAT {heat} x (1 - EDUCATION {education}/100)"]',
-  '[SET_TEXT truth_2 "HEAT {heat} += SQUEEZE {squeeze} x {c_heatSqueeze} - SHARED {shared} x {c_heatShared} - TAX x {c_heatTax}"]',
-  '[SET_TEXT truth_3 "SPINE {spine} -= HOARD {hoard} x {c_spineHoard} - EDU x {c_spineEdu} | AIM = 100 - SPINE = {aim}"]',
-  '[SET_TEXT truth_4 "HEALTH {health} += {c_healthGain} x (50 - SQUEEZE {squeeze}) x {c_healthDrift} | TRUST {trust} += PROP {propagandaCost} x {c_trustProp} - EDU x {c_trustEdu}"]',
-  '[SET_TEXT truth_5 "HOARD {hoard} += SQUEEZE x PRODUCT {productionOutput} x {c_hoardRate} - COSTS | SHARED = 100 - SQUEEZE - RENT {rentBurden}"]',
+  '[SET_TEXT truth_2 "HEAT {heat} += SQUEEZE {squeeze} x 0.05 - SHARED {shared} x 0.03 - SINGLETAX x 2"]',
+  '[SET_TEXT truth_3 "SPINE {spine} += EDUCATION {education} x 0.02 - HOARD {hoard} x 0.005 | AIM = 100 - SPINE = {aim}"]',
+  '[SET_TEXT truth_4 "HEALTH {health} += 0.1 x (50 - SQUEEZE {squeeze}) x 0.02 | TRUST {trust} += PROP {propagandaCost} x 0.05 - EDUCATION x 0.03"]',
+  '[SET_TEXT truth_5 "HOARD {hoard} += SQUEEZE x PRODUCT {productionOutput} x 0.01 - COSTS | SHARED {shared} = 100 - SQUEEZE - RENT {rentBurden}"]',
   '[ENDIF]',
 ];
 
