@@ -195,13 +195,11 @@ This is a background scene with no characters or text.`;
       const finalPrompt = fullPromptOverride.trim() || buildFullPrompt(drop);
       
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
             prompt: finalPrompt,
@@ -257,13 +255,11 @@ This is a background scene with no characters or text.`;
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
             prompt: editPrompt,
