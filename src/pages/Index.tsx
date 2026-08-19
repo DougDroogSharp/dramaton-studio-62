@@ -4,7 +4,7 @@ import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameDa
 import { DramatonLogo } from "@/components/DramatonLogo";
 import { CostMeter } from "@/components/CostMeter";
 import { CyberInput } from "@/components/CyberInput";
-import { loadGameFromDB, saveGameToDB, clearGameFromDB } from "@/utils/db";
+import { loadGameFromDB, saveGameToDB, clearGameFromDB, getRecentGames, addRecentGame, RecentGame } from "@/utils/db";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjectCapture } from "@/hooks/useProjectCapture";
@@ -66,6 +66,7 @@ const Index = () => {
   const [startTitle, setStartTitle] = useState("Untitled Game");
   const [startAuthor, setStartAuthor] = useState("Unknown Creator");
   const [hasAutoSave, setHasAutoSave] = useState(false);
+  const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
 
   // Editor state
   const [game, setGame] = useState<GameData>(createDefaultGame());
@@ -107,7 +108,39 @@ const Index = () => {
         setStartAuthor(saved.info.author);
       }
     });
+    getRecentGames().then(setRecentGames);
   }, []);
+
+  // Reopen a recent .dram file from its stored handle
+  const handleOpenRecent = async (recent: RecentGame) => {
+    if (!recent.handle) {
+      toast.error('No file handle stored — use Load to open it once.');
+      return;
+    }
+    try {
+      const h = recent.handle as FileSystemFileHandle & {
+        queryPermission?: (o: { mode: string }) => Promise<string>;
+        requestPermission?: (o: { mode: string }) => Promise<string>;
+      };
+      let perm = (await h.queryPermission?.({ mode: 'read' })) ?? 'granted';
+      if (perm !== 'granted') perm = (await h.requestPermission?.({ mode: 'read' })) ?? 'denied';
+      if (perm !== 'granted') {
+        toast.error('Permission denied — use Load to open it instead.');
+        return;
+      }
+      const file = await h.getFile();
+      const data = migrateGameData(JSON.parse(await file.text()));
+      setGame(data);
+      setIsStarted(true);
+      setIsLoaded(true);
+      saveGameToDB(data);
+      addRecentGame({ title: data.info.title, fileName: recent.fileName, handle: recent.handle }).then(setRecentGames);
+      toast.success(`Loaded: ${recent.fileName}`);
+    } catch (err) {
+      console.error('Failed to open recent game:', err);
+      toast.error('Could not open that file (moved or deleted?) — use Load instead.');
+    }
+  };
 
   // Autosave when editing (debounced)
   useEffect(() => {
@@ -211,6 +244,7 @@ const Index = () => {
       setIsStarted(true);
       setIsLoaded(true);
       saveGameToDB(data); // Save to IndexedDB for autosave
+      addRecentGame({ title: data.info.title, fileName: result.name, handle: result.handle }).then(setRecentGames);
       toast.success(`Loaded: ${result.name}`);
     } catch (err) {
       console.error("Failed to parse game file:", err);
@@ -291,10 +325,16 @@ const Index = () => {
     const content = JSON.stringify(game, null, 2);
     const suggestedName = `${game.info.title.replace(/\s+/g, "_")}.dram`;
 
-    const saved = await saveFileWithPicker(content, {
-      ...DRAM_FILE_OPTIONS,
-      suggestedName,
-    });
+    const saved = await saveFileWithPicker(
+      content,
+      {
+        ...DRAM_FILE_OPTIONS,
+        suggestedName,
+      },
+      ({ handle, name }) => {
+        addRecentGame({ title: game.info.title, fileName: name, handle }).then(setRecentGames);
+      }
+    );
 
     if (saved) {
       toast.success("Game saved!");
@@ -560,6 +600,26 @@ const Index = () => {
                 Load
               </button>
             </div>
+
+            {/* Recent games: one click back into the last 5 files */}
+            {recentGames.length > 0 && (
+              <div className="mt-3 border-t border-diesel-border pt-2">
+                <p className="text-[9px] uppercase tracking-widest text-diesel-steel mb-1.5">Recent</p>
+                <div className="space-y-1">
+                  {recentGames.map(r => (
+                    <button
+                      key={r.fileName}
+                      onClick={() => handleOpenRecent(r)}
+                      className="w-full flex items-baseline justify-between gap-2 px-2 py-1 bg-diesel-black/40 border border-diesel-border text-left hover:border-diesel-gold transition-colors"
+                      title={r.fileName}
+                    >
+                      <span className="text-xs text-diesel-paper truncate">{r.title}</span>
+                      <span className="text-[9px] text-diesel-steel truncate shrink-0">{r.fileName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </IndustrialPanel>
 
           {/* Footer - minimal */}
