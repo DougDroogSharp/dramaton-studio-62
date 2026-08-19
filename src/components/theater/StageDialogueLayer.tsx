@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Scene, StageElementOverride } from '@/types';
 import { ActiveDialogue, ChoiceState } from '@/hooks/useScriptRunner';
 import { speakerColor } from '@/utils/speakerColor';
@@ -16,6 +16,9 @@ interface StageDialogueLayerProps {
   elementOverrides: Map<string, StageElementOverride>;
   onAdvance: () => void;
   onSelectChoice: (index: number) => void;
+  // Editor mode: double-click the text to edit it in place; commits
+  // write the new text back into the scene script.
+  onEditText?: (oldText: string, newText: string) => void;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -27,7 +30,23 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
   elementOverrides,
   onAdvance,
   onSelectChoice,
+  onEditText,
 }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (e: React.MouseEvent) => {
+    if (!onEditText || !dialogue) return;
+    e.stopPropagation();
+    setDraft(dialogue.text);
+    setEditing(true);
+  };
+  const commitEdit = () => {
+    if (dialogue && onEditText && draft.trim() && draft !== dialogue.text) {
+      onEditText(dialogue.text, draft.trim());
+    }
+    setEditing(false);
+  };
   // Anchor the balloon near the speaking actor's stage element
   let anchorX = 50;
   let anchorY = 68;
@@ -77,9 +96,30 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
             >
               {dialogue.actorName}
             </div>
-            <p className="text-diesel-black text-base leading-snug">
-              {dialogue.text}
-            </p>
+            {editing ? (
+              <textarea
+                autoFocus
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+                  if (e.key === 'Escape') setEditing(false);
+                  e.stopPropagation();
+                }}
+                onClick={e => e.stopPropagation()}
+                className="w-full bg-diesel-paper text-diesel-black text-base leading-snug border border-diesel-rust p-1 resize-none focus:outline-none"
+                rows={3}
+              />
+            ) : (
+              <p
+                className="text-diesel-black text-base leading-snug"
+                onDoubleClick={startEdit}
+                title={onEditText ? 'Double-click to edit' : undefined}
+              >
+                {dialogue.text}
+              </p>
+            )}
             <div className="text-right text-diesel-steel text-[10px] mt-0.5 animate-pulse">▸</div>
 
             {/* Tail: pointed for speech, bubbles for thought — aimed at the speaker */}

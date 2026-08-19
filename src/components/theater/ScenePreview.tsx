@@ -10,6 +10,9 @@ interface ScenePreviewProps {
   scene: Scene;
   game: GameData;
   onClose: () => void;
+  // When provided, dialogue text is editable in place (double-click);
+  // commits rewrite the scene script.
+  onUpdateScript?: (newScript: string) => void;
 }
 
 // Generate a fingerprint of scene data to detect changes
@@ -22,10 +25,23 @@ const getSceneFingerprint = (scene: Scene): string => {
   });
 };
 
-export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose }) => {
+export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose, onUpdateScript }) => {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevFingerprintRef = useRef<string>(getSceneFingerprint(scene));
+  const suppressRestartRef = useRef(false);
+
+  // Inline dialogue editing: replace the utterance's quoted text in the
+  // scene script (first occurrence) and push the new script up. The
+  // fingerprint-restart is suppressed for this change so the preview
+  // stays where you are.
+  const handleEditText = (oldText: string, newText: string) => {
+    if (!onUpdateScript || !scene.script) return;
+    const needle = `"${oldText}"`;
+    if (!scene.script.includes(needle)) return;
+    suppressRestartRef.current = true;
+    onUpdateScript(scene.script.replace(needle, `"${newText}"`));
+  };
 
   // Handle audio commands
   const handleAudioCommand = useCallback((
@@ -70,11 +86,15 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
     onAudioCommand: handleAudioCommand,
   });
 
-  // Auto-restart when scene data changes
+  // Auto-restart when scene data changes (except inline text edits)
   const sceneFingerprint = getSceneFingerprint(scene);
   useEffect(() => {
     if (sceneFingerprint !== prevFingerprintRef.current) {
       prevFingerprintRef.current = sceneFingerprint;
+      if (suppressRestartRef.current) {
+        suppressRestartRef.current = false;
+        return;
+      }
       scriptRunner.goToScene(scene.id);
     }
   }, [sceneFingerprint, scene.id, scriptRunner]);
@@ -187,6 +207,7 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
             elementOverrides={scriptRunner.state.elementOverrides}
             onAdvance={scriptRunner.advance}
             onSelectChoice={scriptRunner.selectChoice}
+            onEditText={onUpdateScript ? handleEditText : undefined}
           />
         </div>
       </div>

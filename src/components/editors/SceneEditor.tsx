@@ -1235,6 +1235,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           scene={selectedScene}
           game={game}
           onClose={() => setShowScenePreview(false)}
+          onUpdateScript={(newScript) => updateScene(selectedScene.id, { script: newScript })}
         />
       )}
     </div>
