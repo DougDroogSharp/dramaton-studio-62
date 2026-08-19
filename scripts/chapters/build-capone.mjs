@@ -88,6 +88,12 @@ const actors = [
   actor('newsboy', 'Newsboy', ['capone', 'capone_newsboy.png']),
   actor('breadline', 'The Breadline', ['capone', 'capone_crowd_breadline.png']),
   actor('press', 'The Press', ['capone', 'capone_crowd_press.png']),
+  // Voice-only secondary cast (Pass 2 research) — no sprites, they speak
+  // off-stage the way the Narrator does.
+  actor('irey', 'Irey'),
+  actor('johnson', 'Johnson'),
+  actor('shumway', 'Shumway'),
+  actor('guzik', 'Guzik'),
   actor('narrator', 'Narrator'),
 ];
 
@@ -1604,6 +1610,7 @@ const EXPANSION = [
       '- "The brewery raids" -> capr_raids_1',
       '- "McGurn, 1936 — an aftermath" -> capr_mcgurn',
       '- "Repeal, 1933 — the empty speakeasy" -> capr_repeal_1',
+      '- "The second drawer — fourteen more files" -> cap_record2',
       '- "Duets — two voices at a table" -> cap_duets',
       '- "Aftermaths — what it cost later" -> cap_aftermaths',
       '- "Return to Cicero, 1924" -> cap_cicero',
@@ -2170,6 +2177,170 @@ const EXPANSION = [
       'Narrator: "The Outfit shrugged and moved deeper into the rackets that never needed Prohibition — the unions, the wire, the rent. The lesson, one last time: outlaw a thirst and you print money for gunmen. Legalize it, and the gunmen go back to collecting rent. The rent was always the business."',
       '[SCENE cap_record]',
     ]),
+
+  // ============ THE RECORD, SECOND DRAWER — Pass 2 exhibits (14+hub) ============
+  {
+    id: 'cap_record2',
+    name: 'The Record — The Second Drawer',
+    sceneType: 'AGENCY',
+    dropId: dropCourt,
+    stage: [xsign('cap_record2', 'THE RECORD — THE SECOND DRAWER'),
+      spr('cap_record2_a', 'wilson', 42, 62)],
+    script: lines(
+      'Narrator: "The deeper files. Sources named, doubts flagged. Entered as exhibits, objections noted in the margin."',
+      '[CHOICE]',
+      '- "Cicero, entered by the Commission" -> capr_peterson',
+      '- "The sixty million" -> capr_sixty',
+      '- "Irey\'s desk — October 18, 1928" -> capr_irey',
+      '- "The bookkeepers: Shumway & Reis" -> capr_books_1',
+      '- "Nitti, Guzik, Ralph — the rehearsal convictions" -> capr_lieutenants',
+      '- "George E.Q. Johnson, for the United States" -> capr_johnson',
+      '- "Twelve names in the paper" -> capr_jurors',
+      '- "The bankers quote — courthouse steps" -> capr_bankers',
+      '- "The bunk quote — an attribution" -> capr_bunk',
+      '- "The milk legend — a disputed file" -> capr_milk',
+      '- "The prestige machine" -> capr_persona',
+      '- "Cicero as rent — the claim itself" -> capr_georgist',
+      '- "Sergeant Sweeney\'s report" -> capr_sweeney',
+      '- "Back to the first drawer" -> cap_record',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+      '[/CHOICE]',
+    ),
+    status: 'work',
+  },
+
+  xw('capr_peterson', 'The Record: Cicero, Entered by the Commission', dropCicero,
+    [xsign('capr_peterson', 'THE COMMISSION\'S VERDICT ON 1924'), ...xone('capr_peterson', 'press', 2.6)],
+    [
+      'Narrator: "Exhibit: the Chicago Crime Commission\'s own file on election day, Cicero, 1924. Roughly two hundred armed men at the polls. Judges kidnapped, ballots handled, voters walked in and shown how to decide."',
+      'The Press: "Virgil Peterson, the Commission\'s director, wrote the sentence that stuck: one of the most disgraceful episodes in American municipal history. We quote it every anniversary. Nobody has improved on it."',
+      'Narrator: "What the muscle bought was not a mayor. It was the ground itself — every brewery, wire room, and saloon license in a town the law now rented FROM the Outfit. File under: repression, in the service of rent."',
+      '[SCENE cap_record2]',
+    ], { repression: { target: 60, scale: 40 }, rent: { target: 20, scale: 30 } }),
+
+  xw('capr_sixty', 'The Record: The Sixty Million', dropLexington,
+    [xsign('capr_sixty', 'NET PROFITS — THE COMMISSION\'S ESTIMATE'), ...xone('capr_sixty', 'wilson')],
+    [
+      'Narrator: "Exhibit: the number itself. The Chicago Crime Commission estimated the syndicate\'s net profits in the late twenties at sixty million dollars a year. Gross revenue guesses ran to a hundred million and past it."',
+      'Guzik: "Net, gross — the reporters never knew the difference. Sixty was the keep. The rest was overhead: beer, trucks, wages, envelopes. Mostly envelopes."',
+      'Wilson (Closeup/Determined): "Sixty million a year, and not one dollar of it filed. That gap isn\'t a secret. It\'s a structure. My job was to survey it."',
+      'Narrator: "Greed, measured: the hoard was the whole point, and the hoard is what the arithmetic finally reached."',
+      '[SCENE cap_record2]',
+    ], { greed: { target: 80, scale: 30 }, evidence: { target: 45, scale: 50 } }),
+
+  xw('capr_irey', 'The Record: Irey\'s Desk', dropCourt,
+    [xsign('capr_irey', 'TREASURY INTELLIGENCE UNIT — OCT 18, 1928'), ...xone('capr_irey', 'wilson')],
+    [
+      'Narrator: "Washington, October 18, 1928. Elmer Irey, chief of the Treasury\'s Intelligence Unit, opens the Capone file — four months before Clark Street, when the papers still found the man charming."',
+      'Irey: "I don\'t care what Chicago finds charming. A man with no income has bought a Florida estate. Somebody get me the arithmetic."',
+      'Wilson: "He handed it to me. Three years of it. My 1933 report reconstructed the whole cash operation after the fact — how the money moved, room to room, hand to hand, never once touching a bank account with his name on it."',
+      'Narrator: "Regulation\'s counter-machine had a start date, and it is earlier than the legend says. The legend starts with the massacre. The file starts with a desk."',
+      '[SCENE cap_record2]',
+    ], { evidence: { target: 40, scale: 40 }, regulation: { target: 30, scale: 40 } }),
+
+  xw('capr_books_1', 'The Record: The Bookkeepers — I', dropCourt,
+    [xsign('capr_books_1', 'SHUMWAY & REIS — THE FLIPPED LEDGERS'), ...xone('capr_books_1', 'wilson')],
+    [
+      'Narrator: "Exhibit: two men nobody photographed. Leslie Shumway kept the ledgers at the Hawthorne Smoke Shop. Fred Reis endorsed the cashier\'s checks that moved the profits. Between them, they could read the empire aloud."',
+      'Shumway: "I wrote what I was told to write, in columns, in my own hand. That\'s the trouble with a good bookkeeper, mister. The hand is identifiable."',
+      'Wilson: "I found Shumway in Florida at a dog track and gave him a choice: witness or defendant. Reis got the same offer. Both chose to keep breathing as witnesses."',
+      '[SCENE capr_books_2]',
+    ], { evidence: { target: 70, scale: 35 }, heat: { target: 55, scale: 50 } }),
+  xw('capr_books_2', 'The Record: The Bookkeepers — II', dropCourt,
+    xone('capr_books_2', 'wilson'),
+    [
+      'Narrator: "Both men went under federal protection — moved, guarded, kept off the streets where the Outfit\'s memory was long. Witness protection before the phrase existed, improvised for two clerks."',
+      'Shumway: "They kept me alive to say four words: those are the books. I said them. The rest was arithmetic and it wasn\'t mine anymore."',
+      'Wilson (Closeup/Determined): "Every empire of rent runs on clerks. The gunmen are replaceable. The man who knows which column is which — he\'s the load-bearing wall."',
+      '[SCENE cap_record2]',
+    ]),
+
+  xw('capr_lieutenants', 'The Record: The Rehearsal Convictions', dropCourt,
+    [xsign('capr_lieutenants', 'NITTI — GUZIK — RALPH: 1930'), ...xone('capr_lieutenants', 'wilson')],
+    [
+      'Narrator: "Exhibit: 1930, the year the method was rehearsed. Frank Nitti, the Enforcer — tax conviction. Jake Greasy Thumb Guzik, the money man — tax conviction. Ralph Bottles Capone, the brother — tax conviction. Three lieutenants, one statute, before the government ever said the name Al in court."',
+      'Guzik: "They practiced on us. I ran the money and they read my deposits back to me like a bedtime story. I did my time. I was back at the same desk after."',
+      'Wilson: "Each case taught us something. Ralph taught us they keep records under other names. Guzik taught us the checks come back endorsed. By the time we typed the big indictment, the typewriter knew the way."',
+      'Narrator: "Regulation learns by iteration. The Outfit watched three men fall to paper and still believed the fourth was different. Prestige does that."',
+      '[SCENE cap_record2]',
+    ], { regulation: { target: 35, scale: 40 }, evidence: { target: 55, scale: 40 } }),
+
+  xw('capr_johnson', 'The Record: For the United States', dropCourt,
+    [xsign('capr_johnson', 'GEORGE E. Q. JOHNSON — U.S. ATTORNEY'), ...xone('capr_johnson', 'wilson')],
+    [
+      'Narrator: "Exhibit: the man who signed the indictments. George E. Q. Johnson, United States Attorney for the Northern District of Illinois — gray, precise, incorruptible in a market where everything had a price sheet."',
+      'Johnson: "Twenty-two counts of tax evasion. I will not dress it up as a crusade. It is a filing. The government of the United States is a clerk with a long memory, and the clerk has finally been given his afternoon."',
+      'Wilson: "Irey found the trail, I walked it, Johnson made it a case. Three bureaucrats. The papers wanted a gunfight and got a docket number."',
+      '[SCENE cap_record2]',
+    ], { regulation: { target: 40, scale: 40 }, prestige: { target: 35, scale: 50 } }),
+
+  xw('capr_jurors', 'The Record: Twelve Names in the Paper', dropCourt,
+    [xsign('capr_jurors', 'THE JURY, PUBLISHED'), ...xone('capr_jurors', 'press', 2.6)],
+    [
+      'Narrator: "Exhibit, from the National Archives: during the trial, Chicago newspapers printed the names, addresses, and occupations of all twelve jurors. Farmers, a hardware dealer, small-town men — findable by anyone with a nickel for the paper."',
+      'The Press: "We printed it because it was news. Don\'t look at the desk like that. Every reader in Chicago understood what the addresses were FOR — and we sold the understanding at street price."',
+      'Narrator: "Twelve men convicted him anyway, addresses in print, in a town where the last man to defy the Outfit publicly had needed flowers. The verdict is the exhibit. The courage is the footnote nobody signed."',
+      '[SCENE cap_record2]',
+    ], { heat: { target: 60, scale: 40 }, regulation: { target: 35, scale: 50 } }),
+
+  xw('capr_bankers', 'The Record: The Bankers Quote', dropCourt,
+    [xsign('capr_bankers', 'COURTHOUSE STEPS — 1931'), ...xone('capr_bankers', 'capone')],
+    [
+      'Narrator: "Exhibit: verbatim, widely reported, before sentencing. Reporters on the courthouse steps, pencils up."',
+      'Capone: "I\'ve been made an issue and I\'m not complaining. But why don\'t they go after all those bankers who took the savings of thousands of poor people and lost them in bank failures?"',
+      'Narrator: "File it honestly: it is deflection, and it is also the best sentence he ever spoke, because the crowd on the steps had bank books too — emptied ones. The prestige machine could still fire on the way down."',
+      'Capone (Wave/Happy): "Print it straight, boys. That one writes itself."',
+      '[SCENE cap_record2]',
+    ], { prestige: { target: 45, scale: 40 }, heat: { target: 65, scale: 50 } }),
+
+  xw('capr_bunk', 'The Record: The Bunk Quote', dropLexington,
+    [xsign('capr_bunk', 'AN ATTRIBUTION — FLAGGED'), ...xone('capr_bunk', 'capone')],
+    [
+      'Narrator: "Exhibit, flagged: attributed, possibly apocryphal — the National Archives itself hangs the doubt on it. The line every history repeats:"',
+      'Capone (Sit/Confused): "The income tax law is a lot of bunk. The government can\'t collect legal taxes from illegal money."',
+      'Narrator: "Maybe he said it. Maybe a rewrite desk said it for him. Either way, the Supreme Court had already answered it in 1927, in Sullivan — and the answer, unlike the quote, is verbatim in the record."',
+      'Narrator: "Keep both files open. This chapter runs on the difference between what was said and what was reported — and so did he."',
+      '[SCENE cap_record2]',
+    ], { greed: { target: 75, scale: 40 }, prestige: { target: 50, scale: 50 } }),
+
+  xw('capr_milk', 'The Record: The Milk Legend', dropSoup,
+    [xsign('capr_milk', 'A DISPUTED FILE'), ...xone('capr_milk', 'workman')],
+    [
+      'Narrator: "Exhibit, flagged disputed: the story that Capone pushed for expiration dates on milk bottles to protect Chicago\'s schoolchildren. Popular, warm, and unverified — the historians have never found the floor under it."',
+      'Workman: "My street told it like gospel. The milk, the soup, the twenties to widows. You notice nobody ever told a story about the protection rates. Legends only grow on the sunny side of the ledger."',
+      'Narrator: "That is the finding, and it is worth the folder: the prestige machine did not need true stories. It needed repeatable ones. This one is still repeating, a century on — which makes it the machine\'s most durable output."',
+      '[SCENE cap_record2]',
+    ], { prestige: { target: 60, scale: 35 } }),
+
+  xw('capr_persona', 'The Record: The Prestige Machine', dropLexington,
+    [xsign('capr_persona', 'THE MANUFACTURE OF A BENEFACTOR'), ...xtwo('capr_persona', 'capone', 'press', 2.4, 2.6)],
+    [
+      'Narrator: "Exhibit: the machine itself. Capone courted reporters as deliberately as he courted aldermen — the Hearst papers ran him as color, the Runyon-era columnists as character. He styled himself a public benefactor, a Robin Hood with a tailor."',
+      'Capone (Wave/Happy): "I give the public what the public wants, and the papers what the papers want. Same principle. Different product."',
+      'The Press: "He returned calls. He fed deadlines. He was the only racketeer in America with a press strategy — and for ten years the strategy worked on us, because we were the market it was priced for."',
+      'Narrator: "The soup at 935 South State — 2,200 a day, five thousand on a Thanksgiving, 120,000 meals in a Tribune headline — was this machine\'s finest hour. It closed in April 1932, unemployment still rising. The PR had cleared; the hunger hadn\'t. Prestige, itemized."',
+      '[SCENE cap_record2]',
+    ], { prestige: { target: 70, scale: 30 }, greed: { target: 70, scale: 50 } }),
+
+  xw('capr_georgist', 'The Record: Cicero as Rent', dropCicero,
+    [xsign('capr_georgist', 'THE CLAIM ITSELF — TERRITORY AS TITLE'), ...xone('capr_georgist', 'torrio')],
+    [
+      'Narrator: "Exhibit: the theory of the whole chapter, stated once, plainly. What the Outfit took in Cicero was not a business. It was a CLAIM — territorial, exclusive, enforced. Every shop paid to exist on that ground. That is not profit. That is rent."',
+      'Torrio (Lean/Tired): "A brewery you have to run. A territory runs itself — you just stand on it and hold out your hat. I taught Al the difference. He learned it better than I wanted."',
+      'Narrator: "The claim needed a stuck valve to hold: Big Bill Thompson in City Hall — a mayor who kept Capone\'s picture — graft running downhill through aldermen and precinct captains and patrolmen. Regulation wasn\'t defeated. It was leased."',
+      'Narrator: "That is the machine in one town: seize the ground, price the permission to live on it, pay the referee. The Machine hub will run you the same engine with the labels off."',
+      '[SCENE cap_record2]',
+    ], { rent: { target: 25, scale: 25 }, regulation: { target: 10, scale: 30 } }),
+
+  xw('capr_sweeney', 'The Record: Sergeant Sweeney\'s Report', dropGarage,
+    [xsign('capr_sweeney', 'REPORTED WORDS — A CAUTION'), ...xone('capr_sweeney', 'ness')],
+    [
+      'Narrator: "Exhibit: the most quoted sentence in this story, and the least certain. Frank Gusenberg, fourteen wounds, alive three hours. Sergeant Clarence Sweeney, at the bedside, asks who did the shooting."',
+      'Ness: "The report gives the answer everyone knows: no one — nobody shot me. Some historians doubt a man in that state said anything at all. The words are reported, not recorded. There\'s a difference, and this office is built on it."',
+      'Narrator: "So the file carries both truths. If he said it, it is the code speaking through a dying man. If he never said it, it is Chicago writing the line it needed — which is the code again, one step removed."',
+      'Ness: "Either way, no witness, no charge, no trial for seven dead men. That silence is verbatim. You can quote the silence."',
+      '[SCENE cap_record2]',
+    ], { repression: { target: 60, scale: 35 }, heat: { target: 70, scale: 40 } }),
 ];
 
 scenes.push(...EXPANSION);

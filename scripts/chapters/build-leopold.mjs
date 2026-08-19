@@ -1768,6 +1768,11 @@ const game = {
     // Voice-only figures for the Duets (no art; the engine renders name-only)
     { id: 'stanley', name: 'Stanley', graphics: [], status: 'work' },
     { id: 'twain', name: 'Twain', graphics: [], status: 'work' },
+    // Voice-only witnesses from the Pass 2 dossier (The Record):
+    // Tswambe's words are reported via a Catholic priest (Hochschild);
+    // Lemaire's are his own, written after retirement.
+    { id: 'tswambe', name: 'Tswambe', graphics: [], status: 'work' },
+    { id: 'lemaire', name: 'Lemaire', graphics: [], status: 'work' },
     // Machine core cast (empty graphics — the rig renders placeholders)
     ...CORE_ACTORS,
   ].filter(Boolean),

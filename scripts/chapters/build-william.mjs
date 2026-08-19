@@ -1,7 +1,9 @@
 // Builds public/hvb-william.json — the standalone WILLIAM THE CONQUEROR
 // (1066) chapter game of Humans vs Billionaires. Content sourced from
-// docs/HVB_RESEARCH.md, Chapter 1 only. Disputed quotes stay framed as
-// chronicler claims (Orderic Vitalis).
+// docs/HVB_RESEARCH.md and docs/HVB_RESEARCH_2.md (Pass 2 dossier),
+// Chapter 1 only. Disputed quotes stay framed as chronicler claims
+// (Orderic Vitalis); verbatim-vs-reported flags follow the dossier.
+// Lanfranc and Ealdred appear as voice-only speakers (no actor art).
 //
 // Art: art-demo/william_*.png (court set) + art-demo/william/*.png
 // (chapter set, from scripts/chapters/gen-william.mjs). Robust to
@@ -1955,6 +1957,144 @@ const RESEARCH = [
       'Narrator: "Edgar outlived William by nearly forty years, on the pension, in the record — the revolution that was never crushed because it was successfully SALARIED."',
       '[SCENE wm_chronicle_hub]',
     ] },
+
+  // ---- Pass 2 dossier scenes (HVB_RESEARCH_2.md, Chapter 1) ----------------
+
+  // The enterprise triple: banner -> Lillebonne -> the windbound fleet.
+  { id: 'wm_x_banner', name: 'The Papal Banner', sign: 'ROME AND ROUEN, 1066',
+    drop: ['wm_hall', null], left: ['william_king', 30], right: ['orderic', 70],
+    keys: { greed: { target: 55, scale: 55 }, flareUps: { target: 1, scale: 5 } },
+    lines: [
+      'Narrator: "Before a single ship is built, the enterprise acquires its most valuable cargo: a consecrated banner from Pope Alexander II. Watch the two meters this one object moves."',
+      'Orderic: "Lanfranc of Bec argued the case at Rome; Archdeacon Hildebrand — the future Gregory VII — pushed the decision through. Harold was arraigned in absence as an oath-breaker and a violator of sacred relics. No Englishman was heard."',
+      'Lanfranc: "I did not ask the Holy See to bless a conquest, sire. I asked it to recognize a RIGHT. The distinction is everything: a conquest must be defended forever; a right defends itself."',
+      'William: "One banner, and every sword in Christendom may serve me without sin, and every court in Christendom is closed to my victims in advance. Cheap at any price of penance."',
+      'Narrator: "In the machine\'s terms: PRESTIGE up, REGULATION down — the referee blessed the acquisition before it happened. Moral cover is the cheapest insurance extraction ever buys. (The record wobbles: some scholars argue the banner was formally conferred only at Winchester, c.1070 — the receipt possibly backdated.)"',
+      '[SCENE wm_x_lillebonne]',
+    ] },
+  { id: 'wm_x_lillebonne', name: 'The Council of Lillebonne', sign: 'LILLEBONNE, JANUARY 1066',
+    drop: ['wm_hall', null], left: ['william_king', 30], right: ['william_odo', 70],
+    keys: { greed: { target: 70, scale: 45 }, repression: { target: 45, scale: 60 } },
+    lines: [
+      'Narrator: "Lillebonne, January 1066. The barons of Normandy balk: no feudal duty obliges them to cross a sea. So William makes them an offer that is the Georgist seed of this whole chapter."',
+      'Odo: "They will not sail for duty, brother. Duty ends at the water."',
+      'William: "Then they will sail for LAND. English lands and English titles, to every man who brings ships and swords — and not lands for a lifetime, bishop. Lands for their heirs, and their heirs\' heirs, against all time."',
+      'Odo (Pointing/Smug): "Ah. Not an army, then. A company of investors. And the adventurers of Brittany, Flanders, and France will subscribe alongside us the moment they hear the terms."',
+      'Narrator: "They did. Hold the sequence in view, because every chapter of this game repeats it: conquest converted into property, property into rent, rent into perpetuity. The swords were the down payment; England\'s fields were the dividend; the payout schedule was FOREVER."',
+      '[SCENE wm_x_shiplist]',
+    ] },
+  { id: 'wm_x_shiplist', name: 'The Windbound Month', sign: 'DIVES-SUR-MER TO ST-VALERY, 1066',
+    drop: ['wm_salisbury', null], left: ['william_odo', 30], right: ['orderic', 70],
+    keys: { greed: { target: 65, scale: 50 }, flareUps: { target: 1, scale: 5 } },
+    lines: [
+      'Narrator: "The fleet gathers at the mouth of the Dives by mid-August — and the wind refuses. For about a month the greatest speculation of the century sits at anchor, eating itself."',
+      'Odo: "The Ship List will record the pledges: some 776 vessels promised. I subscribed one hundred; Mortain, our brother, one hundred and twenty. Seven to fourteen thousand men, the scholars will reckon, and every one of them eating stores we cannot replace."',
+      'Orderic: "Say what it was, your grace: capital, committed. An invasion at anchor is a margin call every morning. Disband, and the promises of English land are waste paper; sail into the wrong wind, and the company drowns with its prospectus."',
+      'Odo (Pointing/Smug): "So we moved the position to St-Valéry and lit candles to the local saint. Prayer, little monk, is what speculators call patience when the leverage is total."',
+      'Narrator: "The wind turned at Michaelmas; the fleet crossed the night of 27-28 September and landed unopposed. Wace later counted 696 ships — chroniclers audit each other too. But the shape is exact: England was not just invaded. It was UNDERWRITTEN."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_bayeux', name: 'The Oath at Bayeux', sign: 'BAYEUX, c.1064',
+    drop: ['wm_hall', null], left: ['william_king', 30], right: ['orderic', 70],
+    keys: { greed: { target: 50, scale: 60 }, repression: { target: 45, scale: 60 } },
+    lines: [
+      'Narrator: "FLAG THIS SCENE BEFORE IT PLAYS: everything in it is Norman testimony. No English source corroborates the oath. This is the story the conquest told to license itself."',
+      'Orderic: "The account I inherited runs so: Harold, shipwrecked and a guest, swore fealty to Duke William and promised him the crown — swearing, per the tradition, on the most sacred relics. The Tapestry stitches him mid-oath, a hand on each shrine."',
+      'William: "And the better version, monk — the one told by firesides: my men HID the relics beneath the cloth, so the Saxon swore his everyday oath and only afterward saw what bones had witnessed it."',
+      'Orderic: "Sire, observe what that story is. A tale in which the trick is the POINT — told with pride by the trickster\'s own party. The hidden-relics device is not evidence of Harold\'s guilt; it is a narrative device, and it confesses the whole method: manufacture the obligation, then enforce it as law."',
+      'Narrator: "The oath was argued at Rome by Lanfranc and became the banner, the invasion\'s license. Whether it happened — and what Harold thought he swore, under what duress — the sources cannot say. The machine did not need it true. It needed it TOLD."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_crownfire', name: 'The Coronation Fire', sign: 'WESTMINSTER, 25 DECEMBER 1066',
+    drop: ['wm_hall', null], left: ['orderic', 30], right: ['crowd', 70, { scale: 2.6 }],
+    keys: { repression: { target: 70, scale: 40 }, flareUps: { target: 3, scale: 5 } },
+    lines: [
+      'Narrator: "Christmas Day, 1066. Ealdred, Archbishop of York — who crowned Harold in January — now crowns William in December. The rite is asked in two languages."',
+      'Ealdred: "I put the question to the English in English; Geoffrey of Coutances put it to the Normans in French. Will you have this king? The abbey answered in both tongues at once — a roar of consent such as those walls had never held."',
+      'The Village: "We shouted because the archbishop asked us to shout! In our own tongue, in our own church — for one breath it felt like a choosing!"',
+      'Orderic: "The Norman guards outside knew neither language. They heard the roar, took it for assassination, and fired the houses around the abbey. The congregation fled the smoke; a handful of clergy hurried the rite to its end — while the king, I recorded, TREMBLED at the altar."',
+      'Narrator: "Reported by Orderic, writing later — but the shape is the reign in miniature: consent, illegible to the enforcers, answered with fire; and at the center of the smoke, an anointed king shaking. He was crowned by a machine that could not tell cheering from rebellion, and never learned to."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_odo_trial', name: 'The Commissioner, Audited', sign: 'THE TRIAL OF THE EARL OF KENT, 1082',
+    drop: ['wm_hall', null], left: ['william_king', 30], right: ['william_odo', 70],
+    keys: { greed: { target: 75, scale: 40 }, repression: { target: 60, scale: 55 } },
+    lines: [
+      'Narrator: "Consider the defendant\'s portfolio. Bishop of Bayeux. Earl of Kent. One hundred ships at the crossing. Lands Domesday will value near £3,000 across twenty-two counties — second only to the king. And, most likely, the patron who commissioned the Bayeux Tapestry itself."',
+      'William (Pointing/Angry): "The man who embroidered the conquest\'s advertisement stands accused of embezzling the conquest\'s proceeds. You defrauded the crown, bishop — MY crown, stitched by YOUR needleworkers."',
+      'Odo: "Defrauded, sire, is an ungenerous word for a commission. Every system pays its administrators; I merely set my own rate."',
+      'William: "That is exactly the crime. The rate is the ONE thing in England I did not delegate."',
+      'Narrator: "Arrest, trial, prison at Rouen — the sentence the dying king reluctantly lifted. Odo died in 1097 en route to Crusade. Mark the lesson every chapter of this game repeats: the machine forgives its enemies before its auditors. Extraction can absorb any crime except skimming."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_barons', name: 'The Barons\' Ledger', sign: 'THE SPOILS, 1086',
+    drop: ['wm_scriptorium', null], left: ['william_odo', 30], right: ['peasant', 70],
+    keys: { greed: { target: 85, scale: 30 }, repression: { target: 55, scale: 60 } },
+    lines: [
+      'Narrator: "Open the book to the winners\' pages. Read what each man took — and, where the record kept it, whose it was."',
+      'Odo: "Robert of Mortain, the king\'s half-brother: some 797 manors — the largest lay landholder in England after the king, for the price of 120 ships. Alan Rufus the Breton: the vast Honour of Richmond, above a thousand Domesday entries, third in the kingdom — much of it seized from Edith the Fair, Harold\'s widow."',
+      'Odo (Pointing/Smug): "William fitzOsbern, the king\'s boyhood friend: Earl of Hereford, the Isle of Wight, co-regent of England — dead at Cassel in \'71, but the grant outlived the man, which is the entire point of grants. And Geoffrey de Mandeville: sheriff of London and Middlesex, among the ten richest in the book."',
+      'Aldric: "And under de Mandeville\'s name, bishop? Read the smaller letters. The record itself remembers: his lands were taken from Esgar the Staller — an Englishman with a name, an office, and a family, who held them before your book existed to say otherwise."',
+      'Odo: "The book does not say \'taken,\' farmer. The book says \'was held by\' and \'is held by.\' The passive voice is the most profitable clause in it."',
+      'Narrator: "Every line of the ledger has an erased name under it. Domesday is a palimpsest: a conquest written over a country, in the neatest hand in Europe. And the ink is not dry yet — turn the page nine hundred years."',
+      '[SCENE wm_x_grosvenor]',
+    ] },
+  { id: 'wm_x_penance', name: 'The Penance Tariff', sign: 'THE PENITENTIAL ORDINANCE, c.1070',
+    drop: ['wm_hall', null], left: ['orderic', 30], right: ['william_king', 70],
+    keys: { greed: { target: 60, scale: 50 }, repression: { target: 55, scale: 60 } },
+    lines: [
+      'Narrator: "Around 1070 the Church presents the victors with a bill. The Penitential Ordinance of Ermenfrid of Sion prices the conquest, sin by sin — read the tariff."',
+      'Orderic: "\'Anyone who knows that he killed a man in the great battle must do penance for one year for each man that he killed.\' Wounding: forty days the wound. And the archers, whose kills no man could count: three Lents, flat rate. Even absolution, sire, had a volume discount."',
+      'William: "A fair instrument, monk. My knights confessed, fasted, endowed churches. The books balanced."',
+      'Orderic: "All the books but one. Read the ordinance end to end, sire: the duke who ORDERED the battle is nowhere assessed in it. The scholar Freeman would do your arithmetic eight centuries on — by the tariff\'s own logic, the commander owed some two thousand years of penance. The invoice was never sent."',
+      'Narrator: "A moral system that prices every sin and exempts the principal shareholder is not a conscience — it is a subsidiary. The Church billed the workforce and comped the owner. Now watch what the owner built with the savings."',
+      '[SCENE wm_x_prestige]',
+    ] },
+  { id: 'wm_x_prestige', name: 'The Prestige Machine', sign: 'BATTLE ABBEY AND THE COURT HISTORY',
+    drop: ['wm_hall', null], left: ['william_odo', 30], right: ['orderic', 70],
+    keys: { greed: { target: 65, scale: 50 }, repression: { target: 50, scale: 60 } },
+    lines: [
+      'Odo: "Battle Abbey, monk — founded on the field of Hastings itself, at papal instruction, as penance. And the high altar set, deliberately, on the exact spot where Harold fell. Approach the mercy-seat of God, and you kneel on the dead king."',
+      'Orderic: "A penance that is also a trophy; a receipt that doubles as a monument. Your family had a gift for documents that say two things at once."',
+      'Odo (Pointing/Smug): "Add the twin abbeys at Caen — bought, if we are being exact, as the price of a marriage the Church had forbidden. And the new cathedrals rising on English ground: Canterbury, Winchester, St Albans, York. Stone is prestige that cannot be argued with."',
+      'Orderic: "And for the arguable part, there was Poitiers. William of Poitiers, the king\'s own chaplain, wrote the Gesta Guillelmi: Harold the perjurer, William the heir of God\'s designing. The scholars after me — Bates, Morris, van Houts — will file it where it belongs: under advertising."',
+      'Narrator: "Tally the insulation: a banner from the Pope, a penance that exempted the principal, an abbey on the enemy\'s grave, a court history for the record. Prestige is not the machine\'s decoration. It is the machine\'s ARMOR — and it was itemized."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_lanfranc', name: 'The Kingdom\'s Lawyer', sign: 'CANTERBURY, 1070-1089',
+    drop: ['wm_scriptorium', null], left: ['orderic', 30], right: ['william_king', 70],
+    keys: { greed: { target: 55, scale: 55 }, repression: { target: 50, scale: 60 } },
+    lines: [
+      'Narrator: "One voice ran through every legal joint of the conquest: Lanfranc of Bec — the lawyer who argued William\'s case at Rome, then came to collect the fee."',
+      'Lanfranc: "Archbishop of Canterbury, from 1070 — after we deposed the English incumbent by canon law, correctly. I make no apology for correctness. Everything this kingdom\'s new order did, it did in FORM."',
+      'William: "Form is why I sent for him, monk. Any duke can win a battle. It takes a canonist to make the winnings inheritable."',
+      'Lanfranc: "At Winchester in 1072 I settled Canterbury\'s primacy over York — one church, one head, as one kingdom, one king. And I rebuilt Canterbury cathedral on the model of my own St-Étienne at Caen. Let the English pray inside Norman geometry; the lesson repeats at every mass."',
+      'Orderic: "Hear the design entire: the sword took the land, the book fixed the rent, and this man\'s law made both CANONICAL. Every machine in this game retains one of him. Most are not so candid about the invoice."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_ealdred', name: 'The Man Who Crowned Them Both', sign: 'YORK AND WESTMINSTER, 1066',
+    drop: ['wm_hall', null], left: ['orderic', 30], right: ['crowd', 70, { scale: 2.6 }],
+    keys: { repression: { target: 60, scale: 50 }, flareUps: { target: 2, scale: 6 } },
+    lines: [
+      'Narrator: "January 1066: Ealdred of York crowns Harold Godwinson. December 1066: the same hands, the same rite, crown William. One year, two kings, one archbishop."',
+      'Ealdred: "Judge me after you have stood where I stood. The rite is not mine to withhold; it is England\'s continuity, and I am its custodian. I crowned the king the Witan chose. Then that king was dead on a ridge, and a duke with a papal banner held London — and I crowned again, in English, and made HIM swear first: to rule this people justly, as the best kings before him."',
+      'The Village: "The old archbishop made the Frenchman swear in OUR rite before he gave him the crown! It was the last time anyone made that man promise anything!"',
+      'Orderic: "He extracted the oath, addressed the people in their own tongue, and used what standing he had to soften what could be softened. He died in 1069 — the year the North burned, as if the office\'s last honest man could not survive the sight of what he had anointed."',
+      'Narrator: "The institution survives every king it crowns; that is its power and its alibi. Ealdred\'s bargain — legitimacy in exchange for promises — is the oldest trade in this game. The promises were spent by spring. The legitimacy is still earning."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
+  { id: 'wm_x_grosvenor', name: 'The Rent Is Still Collected', sign: 'DOMESDAY TO MAYFAIR, 1086-2025',
+    drop: ['wm_scriptorium', null], left: ['orderic', 30], right: ['peasant', 70],
+    keys: { greed: { target: 80, scale: 40 }, repression: { target: 45, scale: 70 } },
+    lines: [
+      'Narrator: "Last entry in the Chronicle, and the spine of the whole game, made explicit. The question is simple: did the extraction of 1066 ever actually STOP?"',
+      'Orderic: "Follow one thread. A kinsman of the Conqueror\'s circle, Gilbert le Grosveneur — \'the chief huntsman\' — comes over in 1066 and takes Cheshire lands. Six centuries on, a Grosvenor marries Mary Davies and her five hundred acres of swamp west of London. The swamp becomes Mayfair and Belgravia. The family still owns much of it."',
+      'Aldric: "And the man at the end of the thread, monk? Name him. Names are the whole game."',
+      'Orderic: "Hugh Grosvenor, seventh Duke of Westminster: £9.884 billion, fourteenth on the Rich List of 2025 — nine and a half centuries of rent, still compounding. And the pattern is not one family\'s luck: Alan Rufus died in 1093 holding £11,000 — over seven percent of England\'s entire national income, some £81 billion in today\'s terms; the scholars who computed it call him the richest Briton who ever lived. And the economists Clark and Cummins found Norman surnames — Darcy, Mandeville, Montgomery, Percy — STILL overrepresented at Oxford and Cambridge, a thousand years on."',
+      'Aldric: "So when they tell my grandson\'s grandsons that it was all very long ago — the book, the fires, the oath — the answer is in the land registry. It is not history, neighbors. It is a LEASE. And it has never once expired."',
+      'Narrator: "Conquest became property; property became rent; rent became a rich list with the conquest\'s surnames on it. That is why this chapter is first, and why Henry George haunts every one that follows: the fire went out in 1070. The RENT is being collected this morning."',
+      '[SCENE wm_chronicle_hub]',
+    ] },
 ];
 
 for (const rx of RESEARCH) {
@@ -1984,9 +2124,9 @@ scenes.push({
     ...balloon('chron_hub_sign', 'THE CHRONICLE: WHAT ELSE THE RECORD HOLDS', 50, 10, { scale: 0.9 }),
   ],
   script: lines(
-    'Narrator: "The research holds more than the main stage could carry: the earls\' revolt, the bought-off Danes, the fall of Ely, the oath, the funeral, the Chronicle\'s own verdict. Orderic keeps the index."',
+    'Narrator: "The research holds more than the main stage could carry: the papal banner and the land-for-swords bargain, the windbound fleet, the coronation fire, the earls\' revolt, the barons\' ledger, the funeral — and the rent still being collected this morning. Orderic keeps the index."',
     '[CHOICE]',
-    ...RESEARCH.filter((rx) => !['wm_x_earls2', 'wm_x_ely_fall2', 'wm_x_funeral2', 'wm_x_chronicle2'].includes(rx.id))
+    ...RESEARCH.filter((rx) => !['wm_x_earls2', 'wm_x_ely_fall2', 'wm_x_funeral2', 'wm_x_chronicle2', 'wm_x_lillebonne', 'wm_x_shiplist', 'wm_x_prestige'].includes(rx.id))
       .map((rx) => `- "${rx.name}" -> ${rx.id}`),
     '- "Back to the voices" -> wm_hub',
     '[/CHOICE]',
@@ -2273,7 +2413,7 @@ const game = {
     {
       id: 'ep_william',
       name: 'Chapter 1: William the Conqueror',
-      description: 'Conquest converted into a permanent rent system, 1066-1087. Sourced from HVB_RESEARCH.md.',
+      description: 'Conquest converted into a permanent rent system, 1066-1087. Sourced from HVB_RESEARCH.md and HVB_RESEARCH_2.md.',
       sceneIds: scenes.map((s) => s.id),
       status: 'work',
     },
