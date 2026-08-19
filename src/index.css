@@ -173,13 +173,15 @@
   }
 }
 
-/* Breathing gold aura (box-shadow only: transform-safe) */
+/* Breathing gold aura. drop-shadow (not box-shadow) so the glow hugs
+   the sprite's alpha silhouette instead of its bounding rectangle;
+   filter-only keeps it transform-safe. */
 @keyframes sfx-glow {
-  0%, 100% { box-shadow: 0 0 12px hsl(var(--diesel-gold)); }
+  0%, 100% { filter: drop-shadow(0 0 6px hsl(var(--diesel-gold))); }
   50% {
-    box-shadow:
-      0 0 28px hsl(var(--diesel-gold)),
-      0 0 48px hsl(var(--diesel-gold) / 0.5);
+    filter:
+      drop-shadow(0 0 14px hsl(var(--diesel-gold)))
+      drop-shadow(0 0 28px hsl(var(--diesel-gold) / 0.6));
   }
 }
 
