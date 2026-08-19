@@ -672,6 +672,726 @@ const voicesHub = {
 
 const VOICES_SCENES = [voicesHub, ...voiceChoosers, ...voiceVignettes];
 
+// ---------------------------------------------------------------- Duets
+// Seven two-voice conversation chains — the record staged as dialogue.
+// Where an exchange is reconstructed (Stanley, the mirror) or is a
+// literary device (Twain), the narrator says so on the record.
+// Register throughout: documentary — testimony, absence, aftermath.
+
+const DUETS = [
+  {
+    id: 'evidence', title: 'Casement & Morel — The Shape of Proof', drop: 'docks',
+    a: 'casement', b: 'morel',
+    keys: { exposure: { target: 3, scale: 8 } },
+    intro: 'December 1903. The consul back from the river; the clerk who never left Liverpool. They meet at a house in London and compare what they carry.',
+    beats: [
+      [
+        `Narrator: "Two men, two kinds of proof, one table."`,
+        `Casement: "I have testimony. Names, dates, quotas — sworn or marked, taken across a table like this one."`,
+        `Morel: "I have ledgers. Tonnage in, cartridges out, year on year. No witness required."`,
+        `Casement: "And yet you sent for me."`,
+        `Morel: "And yet you came."`,
+      ],
+      [
+        `Morel: "Understand what a column can do. It cannot weep, so it cannot be accused of weeping."`,
+        `Morel: "They called the missionaries hysterical. No one has ever called a manifest hysterical."`,
+        `Casement: "No. They call it dull, and turn the page."`,
+        `Morel: "Then we must stop them turning the page."`,
+      ],
+      [
+        `Casement: "A number tells you the system exists. A name tells you what it is for."`,
+        `Casement (Closeup/Determined): "I sat across from the people your columns describe. They are not illustrations of an argument. They are its authors."`,
+        `Morel: "Then the pamphlets carry both. The arithmetic on the left page, the testimony on the right."`,
+        `Casement: "And neither can be dismissed without dismissing the other."`,
+      ],
+      [
+        `Narrator: "Out of that evening comes a division of labor that will run for a decade."`,
+        `Morel: "You cannot campaign — you are a serving consul. I cannot testify — I have seen nothing. So: your facts, my presses."`,
+        `Casement: "Founded on the understanding that we exaggerate nothing. The record is bad enough told plainly."`,
+        `Morel: "Told plainly, and told everywhere. In March we found the association. Liverpool first."`,
+        `Narrator: "The Congo Reform Association is founded 23 March 1904. Ledgers and testimony, bound in one spine."`,
+      ],
+    ],
+  },
+  {
+    id: 'treaties', title: 'Leopold & Stanley — The Founding Paper', drop: 'palace',
+    a: 'leopold', b: 'stanley',
+    keys: { concealment: { target: 1, scale: 8 } },
+    intro: 'Brussels, between 1879 and 1884. What follows is reconstructed from the surviving instructions and reports — the words are framed on the record, not invented against it.',
+    beats: [
+      [
+        `Narrator: "The instructions to Stanley survive in the correspondence. Their substance is this."`,
+        `Leopold: "The treaties must be brief, Mr. Stanley, and they must grant everything. Land, labor, sovereignty. The consideration may be cloth."`,
+        `Stanley: "The chiefs cannot read the text, Majesty."`,
+        `Leopold: "The powers of Europe can. It is for them the text is written."`,
+      ],
+      [
+        `Stanley: "Four hundred and fifty marks on four hundred and fifty papers, from the estuary to Stanley Falls. The stations are planted."`,
+        `Leopold (Sit/Smug): "Tidy. An empire acquired by stationery."`,
+        `Stanley: "On the river they call me Bula Matari. Breaker of rocks."`,
+        `Narrator: "The name outlives the man. On the river it comes to mean the State itself — the thing that cannot be argued with."`,
+      ],
+      [
+        `Stanley: "You ask what the chiefs understood. They understood a flag, a gift, and a visitor who would return."`,
+        `Stanley: "What the paper said — sovereignty, in perpetuity — no man at those palavers said aloud in any tongue they knew."`,
+        `Leopold: "And yet the marks are genuine."`,
+        `Narrator: "Both statements are true. That is the whole method, in two sentences."`,
+      ],
+      [
+        `Narrator: "Berlin, 1885: the four hundred treaties are the exhibit that wins a million square miles."`,
+        `Leopold: "You see, Mr. Stanley — no conquest. A file."`,
+        `Narrator: "Twenty years later the same file is read again, by different eyes, as evidence. Paper convicts paper."`,
+        `Narrator: "The Community said it from the first day: we know what a bargain is. That was not one."`,
+      ],
+    ],
+  },
+  {
+    id: 'mirror', title: 'Leopold & the Glass — The Two Ledgers', drop: 'palace',
+    a: 'leopold', b: null,
+    keys: { concealment: { target: 3, scale: 8 } },
+    intro: 'The palace office, after hours. A king and a mirror. Each scene is two beats: the public mask, then the private ledger. The mask is quoted from his speeches; the ledger from what his orders did.',
+    beats: [
+      [
+        `Leopold: "To open to civilization the only part of our globe it has not yet penetrated — a crusade worthy of this century of progress."`,
+        `Narrator: "That is the mask. It is a real quotation. Now the ledger."`,
+        `Leopold (Sit/Smug): "ABIR pays a dividend past one hundred percent. The crusade is the best investment in Europe."`,
+        `Narrator: "Both sentences are his. He kept them in separate drawers."`,
+      ],
+      [
+        `Leopold: "You will find no order of mine commanding cruelty. I issue budgets."`,
+        `Narrator: "The mask again. Now the ledger."`,
+        `Leopold: "A budget that pays sentries by the ton collected is an order. I have always known what my arithmetic instructs."`,
+        `Narrator: "The second sentence he never said aloud. The first was his entire defense, for twenty years."`,
+      ],
+      [
+        `Narrator: "February 1904. The Casement Report is on the desk. The mask answers the press."`,
+        `Leopold (Pointing/Angry): "Rumor, gathered at riverside missions. An honest inquiry would have consulted my administration."`,
+        `Narrator: "The ledger reads it a second time, alone."`,
+        `Leopold: "He proves it from our own books. The danger was never cruelty. Europe forgives cruelty. The danger is the bookkeeping."`,
+      ],
+      [
+        `Leopold: "I give my Congo to Belgium as I always intended. A patriot's bequest."`,
+        `Narrator: "The mask, 1908. The ledger burns."`,
+        `Leopold: "Eight days the furnaces ran. I will give them my Congo; they have no right to know what I did there."`,
+        `Narrator: "The archive fires are documented; the sentence about them is his, reported. The mirror scene ends here. He never looked long."`,
+      ],
+    ],
+  },
+  {
+    id: 'camera', title: 'Harris & Sheppard — What the Camera Carries', drop: 'village',
+    a: 'harris', b: 'sheppard',
+    keys: { rumor: { target: 8, scale: 16 } },
+    intro: 'A mission veranda in the rubber country. A box Kodak on the table between them, and a notebook beside it.',
+    beats: [
+      [
+        `Harris: "The camera carries an hour of light. A face, a doorway, the thing set down on the step."`,
+        `Sheppard: "And it crosses the ocean unchanged. No editor can soften a negative."`,
+        `Harris: "That is its whole power. It cannot be argued into meaning less."`,
+      ],
+      [
+        `Sheppard: "Now what it cannot carry. It cannot carry a name."`,
+        `Sheppard: "Nsala is a man of Wala. His daughter was named Boali. The print says none of that unless a hand writes it under."`,
+        `Harris: "Nor the before. The gardens as they were. The market days. A photograph begins at the catastrophe."`,
+        `Sheppard: "So the notebook goes where the camera goes. Names, dates, what stood here before. Or the picture is only sorrow."`,
+      ],
+      [
+        `Harris: "There is a harder question. Whether to make the picture at all."`,
+        `Sheppard: "The people who sat for you chose to sit. Say that in the halls, every time."`,
+        `Harris (Crouch/Determined): "Nsala asked, in effect, that the world be made to look. I steadied the box. That is the whole of my authorship."`,
+        `Sheppard: "Then the photograph is his testimony. You held the pen he chose."`,
+      ],
+      [
+        `Narrator: "The division of labor settles: her slides, his entries — projected together, cited together."`,
+        `Harris: "In the halls I change the slide and wait. You have given me the sentence to read while they look."`,
+        `Sheppard: "Read the names. A hall that has heard a name does not file out the same."`,
+        `Narrator: "Sixty slides, one notebook, a lantern. The armory of the campaign, complete on one table."`,
+      ],
+    ],
+  },
+  {
+    id: 'interview', title: 'Morel & the Officer — The Interview That Gives Nothing', drop: 'station',
+    a: 'morel', b: 'officer',
+    keys: { exposure: { target: 1, scale: 8 } },
+    intro: 'A composite of the interviews Morel sought with serving and former Free State men — reconstructed on the record from his account of what such interviews yielded, which was, on the surface, nothing.',
+    beats: [
+      [
+        `Morel: "Lieutenant. The outbound manifests show guns, cartridges, chains. No trade goods. What are the cartridges for?"`,
+        `Officer: "Resupply of the Force Publique, per regulation."`,
+        `Morel: "And the chains?"`,
+        `Officer: "Stores. Everything on that manifest is per regulation."`,
+        `Narrator: "First answer: regulation. Note it."`,
+      ],
+      [
+        `Morel: "The quotas, then. Who sets a village's rubber figure?"`,
+        `Officer: "The figure arrives from Brussels. I do not set it. I record against it."`,
+        `Morel: "And when the figure is not met?"`,
+        `Officer: "The shortfall is entered and forwarded. What follows is not my office."`,
+        `Narrator: "Second answer: not my office. Note it."`,
+      ],
+      [
+        `Morel: "The surety ledgers. Persons entered as held against delivery."`,
+        `Officer: "Entries in and entries out. The book is kept correctly."`,
+        `Morel: "I did not ask whether it was kept correctly. I asked what it is."`,
+        `Officer: "It is a book, monsieur, kept correctly."`,
+      ],
+      [
+        `Narrator: "Morel closes his notebook. The interview has given nothing — and therefore everything."`,
+        `Morel (Pointing/Surprised): "There it is. Ask the system what it does, and it answers: regulation, procedure, a book kept correctly."`,
+        `Morel: "Nothing is what this machine says when questioned. I will print the nothing verbatim, next to the manifests."`,
+        `Narrator: "He does. The refusals read worse than confessions, because they are in no one's voice at all."`,
+      ],
+    ],
+  },
+  {
+    id: 'testimony', title: 'Casement & the Community — Taking the Record', drop: 'village',
+    a: 'casement', b: 'community',
+    keys: { testimony: { target: 1, scale: 1 } },
+    intro: 'The upper river, 1903. A table, an interpreter, a consul with a ledger of his own. The witnesses are not subjects of this record. They are its authors.',
+    beats: [
+      [
+        `Casement: "I will write what you say, as you say it. Names, dates, amounts. Nothing added."`,
+        `The Community: "You will be told exactly. We have kept the account ourselves, waiting for someone to ask."`,
+        `Casement: "Then I am the clerk here. Begin where you choose."`,
+      ],
+      [
+        `The Community: "Write: this district, two hundred forty persons. One ton of foodstuffs delivered weekly, on instruction."`,
+        `The Community: "Returned to us for it: fifteen shillings tenpence. We counted it in front of the agent. He did not disagree with the counting."`,
+        `Casement (Closeup/Determined): "Two hundred forty. One ton. Fifteen and ten. Entered."`,
+        `Narrator: "The figure goes into the Report unaltered, and from the Report into Twain, and from Twain around the world."`,
+      ],
+      [
+        `The Community: "Stop. The name you have written — the second vowel is wrong. It is his name. It must be exact."`,
+        `Casement: "Corrected. Read it back to me until it is right."`,
+        `The Community: "Now it is right. A record with our names wrong would be one more thing taken."`,
+      ],
+      [
+        `Casement: "I must tell you what London will do. The names will be cut to initials before printing. I have argued; I have lost."`,
+        `The Community: "Then the letters will stand where our names stood. We know which words are whose. So do you."`,
+        `Casement: "I keep the uncut copy. The names are not lost. They are waiting."`,
+      ],
+      [
+        `Narrator: "The statements are read back entire, in the witnesses' own tongue, and marked or signed."`,
+        `The Community: "We did not speak to be pitied. We spoke to be entered in the book that travels."`,
+        `Casement: "Twenty pages of you, appended to forty of me. Yours is the half they will not survive."`,
+        `Narrator: "He is right. It is the testimony, not the findings, that the King's press never manages to answer."`,
+      ],
+    ],
+  },
+  {
+    id: 'soliloquy', title: 'Twain & the King — The Soliloquy, Staged', drop: 'lecture',
+    a: 'leopold', b: 'twain',
+    keys: { celebrities: { target: 1, scale: 1 } },
+    intro: 'What follows is Mark Twain\'s device, from King Leopold\'s Soliloquy, 1905. The King never spoke these words: Twain wrote them, put them in the royal mouth, and footnoted the real documents. The satire is staged here as the satire it is.',
+    beats: [
+      [
+        `Twain: "The device is simple. I do not accuse the King. I let him defend himself — in my ink."`,
+        `Narrator: "The stage direction, Twain's own: the King, alone, reading pamphlets, 'meditating and mouthing.'"`,
+        `Twain: "Every document he waves at you in fury is genuine. That is the trick. The rage is mine; the exhibits are his."`,
+      ],
+      [
+        `Narrator: "The King, as Twain wrote him:"`,
+        `Leopold: "In these twenty years I have spent millions to keep the press of the two hemispheres quiet, and still these leaks keep on occurring."`,
+        `Leopold (Sit/Smug): "I have my traducers — meddlesome missionaries, with my mouth full of Bible and my pelt oozing piety at every pore."`,
+        `Twain: "He objects, you notice, not to the deeds. To the leaks."`,
+      ],
+      [
+        `Narrator: "The passage the campaign will quote forever — the King, as Twain wrote him, on the camera:"`,
+        `Leopold: "The kodak has been a sore calamity to us. The most powerful enemy that has confronted us, indeed."`,
+        `Leopold (Pointing/Angry): "The only witness I have encountered in my long experience that I couldn't bribe."`,
+        `Twain: "I gave him that confession because it is true, and because he would never make it. Satire is the crowbar for doors of that kind."`,
+      ],
+      [
+        `Narrator: "Twain's King reads his own purchased press aloud:"`,
+        `Leopold: "'A hospital. A school. A church.' — I paid for that sentence, and it was worth every franc."`,
+        `Leopold: "'Benefactor of a down-trodden people.' — also mine. The invoice is filed."`,
+        `Twain: "The syndicate's clippings, with the bill attached. I invented nothing but the honesty."`,
+      ],
+      [
+        `Twain: "The pamphlet sells at a shilling, tens of thousands of copies. I take no royalty; the proceeds go to the reform cause."`,
+        `Narrator: "1905. After the Soliloquy, no drawing room in Europe can praise the King without someone smiling."`,
+        `Twain: "That is what satire is for. It does not replace the testimony. It clears the room of the excuses, so the testimony can be heard."`,
+        `Narrator: "Device flagged, exhibits real, proceeds accounted. The record and the ridicule, filed together."`,
+      ],
+    ],
+  },
+];
+
+const duetScenes = [];
+for (const d of DUETS) {
+  const total = d.beats.length;
+  d.beats.forEach((beat, i) => {
+    duetScenes.push({
+      id: `du_${d.id}_${i + 1}`,
+      name: `${d.title} (${i + 1}/${total})`,
+      sceneType: 'WITNESS',
+      dropId: dropFor(d.drop),
+      stage: stage(
+        el(`du_${d.id}_${i + 1}_a`, d.a, d.b && KEY_OF[d.b] ? 32 : 50, 60),
+        d.b ? el(`du_${d.id}_${i + 1}_b`, d.b, 70, 61) : null,
+      ),
+      script: lines(
+        ...(i === 0 ? [`Narrator: "${d.intro}"`] : []),
+        ...beat,
+        '[CHOICE]',
+        ...(i + 1 < total ? [`- "Continue" -> du_${d.id}_${i + 2}`] : []),
+        '- "Back to the duets" -> lp_duets',
+        '[/CHOICE]',
+      ),
+      narraton: { pool: 'leopold_reactions', keys: d.keys, repeatable: true },
+      status: 'work',
+    });
+  });
+}
+
+const duetsHub = {
+  id: 'lp_duets',
+  name: 'Duets — Two Voices, One Record',
+  sceneType: 'WITNESS',
+  dropId: dropFor('lecture'),
+  stage: stage(el('lp_du_cas', 'casement', 28, 60), el('lp_du_mor', 'morel', 72, 61)),
+  script: lines(
+    'Narrator: "Seven conversations across the record, 1879-1909. Where an exchange is reconstructed or is a writer\'s device, the staging says so."',
+    '[CHOICE]',
+    ...DUETS.map((d) => `- "${d.title}" -> du_${d.id}_1`),
+    '- "Return to Brussels" -> lp_palace',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+};
+
+const DUET_SCENES = [duetsHub, ...duetScenes];
+
+// ------------------------------------------------------------ Aftermaths
+// Four documented turns of the system, each followed down two lines of
+// sight across three distances: that week, a year on, a generation on.
+
+const AFTERMATHS = [
+  {
+    id: 'quota', title: 'The Quota System', drop: 'station',
+    keys: { quotaDoubled: { target: 1, scale: 1 } },
+    tracks: [
+      {
+        id: 'village', label: 'From the villages', actor: 'community', drop: 'village',
+        steps: [
+          [
+            `Narrator: "That week. The circular reaches the district; the figure is read aloud at the weighing shed."`,
+            `The Community: "The number is said to us as weather is said. No one asks whether the forest can bear it."`,
+            `The Community: "The men leave the fields at midday and do not come back to them. That is the first thing a quota does. It empties the gardens."`,
+          ],
+          [
+            `Narrator: "A year on. The near vines are bled dead; the tapping is two days' walk out."`,
+            `The Community: "We measure the quota now in walking. Two days out, two days back, and the basket weighed at the end of it."`,
+            `The Community: "The gardens are weeds. We trade for manioc from across the river when the sentries do not watch. We keep the children close, and we endure."`,
+          ],
+          [
+            `Narrator: "A generation on. Belgian rule; the wild-rubber regime gives way to taxes, cultivation orders, the mines."`,
+            `The Community: "The fields are planted again. That much is taken back."`,
+            `The Community: "The elders teach the children which clearings were villages. Not to frighten them. So that the counting is never only Europe's."`,
+          ],
+        ],
+      },
+      {
+        id: 'ledger', label: 'From the ledgers', actor: 'officer', drop: 'station',
+        steps: [
+          [
+            `Narrator: "That week. At the station, the new figure is entered at the head of the book."`,
+            `Officer: "One line changes: the figure. Every line below it will now be measured against a number the forest cannot meet."`,
+            `Officer: "I am not asked to approve it. I am asked to record against it. There is a difference, I tell myself that week."`,
+          ],
+          [
+            `Narrator: "A year on. The concession returns rise; the dividend passes one hundred percent."`,
+            `Officer: "Brussels reads the returns and doubles nothing down — the figure holds, so the figure was right. That is how a ledger reasons."`,
+            `Officer: "Requests for transfer to the railway are running higher this year. No one writes the reason in the request."`,
+          ],
+          [
+            `Narrator: "A generation on. The books survive the state that kept them."`,
+            `Officer: "The ledgers were never burned — they were the respectable part. They sit in the archives at Brussels, correct to the last entry."`,
+            `Narrator: "Historians will read the quota books against the testimony and find they agree. The system's own arithmetic is the witness that never recants."`,
+          ],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'hostages', title: 'The Hostage Policy', drop: 'station',
+    keys: { hostages: { target: 1, scale: 1 } },
+    tracks: [
+      {
+        id: 'village', label: 'From the villages', actor: 'community', drop: 'village',
+        steps: [
+          [
+            `Narrator: "That week. The station downriver takes surety against delivery."`,
+            `The Community: "They hold the mothers at the station and call it surety. We carry rubber to buy back our own."`,
+            `The Community: "We count the days aloud with the children, so that counting itself is not made the enemy."`,
+          ],
+          [
+            `Narrator: "A year on. The villages have learned the policy's shape, and answer it."`,
+            `The Community: "After the second seizure, some villages move whole in one night — pots, goats, seed. Let the station hold an empty district."`,
+            `The Community: "Some cross to the French bank. The forest that hides rubber can hide people. We say it as a proverb now."`,
+          ],
+          [
+            `Narrator: "A generation on. The word remains in the family stories, in its own tongue and in theirs."`,
+            `The Community: "Surety. We teach the children the word in their language and ours, so they will know it if it is ever said to them politely again."`,
+            `The Community: "The ones who were held are named in our histories as householders and mothers. Their captivity is not the whole of them. It never was."`,
+          ],
+        ],
+      },
+      {
+        id: 'record', label: 'From the record', actor: 'casement', drop: 'station',
+        steps: [
+          [
+            `Narrator: "That week. The practice is entered in the station books as it happens — names, dates of seizure, rubber owed against each."`,
+            `Casement: "The clerks kept it correctly. Good order was the whole of their instruction, and good order is what will convict."`,
+          ],
+          [
+            `Narrator: "A year on. A consul copies the surety ledger at the station table, the clerk assisting."`,
+            `Casement (Closeup/Determined): "He believed he was showing me good administration. I copied every line. Word for word is the only safe method — and the only fair one."`,
+            `Casement: "The page goes to Parliament. The clerk's neat hand becomes the Crown's exhibit."`,
+          ],
+          [
+            `Narrator: "A generation on. The copied pages outlive the stations, the companies, and the men."`,
+            `Casement: "A practice that books itself cannot later claim it never happened. That was the State's one honest habit, and it is the one that ends it."`,
+            `Narrator: "The surety ledgers are cited in every history of the Free State since. Entries in, entries out — read at last in full."`,
+          ],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'report', title: 'The Casement Report', drop: 'palace',
+    keys: { testimony: { target: 1, scale: 1 }, exposure: { target: 3, scale: 8 } },
+    tracks: [
+      {
+        id: 'campaign', label: 'From the campaign', actor: 'morel', drop: 'docks',
+        steps: [
+          [
+            `Narrator: "That week. February 1904. The Blue Book is laid before Parliament, names cut to initials."`,
+            `Morel: "It reached me like ammunition reaches a gun already aimed."`,
+            `Morel: "Within the month we found the association. February wrote; March organized."`,
+          ],
+          [
+            `Narrator: "A year on. The lantern circuits run; the Soliloquy sells at the hall doors."`,
+            `Morel: "We read the Report aloud — pulpits, meeting halls, the dock gates. A Blue Book is built to be shelved. We refused the shelf."`,
+            `Morel: "The Foreign Office calls it pressure. We call it the public, informed."`,
+          ],
+          [
+            `Narrator: "A generation on. The campaign is studied as the first of its kind — and its author's whole record is kept honestly."`,
+            `Morel: "Ledgers, testimony, lantern slides, and no army at all. They call it the first modern human-rights campaign. Let them also say what it could not reach."`,
+            `Narrator: "Casement is executed by Britain in 1916, for Ireland. The Report's truth does not depend on its author's fate — but the record keeps both."`,
+          ],
+        ],
+      },
+      {
+        id: 'palace', label: 'From the palace', actor: 'leopold', drop: 'palace',
+        steps: [
+          [
+            `Narrator: "That week. The Report is on the desk beside the press clippings."`,
+            `Leopold: "Rumor, gathered at missions. My administration was not consulted. My own Commission will examine the matter — my officials, my terms."`,
+            `Leopold (Sit/Smug): "And read it twice before filing. He proves the system from our own ledgers. The danger is the bookkeeping."`,
+          ],
+          [
+            `Narrator: "A year on. The King's own Commission of Inquiry, built to be hollow, confirms the substance."`,
+            `Leopold: "I appointed jurists to bury a report, and they have countersigned it."`,
+            `Narrator: "Cosmetic reforms follow; extraction continues. But the King's own inquiry is now a citation against him, and the campaign quotes it from the stage."`,
+          ],
+          [
+            `Narrator: "A generation on. The Report is the document by which the reign is remembered."`,
+            `Narrator: "The speeches about civilization are quoted only to be measured against it. Forty pages of findings, twenty of testimony — the twenty are the part history kept."`,
+            `Leopold: "I spent millions on the story. He spent a winter on the facts."`,
+          ],
+        ],
+      },
+    ],
+  },
+  {
+    id: 'annexation', title: 'The Annexation, 1908', drop: 'palace',
+    keys: { exposure: { target: 6, scale: 8 } },
+    tracks: [
+      {
+        id: 'village', label: 'From the villages', actor: 'community', drop: 'village',
+        steps: [
+          [
+            `Narrator: "That week. November 1908. Belgian rule arrives: a new flag over the same station."`,
+            `The Community: "The flag changed over the warehouse. The scales inside it did not."`,
+            `The Community: "New officials speak of reform in the old building. We listen, and we plant, and we wait to see what the weighing shed does."`,
+          ],
+          [
+            `Narrator: "A year on. The quotas continue under new letterhead — framed honestly: the worst of the terror recedes; the extraction does not."`,
+            `The Community: "It is better. We say that plainly, because it is true: fewer sentries, fewer seizures."`,
+            `The Community: "And it is not finished. The rubber still goes down the river, and the orders still come up it. A gentler letterhead is not a return of what was taken."`,
+          ],
+          [
+            `Narrator: "A generation on. The Belgian Congo: taxes, mines, cultivation orders — a colony run by ministries instead of one man."`,
+            `The Community: "Our grandchildren will see the last flag come down. In 1960 the Congo takes its independence."`,
+            `Narrator: "That is the coda, and it belongs to the Congolese alone. This record ends where theirs continues."`,
+          ],
+        ],
+      },
+      {
+        id: 'campaign', label: 'From the campaign', actor: 'movement', drop: 'lecture',
+        steps: [
+          [
+            `Narrator: "That week. The reform press claims its victory — carefully."`,
+            `The Movement: "We forced the transfer. Write that. And write the second sentence too: we could not force the accounting."`,
+            `The Movement: "The King loses his Congo and keeps his fortune. Victory, with the ledger still unbalanced."`,
+          ],
+          [
+            `Narrator: "A year on. December 1909: the King is dead; the funeral cortege is booed in the streets of Brussels."`,
+            `The Movement: "No association organized that sound. The public no longer needed telling."`,
+            `The Movement: "Morel watches the new administration and refuses the word done. The lantern circuits run on, thinner but running."`,
+          ],
+          [
+            `Narrator: "A generation on. 1913: the Congo Reform Association dissolves itself, its work — as it judged — done."`,
+            `The Movement: "The association ends. The method does not: ledgers, testimony, photographs, publication. Every campaign since has used our toolbox."`,
+            `Narrator: "Whether the work was done is a question the record leaves open, on purpose. Watch the world, reader, and decide."`,
+          ],
+        ],
+      },
+    ],
+  },
+];
+
+const aftermathScenes = [];
+const STEP_LABELS = ['That week', 'A year on', 'A generation on'];
+for (const ev of AFTERMATHS) {
+  for (const tr of ev.tracks) {
+    tr.steps.forEach((step, i) => {
+      aftermathScenes.push({
+        id: `af_${ev.id}_${tr.id}_${i + 1}`,
+        name: `${ev.title} — ${tr.label}: ${STEP_LABELS[i]}`,
+        sceneType: 'WITNESS',
+        dropId: dropFor(tr.drop),
+        stage: stage(el(`af_${ev.id}_${tr.id}_${i + 1}_a`, tr.actor, 50, 60)),
+        script: lines(
+          ...step,
+          '[CHOICE]',
+          ...(i + 1 < tr.steps.length
+            ? [`- "${STEP_LABELS[i + 1]}" -> af_${ev.id}_${tr.id}_${i + 2}`]
+            : []),
+          '- "Back to the aftermaths" -> lp_aftermaths',
+          '[/CHOICE]',
+        ),
+        narraton: { pool: 'leopold_reactions', keys: ev.keys, repeatable: true },
+        status: 'work',
+      });
+    });
+  }
+}
+
+const aftermathsHub = {
+  id: 'lp_aftermaths',
+  name: 'Aftermaths — That Week, a Year On, a Generation On',
+  sceneType: 'WITNESS',
+  dropId: dropFor('village'),
+  stage: stage(el('lp_af_comm', 'community', 50, 60)),
+  script: lines(
+    'Narrator: "Four turns of the system, each followed down two lines of sight — the week it happened, a year on, a generation on. Nothing here is depicted; everything here is documented or honestly framed."',
+    '[CHOICE]',
+    ...AFTERMATHS.flatMap((ev) =>
+      ev.tracks.map((tr) => `- "${ev.title} — ${tr.label}" -> af_${ev.id}_${tr.id}_1`)),
+    '- "Return to Brussels" -> lp_palace',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+};
+
+const AFTERMATH_SCENES = [aftermathsHub, ...aftermathScenes];
+
+// ------------------------------------------------------------ The Record
+// Fifteen single-scene entries of uncovered research — episodes the main
+// spine passes over, each documented, each returning to the shelf.
+
+const RECORD = [
+  {
+    id: 'batetela1', title: 'The Batetela Mutiny at Luluabourg, 1895', drop: 'station', actor: 'community',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "July 1895, Luluabourg. Batetela soldiers of the Force Publique — conscripted, drilled, and turned against their own country — turn their rifles on the regime instead."`,
+      `The Community: "The first army the State feared was the one it had armed. Our sons, in its own uniforms."`,
+      `Narrator: "They defeat regular columns, take posts, and hold the field for months. The State's reports call it mutiny. In the villages it is called by names closer to war."`,
+    ],
+  },
+  {
+    id: 'batetela2', title: 'The Mutineers\' Years, 1895-1908', drop: 'station', actor: 'community',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "The Batetela risings do not end in a season. Columns are sent, and beaten, and sent again; bands fight on in the southeast for years — the last are not subdued until after the Free State itself is gone."`,
+      `The Community: "Europe's histories give the resistance a footnote. Ours give it the years it actually lasted."`,
+      `Narrator: "The record is thin and mostly military, written by the losers' enemies. It is entered here for what it proves: the Congo never consented, and never stopped saying so."`,
+    ],
+  },
+  {
+    id: 'commission1', title: 'The Commission Hearings, 1904-05', drop: 'station', actor: 'community',
+    keys: { commissioned: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "The King's Commission of Inquiry travels the river to defuse the Casement Report. Witnesses walk in from the districts to testify — knowing the sentries will still be there when the commissioners have gone."`,
+      `The Community: "We testified to the King's own judges, in daylight, with the company agents watching. Let no one say the record was gathered timidly."`,
+      `Narrator: "At Bonginda the testimony reportedly left one veteran official weeping at the table. The Commission was built to be hollow. The witnesses filled it."`,
+    ],
+  },
+  {
+    id: 'commission2', title: 'The Commission\'s Report, 1905', drop: 'palace', actor: 'leopold',
+    keys: { commissioned: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "November 1905. The Commission's report confirms the substance of the charges — forced labor, hostage-taking, the sentry system — in the measured language of the King's own jurists."`,
+      `Leopold: "I appointed them to end the discussion. They have printed its confirmation under my seal."`,
+      `Narrator: "The full testimony is never published; the summary alone is damning enough. Reform decrees follow, cosmetic; the campaign quotes the King's own inquiry from every stage in Britain."`,
+    ],
+  },
+  {
+    id: 'lantern_us1', title: 'The Lantern Tours Reach America', drop: 'lecture', actor: 'movement',
+    keys: { celebrities: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "1904 onward. The Harrises carry the lantern show across the Atlantic: hundreds of meetings, church halls and lyceums, the same sixty slides."`,
+      `The Movement: "America mattered doubly. The King courted Washington for recognition first, in 1884. So the campaign went to America to take the story back."`,
+      `Narrator: "An American Congo Reform Association forms; Morel tours in 1904 himself. The pressure is now on two governments at once."`,
+    ],
+  },
+  {
+    id: 'lantern_us2', title: 'Booker T. Washington Speaks', drop: 'lecture', actor: 'movement',
+    keys: { celebrities: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "Booker T. Washington joins the American campaign — writing, speaking, and pressing the case in Washington alongside Sheppard's testimony from the Kasai."`,
+      `The Movement: "It mattered, and say it plainly: Black America stood in this fight by name — Washington on the platform, Sheppard in the record."`,
+      `Narrator: "Washington publishes on the Congo in 1904 and lobbies the President's circle. The reform cause in America is not a mission-hall curiosity; it is national politics."`,
+    ],
+  },
+  {
+    id: 'press1', title: 'The Press Syndicate', drop: 'palace', actor: 'leopold',
+    keys: { pressFunded: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "Brussels runs a press bureau: subsidies, planted articles, pamphlets by the hundred thousand, friendly correspondents kept friendly."`,
+      `Leopold (Sit/Smug): "A newspaper is an instrument like any other. One does not bribe it. One subscribes, generously, to its better judgment."`,
+      `Narrator: "The bureau's output is real journalism's shape with none of its substance: hospitals photographed, schools counted, quotas unmentioned. For years, it works."`,
+    ],
+  },
+  {
+    id: 'press2', title: 'The Syndicate Exposed, 1906', drop: 'docks', actor: 'morel',
+    keys: { exposure: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "December 1906. The New York American publishes the papers of Henry Kowalsky, the King's American lobbyist — retainers, planted articles, a paid campaign to soften Congress and the press."`,
+      `Morel: "We had said for years the coverage was bought. Now the receipts themselves are on the front page — sold to a newspaper by the King's own hireling."`,
+      `Narrator: "The propaganda machine, exposed, becomes evidence against its owner. Every past denial is re-read with the invoice beside it."`,
+    ],
+  },
+  {
+    id: 'doyle', title: 'Conan Doyle\'s Pamphlet, 1909', drop: 'lecture', actor: 'movement',
+    keys: { celebrities: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "1909. Arthur Conan Doyle writes The Crime of the Congo in roughly eight days — a shilling book, sixty thousand words, built from the campaign's documents."`,
+      `The Movement: "The creator of Sherlock Holmes, laying out the evidence like a case file. The public that would not read a Blue Book read him overnight."`,
+      `Narrator: "Doyle tours the platforms with Morel and mails copies to the powerful by the hundred. The last years of the campaign have the loudest pens in England."`,
+    ],
+  },
+  {
+    id: 'sheppard1', title: 'Sheppard in the Kasai, 1899', drop: 'village', actor: 'sheppard',
+    keys: { testimony: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "September 1899. William Sheppard is sent into the Kasai bush to document what the Zappo Zap irregulars — armed by the State to collect its tribute — have done to the Pianga villages."`,
+      `Sheppard: "I counted, and wrote, and photographed. Sixteen days. Names of villages, numbers, dates. The State's tribute collectors, at their assigned work."`,
+      `Narrator: "His report travels from mission board to newspapers to the American Congress. It is among the earliest full documentations of the system by a Black American witness — methodical, sworn, and never shaken."`,
+    ],
+  },
+  {
+    id: 'sheppard2', title: 'The Libel Trial, 1909', drop: 'station', actor: 'sheppard',
+    keys: { testimony: { target: 1, scale: 1 } },
+    l: [
+      `Narrator: "1908: Sheppard publishes what the Kasai Company's regime has done to the Kuba country. The company sues him for libel in the State's own court at Leopoldville."`,
+      `Sheppard: "They put my sentences on trial. My notebook answered for them — names, dates, amounts, as I had written them down for twenty years."`,
+      `Narrator: "September 1909: acquitted. The company's own court could not break the entries. The verdict is reported across America as the vindication of the whole missionary record."`,
+    ],
+  },
+  {
+    id: 'arith1', title: 'The Arithmetic, Staged: 15s 10d', drop: 'lecture', actor: null,
+    keys: { testimony: { target: 1, scale: 1 } },
+    balloonText: 'THE LAKE MANTUMBA ARITHMETIC',
+    l: [
+      `Narrator: "One entry from the Casement Report, staged as the campaign staged it — as arithmetic."`,
+      `[SET_TEXT rc_arith1_b "240 PERSONS — COMPELLED"]`,
+      `Narrator: "Two hundred and forty persons, men, women and children, compelled to supply government."`,
+      `[SET_TEXT rc_arith1_b "ONE TON OF FOODSTUFFS — WEEKLY"]`,
+      `Narrator: "One ton of carefully prepared foodstuffs per week, delivered to the station."`,
+      `[SET_TEXT rc_arith1_b "RETURNED: 15 SHILLINGS 10 PENCE"]`,
+      `Narrator: "Receiving in return, in the Report's own words, 'the princely sum of 15s. 10d.'"`,
+    ],
+  },
+  {
+    id: 'arith2', title: 'What the Number Means', drop: 'lecture', actor: 'movement',
+    keys: { testimony: { target: 1, scale: 1 } },
+    balloonText: '15s 10d ÷ 240 PERSONS ÷ 1 WEEK',
+    l: [
+      `Narrator: "Divide it out, as the lecturers did from the stage: fifteen shillings tenpence, across two hundred forty people, for a week's compelled labor — a fraction of a penny each."`,
+      `The Movement: "We wrote the division on a slide and let the audience finish it. No adjective in the language does what that long division does."`,
+      `Narrator: "Set beside it the concession dividends passing one hundred percent. Two numbers, one system. The campaign's whole case, in arithmetic a child could check."`,
+    ],
+  },
+  {
+    id: 'tervuren1', title: 'The Human Exhibition, 1897', drop: 'palace', actor: 'community',
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "1897, Tervuren, outside Brussels. For the World's Fair the King exhibits 267 Congolese men, women and children in a built 'village' in the park, behind a fence, before more than a million visitors."`,
+      `The Community: "They were people with names — soldiers' families, boatmen, weavers — shipped to Belgium to be looked at in the cold."`,
+      `Narrator: "Seven die that summer and are buried at Tervuren, for decades in unmarked ground. The fence bore a sign, added after visitors kept throwing food: they are fed. Nothing in this scene is invented."`,
+    ],
+  },
+  {
+    id: 'tervuren2', title: 'The Museum at Tervuren', drop: 'palace', actor: null,
+    keys: { concealment: { target: 3, scale: 8 } },
+    l: [
+      `Narrator: "From the 1897 exhibition grows a permanent Museum of the Congo at Tervuren — marble halls, rubber and ivory in cases, statues of Belgium bringing civilization. The quota system appears nowhere in it."`,
+      `Narrator: "It is the King's story, built to outlast him — a museum as the final press release."`,
+      `Narrator: "It stands today, renamed and remade, its own history now part of the exhibit. A century on, the labels are still being corrected. The record outlasts the marble, but the marble takes longer to answer than the lies did to build."`,
+    ],
+  },
+  {
+    id: 'kodak', title: 'The Kodak on the Table', drop: 'village', actor: 'harris',
+    keys: { rumor: { target: 8, scale: 16 } },
+    l: [
+      `Narrator: "A last entry: the instrument itself. A No. 2 Bull's-Eye Kodak — a box, a lens, a strap. It cost a few pounds and needed no tripod."`,
+      `Harris: "It was not built as a weapon. It was built for holidays. That an amateur's box could answer an empire's press bureau — that was the discovery."`,
+      `Narrator: "Cheap cameras, cheap print, fast steamers: the same machinery that moved the rubber moved the evidence. The system built the roads its exposure traveled."`,
+    ],
+  },
+];
+
+const recordScenes = RECORD.map((r) => ({
+  id: `rc_${r.id}`,
+  name: `The Record: ${r.title}`,
+  sceneType: 'WITNESS',
+  dropId: dropFor(r.drop),
+  stage: stage(
+    r.actor ? el(`rc_${r.id}_a`, r.actor, 50, 60) : null,
+    r.balloonText ? balloon(`rc_${r.id}_b`, r.balloonText, 50, 12, { scale: 1.1, zIndex: 5 }) : null,
+  ),
+  script: lines(
+    ...r.l,
+    '[CHOICE]',
+    '- "Back to the record" -> lp_record',
+    '- "Return to Brussels" -> lp_palace',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: 'leopold_reactions', keys: r.keys, repeatable: true },
+  status: 'work',
+}));
+
+const recordHub = {
+  id: 'lp_record',
+  name: 'The Record — Uncovered Research',
+  sceneType: 'WITNESS',
+  dropId: dropFor('lecture'),
+  stage: stage(el('lp_rc_shep', 'sheppard', 28, 61), el('lp_rc_move', 'movement', 72, 60)),
+  script: lines(
+    'Narrator: "Fifteen entries the main story passes over — mutinies, hearings, trials, invoices, and one museum. Each is documented; where a figure is disputed, the entry says so."',
+    '[CHOICE]',
+    ...RECORD.map((r) => `- "${r.title}" -> rc_${r.id}`),
+    '- "Return to Brussels" -> lp_palace',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+};
+
+const RECORD_SCENES = [recordHub, ...recordScenes];
+
 // ------------------------------------------- Cutscenes + the Georgist ledger
 // Two non-interactive documentary cutscenes ([AUTOPLAY on] .. [AUTOPLAY off]),
 // each exiting into an IMPACT scene that reads the era in Henry George's
@@ -904,6 +1624,9 @@ const game = {
     actor('kodak', 'The Kodak', ART.kodak),
     actor('community', 'The Community', ART.community),
     actor('movement', 'The Movement', ART.movement),
+    // Voice-only figures for the Duets (no art; the engine renders name-only)
+    { id: 'stanley', name: 'Stanley', graphics: [], status: 'work' },
+    { id: 'twain', name: 'Twain', graphics: [], status: 'work' },
     // Machine core cast (empty graphics — the rig renders placeholders)
     ...CORE_ACTORS,
   ].filter(Boolean),
@@ -952,6 +1675,9 @@ const game = {
         '- "Double the rubber quota — the returns must not fall" -> lp_quota',
         '- "Order hostages taken until the villages comply" -> lp_hostages',
         '- "Voices of the Congo — the record, moment by moment" -> lp_voices',
+        '- "Duets — two voices, one record" -> lp_duets',
+        '- "Aftermaths — that week, a year on, a generation on" -> lp_aftermaths',
+        '- "The Record — uncovered research" -> lp_record',
         '- "Witness: The Village" -> lp_cut_village',
         '- "Witness: The Lantern Lecture" -> lp_cut_lantern',
         '- "Enter the Machine" -> lp_machine',
@@ -1344,6 +2070,15 @@ const game = {
     // ------------------------------------------------ Voices of the Congo (reaction layer)
     ...VOICES_SCENES,
 
+    // ------------------------------------------------ Duets (two-voice chains)
+    ...DUET_SCENES,
+
+    // ------------------------------------------------ Aftermaths (three-distance chains)
+    ...AFTERMATH_SCENES,
+
+    // ------------------------------------------------ The Record (uncovered research)
+    ...RECORD_SCENES,
+
     // ------------------------------------------------ Cutscenes, ledgers, the Machine
     ...MACHINE_SCENES,
   ],
@@ -1366,6 +2101,27 @@ const game = {
       name: 'Voices of the Congo',
       description: 'A documentary reaction layer: ten recorded moments of the Congo Free State, 1885-1908, answered by the people who ran, endured, exposed, and ended it.',
       sceneIds: VOICES_SCENES.map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_leopold_duets',
+      name: 'Duets',
+      description: 'Seven two-voice conversation chains across the record, 1879-1909 — evidence strategy, the founding treaties, the King and his mirror, the camera, the interview that gives nothing, the taking of testimony, and Twain\'s Soliloquy staged as the satire it is.',
+      sceneIds: DUET_SCENES.map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_leopold_aftermaths',
+      name: 'Aftermaths',
+      description: 'Four turns of the system — the quota, the hostage policy, the Casement Report, the annexation — each followed down two lines of sight: that week, a year on, a generation on.',
+      sceneIds: AFTERMATH_SCENES.map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_leopold_record',
+      name: 'The Record',
+      description: 'Fifteen entries of uncovered research: the Batetela mutinies, the Commission hearings, the American lantern tours, the press syndicate and its exposure, Conan Doyle, Sheppard\'s Kasai record and libel trial, the 15s 10d arithmetic, and Tervuren.',
+      sceneIds: RECORD_SCENES.map((s) => s.id),
       status: 'work',
     },
     {
