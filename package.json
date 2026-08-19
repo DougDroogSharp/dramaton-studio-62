@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "docs:dram": "tsx src/utils/generateDramDocs.ts"
+    "docs:dram": "tsx src/utils/generateDramDocs.ts",
+    "build:machine": "node scripts/build-machine-toy.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
