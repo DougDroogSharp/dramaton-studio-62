@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { GameData, createDefaultGame, Button } from '@/types';
+import { resolveValueString } from '@/utils/expression';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { StageDialogueLayer } from '@/components/theater/StageDialogueLayer';
@@ -149,11 +150,22 @@ const Theater: React.FC = () => {
       playDefaultClickSound();
     }
     
+    // Apply worldState effects (SET semantics; expressions make
+    // toggles: "1 - singleTax")
+    if (button.effects?.length) {
+      for (const effect of button.effects) {
+        scriptRunner.setVariable(
+          effect.variable,
+          resolveValueString(effect.value, scriptRunner.state.worldState),
+        );
+      }
+    }
+
     // Open external page if specified
     if (button.pageUrl) {
       window.open(button.pageUrl, '_blank', 'noopener,noreferrer');
     }
-    
+
     // Navigate to target scene if specified
     if (button.targetSceneId) {
       scriptRunner.goToScene(button.targetSceneId);

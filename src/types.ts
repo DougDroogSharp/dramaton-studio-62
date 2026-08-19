@@ -195,6 +195,14 @@ export interface Sfx {
   status?: AssetStatus;
 }
 
+// A worldState write applied when a button is clicked. value uses SET
+// semantics: literal (true/false/number/"string") or an arithmetic
+// expression over variables — "1 - singleTax" makes a toggle.
+export interface ButtonEffect {
+  variable: string;
+  value: string;
+}
+
 // Button type for interactive elements in scenes
 export interface Button {
   id: string;
@@ -207,6 +215,7 @@ export interface Button {
   targetSceneId?: string;  // Scene to navigate to when clicked
   sfxId?: string;          // Sound effect to play on click
   pageUrl?: string;        // External page URL to open
+  effects?: ButtonEffect[]; // worldState writes applied on click
   style?: 'default' | 'primary' | 'danger';  // Button style variant
   note?: string;
   status?: AssetStatus;

@@ -303,6 +303,22 @@ export function resolveSetValue(
   return evaluateExpression(node, vars);
 }
 
+// Resolve a raw value string with SET semantics: literal fast-paths,
+// bare identifier copies a variable when one exists, otherwise
+// arithmetic expression (bad input falls back to the raw string).
+// Used by button effects and other data-driven variable writes.
+export function resolveValueString(raw: string, vars: WorldVars): string | number | boolean {
+  const t = raw.trim();
+  if (t === 'true') return true;
+  if (t === 'false') return false;
+  if (t !== '' && !isNaN(Number(t))) return Number(t);
+  if (/^["'].*["']$/.test(t)) return t.replace(/^["']|["']$/g, '');
+  const node = parseExpression(t);
+  if (!node) return t;
+  if (node.kind === 'var') return node.name in vars ? vars[node.name] : t;
+  return evaluateExpression(node, vars);
+}
+
 // Evaluate an IF condition against the world state.
 // isExpression means both sides are expression source text (numeric
 // comparison). The legacy form keeps its exact semantics, with one
