@@ -14,6 +14,10 @@ export interface GameInfo {
   title: string;
   author: string;
   styleGuide: string | null;
+  // Art style pack: folder name under STYLE_PACKS_DIR whose images +
+  // style.txt ride every image generation. One style per game —
+  // changing it mid-project means regenerating existing art.
+  stylePack?: string;
   worldState: Record<string, string | number | boolean>;
   gameMode: 'INTERACTIVE' | 'AUTO_PLAY';
   titleSceneId?: string;

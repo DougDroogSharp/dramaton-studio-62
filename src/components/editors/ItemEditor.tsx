@@ -217,6 +217,7 @@ NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrou
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: fullPrompt,
             styleGuide: styleGuide || undefined,
             enforceStyleGuide: styleLock,

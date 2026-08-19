@@ -202,6 +202,7 @@ This is a background scene with no characters or text.`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             styleGuide: styleGuide || undefined,
             referenceImage: drop.referenceImage || undefined,
@@ -262,6 +263,7 @@ This is a background scene with no characters or text.`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: drop.image,
             editMode: true,

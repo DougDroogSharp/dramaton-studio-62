@@ -425,6 +425,7 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: selectedActor.referenceImageCloseUp,
             referenceImageFullBody: selectedActor.referenceImageFullBody,
@@ -474,6 +475,7 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: generatedPreview,
             editMode: true,

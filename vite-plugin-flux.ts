@@ -43,6 +43,7 @@ interface GenRequest {
   enforceStyleGuide?: boolean;
   isCharacter?: boolean;
   aspectRatio?: string;
+  stylePack?: string; // pack folder name (per-game style, from game settings)
 }
 
 // ---- style pack ------------------------------------------------------
@@ -298,6 +299,23 @@ export function fluxPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'flux-image-bridge',
     configureServer(server) {
+      // List available style packs (subfolders of STYLE_PACKS_DIR) so the
+      // editor can offer a per-game style selector
+      server.middlewares.use('/api/flux-style-packs', (req: IncomingMessage, res: ServerResponse) => {
+        res.setHeader('Content-Type', 'application/json');
+        const base = env.STYLE_PACKS_DIR;
+        if (!base) { res.end(JSON.stringify({ packs: [] })); return; }
+        try {
+          const packs = readdirSync(base, { withFileTypes: true })
+            .filter(d => d.isDirectory())
+            .map(d => d.name)
+            .sort();
+          res.end(JSON.stringify({ packs }));
+        } catch {
+          res.end(JSON.stringify({ packs: [], error: `STYLE_PACKS_DIR not readable: ${base}` }));
+        }
+      });
+
       server.middlewares.use('/api/flux-generate', (req: IncomingMessage, res: ServerResponse) => {
         const respond = (status: number, payload: unknown) => {
           res.statusCode = status;
@@ -321,8 +339,13 @@ export function fluxPlugin(env: Record<string, string>): Plugin {
           const raw = await readBody(req);
           const body = JSON.parse(raw) as GenRequest;
           if (!body.prompt?.trim()) return respond(400, { error: 'prompt is required' });
-          const stylePack = loadStylePack(env.STYLE_REF_DIR);
-          console.log(`🎨 Flux [${isFal ? 'fal.ai' : 'bfl'}] ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'}${stylePack.length ? ` +${stylePack.length} style refs` : ''} — ${body.prompt.slice(0, 80)}...`);
+          // Per-game pack name (subfolder of STYLE_PACKS_DIR) wins;
+          // STYLE_REF_DIR is the legacy machine-wide fallback
+          const packDir = body.stylePack && env.STYLE_PACKS_DIR
+            ? join(env.STYLE_PACKS_DIR, body.stylePack)
+            : env.STYLE_REF_DIR;
+          const stylePack = loadStylePack(packDir);
+          console.log(`🎨 Flux [${isFal ? 'fal.ai' : 'bfl'}] ${model}: ${body.editMode ? 'EDIT' : 'GENERATE'}${body.stylePack ? ` [pack: ${body.stylePack}]` : ''}${stylePack.images.length ? ` +${stylePack.images.length} style refs` : ''} — ${body.prompt.slice(0, 80)}...`);
           const result = isFal
             ? await callFal(apiKey, model, body, stylePack)
             : await callFlux(apiKey, model, body, stylePack);

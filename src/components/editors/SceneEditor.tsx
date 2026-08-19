@@ -420,6 +420,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: generatorActor.referenceImageCloseUp,
             referenceImageFullBody: generatorActor.referenceImageFullBody,
@@ -469,6 +470,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: generatedPreview,
             editMode: true,
