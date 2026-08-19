@@ -70,7 +70,7 @@ Alice (thinking): "What should I do next?"`,
     type: 'MOVE',
     category: 'actor',
     syntax: '[MOVE actor_id to x,y over duration]',
-    description: 'Animates an actor moving to a new position over the specified duration.',
+    description: 'Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor\'s graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Actors without walk frames glide unchanged.',
     parameters: [
       { name: 'actor_id', type: 'string', description: 'The unique identifier of the actor' },
       { name: 'x', type: 'number', description: 'Target horizontal position (0-100)' },

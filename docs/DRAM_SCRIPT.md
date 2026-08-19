@@ -127,7 +127,7 @@ Removes an actor from the stage.
 
 #### `MOVE`
 
-Animates an actor moving to a new position over the specified duration.
+Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Actors without walk frames glide unchanged.
 
 **Syntax:**
 ```

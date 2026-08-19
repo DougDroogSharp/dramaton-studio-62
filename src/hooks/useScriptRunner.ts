@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { GameData, Scene, StageElement, StageElementOverride } from '@/types';
+import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } from '@/types';
 import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
 import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
@@ -130,6 +130,11 @@ export function useScriptRunner({
   const typewriterRef = useRef<NodeJS.Timeout | null>(null);
   const waitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
+  // Two-frame walk cycle: while a MOVE is in flight, if the moving
+  // actor has Walk1/Walk2 pose graphics, flip between them (crude
+  // flip-book walk). Cleared on scene change/unmount like the rest.
+  const walkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const walkRestoreRef = useRef<(() => void) | null>(null);
 
   // The live world state. A ref (not state) so that a run of commands
   // executed in one synchronous pass — [SET a = ...] followed by
@@ -211,6 +216,9 @@ export function useScriptRunner({
     if (typewriterRef.current) clearInterval(typewriterRef.current);
     if (waitTimeoutRef.current) clearTimeout(waitTimeoutRef.current);
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    if (walkIntervalRef.current) clearInterval(walkIntervalRef.current);
+    walkIntervalRef.current = null;
+    walkRestoreRef.current = null;
   }, []);
 
   // Cleanup on unmount
@@ -364,8 +372,67 @@ export function useScriptRunner({
 
         // Wait for the animation, then auto-resume the script
         if (command.duration > 0) {
+          // Two-frame walk cycle: if the moving actor's graphics
+          // include Walk1 + Walk2 poses, flip between them while the
+          // move is in flight, then restore the prior look. Fail-soft:
+          // no walk frames means the sprite just glides as before.
+          const movingEl = currentSceneRef.current?.stage?.find(e => e.id === command.actorId);
+          const movingActor = movingEl?.type === 'ACTOR'
+            ? game.actors.find(a => a.id === movingEl.assetId)
+            : undefined;
+          const walk1 = movingActor?.graphics.find(g => g.pose.toLowerCase() === 'walk1');
+          const walk2 = movingActor?.graphics.find(g => g.pose.toLowerCase() === 'walk2');
+          if (movingEl && walk1 && walk2) {
+            const elId = movingEl.id;
+            // Snapshot the pre-walk look (captured inside the first
+            // frame's updater so batched same-pass POSE writes are
+            // seen) and restore it exactly when the move ends —
+            // absent keys stay absent so the editor-authored pose wins.
+            const snapshot: Partial<StageElementOverride> = {};
+            let snapped = false;
+            const setWalkFrame = (g: ActorGraphic) => setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = overrides.get(elId) || {};
+              if (!snapped) {
+                snapped = true;
+                snapshot.pose = existing.pose;
+                snapshot.expression = existing.expression;
+                snapshot.spriteAngle = existing.spriteAngle;
+              }
+              overrides.set(elId, {
+                ...existing,
+                pose: g.pose,
+                expression: g.expression,
+                spriteAngle: g.angle,
+              });
+              return { ...prev, elementOverrides: overrides };
+            });
+            walkRestoreRef.current = () => setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = { ...(overrides.get(elId) || {}) };
+              (['pose', 'expression', 'spriteAngle'] as const).forEach(k => {
+                if (snapshot[k] === undefined) delete existing[k];
+                else (existing as Record<string, unknown>)[k] = snapshot[k];
+              });
+              overrides.set(elId, existing);
+              return { ...prev, elementOverrides: overrides };
+            });
+            let frame = 0;
+            setWalkFrame(walk1);
+            walkIntervalRef.current = setInterval(() => {
+              frame++;
+              setWalkFrame(frame % 2 === 0 ? walk1 : walk2);
+            }, 250);
+          }
+
           setState(prev => ({ ...prev, isWaiting: true }));
           waitTimeoutRef.current = setTimeout(() => {
+            if (walkIntervalRef.current) {
+              clearInterval(walkIntervalRef.current);
+              walkIntervalRef.current = null;
+            }
+            walkRestoreRef.current?.();
+            walkRestoreRef.current = null;
             setState(prev => ({ ...prev, isWaiting: false }));
             resumeAfterWaitRef.current?.();
           }, command.duration * 1000);
