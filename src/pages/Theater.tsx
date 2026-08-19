@@ -301,11 +301,6 @@ const Theater: React.FC = () => {
           />
         )}
 
-        {/* Audience reaction palette — shown while a WITNESS scene plays */}
-        {currentScene?.sceneType === 'WITNESS' && (
-          <AudienceReactions key={currentScene.id} sceneName={currentScene.name} />
-        )}
-
         {/* End of game message */}
         {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
           <div className="text-center py-4">

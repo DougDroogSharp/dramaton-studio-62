@@ -590,14 +590,136 @@ scenes.push({
     '[/TICK]',
     'Narrator: "Mid-June 2026. Around SpaceX\'s Nasdaq debut, he becomes the first human being ever worth one trillion dollars. He glows."',
     'Elon: "First. Person. Ever. A TRILLION. The mission is priced in!"',
-    'Narrator: "The hoard is priced on speculation — on tomorrow\'s Mars, tomorrow\'s robotaxi, tomorrow\'s everything. Tomorrow arrives with a correction."',
+    'Narrator: "The hoard is priced on speculation — on tomorrow\'s Mars, tomorrow\'s robotaxi, tomorrow\'s everything. The trillion is a bet other people are making about him. What does he do with the bet?"',
+    '[CHOICE]',
+    '- "Sell into it — turn myth into money" -> elon_sell',
+    '- "Diamond-hands the myth" -> elon_diamond',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 7b — SELL INTO THE SPIKE
+scenes.push({
+  id: 'elon_sell',
+  name: 'Selling The Myth',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('em_sell', 'elon_musk', 50, 60, 2.8),
+    balloon('sell_ticker', 'NET WORTH — LIVE', 45, 95),
+  ],
+  script: lines(
+    '[SET soldSpike = 1]',
+    '[SET prestige = prestige - 10]',
+    'Elon: "Liquidity event. Small one. For a foundation. For humanity. Do NOT read the filing."',
+    '[SET_TEXT sell_ticker "INSIDER SALE DISCLOSED — THE PRICE WAS A STORY, AND THE AUTHOR JUST SOLD"]',
+    'Narrator: "The disclosure is public within days — that\'s the one rule even a trillionaire\'s feed can\'t delete. When the man the price believes in stops believing first, the price notices."',
+    '[POSE elon_musk pose=Crouch expression=Scared]',
+    '[EFFECT shake_all on em_sell]',
+    'Narrator: "The correction comes anyway. Twelve days after the milestone, he is back below the trillion — only now some of the myth is banked, and all of it is priced."',
+    '[SCENE elon_ending]',
+  ),
+  status: 'work',
+});
+
+// 7c — DIAMOND-HANDS (historical shape: hold, wobble, fall back)
+scenes.push({
+  id: 'elon_diamond',
+  name: 'Diamond Hands',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('em_dh', 'elon_musk', 50, 60, 2.8),
+    balloon('dh_ticker', 'NET WORTH — LIVE', 45, 95),
+  ],
+  script: lines(
+    '[SET prestige = prestige + 5]',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "Sell? You don\'t sell the mission. The mission only goes up."',
     '[WAIT 2s]',
-    '[POSE elon_musk expression=Panicked]',
-    '[CLEAR_EFFECT gold_glow from em_fin]',
-    '[EFFECT shake_all on em_fin]',
-    'Narrator: "Twelve days. The shares correct, and he falls back below the trillion. The glow was never money. It was a bet other people were making about him — and bets get called."',
+    '[SET_TEXT dh_ticker "DAY 12: SHARES CORRECT — FIRST TRILLIONAIRE FALLS BACK BELOW $1,000,000,000,000"]',
+    '[POSE elon_musk pose=Crouch expression=Scared]',
+    '[EFFECT shake_all on em_dh]',
+    'Narrator: "Twelve days. The shares correct and he falls back below the trillion — the historical shape of it. The glow was never money. It was a bet other people were making about him, and bets get called."',
     'Elon: "Turn the feed off. TURN THE FEED OFF."',
-    'Narrator: "No collapse completes in this era. But the shell is cracked: a Pulitzer-winning exposé, state and federal lawsuits, a record verdict. Publication and litigation — education corroding prestige, in real time. The record is the resistance."',
+    '[SCENE elon_ending]',
+  ),
+  status: 'work',
+});
+
+// 8 — ENDING ROUTER (exposure decides which ending the record supports)
+scenes.push({
+  id: 'elon_ending',
+  name: 'The Reckoning Fork',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [el('em_rt', 'elon_musk', 50, 62)],
+  script: lines(
+    '[IF exposure >= 60]',
+    '[SCENE elon_end_crack]',
+    '[ENDIF]',
+    '[SCENE elon_end_sim]',
+  ),
+  status: 'work',
+});
+
+// 8a — ENDING: THE SHELL CRACKS IN PUBLIC (exposure high)
+scenes.push({
+  id: 'elon_end_crack',
+  name: 'The Shell Cracks',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_court_drop'),
+  stage: [
+    el('em_ec', 'elon_musk', 34, 62),
+    el('rp_ec', 'elon_reporter', 72, 62),
+    balloon('verdict_board', 'THE RECORD', 50, 20, { zIndex: 2 }),
+  ],
+  script: lines(
+    '[GAUGE exposure at 87,20 min=0 max=100 label="EXPOSURE"]',
+    '[GAUGE prestige at 87,44 min=0 max=100 label="PRESTIGE"]',
+    'Narrator: "2024. The Reuters SpaceX investigation wins the Pulitzer Prize for National Reporting. In open court and on front pages, the save-humanity shell cracks where everyone can see it."',
+    '[SET_TEXT verdict_board "PULITZER 2024 • DIAZ VERDICT $137M • CRD SUIT • EEOC SUIT • 600+ INJURIES DOCUMENTED"]',
+    '[POSE elon_musk pose=Crouch expression=Scared]',
+    'Elon: "It\'s just PAPER. It\'s just WORDS. The mission is REAL—"',
+    '[POSE elon_reporter pose=Closeup expression=Determined]',
+    'Reporter: "So is the record. Lonnie LeBlanc. Francisco Cabada. Owen Diaz. Six hundred names with case numbers. That\'s what a mission with a body count looks like written down."',
+    '[IF attackedPress == 1]',
+    'Narrator: "His own posts attacking the reporter run as exhibits beside the story — the megaphone testifying against its owner."',
+    '[ENDIF]',
+    '[IF firedWalkout == 1]',
+    'Narrator: "The retaliation charges from the walkout purge are consolidated into the record too. Every firing became a filing."',
+    '[ENDIF]',
+    'Narrator: "No collapse completes in this era — he is still rich beyond arithmetic. But prestige is the armor, and the armor is now evidence. Publication and litigation: education corroding prestige, in real time. The record is the resistance."',
+    '[CHOICE]',
+    '- "Run it back" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 8b — ENDING: THE SIMULATION CONTINUES (prestige held)
+scenes.push({
+  id: 'elon_end_sim',
+  name: 'The Simulation Continues',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('em_es', 'elon_musk', 50, 60, 2.8),
+    balloon('sim_ticker', 'THE FEED — LIVE', 45, 95),
+  ],
+  script: lines(
+    '[GAUGE prestige at 87,20 min=0 max=100 label="PRESTIGE"]',
+    '[GAUGE exposure at 87,44 min=0 max=100 label="EXPOSURE"]',
+    '[POSE elon_musk pose=Pointing expression=Smug]',
+    'Elon: "See? Still here. Still the mission. Still the richest man alive. Foundation gala on Thursday — we\'re saving humanity, ask anyone I pay."',
+    '[SET_TEXT sim_ticker "NO ENDING YET — THIS ERA IS STILL RUNNING. THE EXPOSÉS ARE PUBLISHED. THE SUITS ARE FILED. THE VERDICTS STAND."]',
+    'Narrator: "This ending is honest about itself: it isn\'t one. The prestige shell held — this run. The Reuters exposé still won its Pulitzer. The CRD and EEOC suits are still on the docket. The record accumulates whether or not the feed acknowledges it."',
+    '[IF paidFine == 1]',
+    'Narrator: "In this run, one fine was paid in full and one test stand got fixed. Hold that thought — it is the size of the difference a working rule could make."',
+    '[ENDIF]',
+    'Narrator: "So the chapter closes on the litmus test the whole era keeps failing: Does philanthropy substitute for justice? Are missions-to-save-humanity laundering a fortune — or is the underlying extraction actually being stopped?"',
+    'Narrator: "The dashboard behind the mission is still counting. You\'ve seen which one he watches."',
     '[CHOICE]',
     '- "Run it back" -> elon_feed',
     '[/CHOICE]',
@@ -614,9 +736,16 @@ const game = {
     styleGuide: null,
     worldState: {
       prestige: 100,
+      exposure: 0,
       injuries: 100,
       tickerIdx: 0,
       tday: 0,
+      firedWalkout: 0,
+      settledQuiet: 0,
+      photoOp: 0,
+      attackedPress: 0,
+      paidFine: 0,
+      soldSpike: 0,
     },
     gameMode: 'INTERACTIVE',
     titleSceneId: 'elon_feed',
