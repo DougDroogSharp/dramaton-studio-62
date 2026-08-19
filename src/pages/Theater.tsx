@@ -5,6 +5,8 @@ import { resolveValueString } from '@/utils/expression';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { StageDialogueLayer } from '@/components/theater/StageDialogueLayer';
+import { QuoteCard } from '@/components/theater/QuoteCard';
+import { useQuoteTriggers } from '@/hooks/useQuoteTriggers';
 import { AudienceReactions } from '@/components/theater/AudienceReactions';
 import { TheaterControls } from '@/components/theater/TheaterControls';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
@@ -108,6 +110,12 @@ const Theater: React.FC = () => {
     startSceneId,
     onAudioCommand: handleAudioCommand,
   });
+
+  // Quote pop-ups: worldState threshold crossings fire tagged quotes
+  const { activeQuote, dismiss: dismissQuote } = useQuoteTriggers(
+    game || createDefaultGame(),
+    scriptRunner.state.worldState,
+  );
 
   // Default button click sound (simple beep using Web Audio API)
   const playDefaultClickSound = useCallback(() => {
@@ -364,6 +372,8 @@ const Theater: React.FC = () => {
               />
             </div>
           )}
+          {/* Quote pop-up card */}
+          {activeQuote && <QuoteCard quote={activeQuote} onDismiss={dismissQuote} />}
         </div>
       </div>
 

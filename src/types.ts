@@ -231,6 +231,28 @@ export interface Episode {
   status?: AssetStatus;
 }
 
+// ============ QUOTE SYSTEM (Design Addendum 01 §6) ============
+// A tagged verbatim quote; DISPUTED sourcing shows an attribution-
+// contested tag rather than laundering a myth into a fact.
+export interface Quote {
+  text: string;
+  speaker: string;
+  source: string;
+  year?: number;
+  length: 'SHORT' | 'MEDIUM' | 'LONG';
+  sourcing: 'VERIFIED' | 'DISPUTED';
+  voice: 'CRITIC' | 'VILLAIN' | 'FICTION' | 'DROOG';
+  themes: string[];
+}
+
+// theme fires when `variable` crosses `threshold` in `direction`
+export interface QuoteTrigger {
+  theme: string;
+  variable: string;
+  threshold: number;
+  direction: 'rising' | 'falling';
+}
+
 export interface GameData {
   info: GameInfo;
   actors: Actor[];
@@ -240,6 +262,8 @@ export interface GameData {
   sfx: Sfx[];
   buttons: Button[];
   episodes: Episode[];
+  quotes?: Quote[];
+  quoteTriggers?: QuoteTrigger[];
 }
 
 // Library Types for cross-game asset reuse
