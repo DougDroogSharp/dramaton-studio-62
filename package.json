@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "docs:dram": "tsx src/utils/generateDramDocs.ts",
-    "build:machine": "node scripts/build-machine-toy.mjs"
+    "build:machine": "node scripts/build-machine-toy.mjs",
+    "build:campaign": "node scripts/build-campaign.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,0 +1,2233 @@
+{
+  "info": {
+    "title": "Humans vs Billionaires",
+    "author": "Doug Sharp",
+    "styleGuide": null,
+    "worldState": {
+      "greed": 50,
+      "speculation": 30,
+      "education": 20,
+      "regulation": 30,
+      "hierarchy": 50,
+      "repression": 20,
+      "singleTax": 0,
+      "productivity": 1.5,
+      "laborForce": 40,
+      "marginHeight": 100,
+      "product": 0,
+      "rent": 0,
+      "wages": 30,
+      "interest": 9,
+      "hoard": 0,
+      "prestige": 20,
+      "publicFund": 0,
+      "flareUps": 0,
+      "flareThreshold": 20,
+      "crisis": 0,
+      "wheelAngle": 0,
+      "crisisRoll": 0,
+      "commentaryTimer": 0,
+      "narratonGo": 0,
+      "chapter": 0,
+      "collapseTimer": 0,
+      "reconTimer": 0,
+      "c_prodGrowth": 0.01,
+      "c_prodMax": 3,
+      "c_specMargin": 0.5,
+      "c_greedMargin": 0.3,
+      "c_regMargin": 0.2,
+      "c_taxMargin": 30,
+      "c_rentGreedDiv": 50,
+      "c_interestShare": 0.3,
+      "c_survivalFloor": 5,
+      "c_prestigeSpend": 0.2,
+      "c_eduPrestige": 0.005,
+      "c_repressionCost": 0.02,
+      "c_crisisSpecMin": 70,
+      "c_crisisChance": 0.05,
+      "c_taxRedirect": 0.9,
+      "c_fundMargin": 0.01,
+      "c_fundEdu": 0.005,
+      "c_flareBase": 20,
+      "c_flareHier": 0.3,
+      "c_flareEdu": 0.2,
+      "c_flareDiv": 4,
+      "c_wheelSpeed": 0.5,
+      "c_commentaryCooldown": 40,
+      "c_commentaryFlareMin": 3,
+      "c_collapseTicks": 40,
+      "c_reconTicks": 40,
+      "c_reconEduMin": 80
+    },
+    "gameMode": "INTERACTIVE",
+    "titleSceneId": "menu",
+    "enableAutosave": true,
+    "customPoses": [
+      "Overworked",
+      "FlareUp"
+    ]
+  },
+  "actors": [
+    {
+      "id": "billionaire",
+      "name": "The Billionaire",
+      "graphics": [],
+      "status": "work"
+    },
+    {
+      "id": "human",
+      "name": "Human",
+      "graphics": [],
+      "status": "work"
+    },
+    {
+      "id": "witness",
+      "name": "Witness",
+      "graphics": [],
+      "status": "work"
+    },
+    {
+      "id": "narrator",
+      "name": "Narrator",
+      "graphics": [],
+      "status": "work"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "menu",
+      "name": "Chapter Select",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "Narrator: \"HUMANS VS BILLIONAIRES — How the Billionaires Gained Power\"\nNarrator: \"Same machine. Nine centuries. [TODO Doug: manifesto hook — Who wins? Billionaires or humans?]\"\n[CHOICE]\n- \"1066 — William the Conqueror\" -> ch1_intro\n- \"1885 — King Leopold\" -> ch2_intro\n- \"1879 — Gilded Age America\" -> ch3_intro\n- \"1929 — King of Chicago\" -> ch4_intro\n- \"2026 — Elon Musk\" -> ch5_intro\n- \"Sandbox — the raw machine\" -> sandbox_intro\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_intro",
+      "name": "Chapter 1: WILLIAM THE CONQUEROR",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ CHAPTER 1 — WILLIAM THE CONQUEROR (1066) ============\n# Fresh sim, era presets. All numbers are starting guesses: tune live.\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET hierarchy = 90]\n[SET repression = 80]\n[SET education = 5]\n[SET greed = 70]\n[SET regulation = 5]\n[SET speculation = 10]\n[SET chapter = 1]\n\nNarrator: \"1066. William takes England by the sword and keeps it by the ledger.\"\nNarrator: \"[TODO Doug: conquest becomes property, property becomes rent, loot distribution buys the barons]\"\n[SCENE ch1_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_machine",
+      "name": "WILLIAM THE CONQUEROR — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ WILLIAM THE CONQUEROR — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch1]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch1_domesday",
+      "name": "Ch1: The Domesday Survey",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: every hide of land written down — the first rent extraction database]\"\n[SCENE ch1_machine]",
+      "narraton": {
+        "pool": "ch1",
+        "keys": {
+          "hoard": {
+            "target": 150,
+            "scale": 200
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch1_barons",
+      "name": "Ch1: Buying the Barons",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: loot distribution — the enforcers get their cut and call it honor]\"\n[SCENE ch1_machine]",
+      "narraton": {
+        "pool": "ch1",
+        "keys": {
+          "prestige": {
+            "target": 60,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch1_harrying",
+      "name": "Ch1: The Harrying",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the North rises; the North burns — repression spending made visible]\"\n[SCENE ch1_machine]",
+      "narraton": {
+        "pool": "ch1",
+        "keys": {
+          "flareUps": {
+            "target": 5,
+            "scale": 6
+          },
+          "repression": {
+            "target": 90,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch1_finale",
+      "name": "Ch1 Finale",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the feudal settlement complete — rent is now the law of the land]\"\nNarrator: \"[TODO Doug: bridge to chapter 2]\"\n[SCENE ch2_intro]",
+      "narraton": {
+        "pool": "ch1",
+        "requires": [
+          {
+            "variable": "hoard",
+            "operator": ">",
+            "value": 300
+          }
+        ],
+        "repeatable": false,
+        "weight": 5
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch2_intro",
+      "name": "Chapter 2: KING LEOPOLD",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ CHAPTER 2 — KING LEOPOLD (1885) ============\n# Fresh sim, era presets. All numbers are starting guesses: tune live.\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET greed = 100]\n[SET repression = 95]\n[SET education = 10]\n[SET hierarchy = 80]\n[SET regulation = 5]\n[SET speculation = 20]\n[SET chapter = 2]\n\nNarrator: \"1885. Leopold II acquires the Congo — not for Belgium, for himself.\"\nNarrator: \"[TODO Doug: rubber quotas, the Force Publique, extraction with the mask fully off]\"\n[SCENE ch2_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_machine",
+      "name": "KING LEOPOLD — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ KING LEOPOLD — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch2]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch2_quota",
+      "name": "Ch2: The Quota",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the rubber quota — wages below survival, enforced by the basket of hands]\"\n[SCENE ch2_machine]",
+      "narraton": {
+        "pool": "ch2",
+        "keys": {
+          "wages": {
+            "target": 5,
+            "scale": 60
+          },
+          "greed": {
+            "target": 100,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch2_report",
+      "name": "Ch2: The Casement Report",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: witnesses publish; education rises; the prestige shell cracks]\"\n[SCENE ch2_machine]",
+      "narraton": {
+        "pool": "ch2",
+        "keys": {
+          "education": {
+            "target": 40,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch2_philanthropy",
+      "name": "Ch2: The Philanthropist King",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: monuments and museums — prestige spending as insulation]\"\n[SCENE ch2_machine]",
+      "narraton": {
+        "pool": "ch2",
+        "keys": {
+          "prestige": {
+            "target": 90,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch2_finale",
+      "name": "Ch2 Finale",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the hoard complete, the colony sold to Belgium, the hands uncounted]\"\nNarrator: \"[TODO Doug: bridge to chapter 3]\"\n[SCENE ch3_intro]",
+      "narraton": {
+        "pool": "ch2",
+        "requires": [
+          {
+            "variable": "hoard",
+            "operator": ">",
+            "value": 500
+          }
+        ],
+        "repeatable": false,
+        "weight": 5
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch3_intro",
+      "name": "Chapter 3: GILDED AGE AMERICA",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ CHAPTER 3 — GILDED AGE AMERICA (1879) ============\n# Fresh sim, era presets. All numbers are starting guesses: tune live.\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET speculation = 85]\n[SET greed = 80]\n[SET education = 30]\n[SET regulation = 10]\n[SET hierarchy = 60]\n[SET repression = 40]\n[SET chapter = 3]\n\nNarrator: \"1879. The exact year Henry George publishes. Railroads, land grants, panics.\"\nNarrator: \"[TODO Doug: the era the machine was built to explain — speculation as the brake]\"\n[SCENE ch3_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_machine",
+      "name": "GILDED AGE AMERICA — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ GILDED AGE AMERICA — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch3]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch3_landgrant",
+      "name": "Ch3: The Land Grant",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: railroad land grants — miles of margin withheld from use]\"\n[SCENE ch3_machine]",
+      "narraton": {
+        "pool": "ch3",
+        "keys": {
+          "speculation": {
+            "target": 90,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch3_panic",
+      "name": "Ch3: The Panic",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the panic arrives on schedule — speculative prices meet real production]\"\n[SCENE ch3_machine]",
+      "narraton": {
+        "pool": "ch3",
+        "requires": [
+          {
+            "variable": "crisis",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "keys": {},
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch3_george",
+      "name": "Ch3: Progress and Poverty",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: a printer in San Francisco writes the best-selling economics book of the century]\"\n[SCENE ch3_machine]",
+      "narraton": {
+        "pool": "ch3",
+        "keys": {
+          "education": {
+            "target": 60,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch3_finale",
+      "name": "Ch3 Finale",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: depression as proof — the chapter closes on George's diagnosis]\"\nNarrator: \"[TODO Doug: bridge to chapter 4]\"\n[SCENE ch4_intro]",
+      "narraton": {
+        "pool": "ch3",
+        "requires": [
+          {
+            "variable": "crisis",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "repeatable": false,
+        "weight": 5
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch4_intro",
+      "name": "Chapter 4: KING OF CHICAGO",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ CHAPTER 4 — KING OF CHICAGO (1929) ============\n# Fresh sim, era presets. All numbers are starting guesses: tune live.\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET repression = 60]\n[SET greed = 75]\n[SET regulation = 15]\n[SET hierarchy = 60]\n[SET education = 35]\n[SET speculation = 50]\n[SET chapter = 4]\n\nNarrator: \"1929. Chicago. The racket is just rent with a tommy gun.\"\nNarrator: \"[TODO Doug: protection money as land rent — the 1986 game returns to its subject]\"\n[SCENE ch4_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_machine",
+      "name": "KING OF CHICAGO — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ KING OF CHICAGO — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch4]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch4_protection",
+      "name": "Ch4: Protection",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: pay for permission to exist on the block — the purest rent there is]\"\n[SCENE ch4_machine]",
+      "narraton": {
+        "pool": "ch4",
+        "keys": {
+          "rent": {
+            "target": 30,
+            "scale": 40
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch4_cityhall",
+      "name": "Ch4: City Hall",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: regulation for sale — govStrength corroded by prestige and envelopes]\"\n[SCENE ch4_machine]",
+      "narraton": {
+        "pool": "ch4",
+        "keys": {
+          "regulation": {
+            "target": 5,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch4_massacre",
+      "name": "Ch4: The Massacre",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: competition among rentiers turns kinetic]\"\n[SCENE ch4_machine]",
+      "narraton": {
+        "pool": "ch4",
+        "keys": {
+          "flareUps": {
+            "target": 4,
+            "scale": 6
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch4_finale",
+      "name": "Ch4 Finale",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the king of Chicago falls to an accounting ledger — rent leaves receipts]\"\nNarrator: \"[TODO Doug: bridge to chapter 5]\"\n[SCENE ch5_intro]",
+      "narraton": {
+        "pool": "ch4",
+        "requires": [
+          {
+            "variable": "hoard",
+            "operator": ">",
+            "value": 400
+          }
+        ],
+        "repeatable": false,
+        "weight": 5
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_intro",
+      "name": "Chapter 5: ELON MUSK",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ CHAPTER 5 — ELON MUSK (2026) ============\n# Fresh sim, era presets. All numbers are starting guesses: tune live.\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET greed = 85]\n[SET speculation = 70]\n[SET education = 40]\n[SET regulation = 20]\n[SET hierarchy = 70]\n[SET repression = 30]\n[SET prestige = 80]\n[SET chapter = 5]\n\nNarrator: \"2026. The hoard is beyond counting. The product is mostly story.\"\nNarrator: \"[TODO Doug: prestige gameplay, outsourced-gamer-cred, the simulation era — link the comic]\"\n[SCENE ch5_machine]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_machine",
+      "name": "ELON MUSK — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ ELON MUSK — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=ch5]\n[ENDIF]\n\n# COLLAPSE: wages pinned at survival with mass flare-ups, sustained\n[IF wages <= c_survivalFloor + 1]\n[IF flareUps >= 5]\n[SET collapseTimer = collapseTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF wages > c_survivalFloor + 1]\n[SET collapseTimer = 0]\n[ENDIF]\n[IF collapseTimer > c_collapseTicks]\n[SCENE ending_collapse]\n[ENDIF]\n\n# RECONSTITUTION: single tax held while education climbs, sustained\n[IF singleTax == 1]\n[IF education >= c_reconEduMin]\n[SET reconTimer = reconTimer + 1]\n[ENDIF]\n[ENDIF]\n[IF singleTax == 0]\n[SET reconTimer = 0]\n[ENDIF]\n[IF reconTimer > c_reconTicks]\n[SCENE ending_reconstitution]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "ch5_memes",
+      "name": "Ch5: The Feed",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the feed as prestige machine — repression by timeline]\"\n[SCENE ch5_machine]",
+      "narraton": {
+        "pool": "ch5",
+        "keys": {
+          "prestige": {
+            "target": 95,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_mars",
+      "name": "Ch5: Mars as Margin",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: the ultimate speculative land — a margin that does not exist yet, already priced]\"\n[SCENE ch5_machine]",
+      "narraton": {
+        "pool": "ch5",
+        "keys": {
+          "speculation": {
+            "target": 90,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_walkout",
+      "name": "Ch5: The Walkout",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: educated flare-ups — the shell corrodes fastest when they can read the ledger]\"\n[SCENE ch5_machine]",
+      "narraton": {
+        "pool": "ch5",
+        "keys": {
+          "flareUps": {
+            "target": 4,
+            "scale": 6
+          },
+          "education": {
+            "target": 60,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "ch5_finale",
+      "name": "Ch5 Finale",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"[TODO Doug: peak prestige — the simulation complete, the humans optional. Or are they?]\"\nNarrator: \"[TODO Doug: the campaign closes — back to the beginning]\"\n[SCENE menu]",
+      "narraton": {
+        "pool": "ch5",
+        "requires": [
+          {
+            "variable": "prestige",
+            "operator": ">=",
+            "value": 95
+          }
+        ],
+        "repeatable": false,
+        "weight": 5
+      },
+      "status": "work"
+    },
+    {
+      "id": "sandbox_intro",
+      "name": "Sandbox Intro",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# Sandbox: default levers, full panel, no endings — the pure toy\n[SET productivity = 1.5]\n[SET marginHeight = 100]\n[SET product = 0]\n[SET rent = 0]\n[SET wages = 30]\n[SET interest = 9]\n[SET hoard = 0]\n[SET prestige = 20]\n[SET publicFund = 0]\n[SET flareUps = 0]\n[SET crisis = 0]\n[SET wheelAngle = 0]\n[SET commentaryTimer = 0]\n[SET collapseTimer = 0]\n[SET reconTimer = 0]\n[SET singleTax = 0]\n[SET greed = 50]\n[SET speculation = 30]\n[SET education = 20]\n[SET regulation = 30]\n[SET hierarchy = 50]\n[SET repression = 20]\n[SET chapter = 0]\nNarrator: \"The raw machine. No century, no story pressure. Pull the levers and watch the theory move.\"\n[SCENE sandbox_machine]",
+      "status": "work"
+    },
+    {
+      "id": "sandbox_machine",
+      "name": "Sandbox — The Machine",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "prestige_shell",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 32,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRESTIGE SHELL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "billionaire",
+          "assetId": "billionaire",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 13,
+          "scale": 1.2,
+          "zIndex": 4,
+          "rotation": 0
+        },
+        {
+          "id": "hoard_reservoir",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 60,
+          "y": 14,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "HOARD",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "production_wheel",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "PRODUCTION WHEEL",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "rent_siphon",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 30,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "RENT SIPHON",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "speculation_brake",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 71,
+          "y": 38,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "SPECULATION BRAKE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "wage_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 38,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "WAGE PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "interest_pipe",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 56,
+          "y": 55,
+          "scale": 1,
+          "zIndex": 2,
+          "rotation": 0,
+          "text": "INTEREST PIPE",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "margin_floor",
+          "assetId": "",
+          "type": "BALLOON",
+          "x": 47,
+          "y": 64,
+          "scale": 1,
+          "zIndex": 1,
+          "rotation": 0,
+          "text": "THE MARGIN",
+          "balloonType": "SPEECH"
+        },
+        {
+          "id": "human_1",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 24,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_2",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 31,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_3",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 38,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_4",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 45,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_5",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 52,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        },
+        {
+          "id": "human_6",
+          "assetId": "human",
+          "type": "ACTOR",
+          "x": 59,
+          "y": 82,
+          "scale": 1,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "# ============ SANDBOX — THE MACHINE — Georgist economy ============\n# Every c_* coefficient is a worldState variable: tune live.\n\n# --- Instrument panel: right = levers, left = readouts ---\n[SLIDER greed at 90,8 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 90,20 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 90,32 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 90,44 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 90,56 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 90,68 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 90,82 min=0 max=1 step=1 label=\"SINGLE TAX\"]\n\n[GAUGE wages at 8,12 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 8,34 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 8,56 min=0 max=100 label=\"MARGIN\"]\n[GAUGE hoard at 8,78 min=0 max=600 label=\"HOARD\"]\n\n# --- The rig: transforms driven by the economy ---\n[BIND production_wheel.rotation to wheelAngle]\n[BIND rent_siphon.rotation to clamp(rent * 2, 0, 75)]\n[BIND speculation_brake.y to 30 + speculation * 0.12]\n[BIND wage_pipe.scale to clamp(wages / 30, 0.3, 2.5)]\n[BIND interest_pipe.scale to clamp(interest / 10, 0.3, 2.5)]\n[BIND margin_floor.y to 78 - marginHeight * 0.14]\n[BIND hoard_reservoir.scale to clamp(0.6 + hoard / 300, 0.6, 3)]\n[BIND prestige_shell.opacity to 0.25 + prestige / 130]\n[BIND prestige_shell.scale to 0.8 + prestige / 120]\n\n[BUTTON tune_button]\n\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n\n# flare-up visuals: humans past the threshold spark\n[IF flareUps >= 1]\n[EFFECT electric_flare on human_1]\n[ENDIF]\n[IF flareUps < 1]\n[CLEAR_EFFECT electric_flare from human_1]\n[ENDIF]\n[IF flareUps >= 2]\n[EFFECT electric_flare on human_2]\n[ENDIF]\n[IF flareUps < 2]\n[CLEAR_EFFECT electric_flare from human_2]\n[ENDIF]\n[IF flareUps >= 3]\n[EFFECT electric_flare on human_3]\n[ENDIF]\n[IF flareUps < 3]\n[CLEAR_EFFECT electric_flare from human_3]\n[ENDIF]\n[IF flareUps >= 4]\n[EFFECT electric_flare on human_4]\n[ENDIF]\n[IF flareUps < 4]\n[CLEAR_EFFECT electric_flare from human_4]\n[ENDIF]\n[IF flareUps >= 5]\n[EFFECT electric_flare on human_5]\n[ENDIF]\n[IF flareUps < 5]\n[CLEAR_EFFECT electric_flare from human_5]\n[ENDIF]\n[IF flareUps >= 6]\n[EFFECT electric_flare on human_6]\n[ENDIF]\n[IF flareUps < 6]\n[CLEAR_EFFECT electric_flare from human_6]\n[ENDIF]\n\n# crisis shakes the wheel; a vast hoard glows\n[IF crisis == 1]\n[EFFECT shake_all on production_wheel]\n[ENDIF]\n[IF crisis == 0]\n[CLEAR_EFFECT shake_all from production_wheel]\n[ENDIF]\n[IF hoard > 300]\n[EFFECT gold_glow on hoard_reservoir]\n[ENDIF]\n[IF hoard <= 300]\n[CLEAR_EFFECT gold_glow from hoard_reservoir]\n[ENDIF]\n\n# Narraton commentary cadence\n[SET commentaryTimer = commentaryTimer + 1]\n[SET narratonGo = 0]\n[IF commentaryTimer > c_commentaryCooldown]\n[IF crisis == 1]\n[SET narratonGo = 1]\n[ENDIF]\n[IF flareUps >= c_commentaryFlareMin]\n[SET narratonGo = 1]\n[ENDIF]\n[IF singleTax == 1]\n[IF publicFund > 40]\n[SET narratonGo = 1]\n[ENDIF]\n[ENDIF]\n[ENDIF]\n[IF narratonGo == 1]\n[SET commentaryTimer = 0]\n[NARRATON pool=witness]\n[ENDIF]\n[/TICK]\n\n# hold the scene open: the machine never \"ends\" on its own\n[WAIT 999999s]",
+      "status": "work"
+    },
+    {
+      "id": "witness_poverty",
+      "name": "Witness: Poverty",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"The margin has fallen to nothing. They work harder every year, and every year they are poorer.\"\nWitness: \"Progress, they call it.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "keys": {
+          "wages": {
+            "target": 5,
+            "scale": 60
+          },
+          "flareUps": {
+            "target": 5,
+            "scale": 6
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "witness_crisis",
+      "name": "Witness: Crisis",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"The speculators priced the land beyond what any labor could pay. Now the whole machine seizes.\"\nWitness: \"They will call it a mystery. It is not a mystery.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "requires": [
+          {
+            "variable": "crisis",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "keys": {
+          "speculation": {
+            "target": 95,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "witness_complacency",
+      "name": "Witness: Complacency",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"Wages hold. The humans are quiet. The machine hums.\"\nWitness: \"Quiet is not the same as just. Watch what happens when the hand on the greed lever tires of moderation.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "keys": {
+          "wages": {
+            "target": 40,
+            "scale": 60
+          },
+          "flareUps": {
+            "target": 0,
+            "scale": 6
+          },
+          "greed": {
+            "target": 15,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "witness_hoard",
+      "name": "Witness: The Hoard",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"Look at the reservoir. Every drop passed through hands that made something — and stuck to hands that made nothing.\"\nWitness: \"Rent is the price of permission to exist somewhere.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "keys": {
+          "hoard": {
+            "target": 500,
+            "scale": 200
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "witness_margin_collapse",
+      "name": "Witness: The Floor Falls",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"The margin of production — the best land free labor can still reach — has sunk to the sea floor.\"\nWitness: \"When the margin falls, wages fall with it. Everywhere. Always.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "keys": {
+          "marginHeight": {
+            "target": 5,
+            "scale": 100
+          }
+        },
+        "repeatable": true
+      },
+      "status": "work"
+    },
+    {
+      "id": "witness_singletax",
+      "name": "Witness: The Lever",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [
+        {
+          "id": "witness_figure",
+          "assetId": "witness",
+          "type": "ACTOR",
+          "x": 50,
+          "y": 60,
+          "scale": 1.4,
+          "zIndex": 3,
+          "rotation": 0
+        }
+      ],
+      "script": "Witness: \"Someone pulled the lever. Rent flows to the public fund now — the value the community creates, returned to the community.\"\nWitness: \"Watch the margin rise. Watch the schools fill. This is the whole argument, moving.\"\n[SCENE sandbox_machine]",
+      "narraton": {
+        "pool": "witness",
+        "requires": [
+          {
+            "variable": "singleTax",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "keys": {
+          "publicFund": {
+            "target": 60,
+            "scale": 60
+          }
+        },
+        "repeatable": false,
+        "weight": 2
+      },
+      "status": "work"
+    },
+    {
+      "id": "ending_collapse",
+      "name": "Ending: COLLAPSE",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "Narrator: \"COLLAPSE.\"\nWitness: \"Wages pinned at survival. Every human sparking. This is how Rome went — Book X, the reversion to barbarism.\"\nNarrator: \"[TODO Doug: the collapse ending — Progress and Poverty Book X, the warning made kinetic]\"\n[CHOICE]\n- \"Begin again\" -> menu\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "ending_reconstitution",
+      "name": "Ending: RECONSTITUTION",
+      "sceneType": "WITNESS",
+      "dropId": null,
+      "stage": [],
+      "script": "Narrator: \"RECONSTITUTION.\"\nWitness: \"The lever held. Education kept climbing. The machine still runs — but the rent flows back to the people who make the value.\"\nNarrator: \"THE TEN LITMUS TESTS — [TODO Doug: the manifesto's ten tests, displayed here as the victory screen]\"\nNarrator: \"[TODO Doug: test 1]\"\nNarrator: \"[TODO Doug: test 2]\"\nNarrator: \"[TODO Doug: tests 3 through 10]\"\n[CHOICE]\n- \"Begin again\" -> menu\n[/CHOICE]",
+      "status": "work"
+    },
+    {
+      "id": "machine_tuning",
+      "name": "Tuning Cockpit",
+      "sceneType": "AGENCY",
+      "dropId": null,
+      "stage": [],
+      "script": "# ============ TUNING COCKPIT ============\n# Every coefficient live. The economy keeps ticking while you turn\n# the dials; tuned values persist when you go back.\n\n[GAUGE wages at 14,8 min=0 max=60 label=\"WAGES\"]\n[GAUGE rent at 32,8 min=0 max=40 label=\"RENT\"]\n[GAUGE marginHeight at 50,8 min=0 max=100 label=\"MARGIN\"]\n[GAUGE product at 68,8 min=0 max=150 label=\"PRODUCT\"]\n[GAUGE hoard at 86,8 min=0 max=600 label=\"HOARD\"]\n\n[SLIDER c_prodGrowth at 14,22 min=0 max=0.05 step=0.002 label=\"PROD GROWTH\"]\n[SLIDER c_prodMax at 14,32 min=1 max=6 step=0.5 label=\"PROD MAX\"]\n[SLIDER c_specMargin at 14,42 min=0 max=1 step=0.05 label=\"SPEC>MARGIN\"]\n[SLIDER c_greedMargin at 14,52 min=0 max=1 step=0.05 label=\"GREED>MARGIN\"]\n[SLIDER c_regMargin at 14,62 min=0 max=1 step=0.05 label=\"REG>MARGIN\"]\n[SLIDER c_taxMargin at 14,72 min=0 max=60 step=2 label=\"TAX>MARGIN\"]\n[SLIDER laborForce at 14,82 min=5 max=100 step=5 label=\"LABOR FORCE\"]\n[SLIDER c_survivalFloor at 14,92 min=0 max=20 label=\"SURVIVAL FLR\"]\n[SLIDER c_rentGreedDiv at 38,22 min=10 max=200 step=5 label=\"RENT DIV\"]\n[SLIDER c_interestShare at 38,32 min=0 max=1 step=0.05 label=\"INT SHARE\"]\n[SLIDER c_prestigeSpend at 38,42 min=0 max=2 step=0.1 label=\"PRSTG SPEND\"]\n[SLIDER c_eduPrestige at 38,52 min=0 max=0.05 step=0.002 label=\"EDU>PRSTG\"]\n[SLIDER c_repressionCost at 38,62 min=0 max=0.2 step=0.01 label=\"REPR COST\"]\n[SLIDER c_taxRedirect at 38,72 min=0 max=1 step=0.05 label=\"TAX REDIRECT\"]\n[SLIDER c_fundMargin at 38,82 min=0 max=0.05 step=0.002 label=\"FUND>MARGIN\"]\n[SLIDER c_fundEdu at 38,92 min=0 max=0.05 step=0.002 label=\"FUND>EDU\"]\n[SLIDER c_flareBase at 62,22 min=0 max=50 label=\"FLARE BASE\"]\n[SLIDER c_flareHier at 62,32 min=0 max=1 step=0.05 label=\"HIER>FLARE\"]\n[SLIDER c_flareEdu at 62,42 min=0 max=1 step=0.05 label=\"EDU>FLARE\"]\n[SLIDER c_flareDiv at 62,52 min=1 max=10 step=0.5 label=\"FLARE DIV\"]\n[SLIDER c_crisisSpecMin at 62,62 min=0 max=100 step=5 label=\"CRISIS SPEC\"]\n[SLIDER c_crisisChance at 62,72 min=0 max=0.5 step=0.01 label=\"CRISIS ODDS\"]\n[SLIDER c_commentaryCooldown at 62,82 min=0 max=120 step=5 label=\"STORY CD\"]\n[SLIDER c_commentaryFlareMin at 62,92 min=0 max=6 label=\"STORY FLARES\"]\n[SLIDER greed at 86,22 min=0 max=100 label=\"GREED\"]\n[SLIDER speculation at 86,32 min=0 max=100 label=\"SPECULATION\"]\n[SLIDER education at 86,42 min=0 max=100 label=\"EDUCATION\"]\n[SLIDER regulation at 86,52 min=0 max=100 label=\"REGULATION\"]\n[SLIDER hierarchy at 86,62 min=0 max=100 label=\"HIERARCHY\"]\n[SLIDER repression at 86,72 min=0 max=100 label=\"REPRESSION\"]\n[SLIDER singleTax at 86,82 min=0 max=1 label=\"SINGLE TAX\"]\n[SLIDER c_wheelSpeed at 86,92 min=0 max=2 step=0.1 label=\"WHEEL SPEED\"]\n\n[BUTTON back_button]\n\n[TICK 500ms]\n# progress raises productivity; education accelerates it\n[SET productivity = clamp(productivity + c_prodGrowth * (1 + education / 200), 0.5, c_prodMax)]\n\n# speculation and greed LOWER the margin; regulation and the single tax raise it\n[SET marginHeight = clamp(100 - speculation * c_specMargin - greed * c_greedMargin + regulation * c_regMargin + singleTax * c_taxMargin, 5, 100)]\n\n# product of labor (wages' true source — anti-wage-fund)\n[SET product = laborForce * productivity * (marginHeight / 100)]\n\n# rent captures the gap between best land and the margin\n[SET rent = product * (1 - marginHeight / 100) * (greed / c_rentGreedDiv)]\n[IF singleTax == 1]\n[SET publicFund = publicFund + rent * c_taxRedirect]\n[SET rent = rent * (1 - c_taxRedirect)]\n[ENDIF]\n\n# wages and interest move together, squeezed by rent\n[SET wages = max(product - rent, c_survivalFloor)]\n[SET interest = wages * c_interestShare]\n\n# hoard and prestige\n[SET hoard = max(hoard + rent - repression * c_repressionCost - c_prestigeSpend, 0)]\n[SET prestige = clamp(prestige + c_prestigeSpend - education * c_eduPrestige, 0, 100)]\n\n# flare-ups: poverty past threshold; hierarchy raises tolerance, education lowers it\n[SET flareThreshold = c_flareBase + hierarchy * c_flareHier - education * c_flareEdu]\n[SET flareUps = clamp(floor((flareThreshold - wages) / c_flareDiv), 0, 6)]\n\n# crisis: speculative prices outrun production\n[SET crisisRoll = rand()]\n[IF speculation > c_crisisSpecMin]\n[IF crisisRoll < c_crisisChance]\n[SET crisis = 1]\n[SET product = product * 0.5]\n[ENDIF]\n[ENDIF]\n[IF speculation <= c_crisisSpecMin]\n[SET crisis = 0]\n[ENDIF]\n\n# single tax feedback: the fund raises the margin and education\n[IF singleTax == 1]\n[SET marginHeight = clamp(marginHeight + publicFund * c_fundMargin, 5, 100)]\n[SET education = clamp(education + publicFund * c_fundEdu, 0, 100)]\n[ENDIF]\n\n# spin the wheel at product speed\n[SET wheelAngle = wheelAngle + product * c_wheelSpeed]\n[/TICK]\n\n[WAIT 999999s]",
+      "status": "work"
+    }
+  ],
+  "drops": [],
+  "items": [],
+  "sfx": [
+    {
+      "id": "electric_flare",
+      "name": "Electric Flare",
+      "type": "electric",
+      "category": "ATTACH",
+      "params": {
+        "intensity": 70
+      },
+      "status": "work"
+    },
+    {
+      "id": "shake_all",
+      "name": "Crisis Shake",
+      "type": "shake",
+      "category": "DO",
+      "params": {
+        "intensity": 70
+      },
+      "status": "work"
+    },
+    {
+      "id": "gold_glow",
+      "name": "Gold Glow",
+      "type": "glow",
+      "category": "ATTACH",
+      "params": {
+        "intensity": 60
+      },
+      "status": "work"
+    }
+  ],
+  "buttons": [
+    {
+      "id": "tune_button",
+      "name": "Tune",
+      "label": "TUNE",
+      "x": 5,
+      "y": 5,
+      "width": 8,
+      "height": 6,
+      "targetSceneId": "machine_tuning",
+      "status": "work"
+    },
+    {
+      "id": "back_button",
+      "name": "Back",
+      "label": "BACK",
+      "x": 5,
+      "y": 5,
+      "width": 8,
+      "height": 6,
+      "targetSceneId": "menu",
+      "status": "work"
+    }
+  ],
+  "episodes": [
+    {
+      "id": "ep_ch1",
+      "name": "Chapter 1: WILLIAM THE CONQUEROR",
+      "description": "1066 — [TODO Doug: chapter description]",
+      "sceneIds": [
+        "ch1_intro",
+        "ch1_machine",
+        "ch1_domesday",
+        "ch1_barons",
+        "ch1_harrying",
+        "ch1_finale"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_ch2",
+      "name": "Chapter 2: KING LEOPOLD",
+      "description": "1885 — [TODO Doug: chapter description]",
+      "sceneIds": [
+        "ch2_intro",
+        "ch2_machine",
+        "ch2_quota",
+        "ch2_report",
+        "ch2_philanthropy",
+        "ch2_finale"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_ch3",
+      "name": "Chapter 3: GILDED AGE AMERICA",
+      "description": "1879 — [TODO Doug: chapter description]",
+      "sceneIds": [
+        "ch3_intro",
+        "ch3_machine",
+        "ch3_landgrant",
+        "ch3_panic",
+        "ch3_george",
+        "ch3_finale"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_ch4",
+      "name": "Chapter 4: KING OF CHICAGO",
+      "description": "1929 — [TODO Doug: chapter description]",
+      "sceneIds": [
+        "ch4_intro",
+        "ch4_machine",
+        "ch4_protection",
+        "ch4_cityhall",
+        "ch4_massacre",
+        "ch4_finale"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_ch5",
+      "name": "Chapter 5: ELON MUSK",
+      "description": "2026 — [TODO Doug: chapter description]",
+      "sceneIds": [
+        "ch5_intro",
+        "ch5_machine",
+        "ch5_memes",
+        "ch5_mars",
+        "ch5_walkout",
+        "ch5_finale"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_sandbox",
+      "name": "Sandbox",
+      "description": "The raw machine: full panel, witness commentary, no endings.",
+      "sceneIds": [
+        "sandbox_intro",
+        "sandbox_machine",
+        "witness_poverty",
+        "witness_crisis",
+        "witness_complacency",
+        "witness_hoard",
+        "witness_margin_collapse",
+        "witness_singletax"
+      ],
+      "status": "work"
+    },
+    {
+      "id": "ep_frame",
+      "name": "Frame",
+      "description": "Menu, endings, tuning cockpit.",
+      "sceneIds": [
+        "menu",
+        "ending_collapse",
+        "ending_reconstitution",
+        "machine_tuning"
+      ],
+      "status": "work"
+    }
+  ]
+}
