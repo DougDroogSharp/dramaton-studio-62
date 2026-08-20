@@ -170,6 +170,95 @@ Changes an actor's pose and/or expression.
 [POSE witness expression=Happy]
 ```
 
+#### `TWEEN`
+
+Animates any numeric element property to a target value: scale, rotation, opacity, x, y, zIndex. Like MOVE but for everything else — grow the billionaire as his hoard rises, fade a ghost in, tip a falling tower. Non-blocking: the script continues immediately (follow with WAIT to hold for the animation). Unknown properties are ignored with a warning.
+
+**Syntax:**
+```
+[TWEEN element.property to value over duration]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element` | string | Stage element id |
+| `property` | string | scale | rotation | opacity | x | y | zIndex |
+| `value` | number | Target value |
+| `duration` | string | Animation duration (default 1s) |
+
+**Example:**
+```
+[TWEEN billionaire.scale to 3 over 2s]
+[TWEEN ghost.opacity to 0 over 1.5s]
+[TWEEN tower.rotation to 75 over 3s]
+```
+
+#### `BACKDROP`
+
+Swaps the scene backdrop without changing scenes, crossfading over the given duration (instant when omitted). Day to night, before and after the fire, the same room ten years later. Unknown drop ids warn and keep the current backdrop.
+
+**Syntax:**
+```
+[BACKDROP drop_id [over duration]]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `drop_id` | string | Id of a drop in the game |
+| `duration` | string | Crossfade duration (default instant) |
+
+**Example:**
+```
+[BACKDROP wm_village_burnt over 2s]
+```
+
+#### `FACE`
+
+Mirrors a sprite horizontally so it faces the other way — turn a speaker toward whoever they are addressing without drawing mirrored art.
+
+**Syntax:**
+```
+[FACE element left|right]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element` | string | Stage element id |
+| `direction` | string | left or right |
+
+**Example:**
+```
+[FACE h_william left]
+```
+
+#### `CAMERA`
+
+Moves the camera over the stage. Named shots are the 1986 King of Chicago cuts: wide (full stage), two (a two-shot), closeup (push in) — add "on element" to center them. Free form takes an explicit zoom factor and optional focus point. "follow element" tracks a moving element continuously (pairs with MOVE walk cycles). "reset" returns to the full stage.
+
+**Syntax:**
+```
+[CAMERA shot wide|closeup|two [on element] [over duration]]  |  [CAMERA zoom 1.5 [at x,y] [over duration]]  |  [CAMERA follow element]  |  [CAMERA reset]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `shot` | string | wide | closeup | two | reset |
+| `element` | string | Element to center on or follow |
+| `zoom` | number | Free zoom factor (1 = full stage) |
+| `duration` | string | Move duration (default 1s) |
+
+**Example:**
+```
+[CAMERA shot closeup on h_william over 1.5s]
+[CAMERA follow h_peasant]
+[CAMERA zoom 1.8 at 30,40 over 2s]
+[CAMERA reset over 1s]
+```
+
 ---
 
 ### Dialogue Commands
@@ -925,7 +1014,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **35 commands documented**
+✅ **39 commands documented**
 
 ---
 

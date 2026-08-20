@@ -8,6 +8,11 @@ interface StageProps {
   scene: Scene;
   game: GameData;
   background?: Drop;
+  // [BACKDROP]: mid-scene drop swap, crossfaded over `background`
+  scriptBackdrop?: Drop;
+  backdropDuration?: number;
+  // [CAMERA]: zoom/pan applied to the whole stage
+  camera?: { zoom: number; x: number; y: number; duration: number } | null;
   // Editor mode props
   editable?: boolean;
   selectedElementId?: string | null;
@@ -42,6 +47,9 @@ export const Stage: React.FC<StageProps> = ({
   scene,
   game,
   background,
+  scriptBackdrop,
+  backdropDuration,
+  camera,
   editable = false,
   selectedElementId,
   draggingId,
@@ -145,7 +153,7 @@ export const Stage: React.FC<StageProps> = ({
         style={{
           left: `${el.x}%`,
           top: `${el.y}%`,
-          transform: `translate(-50%, -50%) scale(${el.scale}) rotate(${el.rotation}deg)`,
+          transform: `translate(-50%, -50%) scale(${el.flipX ? -el.scale : el.scale}, ${el.scale}) rotate(${el.rotation}deg)`,
           zIndex: draggingId === element.id ? 1000 : el.zIndex,
           ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
           // MOVE animates at its scripted duration; ENTER snaps (0)
@@ -253,14 +261,24 @@ export const Stage: React.FC<StageProps> = ({
   return (
     <div
       ref={canvasRef}
-      className={`relative w-full bg-diesel-panel ${editable ? 'cursor-crosshair' : ''}`}
-      style={{ aspectRatio: '16/9' }}
+      className={`relative w-full bg-diesel-panel ${editable ? 'cursor-crosshair' : ''} ${camera ? 'overflow-hidden' : ''}`}
+      style={{
+        aspectRatio: '16/9',
+        // [CAMERA]: scale the whole stage about the focus point
+        ...(camera ? {
+          transform: `scale(${camera.zoom})`,
+          transformOrigin: `${camera.x}% ${camera.y}%`,
+          transition: `transform ${camera.duration}s ease-in-out`,
+        } : {}),
+      }}
       onMouseMove={editable ? onMouseMove : undefined}
       onMouseUp={editable ? onMouseUp : undefined}
       onMouseLeave={editable ? onMouseUp : undefined}
       onClick={editable ? onCanvasClick : undefined}
     >
-      {/* Background Drop */}
+      {/* Background Drop. A script-driven [BACKDROP] swap crossfades
+          over the scene's own drop: both layers render, the new one
+          fades in on top. */}
       {background?.image ? (
         <img
           src={background.image}
@@ -273,6 +291,15 @@ export const Stage: React.FC<StageProps> = ({
             {editable ? 'No background selected' : ''}
           </span>
         </div>
+      )}
+      {scriptBackdrop?.image && (
+        <img
+          key={scriptBackdrop.id}
+          src={scriptBackdrop.image}
+          alt={scriptBackdrop.name}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none animate-[backdrop-in_var(--backdrop-dur)_ease-in-out_forwards]"
+          style={{ ['--backdrop-dur' as string]: `${backdropDuration ?? 0}s` }}
+        />
       )}
 
       {/* Stage Elements */}

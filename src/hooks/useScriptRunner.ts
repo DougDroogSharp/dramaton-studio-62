@@ -131,6 +131,10 @@ export interface ScriptRunnerState {
   isWaiting: boolean;
   isComplete: boolean;
   isAutoPlay: boolean;
+  // BACKDROP: mid-scene backdrop swap (null = the scene's own drop)
+  backdrop: { dropId: string; duration: number } | null;
+  // CAMERA: zoom/pan over the stage; follow tracks an element
+  camera: { zoom: number; x: number; y: number; duration: number; follow?: string } | null;
 }
 
 interface UseScriptRunnerOptions {
@@ -162,6 +166,8 @@ export function useScriptRunner({
     activeButtons: new Set(),
     activeSliders: new Map(),
       activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -535,6 +541,77 @@ export function useScriptRunner({
         return true;
       }
 
+      case 'TWEEN': {
+        // Non-blocking: set the target and let CSS animate it. Two
+        // renders (duration first, then value) so the transition
+        // duration is in place before the property changes.
+        const { elementId, property, value, duration } = command;
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(elementId) || {};
+          overrides.set(elementId, { ...existing, transitionDuration: duration });
+          return { ...prev, elementOverrides: overrides };
+        });
+        const applyTween = () => setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(elementId) || {};
+          overrides.set(elementId, { ...existing, [property]: value, transitionDuration: duration });
+          return { ...prev, elementOverrides: overrides };
+        });
+        if (duration > 0) setTimeout(applyTween, 30);
+        else applyTween();
+        return true;
+      }
+
+      case 'FACE': {
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(command.elementId) || {};
+          overrides.set(command.elementId, { ...existing, flipX: command.direction === 'left' });
+          return { ...prev, elementOverrides: overrides };
+        });
+        return true;
+      }
+
+      case 'BACKDROP': {
+        if (!game.drops?.some(d => d.id === command.dropId)) {
+          warnOnce(`BACKDROP ${command.dropId}: no such drop; keeping the current backdrop`);
+          return true;
+        }
+        setState(prev => ({
+          ...prev,
+          backdrop: { dropId: command.dropId, duration: command.duration },
+        }));
+        return true;
+      }
+
+      case 'CAMERA': {
+        // Presets resolve to a zoom + center; free form passes through.
+        let zoom = command.zoom ?? 1;
+        let x = command.x;
+        let y = command.y;
+        if (command.shot === 'reset') { zoom = 1; x = 50; y = 50; }
+        else if (command.shot === 'closeup') zoom = 2.2;
+        else if (command.shot === 'two') zoom = 1.5;
+        else if (command.shot === 'wide') zoom = 1;
+        const target = command.targetId
+          ? (state.elementOverrides.get(command.targetId)
+            ?? currentSceneRef.current?.stage?.find(e => e.id === command.targetId))
+          : undefined;
+        if (target && (target.x !== undefined)) { x = target.x; y = target.y; }
+        setState(prev => ({
+          ...prev,
+          camera: {
+            zoom,
+            x: x ?? prev.camera?.x ?? 50,
+            y: y ?? prev.camera?.y ?? 50,
+            duration: command.duration,
+            ...(command.follow ? { follow: command.follow } : {}),
+          },
+        }));
+        return true;
+      }
+
       case 'POSE': {
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
@@ -611,6 +688,8 @@ export function useScriptRunner({
           activeButtons: new Set(),
           activeSliders: new Map(),
       activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
           isWaiting: false,
           isComplete: false,
         }));
@@ -655,6 +734,8 @@ export function useScriptRunner({
               activeButtons: [],
               activeSliders: new Map(),
               activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
               isWaiting: false,
               isComplete: false,
             }));
@@ -814,6 +895,8 @@ export function useScriptRunner({
           activeButtons: new Set(),
           activeSliders: new Map(),
           activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
           isWaiting: false,
           isComplete: false,
         }));
@@ -875,6 +958,24 @@ export function useScriptRunner({
       }
     }
   }, [executeCommand]);
+
+  // CAMERA follow: keep the camera centered on a tracked element as
+  // its overrides move it (MOVE tweens, BINDs). Cheap: only runs while
+  // a follow target is set.
+  const followId = state.camera?.follow;
+  const followed = followId
+    ? (state.elementOverrides.get(followId) ?? currentScene?.stage?.find(e => e.id === followId))
+    : undefined;
+  const followX = followed?.x;
+  const followY = followed?.y;
+  useEffect(() => {
+    if (followId === undefined || followX === undefined || followY === undefined) return;
+    setState(prev => {
+      if (!prev.camera) return prev;
+      if (prev.camera.x === followX && prev.camera.y === followY) return prev;
+      return { ...prev, camera: { ...prev.camera, x: followX, y: followY } };
+    });
+  }, [followId, followX, followY]);
 
   // The TICK heartbeat. Runs the scene's tick body on its interval,
   // concurrent with normal flow; stops on scene change and unmount.
@@ -1032,6 +1133,8 @@ export function useScriptRunner({
       activeButtons: new Set(),
       activeSliders: new Map(),
       activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
       isWaiting: false,
       isComplete: false,
     }));
@@ -1076,6 +1179,8 @@ export function useScriptRunner({
       activeButtons: new Set(),
       activeSliders: new Map(),
       activeGauges: new Map(),
+      backdrop: null,
+      camera: null,
       isWaiting: false,
       isComplete: false,
     }));

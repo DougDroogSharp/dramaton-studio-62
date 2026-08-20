@@ -337,6 +337,11 @@ const Theater: React.FC = () => {
               scene={currentScene}
               game={game}
               background={background}
+              scriptBackdrop={scriptRunner.state.backdrop
+                ? game.drops?.find(d => d.id === scriptRunner.state.backdrop!.dropId)
+                : undefined}
+              backdropDuration={scriptRunner.state.backdrop?.duration}
+              camera={scriptRunner.state.camera}
               hideElement={scriptRunner.state.hiddenElements}
               elementOverrides={scriptRunner.state.elementOverrides}
               activeEffects={scriptRunner.state.activeEffects}

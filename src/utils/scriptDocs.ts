@@ -398,6 +398,58 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'TWEEN',
+    category: 'actor',
+    syntax: '[TWEEN element.property to value over duration]',
+    description: 'Animates any numeric element property to a target value: scale, rotation, opacity, x, y, zIndex. Like MOVE but for everything else — grow the billionaire as his hoard rises, fade a ghost in, tip a falling tower. Non-blocking: the script continues immediately (follow with WAIT to hold for the animation). Unknown properties are ignored with a warning.',
+    parameters: [
+      { name: 'element', type: 'string', description: 'Stage element id' },
+      { name: 'property', type: 'string', description: 'scale | rotation | opacity | x | y | zIndex' },
+      { name: 'value', type: 'number', description: 'Target value' },
+      { name: 'duration', type: 'string', description: 'Animation duration (default 1s)' },
+    ],
+    example: '[TWEEN billionaire.scale to 3 over 2s]\n[TWEEN ghost.opacity to 0 over 1.5s]\n[TWEEN tower.rotation to 75 over 3s]',
+    implemented: true,
+  },
+  {
+    type: 'BACKDROP',
+    category: 'actor',
+    syntax: '[BACKDROP drop_id [over duration]]',
+    description: 'Swaps the scene backdrop without changing scenes, crossfading over the given duration (instant when omitted). Day to night, before and after the fire, the same room ten years later. Unknown drop ids warn and keep the current backdrop.',
+    parameters: [
+      { name: 'drop_id', type: 'string', description: 'Id of a drop in the game' },
+      { name: 'duration', type: 'string', description: 'Crossfade duration (default instant)' },
+    ],
+    example: '[BACKDROP wm_village_burnt over 2s]',
+    implemented: true,
+  },
+  {
+    type: 'FACE',
+    category: 'actor',
+    syntax: '[FACE element left|right]',
+    description: 'Mirrors a sprite horizontally so it faces the other way — turn a speaker toward whoever they are addressing without drawing mirrored art.',
+    parameters: [
+      { name: 'element', type: 'string', description: 'Stage element id' },
+      { name: 'direction', type: 'string', description: 'left or right' },
+    ],
+    example: '[FACE h_william left]',
+    implemented: true,
+  },
+  {
+    type: 'CAMERA',
+    category: 'actor',
+    syntax: '[CAMERA shot wide|closeup|two [on element] [over duration]]  |  [CAMERA zoom 1.5 [at x,y] [over duration]]  |  [CAMERA follow element]  |  [CAMERA reset]',
+    description: 'Moves the camera over the stage. Named shots are the 1986 King of Chicago cuts: wide (full stage), two (a two-shot), closeup (push in) — add "on element" to center them. Free form takes an explicit zoom factor and optional focus point. "follow element" tracks a moving element continuously (pairs with MOVE walk cycles). "reset" returns to the full stage.',
+    parameters: [
+      { name: 'shot', type: 'string', description: 'wide | closeup | two | reset' },
+      { name: 'element', type: 'string', description: 'Element to center on or follow' },
+      { name: 'zoom', type: 'number', description: 'Free zoom factor (1 = full stage)' },
+      { name: 'duration', type: 'string', description: 'Move duration (default 1s)' },
+    ],
+    example: '[CAMERA shot closeup on h_william over 1.5s]\n[CAMERA follow h_peasant]\n[CAMERA zoom 1.8 at 30,40 over 2s]\n[CAMERA reset over 1s]',
+    implemented: true,
+  },
+  {
     type: 'LABEL',
     category: 'flow',
     syntax: '[LABEL name]',
@@ -589,6 +641,10 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'ELSEIF', label: 'ELSEIF', insertText: 'ELSEIF ', description: 'Additional conditional arm' },
   { type: 'ELSE', label: 'ELSE', insertText: 'ELSE]', description: 'Fallback arm of an IF' },
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
+  { type: 'TWEEN', label: 'TWEEN', insertText: 'TWEEN ', description: 'Animate scale/rotation/opacity/position' },
+  { type: 'BACKDROP', label: 'BACKDROP', insertText: 'BACKDROP ', description: 'Crossfade the backdrop mid-scene' },
+  { type: 'FACE', label: 'FACE', insertText: 'FACE ', description: 'Flip a sprite to face left/right' },
+  { type: 'CAMERA', label: 'CAMERA', insertText: 'CAMERA ', description: 'Shots, zoom, pan, follow' },
   { type: 'LABEL', label: 'LABEL', insertText: 'LABEL ', description: 'Named jump target' },
   { type: 'GOTO', label: 'GOTO', insertText: 'GOTO ', description: 'Jump to a label in this scene' },
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
@@ -607,7 +663,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {
   const allTypes: ScriptCommandType[] = [
-    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
+    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'FACE', 'CAMERA',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',

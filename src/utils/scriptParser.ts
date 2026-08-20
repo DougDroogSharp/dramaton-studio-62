@@ -26,6 +26,10 @@ export type ScriptCommandType =
   | 'RANDOM'
   | 'LABEL'
   | 'GOTO'
+  | 'TWEEN'
+  | 'BACKDROP'
+  | 'FACE'
+  | 'CAMERA'
   | 'TICK'
   | 'BIND'
   | 'UNBIND'
@@ -179,6 +183,43 @@ export interface IfCommand {
   elseCommands?: ScriptCommand[];
 }
 
+// Animate any numeric element property (scale, rotation, opacity,
+// x, y, zIndex) to a target value over a duration. Non-blocking:
+// the script continues immediately (use WAIT to hold).
+export interface TweenCommand {
+  type: 'TWEEN';
+  elementId: string;
+  property: 'scale' | 'rotation' | 'opacity' | 'x' | 'y' | 'zIndex';
+  value: number;
+  duration: number; // seconds
+}
+
+// Crossfade the scene's backdrop without changing scenes.
+export interface BackdropCommand {
+  type: 'BACKDROP';
+  dropId: string;
+  duration: number; // seconds (0 = instant)
+}
+
+// Flip a sprite horizontally so it faces the other way.
+export interface FaceCommand {
+  type: 'FACE';
+  elementId: string;
+  direction: 'left' | 'right';
+}
+
+// Camera: named shot presets (the 1986 SHOT0/1/2) or free zoom/pan.
+export interface CameraCommand {
+  type: 'CAMERA';
+  shot?: 'wide' | 'closeup' | 'two' | 'reset';
+  targetId?: string;   // element to center on (presets and follow)
+  zoom?: number;       // free zoom factor
+  x?: number;          // free pan center (0-100)
+  y?: number;
+  follow?: string;     // element id to track continuously
+  duration: number;    // seconds
+}
+
 // A named jump target within the current scene's script.
 export interface LabelCommand {
   type: 'LABEL';
@@ -315,6 +356,10 @@ export type ScriptCommand =
   | RandomCommand
   | LabelCommand
   | GotoCommand
+  | TweenCommand
+  | BackdropCommand
+  | FaceCommand
+  | CameraCommand
   | TickCommand
   | BindCommand
   | UnbindCommand
@@ -562,6 +607,76 @@ function parseLine(line: string): ScriptCommand | null {
           isExpression: true,
           commands: [], // Will be populated by parseScript
         } as unknown as ScriptCommand;
+      }
+    }
+
+    // TWEEN element.property to value over duration
+    const tweenMatch = content.match(/^TWEEN\s+(\w+)\.(\w+)\s+to\s+(-?[\d.]+)(?:\s+over\s+(.+))?$/i);
+    if (tweenMatch) {
+      const prop = tweenMatch[2].toLowerCase();
+      const valid = ['scale', 'rotation', 'opacity', 'x', 'y', 'zindex'];
+      if (valid.includes(prop)) {
+        return {
+          type: 'TWEEN',
+          elementId: tweenMatch[1],
+          property: (prop === 'zindex' ? 'zIndex' : prop) as TweenCommand['property'],
+          value: Number(tweenMatch[3]),
+          duration: tweenMatch[4] ? parseDuration(tweenMatch[4]) : 1,
+        };
+      }
+    }
+
+    // BACKDROP drop_id [over duration]
+    const backdropMatch = content.match(/^BACKDROP\s+(\w+)(?:\s+over\s+(.+))?$/i);
+    if (backdropMatch) {
+      return {
+        type: 'BACKDROP',
+        dropId: backdropMatch[1],
+        duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
+      };
+    }
+
+    // FACE element left|right
+    const faceMatch = content.match(/^FACE\s+(\w+)\s+(left|right)$/i);
+    if (faceMatch) {
+      return {
+        type: 'FACE',
+        elementId: faceMatch[1],
+        direction: faceMatch[2].toLowerCase() as 'left' | 'right',
+      };
+    }
+
+    // CAMERA: presets, free zoom/pan, follow, reset
+    const cameraMatch = content.match(/^CAMERA\s+(.+)$/i);
+    if (cameraMatch) {
+      const rest = cameraMatch[1].trim();
+      const durMatch = rest.match(/\s+over\s+([\d.]+\s*m?s)$/i);
+      const duration = durMatch ? parseDuration(durMatch[1]) : 1;
+      const body = (durMatch ? rest.slice(0, durMatch.index) : rest).trim();
+
+      const followMatch = body.match(/^follow\s+(\w+)$/i);
+      if (followMatch) return { type: 'CAMERA', follow: followMatch[1], duration };
+
+      if (/^reset$/i.test(body)) return { type: 'CAMERA', shot: 'reset', duration };
+
+      const shotMatch = body.match(/^shot\s+(wide|closeup|two)(?:\s+on\s+(\w+))?$/i);
+      if (shotMatch) {
+        return {
+          type: 'CAMERA',
+          shot: shotMatch[1].toLowerCase() as 'wide' | 'closeup' | 'two',
+          ...(shotMatch[2] ? { targetId: shotMatch[2] } : {}),
+          duration,
+        };
+      }
+
+      const zoomMatch = body.match(/^zoom\s+([\d.]+)(?:\s+at\s+([\d.]+)\s*,\s*([\d.]+))?$/i);
+      if (zoomMatch) {
+        return {
+          type: 'CAMERA',
+          zoom: Number(zoomMatch[1]),
+          ...(zoomMatch[2] ? { x: Number(zoomMatch[2]), y: Number(zoomMatch[3]) } : {}),
+          duration,
+        };
       }
     }
 
@@ -1028,6 +1143,26 @@ export function commandToString(cmd: ScriptCommand): string {
         ? `[CHOICE ${cmd.timeout.seconds < 1 ? `${Math.round(cmd.timeout.seconds * 1000)}ms` : `${cmd.timeout.seconds}s`} -> ${cmd.timeout.target}]`
         : '[CHOICE]';
       return `${head}\n${opts}\n[/CHOICE]`;
+    }
+    case 'TWEEN': {
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      return `[TWEEN ${cmd.elementId}.${cmd.property} to ${cmd.value} over ${dur}]`;
+    }
+    case 'BACKDROP': {
+      if (!cmd.duration) return `[BACKDROP ${cmd.dropId}]`;
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      return `[BACKDROP ${cmd.dropId} over ${dur}]`;
+    }
+    case 'FACE':
+      return `[FACE ${cmd.elementId} ${cmd.direction}]`;
+    case 'CAMERA': {
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      let body: string;
+      if (cmd.follow) body = `follow ${cmd.follow}`;
+      else if (cmd.shot === 'reset') body = 'reset';
+      else if (cmd.shot) body = `shot ${cmd.shot}${cmd.targetId ? ` on ${cmd.targetId}` : ''}`;
+      else body = `zoom ${cmd.zoom}${cmd.x !== undefined ? ` at ${cmd.x},${cmd.y}` : ''}`;
+      return `[CAMERA ${body} over ${dur}]`;
     }
     case 'LABEL':
       return `[LABEL ${cmd.name}]`;

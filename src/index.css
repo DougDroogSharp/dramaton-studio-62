@@ -223,6 +223,13 @@
   animation: fade-in 0.3s ease-out;
 }
 
+/* [BACKDROP]: a script-driven drop swap fades in over the scene's own
+   backdrop; duration comes from --backdrop-dur (0s = instant). */
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Dieselpunk Loader Animations */
 @keyframes pistonPump {
   0%, 100% { transform: translateY(0); }
