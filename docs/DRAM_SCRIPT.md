@@ -532,26 +532,32 @@ Commands for presenting branching narrative choices to the player.
 
 #### `CHOICE`
 
-Presents the player with branching dialogue options. Each option navigates to a different scene.
+Presents the player with branching dialogue options; each navigates to a scene. A single option is not a decision: it renders as a plain statement of what the player does and takes itself after a short reading pause. Options may carry a (if condition) gate — same grammar as IF — and only show when it holds; if every option is gated out, the choice is skipped with a warning. Options may carry trailing [SET ...] effects, applied to world state at selection time, before the jump. A timed header ([CHOICE 10s -> scene]) jumps to the fallback scene if the player hesitates.
 
 **Syntax:**
 ```
-[CHOICE]
-- "Option text" -> target_scene
+[CHOICE]  |  [CHOICE 10s -> fallback_scene]
+- "Option text" [(if condition)] -> target_scene [[SET var = value] ...]
 [/CHOICE]
 ```
 
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
-| `options` | array | List of choice options with text and target scenes |
+| `options` | array | List of choice options with text, optional gate, target scene, and optional SET effects |
+| `timeout` | string | Optional header form: duration and fallback scene, e.g. [CHOICE 10s -> scene] |
 
 **Example:**
 ```
 [CHOICE]
 - "Investigate the desk" -> desk_scene
-- "Talk to the witness" -> witness_scene
+- "Bribe the clerk" (if gold >= 50) -> bribe_scene [SET gold = gold - 50] [SET suspicion = suspicion + 10]
 - "Leave the room" -> hallway
+[/CHOICE]
+
+[CHOICE 10s -> they_decide_for_you]
+- "Give the order" -> burn_it [SET ruthless = ruthless + 1]
+- "Stay your hand" -> spare_it
 [/CHOICE]
 ```
 

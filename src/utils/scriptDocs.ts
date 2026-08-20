@@ -274,15 +274,21 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'CHOICE',
     category: 'choice',
-    syntax: '[CHOICE]\n- "Option text" -> target_scene\n[/CHOICE]',
-    description: 'Presents the player with branching dialogue options. Each option navigates to a different scene.',
+    syntax: '[CHOICE]  |  [CHOICE 10s -> fallback_scene]\n- "Option text" [(if condition)] -> target_scene [[SET var = value] ...]\n[/CHOICE]',
+    description: 'Presents the player with branching dialogue options; each navigates to a scene. A single option is not a decision: it renders as a plain statement of what the player does and takes itself after a short reading pause. Options may carry a (if condition) gate — same grammar as IF — and only show when it holds; if every option is gated out, the choice is skipped with a warning. Options may carry trailing [SET ...] effects, applied to world state at selection time, before the jump. A timed header ([CHOICE 10s -> scene]) jumps to the fallback scene if the player hesitates.',
     parameters: [
-      { name: 'options', type: 'array', description: 'List of choice options with text and target scenes' },
+      { name: 'options', type: 'array', description: 'List of choice options with text, optional gate, target scene, and optional SET effects' },
+      { name: 'timeout', type: 'string', description: 'Optional header form: duration and fallback scene, e.g. [CHOICE 10s -> scene]' },
     ],
     example: `[CHOICE]
 - "Investigate the desk" -> desk_scene
-- "Talk to the witness" -> witness_scene
+- "Bribe the clerk" (if gold >= 50) -> bribe_scene [SET gold = gold - 50] [SET suspicion = suspicion + 10]
 - "Leave the room" -> hallway
+[/CHOICE]
+
+[CHOICE 10s -> they_decide_for_you]
+- "Give the order" -> burn_it [SET ruthless = ruthless + 1]
+- "Stay your hand" -> spare_it
 [/CHOICE]`,
     implemented: true,
   },
@@ -595,7 +601,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'NARRATON', label: 'NARRATON', insertText: 'NARRATON pool=main]', description: 'Let the storyteller pick the next scene' },
   { type: 'SET_TEXT', label: 'SET_TEXT', insertText: 'SET_TEXT ', description: 'Set element text ({var} interpolates)' },
   { type: 'AUTOPLAY', label: 'AUTOPLAY', insertText: 'AUTOPLAY on]', description: 'Toggle dialogue auto-advance' },
-  { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices' },
+  { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices (gates, effects, timeout)' },
 ];
 
 // Validation helper: check if all command types are documented

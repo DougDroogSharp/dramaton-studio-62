@@ -125,11 +125,25 @@ export interface SceneCommand {
 export interface ChoiceOption {
   text: string;
   target: string;
+  // Gate: option only shows when this IF-shaped condition holds
+  // (parsed from `- "text" (if gold >= 50) -> scene`).
+  condition?: {
+    variable: string;
+    operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+    value: string | number | boolean;
+    isExpression?: boolean;
+  };
+  // Side-effects: [SET ...] commands applied when the option is chosen,
+  // before the jump (parsed from a trailing `[SET x = ...]` list).
+  effects?: SetCommand[];
 }
 
 export interface ChoiceCommand {
   type: 'CHOICE';
   options: ChoiceOption[];
+  // Timed choice: after `seconds` with no pick, jump to `target`
+  // (parsed from `[CHOICE 10s -> default_scene]`).
+  timeout?: { seconds: number; target: string };
 }
 
 export interface SetCommand {
@@ -711,33 +725,69 @@ function parseLine(line: string): ScriptCommand | null {
   return { type: 'UNKNOWN', raw: trimmed };
 }
 
-// Parse [CHOICE] blocks separately
+// Parse a `(if cond)` gate on a choice option into IF-shaped parts.
+function parseOptionCondition(src: string): ChoiceOption['condition'] | undefined {
+  const parsed = parseLine(`[IF ${src}]`);
+  if (parsed && parsed.type === 'IF') {
+    const c = parsed as IfCommand;
+    return {
+      variable: c.variable,
+      operator: c.operator,
+      value: c.value,
+      ...(c.isExpression ? { isExpression: true } : {}),
+    };
+  }
+  return undefined;
+}
+
+// Parse [CHOICE] blocks separately.
+// Header:  [CHOICE]  |  [CHOICE 10s -> fallback_scene]
+// Option:  - "text" [(if cond)] -> target [ [SET a = 1] [SET b = b + 1] ]
 function parseChoiceBlock(lines: string[], startIndex: number): { command: ChoiceCommand; endIndex: number } | null {
   const options: ChoiceOption[] = [];
+  const header = lines[startIndex].trim();
+  let timeout: ChoiceCommand['timeout'];
+  const timedMatch = header.match(/^\[CHOICE\s+([\d.]+\s*m?s)\s*->\s*(\w+)\]$/i);
+  if (timedMatch) {
+    timeout = { seconds: parseDuration(timedMatch[1]), target: timedMatch[2] };
+  }
   let i = startIndex + 1;
-  
+
   while (i < lines.length) {
     const line = lines[i].trim();
-    
+
     if (line === '[/CHOICE]') {
       return {
-        command: { type: 'CHOICE', options },
+        command: { type: 'CHOICE', options, ...(timeout ? { timeout } : {}) },
         endIndex: i,
       };
     }
-    
-    // Parse choice option: - "Option text" -> target_scene
-    const optionMatch = line.match(/^-\s*"([^"]+)"\s*->\s*(\w+)$/);
+
+    // - "Option text" (if cond) -> target_scene [SET x = 1] [SET y = 2]
+    const optionMatch = line.match(/^-\s*"([^"]+)"\s*(?:\(\s*if\s+([^)]+)\)\s*)?->\s*(\w+)\s*(.*)$/i);
     if (optionMatch) {
+      const [, text, condSrc, target, tail] = optionMatch;
+      const effects: SetCommand[] = [];
+      if (tail && tail.trim()) {
+        for (const m of tail.matchAll(/\[[^\]]+\]/g)) {
+          const cmd = parseLine(m[0]);
+          if (cmd && cmd.type === 'SET') effects.push(cmd as SetCommand);
+        }
+      }
       options.push({
-        text: optionMatch[1],
-        target: optionMatch[2],
+        text,
+        target,
+        ...(condSrc ? (() => {
+          const condition = parseOptionCondition(condSrc.trim());
+          return condition ? { condition } : {};
+        })() : {}),
+        ...(effects.length > 0 ? { effects } : {}),
       });
     }
-    
+
     i++;
   }
-  
+
   // Unclosed choice block
   return null;
 }
@@ -758,8 +808,8 @@ export function parseScript(script: string): ScriptCommand[] {
   while (i < lines.length) {
     const line = lines[i].trim();
 
-    // Handle CHOICE blocks
-    if (line === '[CHOICE]') {
+    // Handle CHOICE blocks ([CHOICE] or timed [CHOICE 10s -> scene])
+    if (/^\[CHOICE(\s+[\d.]+\s*m?s\s*->\s*\w+)?\]$/i.test(line)) {
       const result = parseChoiceBlock(lines, i);
       if (result) {
         push(result.command);
@@ -958,8 +1008,26 @@ export function commandToString(cmd: ScriptCommand): string {
       return parts.join('\n');
     }
     case 'CHOICE': {
-      const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');
-      return `[CHOICE]\n${opts}\n[/CHOICE]`;
+      const opts = cmd.options.map(o => {
+        let line = `- "${o.text}"`;
+        if (o.condition) {
+          const c = o.condition;
+          let valStr: string;
+          if (c.isExpression) valStr = String(c.value);
+          else if (typeof c.value === 'string') valStr = `"${c.value}"`;
+          else valStr = String(c.value);
+          line += ` (if ${c.variable} ${c.operator} ${valStr})`;
+        }
+        line += ` -> ${o.target}`;
+        if (o.effects?.length) {
+          line += ' ' + o.effects.map(e => commandToString(e)).join(' ');
+        }
+        return line;
+      }).join('\n');
+      const head = cmd.timeout
+        ? `[CHOICE ${cmd.timeout.seconds < 1 ? `${Math.round(cmd.timeout.seconds * 1000)}ms` : `${cmd.timeout.seconds}s`} -> ${cmd.timeout.target}]`
+        : '[CHOICE]';
+      return `${head}\n${opts}\n[/CHOICE]`;
     }
     case 'LABEL':
       return `[LABEL ${cmd.name}]`;

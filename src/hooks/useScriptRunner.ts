@@ -178,6 +178,8 @@ export function useScriptRunner({
   // Deferred MOVE target write (see the MOVE case): only one can be
   // pending at a time because a timed MOVE yields the script.
   const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Timed CHOICE: fires the fallback jump if the player hesitates.
+  const choiceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // The live world state. A ref (not state) so that a run of commands
   // executed in one synchronous pass — [SET a = ...] followed by
@@ -274,6 +276,8 @@ export function useScriptRunner({
     walkRestoreRef.current = null;
     if (moveStartTimeoutRef.current) clearTimeout(moveStartTimeoutRef.current);
     moveStartTimeoutRef.current = null;
+    if (choiceTimeoutRef.current) clearTimeout(choiceTimeoutRef.current);
+    choiceTimeoutRef.current = null;
   }, []);
 
   // Cleanup on unmount
@@ -617,10 +621,45 @@ export function useScriptRunner({
       }
       
       case 'CHOICE': {
+        // Gated options drop out when their condition fails, so the
+        // simulation decides what the player is even able to try.
+        const available = command.options.filter(o => !o.condition || evaluateIfCondition(
+          { type: 'IF', ...o.condition, commands: [] } as IfCommand,
+          worldStateRef.current,
+        ));
+        if (available.length === 0) {
+          warnOnce('CHOICE: every option was gated out; continuing past the choice');
+          return true;
+        }
         setState(prev => ({
           ...prev,
-          choices: { options: command.options },
+          choices: { options: available },
         }));
+        // Timed choice: hesitate and the world decides for you.
+        if (command.timeout) {
+          const { seconds, target } = command.timeout;
+          choiceTimeoutRef.current = setTimeout(() => {
+            choiceTimeoutRef.current = null;
+            clearTimeouts();
+            bindingsRef.current = new Map();
+            onSceneChange?.(target);
+            setState(prev => ({
+              ...prev,
+              currentSceneId: target,
+              currentCommandIndex: 0,
+              activeDialogue: null,
+              choices: null,
+              elementOverrides: new Map(),
+              activeEffects: new Map(),
+              hiddenElements: new Set(),
+              activeButtons: [],
+              activeSliders: new Map(),
+              activeGauges: new Map(),
+              isWaiting: false,
+              isComplete: false,
+            }));
+          }, seconds * 1000);
+        }
         return false; // Wait for user selection
       }
       
@@ -965,6 +1004,18 @@ export function useScriptRunner({
     const option = state.choices.options[index];
     if (!option) return;
 
+    // Side-effects first: the choice writes the world, then the world
+    // travels with us into the target scene.
+    if (option.effects?.length) {
+      for (const effect of option.effects) {
+        const value = resolveSetValue(effect, worldStateRef.current);
+        worldStateRef.current = { ...worldStateRef.current, [effect.variable]: value };
+      }
+      const snapshot = worldStateRef.current;
+      setState(prev => ({ ...prev, worldState: snapshot }));
+      applyBindings();
+    }
+
     // Navigate to target scene
     clearTimeouts();
     bindingsRef.current = new Map();
@@ -984,7 +1035,7 @@ export function useScriptRunner({
       isWaiting: false,
       isComplete: false,
     }));
-  }, [state.choices, onSceneChange, clearTimeouts]);
+  }, [state.choices, onSceneChange, clearTimeouts, applyBindings]);
 
   // Auto-advance when in auto-play mode
   useEffect(() => {
