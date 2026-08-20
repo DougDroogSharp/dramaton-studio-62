@@ -3,6 +3,7 @@ import { MeterMeaning } from '@/types';
 import { interpolateWithMoney } from '@/utils/interpolate';
 import { WorldVars } from '@/utils/expression';
 import { WealthGauge } from './WealthGauge';
+import { gaugeArtFor } from '@/utils/gaugeArt';
 
 // The model, showing its work.
 //
@@ -27,11 +28,16 @@ interface MeterPanelProps {
   moneyFormat?: string;
   /** Newest move first; the top row gets the commentary. */
   maxRows?: number;
+  /** Cabinet skin; picks which era instruments to draw. */
+  frame?: string;
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
-export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyFormat, maxRows = 6 }) => {
+export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyFormat, maxRows = 6, frame }) => {
+  // Null whenever the era has no prepped art, in which case every meter
+  // below draws exactly the plain CSS track it always drew.
+  const art = gaugeArtFor(frame);
   const say = (t: string) => (worldState ? interpolateWithMoney(t, worldState, moneyFormat) : t);
   if (rows.length === 0) {
     return (
@@ -72,6 +78,7 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
               shared={sharedRow!.to}
               lit={wealthLit}
               size={104}
+              frame={frame}
             />
           </div>
         )}
@@ -111,16 +118,24 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
                   </span>
                 </span>
               </div>
-              {/* the track: a ghost of where it started, and where it is */}
-              <div className="relative h-1.5 mt-1 bg-diesel-black/60 overflow-hidden">
+              {/* the track: a ghost of where it started, and where it is,
+                  wearing the era bar when the era has one */}
+              <div
+                className={`relative mt-1 overflow-hidden ${art ? 'h-3' : 'h-1.5 bg-diesel-black/60'}`}
+                style={art ? {
+                  backgroundImage: `url(${art.bar})`,
+                  backgroundSize: '100% 100%',
+                  backgroundRepeat: 'no-repeat',
+                } : undefined}
+              >
                 <div
-                  className="absolute inset-y-0 bg-diesel-steel/30"
+                  className={`absolute inset-y-0 ${art ? 'bg-black/10' : 'bg-diesel-steel/30'}`}
                   style={{ width: `${fromPct}%` }}
                 />
                 <div
                   className={`absolute inset-y-0 transition-all duration-700 ${
                     up ? 'bg-diesel-rust' : 'bg-diesel-green'
-                  }`}
+                  } ${art ? 'opacity-60 mix-blend-multiply' : ''}`}
                   style={{
                     left: `${Math.min(fromPct, toPct)}%`,
                     width: `${Math.abs(toPct - fromPct)}%`,

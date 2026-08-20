@@ -185,6 +185,9 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
             worldState={worldState}
             moneyFormat={moneyFormat}
             maxRows={3}
+            // The cabinet decides which era's instruments get drawn:
+            // linen dials for William, brass for Leopold, and so on.
+            frame={frame}
           />
         ) : (
           <div className={`h-full flex items-center justify-center opacity-40 text-[10px] uppercase tracking-[0.3em] ${skin.label}`}>
