@@ -392,6 +392,28 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'LABEL',
+    category: 'flow',
+    syntax: '[LABEL name]',
+    description: 'Marks a named jump target in the current scene\'s script. Does nothing on its own; GOTO jumps to it.',
+    parameters: [
+      { name: 'name', type: 'string', description: 'Label name (letters, digits, underscore)' },
+    ],
+    example: '[LABEL bargain]',
+    implemented: true,
+  },
+  {
+    type: 'GOTO',
+    category: 'flow',
+    syntax: '[GOTO name]',
+    description: 'Jumps to [LABEL name] in the current scene — forwards or backwards. Good for retry loops and in-scene hubs without spinning up new scenes. Unknown labels warn and fall through. A GOTO chain that executes 10000 steps without yielding is stopped with a warning (runaway-loop guard). Not allowed inside TICK bodies.',
+    parameters: [
+      { name: 'name', type: 'string', description: 'The label to jump to' },
+    ],
+    example: '[LABEL haggle]\nMerchant: "Best I can do."\n[CHOICE]\n- "Push harder" -> this_scene\n[/CHOICE]\n[GOTO haggle]',
+    implemented: true,
+  },
+  {
     type: 'RANDOM',
     category: 'flow',
     syntax: '[RANDOM]\n...branch...\n[OR]\n...branch...\n[/RANDOM]',
@@ -561,6 +583,8 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'ELSEIF', label: 'ELSEIF', insertText: 'ELSEIF ', description: 'Additional conditional arm' },
   { type: 'ELSE', label: 'ELSE', insertText: 'ELSE]', description: 'Fallback arm of an IF' },
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
+  { type: 'LABEL', label: 'LABEL', insertText: 'LABEL ', description: 'Named jump target' },
+  { type: 'GOTO', label: 'GOTO', insertText: 'GOTO ', description: 'Jump to a label in this scene' },
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
   { type: 'BIND', label: 'BIND', insertText: 'BIND ', description: 'Drive element property from expression' },
   { type: 'UNBIND', label: 'UNBIND', insertText: 'UNBIND ', description: 'Release a bound property' },
@@ -579,7 +603,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
   const allTypes: ScriptCommandType[] = [
     'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
-    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'TICK',
+    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
     'NARRATON', 'SET_TEXT', 'AUTOPLAY',

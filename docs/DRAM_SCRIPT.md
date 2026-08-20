@@ -698,6 +698,49 @@ Marks the end of an IF conditional block (including any ELSEIF/ELSE arms).
 [ENDIF]
 ```
 
+#### `LABEL`
+
+Marks a named jump target in the current scene's script. Does nothing on its own; GOTO jumps to it.
+
+**Syntax:**
+```
+[LABEL name]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `name` | string | Label name (letters, digits, underscore) |
+
+**Example:**
+```
+[LABEL bargain]
+```
+
+#### `GOTO`
+
+Jumps to [LABEL name] in the current scene — forwards or backwards. Good for retry loops and in-scene hubs without spinning up new scenes. Unknown labels warn and fall through. A GOTO chain that executes 10000 steps without yielding is stopped with a warning (runaway-loop guard). Not allowed inside TICK bodies.
+
+**Syntax:**
+```
+[GOTO name]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `name` | string | The label to jump to |
+
+**Example:**
+```
+[LABEL haggle]
+Merchant: "Best I can do."
+[CHOICE]
+- "Push harder" -> this_scene
+[/CHOICE]
+[GOTO haggle]
+```
+
 #### `RANDOM`
 
 Plays exactly one branch, chosen uniformly at random each time the block executes (the 1986 RNDSWITCH). Branches are separated by [OR] lines. Use it to keep repeated visits fresh — wrap alternate phrasings of a reply, or alternate small events. Nests inside IF/TICK and may contain them.
@@ -876,7 +919,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **33 commands documented**
+✅ **35 commands documented**
 
 ---
 

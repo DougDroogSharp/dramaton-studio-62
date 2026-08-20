@@ -24,6 +24,8 @@ export type ScriptCommandType =
   | 'ELSE'
   | 'ENDIF'
   | 'RANDOM'
+  | 'LABEL'
+  | 'GOTO'
   | 'TICK'
   | 'BIND'
   | 'UNBIND'
@@ -163,6 +165,19 @@ export interface IfCommand {
   elseCommands?: ScriptCommand[];
 }
 
+// A named jump target within the current scene's script.
+export interface LabelCommand {
+  type: 'LABEL';
+  name: string;
+}
+
+// Jump to a [LABEL name] in the current scene (GODinabox runscript's
+// in-scene descendant). Unknown labels warn and fall through.
+export interface GotoCommand {
+  type: 'GOTO';
+  name: string;
+}
+
 // A random branch block: exactly one branch plays, chosen uniformly at
 // execution time (the 1986 RNDSWITCH). Branches are separated by [OR].
 export interface RandomCommand {
@@ -284,6 +299,8 @@ export type ScriptCommand =
   | SetCommand
   | IfCommand
   | RandomCommand
+  | LabelCommand
+  | GotoCommand
   | TickCommand
   | BindCommand
   | UnbindCommand
@@ -533,6 +550,12 @@ function parseLine(line: string): ScriptCommand | null {
         } as unknown as ScriptCommand;
       }
     }
+
+    // LABEL name / GOTO name
+    const labelMatch = content.match(/^LABEL\s+(\w+)$/i);
+    if (labelMatch) return { type: 'LABEL', name: labelMatch[1] };
+    const gotoMatch = content.match(/^GOTO\s+(\w+)$/i);
+    if (gotoMatch) return { type: 'GOTO', name: gotoMatch[1] };
 
     // ELSE
     if (/^ELSE$/i.test(content)) {
@@ -938,6 +961,10 @@ export function commandToString(cmd: ScriptCommand): string {
       const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');
       return `[CHOICE]\n${opts}\n[/CHOICE]`;
     }
+    case 'LABEL':
+      return `[LABEL ${cmd.name}]`;
+    case 'GOTO':
+      return `[GOTO ${cmd.name}]`;
     case 'RANDOM': {
       const body = cmd.branches
         .map(branch => branch.map(c => commandToString(c)).join('\n'))

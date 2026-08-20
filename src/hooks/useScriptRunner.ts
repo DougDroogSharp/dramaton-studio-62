@@ -212,6 +212,16 @@ export function useScriptRunner({
     [currentScript],
   );
   const flatCommands = useMemo(() => flattenCommands(commands), [commands]);
+  // [LABEL name] -> flat index, for GOTO jumps within the scene
+  const labelIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    flatCommands.forEach((n, idx) => {
+      if (n.cmd.type === 'LABEL' && !n.kind) map.set((n.cmd as { name: string }).name, idx);
+    });
+    return map;
+  }, [flatCommands]);
+  const labelIndexRef = useRef(labelIndex);
+  labelIndexRef.current = labelIndex;
 
   // When a timed command (WAIT, MOVE) yields, runFrom stores the
   // continuation here; the command's timeout invokes it.
@@ -786,6 +796,7 @@ export function useScriptRunner({
         case 'CHOICE':
         case 'WAIT':
         case 'TICK':
+        case 'GOTO':
           warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
           continue;
         case 'RANDOM': {
@@ -852,8 +863,29 @@ export function useScriptRunner({
   // yields (dialogue, choice, wait, scene change) or the script ends.
   const runFrom = useCallback((startIndex: number) => {
     let i = startIndex;
+    // GOTO can jump backwards; a chain with no yield in between would
+    // spin forever. Generous ceiling, loud warning.
+    let steps = 0;
     while (i < flatCommands.length) {
+      if (++steps > 10000) {
+        warnOnce('script executed 10000 steps without yielding — GOTO loop? Stopping this pass.');
+        return;
+      }
       const node = flatCommands[i];
+
+      // LABEL is a no-op marker; GOTO jumps to its label (unknown
+      // label: warn and fall through)
+      if (!node.kind && node.cmd.type === 'LABEL') { i++; continue; }
+      if (!node.kind && node.cmd.type === 'GOTO') {
+        const target = labelIndexRef.current.get((node.cmd as { name: string }).name);
+        if (target === undefined) {
+          warnOnce(`GOTO ${(node.cmd as { name: string }).name}: no such LABEL in this scene; continuing`);
+          i++;
+        } else {
+          i = target;
+        }
+        continue;
+      }
 
       // Unconditional jump (end of a taken IF/ELSEIF/ELSE branch body)
       if (node.kind === 'jump') {
