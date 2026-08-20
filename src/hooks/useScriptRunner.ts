@@ -135,6 +135,9 @@ export function useScriptRunner({
   // flip-book walk). Cleared on scene change/unmount like the rest.
   const walkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const walkRestoreRef = useRef<(() => void) | null>(null);
+  // Deferred MOVE target write (see the MOVE case): only one can be
+  // pending at a time because a timed MOVE yields the script.
+  const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // The live world state. A ref (not state) so that a run of commands
   // executed in one synchronous pass — [SET a = ...] followed by
@@ -219,6 +222,8 @@ export function useScriptRunner({
     if (walkIntervalRef.current) clearInterval(walkIntervalRef.current);
     walkIntervalRef.current = null;
     walkRestoreRef.current = null;
+    if (moveStartTimeoutRef.current) clearTimeout(moveStartTimeoutRef.current);
+    moveStartTimeoutRef.current = null;
   }, []);
 
   // Cleanup on unmount
@@ -358,7 +363,7 @@ export function useScriptRunner({
       
       case 'MOVE': {
         // Animate movement at the scripted speed
-        setState(prev => {
+        const applyMoveTarget = () => setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(command.actorId) || {};
           overrides.set(command.actorId, {
@@ -372,6 +377,12 @@ export function useScriptRunner({
 
         // Wait for the animation, then auto-resume the script
         if (command.duration > 0) {
+          // Write the target one breath AFTER the current position has
+          // painted. An [ENTER x] immediately followed by [MOVE x] runs
+          // in one synchronous pass — React batches both writes into a
+          // single render, the sprite never paints at its start point,
+          // and the tween has nothing to animate from (it "teleports").
+          moveStartTimeoutRef.current = setTimeout(applyMoveTarget, 30);
           // Two-frame walk cycle: if the moving actor's graphics
           // include Walk1 + Walk2 poses, flip between them while the
           // move is in flight, then restore the prior look. Fail-soft:
@@ -438,9 +449,11 @@ export function useScriptRunner({
           }, command.duration * 1000);
           return false;
         }
+        // Instant move: apply synchronously
+        applyMoveTarget();
         return true;
       }
-      
+
       case 'POSE': {
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);

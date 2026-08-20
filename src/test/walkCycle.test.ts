@@ -42,7 +42,10 @@ describe('two-frame walk cycle', () => {
     const game = makeGame('[MOVE hero to 80,60 over 2s]\n[SET done = true]', true);
     const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
 
-    // Walk starts on frame 1 immediately
+    // Walk starts on frame 1 immediately; the position target lands a
+    // breath later (deferred so a same-pass ENTER paints first)
+    expect(result.current.state.elementOverrides.get('hero')?.pose).toBe('Walk1');
+    act(() => { vi.advanceTimersByTime(30); });
     expect(result.current.state.elementOverrides.get('hero')).toMatchObject({
       x: 80, y: 60, pose: 'Walk1',
     });

@@ -38,11 +38,28 @@ describe('script runner flow', () => {
     const game = makeGame('[MOVE hero to 80,60 over 1s]\n[SET done = true]');
     const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
 
+    // The target is written one breath after the start position paints
+    // (so a same-pass ENTER isn't batched away and the tween animates)
+    act(() => { vi.advanceTimersByTime(30); });
     expect(result.current.state.elementOverrides.get('hero')).toMatchObject({ x: 80, y: 60, transitionDuration: 1 });
     expect(result.current.state.worldState.done).toBeUndefined();
 
     act(() => { vi.advanceTimersByTime(1000); });
     expect(result.current.state.worldState.done).toBe(true);
+  });
+
+  it('ENTER then MOVE in one pass paints the start position first', () => {
+    const game = makeGame('[ENTER hero at 98,64]\n[MOVE hero to 72,64 over 4s]');
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    // Before the deferred target write, the sprite sits at its ENTER
+    // point — this is the frame the tween animates from. (Regression:
+    // both writes used to batch into one render and the move
+    // teleported.)
+    expect(result.current.state.elementOverrides.get('hero')).toMatchObject({ x: 98, y: 64, transitionDuration: 0 });
+
+    act(() => { vi.advanceTimersByTime(30); });
+    expect(result.current.state.elementOverrides.get('hero')).toMatchObject({ x: 72, y: 64, transitionDuration: 4 });
   });
 
   it('ENTER records an instant override and unhides', () => {
