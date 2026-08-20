@@ -23,6 +23,17 @@ export interface VoiceStyle {
   volume?: number;
   /** ElevenLabs voice id, used when that engine is active. */
   elevenVoiceId?: string;
+  /**
+   * Who is talking. speak() uses this to hand the speaker one of the
+   * browser's actual installed voices, chosen deterministically so a
+   * character sounds the same every time.
+   *
+   * This exists because rate and pitch alone are not enough. Most
+   * Windows SAPI voices IGNORE the pitch property outright, so a cast
+   * differing only in pitch comes out of the speakers as one person
+   * reading every part — which is exactly what happened.
+   */
+  speakerKey?: string;
 }
 
 /** Distinct default styles so speakers do not all sound the same. */
@@ -37,11 +48,45 @@ const SPEAKER_STYLES: VoiceStyle[] = [
   { rate: 0.97, pitch: 1.28 },
 ];
 
-/** A stable style per speaker name, so a character sounds consistent. */
-export function styleForSpeaker(name: string): VoiceStyle {
+/** Stable small hash, so a name always lands on the same voice. */
+function hashName(name: string): number {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return SPEAKER_STYLES[h % SPEAKER_STYLES.length];
+  return h;
+}
+
+/**
+ * The voices worth casting from: the installed voices matching the
+ * page's language, so an English show is not suddenly read in Polish.
+ * Falls back to everything if nothing matches.
+ */
+export function castableVoices(): SpeechSynthesisVoice[] {
+  if (!browserSpeechAvailable()) return [];
+  const all = window.speechSynthesis.getVoices();
+  if (all.length === 0) return [];
+  const lang = (typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en')
+    .slice(0, 2).toLowerCase();
+  const matching = all.filter(v => v.lang?.slice(0, 2).toLowerCase() === lang);
+  const pool = matching.length > 0 ? matching : all;
+  // Stable order: getVoices() order is not guaranteed between calls.
+  return [...pool].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Give a named speaker one of the installed voices. Deterministic, so
+ * Odo sounds like Odo in every scene of every session on this machine.
+ * Returns null when the browser has no voices to cast from.
+ */
+export function voiceForSpeaker(name: string): SpeechSynthesisVoice | null {
+  const pool = castableVoices();
+  if (pool.length === 0) return null;
+  return pool[hashName(name) % pool.length];
+}
+
+/** A stable style per speaker name, so a character sounds consistent. */
+export function styleForSpeaker(name: string): VoiceStyle {
+  const h = hashName(name);
+  return { ...SPEAKER_STYLES[h % SPEAKER_STYLES.length], speakerKey: name };
 }
 
 export function browserSpeechAvailable(): boolean {
@@ -92,13 +137,24 @@ export function speak(
   u.pitch = style.pitch ?? 1;
   u.volume = style.volume ?? 1;
 
+  // An explicitly requested voice always wins: the player's chosen
+  // narrator, or a style that names one.
   const voices = window.speechSynthesis.getVoices();
   const wanted = opts.voiceName || style.prefer;
+  let chosen: SpeechSynthesisVoice | null = null;
   if (wanted) {
-    const hit = voices.find(v => v.name === wanted)
-      || voices.find(v => v.name.toLowerCase().includes(wanted.toLowerCase()));
-    if (hit) u.voice = hit;
+    chosen = voices.find(v => v.name === wanted)
+      || voices.find(v => v.name.toLowerCase().includes(wanted.toLowerCase()))
+      || null;
   }
+  // Otherwise, if we know who is talking, cast them a voice of their
+  // own. Without this every character shares the browser default and
+  // the whole cast sounds like one person, because rate and pitch are
+  // too weak to tell them apart — Windows voices ignore pitch entirely.
+  if (!chosen && style.speakerKey) {
+    chosen = voiceForSpeaker(style.speakerKey);
+  }
+  if (chosen) u.voice = chosen;
 
   currentUtterance = u;
   u.onend = () => { if (currentUtterance === u) currentUtterance = null; };
