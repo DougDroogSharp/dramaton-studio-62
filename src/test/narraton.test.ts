@@ -155,3 +155,48 @@ describe('NARRATON command', () => {
     expect(result.current.state.worldState.after).toBe(true);
   });
 });
+
+describe('act gate', () => {
+  const mk = (id: string, act?: 'BEGINNING' | 'MIDDLE' | 'END'): Scene => ({
+    id, name: id, script: '',
+    narraton: { pool: 'p', ...(act ? { act } : {}) },
+  });
+
+  it('keeps only scenes of the current act', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('mid', 'MIDDLE'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 2 }, createNarratonHistory());
+    expect(sel.winner?.id).toBe('mid');
+  });
+
+  it('accepts act names as well as numbers', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    expect(selectNarratonScene('p', scenes, { act: 'end' }, createNarratonHistory()).winner?.id).toBe('close');
+  });
+
+  it('untagged scenes play in any act', () => {
+    const scenes = [mk('any'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 1 }, createNarratonHistory());
+    expect(sel.winner?.id).toBe('any');
+  });
+
+  it('with no act variable, nothing is gated (existing games unaffected)', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, {}, createNarratonHistory());
+    expect(sel.winner).not.toBeNull();
+    expect(sel.candidates.every(c => c.eligible)).toBe(true);
+  });
+
+  it('drops the gate rather than dead-ending when no scene fits', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 2 }, createNarratonHistory());
+    expect(sel.winner).not.toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('an unrecognized act value is ignored', () => {
+    const scenes = [mk('open', 'BEGINNING')];
+    expect(selectNarratonScene('p', scenes, { act: 'act four' }, createNarratonHistory()).winner?.id).toBe('open');
+  });
+});

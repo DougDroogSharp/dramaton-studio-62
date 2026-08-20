@@ -1,12 +1,12 @@
 // NARRATON — the 1986 King of Chicago storyteller, reborn.
 //
 // Scenes carry selection metadata (pool, keys, requires, repeatable,
-// subplot, weight). [NARRATON pool=x] filters the pool by hard gates,
+// subplot, weight, act). [NARRATON pool=x] filters the pool by hard gates,
 // play history, and subplot rotation, then picks the survivor whose
 // keys least-squares match the current world state. Every decision is
 // logged to the console — story-space visibility is a feature.
 
-import { Scene, NarratonKey } from '@/types';
+import { Scene, NarratonKey, NarratonAct } from '@/types';
 import { WorldVars, evaluateIfCondition } from './expression';
 
 export interface NarratonHistory {
@@ -51,6 +51,25 @@ const normalizeKey = (key: number | NarratonKey): { target: number; scale: numbe
   if (typeof key === 'number') return { target: key, scale: 100 };
   return { target: key.target, scale: key.scale || 100 };
 };
+
+// Which act the story is in, from the `act` world variable. Accepts
+// 1/2/3 or the names (any case). Anything else — including unset —
+// means "no act gate", so games that never set it behave as before.
+const ACT_BY_NUMBER: Record<number, NarratonAct> = {
+  1: 'BEGINNING',
+  2: 'MIDDLE',
+  3: 'END',
+};
+
+export function readAct(vars: WorldVars): NarratonAct | null {
+  const raw = vars.act;
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (typeof raw === 'number') return ACT_BY_NUMBER[raw] ?? null;
+  const s = String(raw).trim().toUpperCase();
+  if (s === 'BEGINNING' || s === 'MIDDLE' || s === 'END') return s;
+  const n = Number(s);
+  return Number.isFinite(n) ? (ACT_BY_NUMBER[n] ?? null) : null;
+}
 
 export function selectNarratonScene(
   pool: string,
@@ -122,9 +141,34 @@ export function selectNarratonScene(
     });
   }
 
+  // Act gate. The score above matches economic state; this matches
+  // dramatic position, so an introduction cannot play at the climax.
+  // Applied AFTER eligibility and softly: if nothing in the current
+  // act survives, the gate is dropped rather than dead-ending the
+  // pool. Untagged scenes always qualify, so existing games are
+  // unaffected.
+  const currentAct = readAct(vars);
+  let eligible = candidates.filter(c => c.eligible);
+  if (currentAct) {
+    const inAct = eligible.filter(c => {
+      const act = c.scene.narraton?.act;
+      return !act || act === currentAct;
+    });
+    if (inAct.length > 0) {
+      for (const c of eligible) {
+        if (!inAct.includes(c)) {
+          c.eligible = false;
+          c.exclusionReasons.push(`act ${c.scene.narraton?.act} (story is in ${currentAct})`);
+        }
+      }
+      eligible = inAct;
+    } else {
+      console.warn(`[Narraton] pool "${pool}": no scene fits act ${currentAct}; ignoring the act gate`);
+    }
+  }
+
   // Pick the lowest weighted score; break exact ties randomly (the
   // engine should surprise its own author)
-  const eligible = candidates.filter(c => c.eligible);
   let winner: Scene | null = null;
   if (eligible.length > 0) {
     const best = Math.min(...eligible.map(c => c.weightedScore));

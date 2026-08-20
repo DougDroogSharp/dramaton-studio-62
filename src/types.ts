@@ -107,6 +107,11 @@ export interface NarratonKey {
   scale?: number;
 }
 
+// Where in the story a scene belongs. The selector matches economic
+// state; this matches dramatic position, so an introduction cannot
+// play at the climax and a summing-up cannot play third.
+export type NarratonAct = 'BEGINNING' | 'MIDDLE' | 'END';
+
 export interface NarratonMeta {
   pool: string;                                   // selection pool membership
   keys?: Record<string, number | NarratonKey>;    // target values, least-squares matched
@@ -114,6 +119,11 @@ export interface NarratonMeta {
   repeatable?: boolean;                           // default false: plays once
   subplot?: string;                               // one scene per subplot in rotation
   weight?: number;                                // bias: score divides by this (default 1)
+  // Act gate. Untagged scenes play in any act (so existing games are
+  // unaffected). Matched against the `act` world variable —
+  // 1/2/3 or the names — and applied softly: if no scene in the pool
+  // fits the current act, the filter is dropped rather than dead-end.
+  act?: NarratonAct;
 }
 
 export interface Scene {
