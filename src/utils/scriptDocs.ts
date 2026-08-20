@@ -392,6 +392,21 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'RANDOM',
+    category: 'flow',
+    syntax: '[RANDOM]\n...branch...\n[OR]\n...branch...\n[/RANDOM]',
+    description: 'Plays exactly one branch, chosen uniformly at random each time the block executes (the 1986 RNDSWITCH). Branches are separated by [OR] lines. Use it to keep repeated visits fresh — wrap alternate phrasings of a reply, or alternate small events. Nests inside IF/TICK and may contain them.',
+    parameters: [],
+    example: `[RANDOM]
+Boss: "You're doin a great job, Ben."
+[OR]
+Boss: "That's swell."
+[OR]
+Boss: "Can't we do any better?"
+[/RANDOM]`,
+    implemented: true,
+  },
+  {
     type: 'TICK',
     category: 'flow',
     syntax: '[TICK interval]\n...commands...\n[/TICK]',
@@ -545,6 +560,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'IF', label: 'IF', insertText: 'IF ', description: 'Conditional block' },
   { type: 'ELSEIF', label: 'ELSEIF', insertText: 'ELSEIF ', description: 'Additional conditional arm' },
   { type: 'ELSE', label: 'ELSE', insertText: 'ELSE]', description: 'Fallback arm of an IF' },
+  { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
   { type: 'BIND', label: 'BIND', insertText: 'BIND ', description: 'Drive element property from expression' },
   { type: 'UNBIND', label: 'UNBIND', insertText: 'UNBIND ', description: 'Release a bound property' },
@@ -563,7 +579,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
   const allTypes: ScriptCommandType[] = [
     'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
-    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'TICK',
+    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
     'NARRATON', 'SET_TEXT', 'AUTOPLAY',

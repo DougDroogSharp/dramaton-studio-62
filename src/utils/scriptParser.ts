@@ -23,6 +23,7 @@ export type ScriptCommandType =
   | 'ELSEIF'
   | 'ELSE'
   | 'ENDIF'
+  | 'RANDOM'
   | 'TICK'
   | 'BIND'
   | 'UNBIND'
@@ -162,6 +163,13 @@ export interface IfCommand {
   elseCommands?: ScriptCommand[];
 }
 
+// A random branch block: exactly one branch plays, chosen uniformly at
+// execution time (the 1986 RNDSWITCH). Branches are separated by [OR].
+export interface RandomCommand {
+  type: 'RANDOM';
+  branches: ScriptCommand[][];
+}
+
 // A repeating block: the body runs every `interval` seconds while the
 // scene is active, concurrent with (never blocking) normal script flow.
 export interface TickCommand {
@@ -275,6 +283,7 @@ export type ScriptCommand =
   | ChoiceCommand
   | SetCommand
   | IfCommand
+  | RandomCommand
   | TickCommand
   | BindCommand
   | UnbindCommand
@@ -736,6 +745,36 @@ export function parseScript(script: string): ScriptCommand[] {
       }
     }
 
+    // Handle RANDOM blocks: branches separated by top-level [OR],
+    // bodies parse recursively. Nesting-aware (a nested RANDOM's [OR]
+    // never splits the outer block). Unclosed [RANDOM] falls through
+    // to UNKNOWN.
+    if (/^\[RANDOM\]$/i.test(line)) {
+      let depth = 1;
+      let closeIndex = -1;
+      const orIndices: number[] = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        const l = lines[j].trim();
+        if (/^\[RANDOM\]$/i.test(l)) depth++;
+        else if (/^\[\/RANDOM\]$/i.test(l)) {
+          depth--;
+          if (depth === 0) { closeIndex = j; break; }
+        } else if (depth === 1 && /^\[OR\]$/i.test(l)) {
+          orIndices.push(j);
+        }
+      }
+      if (closeIndex !== -1) {
+        const bounds = [i, ...orIndices, closeIndex];
+        const branches: ScriptCommand[][] = [];
+        for (let b = 0; b < bounds.length - 1; b++) {
+          branches.push(parseScript(lines.slice(bounds[b] + 1, bounds[b + 1]).join('\n')));
+        }
+        push({ type: 'RANDOM', branches } as ScriptCommand);
+        i = closeIndex + 1;
+        continue;
+      }
+    }
+
     // Handle TICK blocks: body parses recursively (so IF nesting works
     // inside a tick). An unclosed [TICK ...] falls through to UNKNOWN.
     const tickOpen = line.match(/^\[TICK\s+(.+)\]$/i);
@@ -898,6 +937,12 @@ export function commandToString(cmd: ScriptCommand): string {
     case 'CHOICE': {
       const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');
       return `[CHOICE]\n${opts}\n[/CHOICE]`;
+    }
+    case 'RANDOM': {
+      const body = cmd.branches
+        .map(branch => branch.map(c => commandToString(c)).join('\n'))
+        .join('\n[OR]\n');
+      return `[RANDOM]\n${body}\n[/RANDOM]`;
     }
     case 'TICK': {
       const dur = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;

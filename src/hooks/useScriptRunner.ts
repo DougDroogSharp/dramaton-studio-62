@@ -41,7 +41,10 @@ interface FlatNode {
   jumpTo?: number;
   // 'jump': unconditional jump to jumpTo (emitted after each taken
   // branch body of an IF/ELSEIF/ELSE chain, skipping the rest).
-  kind?: 'jump';
+  // 'random': pick one of branchStarts uniformly at runtime and jump
+  // there (each branch body ends with a jump past the block).
+  kind?: 'jump' | 'random';
+  branchStarts?: number[];
 }
 
 function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
@@ -74,6 +77,18 @@ function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
           test.jumpTo = out.length;
         }
         if (c.elseCommands) walk(c.elseCommands);
+        for (const j of endJumps) j.jumpTo = out.length;
+      } else if (c.type === 'RANDOM') {
+        const picker: FlatNode = { cmd: c, kind: 'random', branchStarts: [] };
+        out.push(picker);
+        const endJumps: FlatNode[] = [];
+        for (const branch of c.branches) {
+          picker.branchStarts!.push(out.length);
+          walk(branch);
+          const j: FlatNode = { cmd: c, kind: 'jump' };
+          out.push(j);
+          endJumps.push(j);
+        }
         for (const j of endJumps) j.jumpTo = out.length;
       } else {
         out.push({ cmd: c });
@@ -773,6 +788,12 @@ export function useScriptRunner({
         case 'TICK':
           warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
           continue;
+        case 'RANDOM': {
+          if (cmd.branches.length > 0) {
+            executeTickBody(cmd.branches[Math.floor(Math.random() * cmd.branches.length)]);
+          }
+          continue;
+        }
         case 'IF': {
           if (evaluateIfCondition(cmd, worldStateRef.current)) {
             executeTickBody(cmd.commands);
@@ -837,6 +858,15 @@ export function useScriptRunner({
       // Unconditional jump (end of a taken IF/ELSEIF/ELSE branch body)
       if (node.kind === 'jump') {
         i = node.jumpTo ?? i + 1;
+        continue;
+      }
+
+      // RANDOM block: jump to one branch, chosen uniformly
+      if (node.kind === 'random') {
+        const starts = node.branchStarts ?? [];
+        i = starts.length > 0
+          ? starts[Math.floor(Math.random() * starts.length)]
+          : i + 1;
         continue;
       }
 

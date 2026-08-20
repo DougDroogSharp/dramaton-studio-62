@@ -698,6 +698,30 @@ Marks the end of an IF conditional block (including any ELSEIF/ELSE arms).
 [ENDIF]
 ```
 
+#### `RANDOM`
+
+Plays exactly one branch, chosen uniformly at random each time the block executes (the 1986 RNDSWITCH). Branches are separated by [OR] lines. Use it to keep repeated visits fresh — wrap alternate phrasings of a reply, or alternate small events. Nests inside IF/TICK and may contain them.
+
+**Syntax:**
+```
+[RANDOM]
+...branch...
+[OR]
+...branch...
+[/RANDOM]
+```
+
+**Example:**
+```
+[RANDOM]
+Boss: "You're doin a great job, Ben."
+[OR]
+Boss: "That's swell."
+[OR]
+Boss: "Can't we do any better?"
+[/RANDOM]
+```
+
 #### `TICK`
 
 A repeating block: the body runs every interval while the scene is active, concurrent with (never blocking) normal script and dialogue flow. Use it as a simulation heartbeat — typically SETs and IFs updating world state. One TICK block per scene; extra blocks are ignored with a warning. Blocking commands (DIALOGUE, CHOICE, WAIT, nested TICK) are skipped inside a tick body with a warning. The tick keeps running after the scene script completes and stops on scene transition.
@@ -852,7 +876,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **32 commands documented**
+✅ **33 commands documented**
 
 ---
 
