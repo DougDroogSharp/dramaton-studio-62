@@ -16,6 +16,7 @@ import { DramatonLogo } from '@/components/DramatonLogo';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { AbilityPanel } from '@/components/theater/AbilityPanel';
 import { AbilityOnboarding } from '@/components/theater/AbilityOnboarding';
+import { EndCard } from '@/components/theater/EndCard';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
@@ -206,15 +207,18 @@ const Theater: React.FC = () => {
   const [scanIndex, setScanIndex] = useState(0);
   const choiceCount = scriptRunner.state.choices?.options.length ?? 0;
   const scanning = ability.scanChoices && choiceCount > 1;
+  // A new choice always starts at the first option, whether it is being
+  // scanned automatically or steered with the arrow keys.
+  useEffect(() => {
+    setScanIndex(0);
+  }, [choiceCount, scriptRunner.state.currentSceneId, scriptRunner.state.currentCommandIndex]);
   useEffect(() => {
     if (!scanning) return;
-    setScanIndex(0);
     const id = setInterval(
       () => setScanIndex(i => (i + 1) % choiceCount),
       Math.max(1, ability.scanSeconds) * 1000,
     );
     return () => clearInterval(id);
-    // restart the sweep whenever a new choice appears
   }, [scanning, choiceCount, ability.scanSeconds, scriptRunner.state.currentSceneId, scriptRunner.state.currentCommandIndex]);
 
   // Keyboard controls
@@ -227,6 +231,28 @@ const Theater: React.FC = () => {
         e.preventDefault();
         scriptRunner.selectChoice(scanIndex);
         return;
+      }
+
+      // Arrow keys move the highlight, Enter/Space takes it. Works
+      // alongside the mouse and the number keys — every input method
+      // reaches every choice.
+      if (scriptRunner.state.choices) {
+        const count = scriptRunner.state.choices.options.length;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          setScanIndex(i => (i + 1) % count);
+          return;
+        }
+        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setScanIndex(i => (i - 1 + count) % count);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          scriptRunner.selectChoice(Math.min(scanIndex, count - 1));
+          return;
+        }
       }
 
       // Choice selection with number keys
@@ -401,20 +427,13 @@ const Theater: React.FC = () => {
       <div className="px-4 pt-1 pb-1">
         {/* End of game message */}
         {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (
-          <div className="text-center py-4">
-            <p className="text-diesel-gold text-xl uppercase tracking-wider mb-4">
-              — The End —
-            </p>
-            <button
-              onClick={() => {
-                scriptRunner.goToScene(startSceneId);
-                setHasStarted(false);
-              }}
-              className="px-6 py-3 bg-diesel-rust/20 border-2 border-diesel-rust text-diesel-rust font-bold uppercase hover:bg-diesel-rust/30 transition-colors"
-            >
-              Return to Title
-            </button>
-          </div>
+          <EndCard
+            game={game}
+            onReturnToTitle={() => {
+              scriptRunner.goToScene(startSceneId);
+              setHasStarted(false);
+            }}
+          />
         )}
       </div>
 
@@ -457,6 +476,7 @@ const Theater: React.FC = () => {
             elementOverrides={scriptRunner.state.elementOverrides}
             onAdvance={scriptRunner.advance}
             onSelectChoice={scriptRunner.selectChoice}
+            scanIndex={choiceCount > 1 ? scanIndex : null}
           />}
           {/* Narration as a comic caption overlaying the stage top */}
           {ability.presentation !== 'sound' && scriptRunner.state.activeDialogue &&

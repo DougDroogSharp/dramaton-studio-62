@@ -57,6 +57,18 @@ import {
   VacuumTube,
 } from "@/components/DieselpunkDecorations";
 
+
+// The shipped Humans vs Billionaires games, openable straight from
+// public/ for a tweak-and-see pass in the editor.
+const SHIPPED_GAMES = [
+  { file: 'hvb-william.json', title: 'William the Conqueror', scenes: '240 scenes' },
+  { file: 'hvb-leopold.json', title: 'King Leopold', scenes: '220 scenes' },
+  { file: 'hvb-capone.json', title: 'King of Chicago', scenes: '218 scenes' },
+  { file: 'hvb-elon.json', title: 'Elon Musk', scenes: '216 scenes' },
+  { file: 'hvb-machine.json', title: 'The Machine', scenes: '17 scenes' },
+  { file: 'hvb-campaign.json', title: 'The Campaign', scenes: '107 scenes' },
+];
+
 const Index = () => {
   const navigate = useNavigate();
   const { confirm, alert } = useConfirmDialog();
@@ -67,6 +79,7 @@ const Index = () => {
   const [startAuthor, setStartAuthor] = useState("Unknown Creator");
   const [hasAutoSave, setHasAutoSave] = useState(false);
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
+  const [loadingShipped, setLoadingShipped] = useState<string | null>(null);
 
   // Editor state
   const [game, setGame] = useState<GameData>(createDefaultGame());
@@ -110,6 +123,28 @@ const Index = () => {
     });
     getRecentGames().then(setRecentGames);
   }, []);
+
+  // Open one of the shipped HvB games straight from public/ — the
+  // files are large (art is embedded), so show progress and never
+  // leave the button silently dead.
+  const handleOpenShipped = async (file: string, title: string) => {
+    setLoadingShipped(file);
+    try {
+      const response = await fetch(`/${file}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = migrateGameData(await response.json());
+      setGame(data);
+      setIsStarted(true);
+      setIsLoaded(true);
+      saveGameToDB(data);
+      toast.success(`Loaded: ${title}`);
+    } catch (err) {
+      console.error('Failed to open shipped game:', err);
+      toast.error(`Could not load ${file} — is the dev server serving public/?`);
+    } finally {
+      setLoadingShipped(null);
+    }
+  };
 
   // Reopen a recent .dram file from its stored handle
   const handleOpenRecent = async (recent: RecentGame) => {
@@ -599,6 +634,36 @@ const Index = () => {
                 <FolderOpen size={12} />
                 Load
               </button>
+            </div>
+
+            {/* The shipped HvB games, one click into the editor. These
+                are BUILD OUTPUTS of scripts/chapters/build-*.mjs — a
+                rebuild overwrites them, so edits made here are for
+                trying things out; anything you want to keep belongs in
+                the generator (or save it out under a new name). */}
+            <div className="mt-3 border-t border-diesel-border pt-2">
+              <p className="text-[9px] uppercase tracking-widest text-diesel-steel mb-1.5">
+                Humans vs Billionaires
+              </p>
+              <div className="space-y-1">
+                {SHIPPED_GAMES.map(g => (
+                  <button
+                    key={g.file}
+                    onClick={() => handleOpenShipped(g.file, g.title)}
+                    disabled={loadingShipped !== null}
+                    className="w-full flex items-baseline justify-between gap-2 px-2 py-1 bg-diesel-black/40 border border-diesel-border text-left hover:border-diesel-gold transition-colors disabled:opacity-40"
+                    title={`Open ${g.file} in the editor`}
+                  >
+                    <span className="text-xs text-diesel-paper truncate">{g.title}</span>
+                    <span className="text-[9px] text-diesel-steel truncate shrink-0">
+                      {loadingShipped === g.file ? 'loading…' : g.scenes}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] text-diesel-steel/60 mt-1.5 leading-snug">
+                Build outputs — a rebuild overwrites them. Keep changes in the generator.
+              </p>
             </div>
 
             {/* Recent games: one click back into the last 5 files */}
