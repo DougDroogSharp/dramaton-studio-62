@@ -58,6 +58,15 @@ describe('expression parser + evaluator', () => {
     const r = evalSrc('rand()');
     expect(r).toBeGreaterThanOrEqual(0);
     expect(r).toBeLessThan(1);
+    const r1 = evalSrc('rand(10)');
+    expect(r1).toBeGreaterThanOrEqual(0);
+    expect(r1).toBeLessThan(10);
+    const r2 = evalSrc('rand(40, 60)');
+    expect(r2).toBeGreaterThanOrEqual(40);
+    expect(r2).toBeLessThan(60);
+    // range still respects surrounding arithmetic
+    const r3 = evalSrc('floor(rand(5, 6))');
+    expect(r3).toBe(5);
   });
 
   it('evaluates the Georgist margin formula', () => {

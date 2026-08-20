@@ -209,8 +209,12 @@ function callFunction(name: string, args: number[]): number {
       if (args.length !== 1) { warnOnce(`floor() takes 1 argument, got ${args.length}; using 0`); return 0; }
       return Math.floor(args[0]);
     case 'rand':
-      if (args.length !== 0) { warnOnce('rand() takes no arguments'); }
-      return Math.random();
+      // rand() -> [0,1); rand(max) -> [0,max); rand(min,max) -> [min,max)
+      if (args.length === 0) return Math.random();
+      if (args.length === 1) return Math.random() * args[0];
+      if (args.length === 2) return args[0] + Math.random() * (args[1] - args[0]);
+      warnOnce(`rand() takes 0-2 arguments, got ${args.length}; using rand(min,max)`);
+      return args[0] + Math.random() * (args[1] - args[0]);
     default:
       warnOnce(`unknown function ${name}(); using 0`);
       return 0;
