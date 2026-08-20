@@ -2,6 +2,7 @@ import React from 'react';
 import { MeterPanel, MeterRow } from './MeterPanel';
 import { WorldVars } from '@/utils/expression';
 import { frameFor } from '@/utils/frames';
+import { MachineDiagram } from './MachineDiagram';
 
 // The cabinet the show is played inside.
 //
@@ -174,9 +175,19 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           every pixel left over and never has to guess. */}
       <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20">
 
+      {/* THE MACHINE, RUNNING — the mechanism under the scene. The
+          gauges say a number moved; this says what it feeds. Fixed
+          height, like every region of this cabinet. */}
+      <div
+        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} ${skin.label} px-3 py-1 shrink-0`}
+        style={{ height: '118px' }}
+      >
+        <MachineDiagram rows={meterRows} />
+      </div>
+
       {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
       <div
-        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} overflow-y-auto shrink-0`}
+        className={`${skin.divider} ${skin.shelf} overflow-y-auto shrink-0`}
         style={{ height: '132px' }}
       >
         {showMeters ? (
