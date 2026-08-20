@@ -201,6 +201,10 @@ export function useScriptRunner({
   // NARRATE: expiry timer and a monotonic id so each line re-announces.
   const narrateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const narrateSeqRef = useRef(0);
+  // ANIMATE: looping pose cycles, one per element (flames flickering,
+  // birds flapping). Keyed by element id so a second ANIMATE on the
+  // same element replaces the first instead of stacking.
+  const animationsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // The live world state. A ref (not state) so that a run of commands
   // executed in one synchronous pass — [SET a = ...] followed by
@@ -323,6 +327,8 @@ export function useScriptRunner({
     choiceTimeoutRef.current = null;
     if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
     narrateTimeoutRef.current = null;
+    for (const id of animationsRef.current.values()) clearInterval(id);
+    animationsRef.current.clear();
   }, []);
 
   // Cleanup on unmount
@@ -627,6 +633,52 @@ export function useScriptRunner({
         });
         if (duration > 0) setTimeout(applyTween, 30);
         else applyTween();
+        return true;
+      }
+
+      case 'ANIMATE': {
+        // Loop an element through pose frames until stopped or the
+        // scene changes. Non-blocking: the script runs straight on.
+        const { elementId, poses, interval, repeat } = command;
+        const existing = animationsRef.current.get(elementId);
+        if (existing) clearInterval(existing);
+
+        const el = currentSceneRef.current?.stage?.find(e => e.id === elementId);
+        if (!el) {
+          warnOnce(`ANIMATE ${elementId}: no such stage element; skipped`);
+          return true;
+        }
+        // Reduced motion: show the first frame and hold it.
+        const setFrame = (pose: string) => setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const current = overrides.get(elementId) || {};
+          overrides.set(elementId, { ...current, pose });
+          return { ...prev, elementOverrides: overrides };
+        });
+        setFrame(poses[0]);
+        if (abilityRef.current.reduceMotion) return true;
+
+        let frame = 0;
+        const totalFrames = repeat !== undefined ? repeat * poses.length : Infinity;
+        const timer = setInterval(() => {
+          frame++;
+          if (frame >= totalFrames) {
+            clearInterval(timer);
+            animationsRef.current.delete(elementId);
+            return;
+          }
+          setFrame(poses[frame % poses.length]);
+        }, Math.max(50, interval * 1000));
+        animationsRef.current.set(elementId, timer);
+        return true;
+      }
+
+      case 'STOP_ANIMATE': {
+        const timer = animationsRef.current.get(command.elementId);
+        if (timer) {
+          clearInterval(timer);
+          animationsRef.current.delete(command.elementId);
+        }
         return true;
       }
 

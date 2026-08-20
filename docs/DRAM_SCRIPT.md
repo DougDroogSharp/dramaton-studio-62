@@ -215,6 +215,49 @@ Swaps the scene backdrop without changing scenes, crossfading over the given dur
 [BACKDROP wm_village_burnt over 2s]
 ```
 
+#### `ANIMATE`
+
+Loops an element through named pose frames — embroidered flames flickering, a bird flapping across the sky, a machine pumping. Unlike the walk cycle this is not tied to movement: it runs until stopped or the scene changes. Non-blocking; the script continues immediately. Default 200ms per frame; omit "repeat" to loop forever. A second ANIMATE on the same element replaces the first rather than stacking. Under reduced-motion the first frame shows and holds.
+
+**Syntax:**
+```
+[ANIMATE element Pose1 Pose2 ... [every duration] [repeat n]]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element` | string | Stage element id |
+| `poses` | string | Two or more pose names, in cycle order |
+| `duration` | string | Time per frame (default 200ms) *(optional)* |
+| `n` | number | Number of full cycles; omitted means forever *(optional)* |
+
+**Example:**
+```
+[ANIMATE granary_fire Flame1 Flame2 Flame3 every 180ms]
+[ANIMATE gull Wings_Up Wings_Down every 250ms]
+[ANIMATE door Shut Ajar Open every 400ms repeat 1]
+```
+
+#### `STOP_ANIMATE`
+
+Stops a looping ANIMATE on an element, leaving it on whatever frame it reached. Scene changes stop every animation automatically, so this is only needed to stop one mid-scene.
+
+**Syntax:**
+```
+[STOP_ANIMATE element]  |  [ANIMATE element off]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element` | string | Stage element id |
+
+**Example:**
+```
+[STOP_ANIMATE granary_fire]
+```
+
 #### `FACE`
 
 Turns an actor to face something and snaps the sprite to the nearest directional graphic it actually has (this is facing, not mirroring — no flipped scars or sword hands). The target may be another stage element, an item on stage, or a named backdrop anchor — objects identified inside the backdrop art, like BOAT1 or RUBBER_TREE. Degrees are compass-style: 0 right, 90 down, 180 left, 270 up. Actors without directional art keep their current look, with a warning.
@@ -1043,7 +1086,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **40 commands documented**
+✅ **42 commands documented**
 
 ---
 

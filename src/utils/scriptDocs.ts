@@ -424,6 +424,31 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'ANIMATE',
+    category: 'actor',
+    syntax: '[ANIMATE element Pose1 Pose2 ... [every duration] [repeat n]]',
+    description: 'Loops an element through named pose frames — embroidered flames flickering, a bird flapping across the sky, a machine pumping. Unlike the walk cycle this is not tied to movement: it runs until stopped or the scene changes. Non-blocking; the script continues immediately. Default 200ms per frame; omit "repeat" to loop forever. A second ANIMATE on the same element replaces the first rather than stacking. Under reduced-motion the first frame shows and holds.',
+    parameters: [
+      { name: 'element', type: 'string', description: 'Stage element id' },
+      { name: 'poses', type: 'string', description: 'Two or more pose names, in cycle order' },
+      { name: 'duration', type: 'string', description: 'Time per frame (default 200ms)', optional: true },
+      { name: 'n', type: 'number', description: 'Number of full cycles; omitted means forever', optional: true },
+    ],
+    example: '[ANIMATE granary_fire Flame1 Flame2 Flame3 every 180ms]\n[ANIMATE gull Wings_Up Wings_Down every 250ms]\n[ANIMATE door Shut Ajar Open every 400ms repeat 1]',
+    implemented: true,
+  },
+  {
+    type: 'STOP_ANIMATE',
+    category: 'actor',
+    syntax: '[STOP_ANIMATE element]  |  [ANIMATE element off]',
+    description: 'Stops a looping ANIMATE on an element, leaving it on whatever frame it reached. Scene changes stop every animation automatically, so this is only needed to stop one mid-scene.',
+    parameters: [
+      { name: 'element', type: 'string', description: 'Stage element id' },
+    ],
+    example: '[STOP_ANIMATE granary_fire]',
+    implemented: true,
+  },
+  {
     type: 'FACE',
     category: 'actor',
     syntax: '[FACE element toward target]  |  [FACE element degrees]',
@@ -661,6 +686,8 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
   { type: 'TWEEN', label: 'TWEEN', insertText: 'TWEEN ', description: 'Animate scale/rotation/opacity/position' },
   { type: 'BACKDROP', label: 'BACKDROP', insertText: 'BACKDROP ', description: 'Crossfade the backdrop mid-scene' },
+  { type: 'ANIMATE', label: 'ANIMATE', insertText: 'ANIMATE ', description: 'Loop an element through pose frames' },
+  { type: 'STOP_ANIMATE', label: 'STOP_ANIMATE', insertText: 'STOP_ANIMATE ', description: 'Stop a looping animation' },
   { type: 'FACE', label: 'FACE', insertText: 'FACE ', description: 'Turn an actor to face a target' },
   { type: 'CAMERA', label: 'CAMERA', insertText: 'CAMERA ', description: 'Shots, zoom, pan, follow' },
   { type: 'LABEL', label: 'LABEL', insertText: 'LABEL ', description: 'Named jump target' },
@@ -682,7 +709,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {
   const allTypes: ScriptCommandType[] = [
-    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'FACE', 'CAMERA',
+    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'ANIMATE', 'STOP_ANIMATE', 'BACKDROP', 'FACE', 'CAMERA',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',

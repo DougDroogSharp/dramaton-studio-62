@@ -30,6 +30,8 @@ export type ScriptCommandType =
   | 'BACKDROP'
   | 'FACE'
   | 'CAMERA'
+  | 'ANIMATE'
+  | 'STOP_ANIMATE'
   | 'TICK'
   | 'BIND'
   | 'UNBIND'
@@ -205,6 +207,23 @@ export interface BackdropCommand {
   duration: number; // seconds (0 = instant)
 }
 
+// Loop an element through named pose frames — flames flickering,
+// birds flapping, a machine pumping. Unlike the walk cycle this is not
+// tied to movement: it runs until stopped or the scene changes.
+// (The 1986 GODinabox `Animate` command, reborn.)
+export interface AnimateCommand {
+  type: 'ANIMATE';
+  elementId: string;
+  poses: string[];
+  interval: number; // seconds per frame
+  repeat?: number;  // number of full cycles; omitted = forever
+}
+
+export interface StopAnimateCommand {
+  type: 'STOP_ANIMATE';
+  elementId: string;
+}
+
 // Turn an actor to face something: another stage element, a named
 // backdrop anchor (BOAT1, RUBBER_TREE), or an explicit compass angle.
 // Sets the sprite's facing angle, which selects the nearest directional
@@ -375,6 +394,8 @@ export type ScriptCommand =
   | LabelCommand
   | GotoCommand
   | TweenCommand
+  | AnimateCommand
+  | StopAnimateCommand
   | BackdropCommand
   | FaceCommand
   | CameraCommand
@@ -667,6 +688,34 @@ function parseLine(line: string): ScriptCommand | null {
         dropId: backdropMatch[1],
         duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
       };
+    }
+
+    // ANIMATE element Pose1 Pose2 Pose3 [every 200ms] [repeat 3]
+    const animateMatch = content.match(/^ANIMATE\s+(\w+)\s+(.+)$/i);
+    if (animateMatch && !/^off$/i.test(animateMatch[2].trim())) {
+      let rest = animateMatch[2].trim();
+      let interval = 0.2;
+      let repeat: number | undefined;
+      const repeatM = rest.match(/\s+repeat\s+(\d+)\s*$/i);
+      if (repeatM) { repeat = Number(repeatM[1]); rest = rest.slice(0, repeatM.index).trim(); }
+      const everyM = rest.match(/\s+every\s+([\d.]+\s*m?s)\s*$/i);
+      if (everyM) { interval = parseDuration(everyM[1]); rest = rest.slice(0, everyM.index).trim(); }
+      const poses = rest.split(/[\s,]+/).filter(Boolean);
+      if (poses.length >= 2) {
+        return {
+          type: 'ANIMATE',
+          elementId: animateMatch[1],
+          poses,
+          interval,
+          ...(repeat !== undefined ? { repeat } : {}),
+        };
+      }
+    }
+
+    // ANIMATE element off  |  STOP_ANIMATE element
+    const stopAnimMatch = content.match(/^(?:STOP_ANIMATE\s+(\w+)|ANIMATE\s+(\w+)\s+off)$/i);
+    if (stopAnimMatch) {
+      return { type: 'STOP_ANIMATE', elementId: stopAnimMatch[1] || stopAnimMatch[2] };
     }
 
     // FACE element toward TARGET  |  FACE element <degrees>
@@ -1197,6 +1246,13 @@ export function commandToString(cmd: ScriptCommand): string {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       return `[BACKDROP ${cmd.dropId} over ${dur}]`;
     }
+    case 'ANIMATE': {
+      const every = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;
+      const rep = cmd.repeat !== undefined ? ` repeat ${cmd.repeat}` : '';
+      return `[ANIMATE ${cmd.elementId} ${cmd.poses.join(' ')} every ${every}${rep}]`;
+    }
+    case 'STOP_ANIMATE':
+      return `[STOP_ANIMATE ${cmd.elementId}]`;
     case 'FACE':
       return cmd.degrees !== undefined
         ? `[FACE ${cmd.elementId} ${cmd.degrees}]`

@@ -208,7 +208,7 @@ footer.colophon {
 </style>
 
 <header class="masthead">
-  <div class="slug">Dramaton Engine · Language Reference · 40 commands</div>
+  <div class="slug">Dramaton Engine · Language Reference · 42 commands</div>
   <h1>Dram<em>Script</em></h1>
   <p class="lede">
     A line-based language for directing actors, backdrops, cameras and an economy at
@@ -216,7 +216,7 @@ footer.colophon {
     speaking — the whole grammar fits on a page, and a scene reads like a script.
   </p>
   <div class="stats">
-    <span><b>40</b> commands</span>
+    <span><b>42</b> commands</span>
     <span><b>9</b> categories</span>
     <span>Lineage: <b>1986</b> King of Chicago → GODinabox → Dramaton</span>
   </div>
@@ -235,7 +235,7 @@ footer.colophon {
     </li>
     <li class="nav-group">
       <span class="nav-cat">Actor Commands</span>
-      <ul><li><a href="#cmd-enter">ENTER</a></li><li><a href="#cmd-exit">EXIT</a></li><li><a href="#cmd-move">MOVE</a></li><li><a href="#cmd-pose">POSE</a></li><li><a href="#cmd-tween">TWEEN</a></li><li><a href="#cmd-backdrop">BACKDROP</a></li><li><a href="#cmd-face">FACE</a></li><li><a href="#cmd-camera">CAMERA</a></li></ul>
+      <ul><li><a href="#cmd-enter">ENTER</a></li><li><a href="#cmd-exit">EXIT</a></li><li><a href="#cmd-move">MOVE</a></li><li><a href="#cmd-pose">POSE</a></li><li><a href="#cmd-tween">TWEEN</a></li><li><a href="#cmd-backdrop">BACKDROP</a></li><li><a href="#cmd-animate">ANIMATE</a></li><li><a href="#cmd-stop_animate">STOP_ANIMATE</a></li><li><a href="#cmd-face">FACE</a></li><li><a href="#cmd-camera">CAMERA</a></li></ul>
     </li>
     <li class="nav-group">
       <span class="nav-cat">Choice Commands</span>
@@ -510,6 +510,52 @@ footer.colophon {
       <div class="example">
         <span class="ex-label">Example</span>
         <pre><code><span class="s-brk">[</span><span class="s-key">BACKDROP</span><span class="s-arg"> wm_village_burnt over 2s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-animate">
+      <header class="cmd-head">
+        <h3>ANIMATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> element Pose1 Pose2 ... [every duration</span><span class="s-brk">]</span> [repeat n]]</code></pre>
+      </header>
+      <p class="desc">Loops an element through named pose frames — embroidered flames flickering, a bird flapping across the sky, a machine pumping. Unlike the walk cycle this is not tied to movement: it runs until stopped or the scene changes. Non-blocking; the script continues immediately. Default 200ms per frame; omit "repeat" to loop forever. A second ANIMATE on the same element replaces the first rather than stacking. Under reduced-motion the first frame shows and holds.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Stage element id</dd>
+        </div>
+        <div class="param">
+          <dt><code>poses</code><span class="ptype">string</span></dt>
+          <dd>Two or more pose names, in cycle order</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string · optional</span></dt>
+          <dd>Time per frame (default 200ms)</dd>
+        </div>
+        <div class="param">
+          <dt><code>n</code><span class="ptype">number · optional</span></dt>
+          <dd>Number of full cycles; omitted means forever</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> granary_fire Flame1 Flame2 Flame3 every 180ms</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> gull Wings_Up Wings_Down every 250ms</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> door Shut Ajar Open every 400ms repeat 1</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-stop_animate">
+      <header class="cmd-head">
+        <h3>STOP_ANIMATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">STOP_ANIMATE</span><span class="s-arg"> element</span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> element off</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Stops a looping ANIMATE on an element, leaving it on whatever frame it reached. Scene changes stop every animation automatically, so this is only needed to stop one mid-scene.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Stage element id</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">STOP_ANIMATE</span><span class="s-arg"> granary_fire</span><span class="s-brk">]</span></code></pre>
       </div>
     </article>
     <article class="cmd" id="cmd-face">
