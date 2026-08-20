@@ -144,6 +144,9 @@ export interface ScriptRunnerState {
   // touched, so the player can watch the model react and read what the
   // movement means. Reset on scene change.
   meterMoves: Map<string, { from: number; to: number; seq: number }>;
+  // FRAME: the cabinet reacting for a beat. seq re-fires the animation
+  // when the same mood is triggered twice.
+  frameMood: { mood: string; seq: number } | null;
 }
 
 interface UseScriptRunnerOptions {
@@ -185,6 +188,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -208,6 +212,7 @@ export function useScriptRunner({
   const narrateSeqRef = useRef(0);
   // Monotonic counter so the meter panel can tell which move is newest.
   const meterSeqRef = useRef(0);
+  const frameSeqRef = useRef(0);
   // ANIMATE: looping pose cycles, one per element (flames flickering,
   // birds flapping). Keyed by element id so a second ANIMATE on the
   // same element replaces the first instead of stacking.
@@ -664,6 +669,19 @@ export function useScriptRunner({
         return true;
       }
 
+      case 'FRAME': {
+        // The cabinet reacts for a beat. Reduced motion keeps it still.
+        if (abilityRef.current.reduceMotion) return true;
+        const mood = command.mood;
+        frameSeqRef.current += 1;
+        const seq = frameSeqRef.current;
+        setState(prev => ({
+          ...prev,
+          frameMood: mood === 'still' || mood === 'off' ? null : { mood, seq },
+        }));
+        return true;
+      }
+
       case 'ANIMATE': {
         // Loop an element through pose frames until stopped or the
         // scene changes. Non-blocking: the script runs straight on.
@@ -872,6 +890,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
           isWaiting: false,
           isComplete: false,
         }));
@@ -922,6 +941,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
               isWaiting: false,
               isComplete: false,
             }));
@@ -1122,6 +1142,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
           isWaiting: false,
           isComplete: false,
         }));
@@ -1362,6 +1383,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));
@@ -1410,6 +1432,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));

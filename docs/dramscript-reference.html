@@ -208,7 +208,7 @@ footer.colophon {
 </style>
 
 <header class="masthead">
-  <div class="slug">Dramaton Engine · Language Reference · 42 commands</div>
+  <div class="slug">Dramaton Engine · Language Reference · 43 commands</div>
   <h1>Dram<em>Script</em></h1>
   <p class="lede">
     A line-based language for directing actors, backdrops, cameras and an economy at
@@ -216,7 +216,7 @@ footer.colophon {
     speaking — the whole grammar fits on a page, and a scene reads like a script.
   </p>
   <div class="stats">
-    <span><b>42</b> commands</span>
+    <span><b>43</b> commands</span>
     <span><b>9</b> categories</span>
     <span>Lineage: <b>1986</b> King of Chicago → GODinabox → Dramaton</span>
   </div>
@@ -235,7 +235,7 @@ footer.colophon {
     </li>
     <li class="nav-group">
       <span class="nav-cat">Actor Commands</span>
-      <ul><li><a href="#cmd-enter">ENTER</a></li><li><a href="#cmd-exit">EXIT</a></li><li><a href="#cmd-move">MOVE</a></li><li><a href="#cmd-pose">POSE</a></li><li><a href="#cmd-tween">TWEEN</a></li><li><a href="#cmd-backdrop">BACKDROP</a></li><li><a href="#cmd-animate">ANIMATE</a></li><li><a href="#cmd-stop_animate">STOP_ANIMATE</a></li><li><a href="#cmd-face">FACE</a></li><li><a href="#cmd-camera">CAMERA</a></li></ul>
+      <ul><li><a href="#cmd-enter">ENTER</a></li><li><a href="#cmd-exit">EXIT</a></li><li><a href="#cmd-move">MOVE</a></li><li><a href="#cmd-pose">POSE</a></li><li><a href="#cmd-tween">TWEEN</a></li><li><a href="#cmd-backdrop">BACKDROP</a></li><li><a href="#cmd-frame">FRAME</a></li><li><a href="#cmd-animate">ANIMATE</a></li><li><a href="#cmd-stop_animate">STOP_ANIMATE</a></li><li><a href="#cmd-face">FACE</a></li><li><a href="#cmd-camera">CAMERA</a></li></ul>
     </li>
     <li class="nav-group">
       <span class="nav-cat">Choice Commands</span>
@@ -510,6 +510,24 @@ footer.colophon {
       <div class="example">
         <span class="ex-label">Example</span>
         <pre><code><span class="s-brk">[</span><span class="s-key">BACKDROP</span><span class="s-arg"> wm_village_burnt over 2s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-frame">
+      <header class="cmd-head">
+        <h3>FRAME</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> fun|scary|sad|still</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Makes the CABINET around the stage react for a beat — a shudder and cold desaturation at something frightening, a warm swell at something good, a slow grieving dim. Use it sparingly: the frame is still almost all the time, and that stillness is what makes the exceptions land. [FRAME still] clears it. Suppressed entirely under reduced motion; an unknown mood is ignored.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>mood</code><span class="ptype">string</span></dt>
+          <dd>fun | scary | sad | still</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> scary</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> fun</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> still</span><span class="s-brk">]</span></code></pre>
       </div>
     </article>
     <article class="cmd" id="cmd-animate">

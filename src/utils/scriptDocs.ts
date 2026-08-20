@@ -424,6 +424,17 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'FRAME',
+    category: 'actor',
+    syntax: '[FRAME fun|scary|sad|still]',
+    description: 'Makes the CABINET around the stage react for a beat — a shudder and cold desaturation at something frightening, a warm swell at something good, a slow grieving dim. Use it sparingly: the frame is still almost all the time, and that stillness is what makes the exceptions land. [FRAME still] clears it. Suppressed entirely under reduced motion; an unknown mood is ignored.',
+    parameters: [
+      { name: 'mood', type: 'string', description: 'fun | scary | sad | still' },
+    ],
+    example: '[FRAME scary]\n[FRAME fun]\n[FRAME still]',
+    implemented: true,
+  },
+  {
     type: 'ANIMATE',
     category: 'actor',
     syntax: '[ANIMATE element Pose1 Pose2 ... [every duration] [repeat n]]',
@@ -686,6 +697,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
   { type: 'TWEEN', label: 'TWEEN', insertText: 'TWEEN ', description: 'Animate scale/rotation/opacity/position' },
   { type: 'BACKDROP', label: 'BACKDROP', insertText: 'BACKDROP ', description: 'Crossfade the backdrop mid-scene' },
+  { type: 'FRAME', label: 'FRAME', insertText: 'FRAME ', description: 'The cabinet reacts for a beat' },
   { type: 'ANIMATE', label: 'ANIMATE', insertText: 'ANIMATE ', description: 'Loop an element through pose frames' },
   { type: 'STOP_ANIMATE', label: 'STOP_ANIMATE', insertText: 'STOP_ANIMATE ', description: 'Stop a looping animation' },
   { type: 'FACE', label: 'FACE', insertText: 'FACE ', description: 'Turn an actor to face a target' },
@@ -709,7 +721,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {
   const allTypes: ScriptCommandType[] = [
-    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'ANIMATE', 'STOP_ANIMATE', 'BACKDROP', 'FACE', 'CAMERA',
+    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'FRAME', 'ANIMATE', 'STOP_ANIMATE', 'BACKDROP', 'FACE', 'CAMERA',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',

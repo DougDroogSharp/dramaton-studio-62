@@ -18,7 +18,9 @@
     "gen:art": "node scripts/generate-art.mjs",
     "docs:dram:html": "tsx src/utils/generateDramReference.ts",
     "build:pod": "vite build --mode pod",
-    "build:games": "vite build --mode games"
+    "build:games": "vite build --mode games",
+    "docs:sync": "node scripts/sync-docs.mjs",
+    "docs:all": "npm run docs:dram && npm run docs:dram:html && npm run docs:sync"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -215,6 +215,27 @@ Swaps the scene backdrop without changing scenes, crossfading over the given dur
 [BACKDROP wm_village_burnt over 2s]
 ```
 
+#### `FRAME`
+
+Makes the CABINET around the stage react for a beat — a shudder and cold desaturation at something frightening, a warm swell at something good, a slow grieving dim. Use it sparingly: the frame is still almost all the time, and that stillness is what makes the exceptions land. [FRAME still] clears it. Suppressed entirely under reduced motion; an unknown mood is ignored.
+
+**Syntax:**
+```
+[FRAME fun|scary|sad|still]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `mood` | string | fun | scary | sad | still |
+
+**Example:**
+```
+[FRAME scary]
+[FRAME fun]
+[FRAME still]
+```
+
 #### `ANIMATE`
 
 Loops an element through named pose frames — embroidered flames flickering, a bird flapping across the sky, a machine pumping. Unlike the walk cycle this is not tied to movement: it runs until stopped or the scene changes. Non-blocking; the script continues immediately. Default 200ms per frame; omit "repeat" to loop forever. A second ANIMATE on the same element replaces the first rather than stacking. Under reduced-motion the first frame shows and holds.
@@ -1086,7 +1107,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **42 commands documented**
+✅ **43 commands documented**
 
 ---
 

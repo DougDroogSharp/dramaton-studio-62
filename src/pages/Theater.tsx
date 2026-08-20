@@ -482,6 +482,7 @@ const Theater: React.FC = () => {
               : null)
           }
           narrationKey={scriptRunner.state.ambientNarration?.id ?? scriptRunner.state.currentCommandIndex}
+          frameMood={scriptRunner.state.frameMood}
           drawerTitle="Settings"
           onCloseDrawer={() => setShowSettings(false)}
           drawer={showSettings ? (

@@ -37,6 +37,8 @@ interface StageConsoleProps {
   drawer?: React.ReactNode;
   drawerTitle?: string;
   onCloseDrawer?: () => void;
+  /** [FRAME mood]: the cabinet reacting for a beat. */
+  frameMood?: { mood: string; seq: number } | null;
 }
 
 export const StageConsole: React.FC<StageConsoleProps> = ({
@@ -51,10 +53,19 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   drawer,
   drawerTitle,
   onCloseDrawer,
+  frameMood,
 }) => {
   const skin = frameFor(frame);
+  // Known moods only, so a typo in a script cannot inject a class.
+  const moodClass = frameMood && ['fun', 'scary', 'sad'].includes(frameMood.mood)
+    ? `animate-frame-${frameMood.mood}`
+    : '';
   return (
-    <div className={`w-full ${skin.shell}`} style={skin.shellStyle}>
+    <div
+      key={frameMood?.seq ?? 0}
+      className={`w-full ${skin.shell} ${moodClass}`}
+      style={skin.shellStyle}
+    >
       {/* THE STAGE — never changes size for any reason */}
       <div className="relative overflow-hidden">
         {children}

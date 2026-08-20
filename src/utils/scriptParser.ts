@@ -30,6 +30,7 @@ export type ScriptCommandType =
   | 'BACKDROP'
   | 'FACE'
   | 'CAMERA'
+  | 'FRAME'
   | 'ANIMATE'
   | 'STOP_ANIMATE'
   | 'TICK'
@@ -205,6 +206,15 @@ export interface BackdropCommand {
   type: 'BACKDROP';
   dropId: string;
   duration: number; // seconds (0 = instant)
+}
+
+// Make the CABINET react for a moment — a shudder at something
+// frightening, a warm swell at something good, a slow grieving dim.
+// Used sparingly: the frame is still almost all the time, which is
+// what makes the exceptions land.
+export interface FrameCommand {
+  type: 'FRAME';
+  mood: string; // fun | scary | sad | still
 }
 
 // Loop an element through named pose frames — flames flickering,
@@ -394,6 +404,7 @@ export type ScriptCommand =
   | LabelCommand
   | GotoCommand
   | TweenCommand
+  | FrameCommand
   | AnimateCommand
   | StopAnimateCommand
   | BackdropCommand
@@ -688,6 +699,12 @@ function parseLine(line: string): ScriptCommand | null {
         dropId: backdropMatch[1],
         duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
       };
+    }
+
+    // FRAME mood — the cabinet reacts for a beat
+    const frameMatch = content.match(/^FRAMEs+(w+)$/i);
+    if (frameMatch) {
+      return { type: 'FRAME', mood: frameMatch[1].toLowerCase() };
     }
 
     // ANIMATE element Pose1 Pose2 Pose3 [every 200ms] [repeat 3]
@@ -1246,6 +1263,8 @@ export function commandToString(cmd: ScriptCommand): string {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       return `[BACKDROP ${cmd.dropId} over ${dur}]`;
     }
+    case 'FRAME':
+      return `[FRAME ${cmd.mood}]`;
     case 'ANIMATE': {
       const every = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;
       const rep = cmd.repeat !== undefined ? ` repeat ${cmd.repeat}` : '';

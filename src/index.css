@@ -309,3 +309,37 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-drawer-up { animation: none; }
 }
+
+
+/* [FRAME mood] — the cabinet itself reacts for a beat. Kept still
+   almost all the time; that is what makes these land. */
+@keyframes frame-scary {
+  0%, 100% { transform: translate(0, 0); filter: none; }
+  8%   { transform: translate(-6px, 2px); filter: brightness(.82) saturate(.6); }
+  18%  { transform: translate(5px, -3px); filter: brightness(1.05) saturate(.5); }
+  30%  { transform: translate(-4px, -1px); filter: brightness(.78) saturate(.6); }
+  45%  { transform: translate(3px, 2px); filter: brightness(.95); }
+  60%  { transform: translate(-2px, 0); filter: brightness(.9); }
+  80%  { transform: translate(1px, 0); filter: none; }
+}
+.animate-frame-scary { animation: frame-scary 1.1s ease-out; }
+
+@keyframes frame-fun {
+  0%, 100% { transform: scale(1) rotate(0); filter: none; }
+  20%  { transform: scale(1.012) rotate(-.35deg); filter: brightness(1.1) saturate(1.15); }
+  45%  { transform: scale(1.006) rotate(.3deg);  filter: brightness(1.14) saturate(1.2); }
+  70%  { transform: scale(1.009) rotate(-.15deg); filter: brightness(1.06) saturate(1.1); }
+}
+.animate-frame-fun { animation: frame-fun 1.4s cubic-bezier(.3,.9,.4,1); }
+
+@keyframes frame-sad {
+  0%   { filter: none; transform: translateY(0); }
+  35%  { filter: grayscale(.55) brightness(.8); transform: translateY(3px); }
+  70%  { filter: grayscale(.4) brightness(.85); transform: translateY(2px); }
+  100% { filter: none; transform: translateY(0); }
+}
+.animate-frame-sad { animation: frame-sad 2.6s ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-frame-scary, .animate-frame-fun, .animate-frame-sad { animation: none; }
+}
