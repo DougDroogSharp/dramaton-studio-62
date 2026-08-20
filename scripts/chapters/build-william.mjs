@@ -77,6 +77,20 @@ const actors = [
     ...graphic('peasant_g', 'Neutral', 'Neutral', art('william', 'peasant.png')),
     ...walkSet('peasant'),
   ]),
+  // The riders on the map. A PARTIAL walk set on purpose: only east and
+  // west exist, because a rider crossing a chart goes left or right and
+  // nothing else. graphic() returns [] for the six missing directions
+  // and the runner picks "the pair whose angle is nearest the travel
+  // direction", so the gaps cost nothing. Named walk_* rather than
+  // gallop_* so [MOVE] drives the cycle with no new engine work.
+  mkActor('knight', 'Norman Knight', [
+    ...graphic('knight_e1_g', 'Walk1', 'Neutral', art('william', 'knight_walk_e1.png'), 0),
+    ...graphic('knight_e2_g', 'Walk2', 'Neutral', art('william', 'knight_walk_e2.png'), 0),
+    ...graphic('knight_w1_g', 'Walk1', 'Neutral', art('william', 'knight_walk_w1.png'), 180),
+    ...graphic('knight_w2_g', 'Walk2', 'Neutral', art('william', 'knight_walk_w2.png'), 180),
+    // A standing frame, so a knight that is not moving still draws.
+    ...graphic('knight_g', 'Neutral', 'Neutral', art('william', 'knight_walk_e1.png'), 0),
+  ]),
   mkActor('orderic', 'Orderic', graphic('orderic_g', 'Neutral', 'Neutral', art('william', 'orderic.png'))),
   mkActor('crowd', 'The Village', [
     ...graphic('crowd_calm_g', 'Neutral', 'Neutral', art('william', 'crowd_calm.png')),
@@ -233,22 +247,67 @@ scenes.push({
   ),
   status: 'work',
 });
-
-// 0b. The crossing and the battle. The map earns its keep here: this is
-// the one beat where WHERE matters more than WHO.
+// 0b. The crossing and the battle, ridden across the map.
+//
+// Doug: "integrate the map into the opening sequence. Show little
+// knights galloping. fire, blood, screams."
+//
+// The map carries no lettering — generated text in an image comes back
+// garbled, and the first attempt put YORK on the map twice — so every
+// place name is a BALLOON element, correct, crisp, and readable by a
+// screen reader. They start invisible and fade in on the line that
+// names them, so the country fills in as the story crosses it.
+//
+// The screams are carried by the writing. No game ships a single audio
+// file yet; the sound pipeline is queued as its own work.
 scenes.push({
   id: 'wm_crossing',
   name: 'The Crossing',
   sceneType: 'CUTSCENE',
   dropId: dropId('wm_map', 'wm_salisbury'),
   stage: [
-    ...balloon('cr_sign', 'THE CHANNEL, SEPTEMBER 1066', 50, 10, { scale: 0.9 }),
+    ...balloon('cr_sign', 'THE CHANNEL, SEPTEMBER 1066', 50, 8, { scale: 0.9 }),
+    // Place names, invisible until the narration reaches them.
+    ...balloon('cr_stamford', 'STAMFORD BRIDGE', 62, 26, { scale: 0.62 }),
+    ...balloon('cr_pevensey', 'PEVENSEY', 34, 76, { scale: 0.62 }),
+    ...balloon('cr_hastings', 'HASTINGS', 52, 80, { scale: 0.62 }),
+    // The riders. Off the edge of the map until they are needed.
+    ...el('cr_rider_n', 'knight', 96, 30, { scale: 1.5 }),
+    ...el('cr_rider_s', 'knight', -8, 74, { scale: 1.5 }),
   ],
   script: lines(
-    'Narrator: "September 1066. Harold marches north and destroys a Norwegian army at Stamford Bridge. It is a real victory and it costs him everything he will need three weeks later."',
-    'Narrator: "William lands at Pevensey while Harold is still walking back."',
-    'Narrator: "October the fourteenth, on a ridge near Hastings. The English hold the high ground all day behind a shield wall. It works until it does not."',
-    'Narrator: "Harold dies on the field. So do most of the men who could have raised another army."',
+    // Everything starts hidden; the map is empty country.
+    '[TWEEN cr_stamford.opacity to 0]',
+    '[TWEEN cr_pevensey.opacity to 0]',
+    '[TWEEN cr_hastings.opacity to 0]',
+
+    'Narrator: "September 1066. Two armies are coming for England, and neither of them is English."',
+
+    // NORTH — Harold's real victory, ridden right to left.
+    '[TWEEN cr_stamford.opacity to 1 over 600ms]',
+    'Narrator: "The first lands in the north. Harold marches the length of the country and destroys a Norwegian army at Stamford Bridge."',
+    '[MOVE cr_rider_n to 58,28 over 3s]',
+    'Narrator: "It is a real victory, and it costs him everything he will need three weeks later."',
+
+    // SOUTH — William lands while Harold is still walking back.
+    '[TWEEN cr_pevensey.opacity to 1 over 600ms]',
+    '[CAMERA zoom 1.4 at 44,76 over 2s]',
+    'Narrator: "The second lands at Pevensey while Harold is still walking back."',
+    '[MOVE cr_rider_s to 40,76 over 3s]',
+    'Narrator: "William comes ashore with horses, and with men who build. Both will matter more than the fighting."',
+
+    // HASTINGS — the fire, and the blood.
+    '[TWEEN cr_hastings.opacity to 1 over 600ms]',
+    '[MOVE cr_rider_s to 52,80 over 2s]',
+    '[EFFECT flame_burn on cr_hastings]',
+    'Narrator: "October the fourteenth, on a ridge near Hastings. The English hold the high ground all day behind a shield wall."',
+    '[SET ruthless = ruthless + 4]',
+    '[NARRATE The shield wall breaks in the late afternoon. What follows is not a battle any more.]',
+    'Narrator: "It works until it does not. Harold dies on the field, and so do most of the men who could have raised another army."',
+    'Narrator: "The screaming on that ridge lasts longer than the fighting does. Nobody wrote down a single name from it."',
+
+    '[CAMERA reset over 1.5s]',
+    '[CLEAR_EFFECT cr_hastings]',
     'Narrator: "One battle. One afternoon. That is the whole of the fighting that decides who owns England."',
     'Narrator: "What follows takes twenty years, and it is not fighting. It is administration."',
     '[CHOICE]',

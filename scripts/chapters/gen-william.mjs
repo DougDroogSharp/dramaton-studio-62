@@ -72,6 +72,35 @@ const MANIFEST = [
     file: 'motte_castle.png', isCharacter: false,
     prompt: 'A Norman motte-and-bailey castle under construction, 1070: a huge raw earth mound with a timber keep half-built on top, wooden scaffolding and palisade stakes, and at its base the razed remains of Saxon houses — charred beams, flattened plots. Winter light, muddy ground. No people.',
   },
+  // The map, and the riders who cross it (conquest opening).
+  //
+  // The style pack pulls hard toward figures-on-linen, so the map prompt
+  // has to say "map" in several ways — coastline, chart, the places
+  // named — or it comes back as another tapestry panel of people.
+  {
+    file: 'map_england.png', isCharacter: false,
+    prompt: 'An embroidered map chart of a large island seen from directly above, 1066: the coastline outlined in dark brown stem stitch on bare pale linen, the surrounding sea filled with rows of wavy blue-grey stitched lines, and scattered across the land a few tiny stitched map symbols — small hills, single trees, and four little walled towers marking settlements. Completely wordless: absolutely no lettering, no writing, no letters, no numerals, no labels, no place names anywhere in the image. A flat overhead chart, not a landscape and not a scene. No people.',
+    retry: 'A wordless stitched cloth chart of a large island seen from above: dark thread coastline on bare linen, sea of wavy blue-grey stitched rows, a few tiny hill, tree and tower symbols on the land. No lettering of any kind. Flat overhead chart. No people.',
+  },
+  {
+    file: 'knight_walk_e1.png', isCharacter: true,
+    prompt: 'A single small Norman knight on horseback riding to the right in profile, 1066: mail hauberk, conical helm with nasal, kite shield on the arm, lance upright. The horse mid-stride with its near foreleg reaching forward and its far hind leg extended back. Full body, side view, facing right.',
+  },
+  {
+    file: 'knight_walk_e2.png', isCharacter: true,
+    ref: ['knight_walk_e1.png'],
+    prompt: 'Identical to the reference image in every way — same knight, same horse, same colours, same armour, same shield, same size, same side view facing right. Only the horse legs differ: now gathered underneath the body mid-gallop, both forelegs tucked and hind legs drawn up.',
+  },
+  {
+    file: 'knight_walk_w1.png', isCharacter: true,
+    ref: ['knight_walk_e1.png'],
+    prompt: 'Identical to the reference image in every way — same knight, same horse, same colours, same armour, same shield, same size — but mirrored to face and ride to the LEFT in profile. Same leg position: near foreleg reaching forward, far hind leg extended back.',
+  },
+  {
+    file: 'knight_walk_w2.png', isCharacter: true,
+    ref: ['knight_walk_w1.png'],
+    prompt: 'Identical to the reference image in every way — same knight, same horse, same colours, same armour, same shield, same size, same side view facing left. Only the horse legs differ: now gathered underneath the body mid-gallop, both forelegs tucked and hind legs drawn up.',
+  },
   // Pose/expression variants (deepening pass) — each generated with the
   // character's existing keyed sprite as a full-body reference so face
   // and costume stay identical across poses.

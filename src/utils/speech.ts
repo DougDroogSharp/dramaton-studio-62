@@ -242,3 +242,39 @@ export async function elevenLabsSpeak(
     return { ok: false, reason: e instanceof Error ? e.message : 'network error' };
   }
 }
+
+/**
+ * Wake the speech engine on a real user gesture.
+ *
+ * Doug: "when the game starts playing there is no sound. you have to
+ * push the sound button twice to hear sound."
+ *
+ * Two browser behaviours combine to cause that. Chrome will not start
+ * speech that was not triggered by a user gesture, and it can leave the
+ * queue in a paused state after a page load; and getVoices() returns an
+ * empty list until the asynchronous voiceschanged event fires, so the
+ * very first line often asks for a cast that does not exist yet.
+ *
+ * Pressing mute twice worked because the second press IS a gesture with
+ * a speak() directly behind it. Calling this from the START button gets
+ * the same effect honestly: resume the queue, then speak one silent
+ * utterance so the engine is warm by the time the first line arrives.
+ *
+ * Safe to call more than once, and does nothing where speech is absent.
+ */
+export function primeSpeech(): void {
+  if (!browserSpeechAvailable()) return;
+  try {
+    window.speechSynthesis.resume();
+    // Load the voice list now, so the first real line can be cast.
+    void whenVoicesReady();
+    // A space, at zero volume: enough to open the engine, inaudible if
+    // the browser decides to render it anyway.
+    const wake = new SpeechSynthesisUtterance(' ');
+    wake.volume = 0;
+    window.speechSynthesis.speak(wake);
+  } catch {
+    // A browser that refuses to be primed will still speak on the
+    // second attempt; this is an optimisation, not a requirement.
+  }
+}

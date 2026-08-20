@@ -22,6 +22,7 @@ import { StageConsole } from '@/components/theater/StageConsole';
 import { AbilityBar } from '@/components/theater/AbilityBar';
 import { metersFor } from '@/utils/meters';
 import { useSpokenShow } from '@/hooks/useSpokenShow';
+import { primeSpeech } from '@/utils/speech';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
@@ -435,6 +436,12 @@ const Theater: React.FC = () => {
   // Enter the start scene explicitly: the script runner initializes before the
   // game has loaded, so its internal currentSceneId starts out empty.
   const startShow = () => {
+    // START is a real user gesture, and that is the only moment a
+    // browser will let the speech engine be opened. Without this the
+    // opening line is silent and the player has to toggle mute twice to
+    // hear anything — which worked only because the second press was
+    // itself a gesture with a speak() directly behind it.
+    primeSpeech();
     scriptRunner.resetNarratonHistory();
     if (startSceneId) scriptRunner.goToScene(startSceneId);
     setHasStarted(true);
