@@ -12,6 +12,7 @@ import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { identityLine, pickIdentityRef } from '@/utils/actorIdentity';
 
 
 interface ActorEditorProps {
@@ -59,7 +60,7 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
       ? `\nDESCRIPTION: ${actor.note.trim()}\n`
       : '';
 
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    let prompt = `${identityLine(actor)}
 ${description}
 POSE & EXPRESSION:
 - Pose: ${graphic.pose}
@@ -376,7 +377,7 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
       ? `\nDESCRIPTION: ${actor.note.trim()}\n`
       : '';
 
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    let prompt = `${identityLine(actor)}
 ${description}
 POSE & EXPRESSION:
 - Pose: ${genPose}
@@ -416,6 +417,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     // Use custom prompt if edited, otherwise build from parameters
     const finalPrompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
 
+    // Identity lock. A new expression or pose must be the SAME person:
+    // the surest reference is a sprite this actor already has, so
+    // prefer one in the pose we're generating (expression change only),
+    // then any sprite, then the uploaded body reference. Without this
+    // each variant is generated from scratch and comes back as a
+    // different face and costume.
+    const identityRef = pickIdentityRef(selectedActor, genPose);
+
     try {
       const response = await fetch(
         '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
@@ -428,7 +437,10 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
             stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: selectedActor.referenceImageCloseUp,
-            referenceImageFullBody: selectedActor.referenceImageFullBody,
+            // The actor's own sprite wins over the uploaded body photo:
+            // it is already in the game's art style, so the model has
+            // less to invent and drifts less.
+            referenceImageFullBody: identityRef,
             styleGuide,
             enforceStyleGuide: styleLock && !genPrompt.trim(),
           }),

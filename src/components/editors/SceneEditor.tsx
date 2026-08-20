@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'; // Scene Editor
 import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio, AssetStatus } from '@/types';
+import { identityLine, pickIdentityRef } from '@/utils/actorIdentity';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
@@ -329,7 +330,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     
     const angleDescription = getAngleDescription(genAngle);
     
-    let prompt = `IDENTITY: Generate a character portrait of \"${actor.name}\".\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference images exactly.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+    let prompt = `${identityLine(actor)}\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference images exactly.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
     if (styleLock && !game.info.stylePack) {
       prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
@@ -429,7 +430,9 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: generatorActor.referenceImageCloseUp,
-            referenceImageFullBody: generatorActor.referenceImageFullBody,
+            // Identity lock: the actor's own sprite beats the uploaded
+            // photo, so a new expression is the same person.
+            referenceImageFullBody: pickIdentityRef(generatorActor, genPose),
             styleGuide,
             enforceStyleGuide: styleLock && !genPrompt.trim(),
           }),
