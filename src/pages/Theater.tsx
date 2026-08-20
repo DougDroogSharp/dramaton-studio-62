@@ -14,6 +14,8 @@ import { loadGameFromDB } from '@/utils/db';
 import { loadPublishedGame } from '@/utils/cloudPublish';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { AbilityPanel } from '@/components/theater/AbilityPanel';
+import { AbilitySettings, loadAbilitySettings, saveAbilitySettings } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -25,6 +27,13 @@ const Theater: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Ability settings: the player describes what they need; the runner
+  // adapts pacing, timing and motion. Persisted per browser.
+  const [ability, setAbility] = useState<AbilitySettings>(() => loadAbilitySettings());
+  const updateAbility = useCallback((next: AbilitySettings) => {
+    setAbility(next);
+    saveAbilitySettings(next);
+  }, []);
   const [hasStarted, setHasStarted] = useState(false);
   
   // Load game data
@@ -109,6 +118,7 @@ const Theater: React.FC = () => {
     game: game || createDefaultGame(),
     startSceneId,
     onAudioCommand: handleAudioCommand,
+    ability,
   });
 
   // Quote pop-ups: worldState threshold crossings fire tagged quotes
@@ -180,11 +190,36 @@ const Theater: React.FC = () => {
     }
   }, [game, isMuted, playDefaultClickSound, scriptRunner]);
 
+  // Scanning choice input: options highlight one at a time and any
+  // single input takes the highlighted one. This is what makes the
+  // game playable with one switch, one key, a sound, or a blink —
+  // and it is the only way to choose when the balloons are hidden.
+  const [scanIndex, setScanIndex] = useState(0);
+  const choiceCount = scriptRunner.state.choices?.options.length ?? 0;
+  const scanning = ability.scanChoices && choiceCount > 1;
+  useEffect(() => {
+    if (!scanning) return;
+    setScanIndex(0);
+    const id = setInterval(
+      () => setScanIndex(i => (i + 1) % choiceCount),
+      Math.max(1, ability.scanSeconds) * 1000,
+    );
+    return () => clearInterval(id);
+    // restart the sweep whenever a new choice appears
+  }, [scanning, choiceCount, ability.scanSeconds, scriptRunner.state.currentSceneId, scriptRunner.state.currentCommandIndex]);
+
   // Keyboard controls
   useEffect(() => {
     if (!hasStarted) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Scanning: ANY key takes the highlighted option
+      if (scanning) {
+        e.preventDefault();
+        scriptRunner.selectChoice(scanIndex);
+        return;
+      }
+
       // Choice selection with number keys
       if (scriptRunner.state.choices && e.key >= '1' && e.key <= '9') {
         const index = parseInt(e.key) - 1;
@@ -213,7 +248,7 @@ const Theater: React.FC = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasStarted, scriptRunner]);
+  }, [hasStarted, scriptRunner, scanning, scanIndex]);
 
   // Loading state
   if (isLoading) {
@@ -321,13 +356,21 @@ const Theater: React.FC = () => {
           </p>
         )}
         {scriptRunner.state.choices && (
-          <p>
-            {scriptRunner.state.choices.options.length === 1
-              ? scriptRunner.state.choices.options[0].text
-              : `Choose: ${scriptRunner.state.choices.options
-                  .map((o, i) => `${i + 1}. ${o.text}`)
-                  .join('. ')}`}
-          </p>
+          scanning ? (
+            // Scanning reads one option at a time; the key is the
+            // announcement, so each sweep step re-announces.
+            <p key={`scan-${scanIndex}`}>
+              {scriptRunner.state.choices.options[scanIndex]?.text}. Press any key to choose this.
+            </p>
+          ) : (
+            <p>
+              {scriptRunner.state.choices.options.length === 1
+                ? scriptRunner.state.choices.options[0].text
+                : `Choose: ${scriptRunner.state.choices.options
+                    .map((o, i) => `${i + 1}. ${o.text}`)
+                    .join('. ')}`}
+            </p>
+          )
         )}
       </div>
 
@@ -380,7 +423,7 @@ const Theater: React.FC = () => {
               onSliderChange={scriptRunner.setVariable}
             />
           )}
-          <StageDialogueLayer
+          {ability.presentation !== 'sound' && <StageDialogueLayer
             scene={currentScene}
             dialogue={
               scriptRunner.state.activeDialogue &&
@@ -392,9 +435,9 @@ const Theater: React.FC = () => {
             elementOverrides={scriptRunner.state.elementOverrides}
             onAdvance={scriptRunner.advance}
             onSelectChoice={scriptRunner.selectChoice}
-          />
+          />}
           {/* Narration as a comic caption overlaying the stage top */}
-          {scriptRunner.state.activeDialogue &&
+          {ability.presentation !== 'sound' && scriptRunner.state.activeDialogue &&
             scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[94%]" style={{ zIndex: 320 }}>
               <DialogueBox
@@ -407,7 +450,7 @@ const Theater: React.FC = () => {
           {/* Ambient narration ([NARRATE]) — the simulation describing
               itself while it runs. Sits at the stage foot so it never
               collides with the narrator caption at the top. */}
-          {scriptRunner.state.ambientNarration && (
+          {ability.presentation !== 'sound' && scriptRunner.state.ambientNarration && (
             <div
               key={scriptRunner.state.ambientNarration.id}
               className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[88%] animate-fade-in pointer-events-none"
@@ -500,11 +543,14 @@ const Theater: React.FC = () => {
           className="fixed inset-0 bg-diesel-black/90 flex items-center justify-center z-50"
           onClick={() => setShowSettings(false)}
         >
-          <div 
-            className="bg-diesel-panel border-2 border-diesel-gold p-8 max-w-md w-full mx-4"
+          <div
+            className="bg-diesel-panel border-2 border-diesel-gold p-8 max-w-md w-full mx-4 max-h-[88vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <h2 className="text-2xl text-diesel-paper font-bold mb-6 text-center">Settings</h2>
+            <div className="mb-6 pb-6 border-b border-diesel-border">
+              <AbilityPanel settings={ability} onChange={updateAbility} />
+            </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-diesel-paper">Sound</span>

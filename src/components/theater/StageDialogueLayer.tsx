@@ -19,6 +19,8 @@ interface StageDialogueLayerProps {
   // Editor mode: double-click the text to edit it in place; commits
   // write the new text back into the scene script.
   onEditText?: (oldText: string, newText: string) => void;
+  // Scanning input: index of the option currently highlighted, or null
+  scanIndex?: number | null;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -31,6 +33,7 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
   onAdvance,
   onSelectChoice,
   onEditText,
+  scanIndex,
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -197,7 +200,10 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
                 <button
                   key={i}
                   onClick={() => onSelectChoice(i)}
-                  className="w-full text-left px-3 py-2 text-diesel-black text-sm font-medium italic border-b border-diesel-steel/25 last:border-0 hover:bg-diesel-gold/30 transition-colors rounded"
+                  aria-current={scanIndex === i ? 'true' : undefined}
+                  className={`w-full text-left px-3 py-2 text-diesel-black text-sm font-medium italic border-b border-diesel-steel/25 last:border-0 hover:bg-diesel-gold/30 transition-colors rounded ${
+                    scanIndex === i ? 'bg-diesel-gold/50 ring-2 ring-diesel-rust' : ''
+                  }`}
                 >
                   <span className="text-diesel-steel mr-2 not-italic">{i + 1}.</span>
                   {option.text}

@@ -3,6 +3,7 @@ import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } fro
 import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
 import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
+import { AbilitySettings, DEFAULT_ABILITY_SETTINGS } from '@/utils/accessibility';
 
 // Properties BIND may drive on a stage element
 const BINDABLE_PROPERTIES = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'zIndex']);
@@ -148,6 +149,7 @@ interface UseScriptRunnerOptions {
   onAudioCommand?: (type: 'bgm' | 'ambience' | 'sfx', name: string, options: { loop?: boolean; volume?: number }) => void;
   textSpeed?: number; // Characters per second
   autoAdvanceDelay?: number; // ms delay after dialogue completes in auto mode
+  ability?: AbilitySettings; // player's declared needs; adapts pacing/timing/motion
 }
 
 export function useScriptRunner({
@@ -157,7 +159,12 @@ export function useScriptRunner({
   onAudioCommand,
   textSpeed = 100,
   autoAdvanceDelay = 1500,
+  ability = DEFAULT_ABILITY_SETTINGS,
 }: UseScriptRunnerOptions) {
+  // Read through a ref so command execution always sees the current
+  // settings, even mid-scene when the player changes them.
+  const abilityRef = useRef(ability);
+  abilityRef.current = ability;
   const [state, setState] = useState<ScriptRunnerState>(() => ({
     currentSceneId: startSceneId,
     currentCommandIndex: 0,
@@ -413,6 +420,20 @@ export function useScriptRunner({
 
         if (!isNarrator) return false; // wait for user to advance
 
+        // The player's text speed wins over the game's. 0 means "show
+        // it whole" — no typing out, for readers who need the words to
+        // stand still.
+        const speed = abilityRef.current.textSpeed;
+        if (speed <= 0) {
+          setState(prev => ({
+            ...prev,
+            activeDialogue: prev.activeDialogue
+              ? { ...prev.activeDialogue, displayedText: spokenText, isComplete: true }
+              : null,
+          }));
+          return false;
+        }
+
         // Start typewriter effect (narration only)
         let charIndex = 0;
         typewriterRef.current = setInterval(() => {
@@ -432,8 +453,8 @@ export function useScriptRunner({
           if (isComplete && typewriterRef.current) {
             clearInterval(typewriterRef.current);
           }
-        }, 1000 / textSpeed);
-        
+        }, 1000 / speed);
+
         return false; // Wait for user to advance
       }
       
@@ -504,7 +525,9 @@ export function useScriptRunner({
             : undefined;
           const walk1s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk1') ?? [];
           const walk2s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk2') ?? [];
-          if (movingEl && walk1s.length > 0 && walk2s.length > 0) {
+          // Reduced motion: no flip-book stride (the sprite still
+          // travels, it just doesn't animate its legs)
+          if (movingEl && walk1s.length > 0 && walk2s.length > 0 && !abilityRef.current.reduceMotion) {
             const elId = movingEl.id;
             // Nearest-angle pick (screen coords, y down; clockwise from
             // "facing right"). Actors with only angle-0 frames always
@@ -587,7 +610,9 @@ export function useScriptRunner({
         // Non-blocking: set the target and let CSS animate it. Two
         // renders (duration first, then value) so the transition
         // duration is in place before the property changes.
-        const { elementId, property, value, duration } = command;
+        // Reduced motion: land on the value without travelling there.
+        const { elementId, property, value } = command;
+        const duration = abilityRef.current.reduceMotion ? 0 : command.duration;
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(elementId) || {};
@@ -680,7 +705,8 @@ export function useScriptRunner({
             zoom,
             x: x ?? prev.camera?.x ?? 50,
             y: y ?? prev.camera?.y ?? 50,
-            duration: command.duration,
+            // Reduced motion: cut instead of moving the camera
+            duration: abilityRef.current.reduceMotion ? 0 : command.duration,
             ...(command.follow ? { follow: command.follow } : {}),
           },
         }));
@@ -790,8 +816,10 @@ export function useScriptRunner({
           ...prev,
           choices: { options: available },
         }));
-        // Timed choice: hesitate and the world decides for you.
-        if (command.timeout) {
+        // Timed choice: hesitate and the world decides for you — unless
+        // the player has asked for no time limits (WCAG 2.2.1), in
+        // which case the choice simply waits.
+        if (command.timeout && !abilityRef.current.noTimeLimits) {
           const { seconds, target } = command.timeout;
           choiceTimeoutRef.current = setTimeout(() => {
             choiceTimeoutRef.current = null;
@@ -875,7 +903,7 @@ export function useScriptRunner({
           setState(prev => (prev.ambientNarration?.id === id
             ? { ...prev, ambientNarration: null }
             : prev));
-        }, Math.max(500, (command.seconds ?? 4) * 1000));
+        }, Math.max(500, (command.seconds ?? 4) * 1000 * Math.max(0.25, abilityRef.current.readingTime)));
         return true;
       }
 
