@@ -14,34 +14,29 @@ import { MachineDiagram } from './MachineDiagram';
 //
 // LANDSCAPE — switched on ORIENTATION, not width. A phone held sideways
 // is 800px wide and 390px tall: wide enough to pass a width breakpoint,
-// far too short to stack a 356px console under a stage. It got no stage
-// at all. An iPad upright is 768px wide and must stack. Width cannot
-// tell those two apart; aspect ratio can.
-// Stacking the console UNDER the stage on a wide screen throws away the
-// whole width and squeezes the picture into a strip. So the console
-// stands beside the stage instead, and the stage gets the room:
+// far too short to stack a console under a stage. An iPad upright is
+// 768px wide and must stack. Width cannot tell those apart; aspect
+// ratio can.
 //
-//   ┌───────────────────────────┬──────────────┐
-//   │                           │   meters     │
-//   │   stage — 16:9, as big    ├──────────────┤
-//   │   as the window allows    │   abilities  │
-//   │                           ├──────────────┤
-//   │                           │  speaker     │
-//   │                           │  line        │
-//   │                           │  choices     │
-//   └───────────────────────────┴──────────────┘
+// The words sit DIRECTLY under the picture in both layouts. Anything
+// between them — a diagram, a row of gauges — makes the reader hunt.
 //
-// PORTRAIT (phone or iPad upright) falls back to the stack, where
-// vertical space is the thing there is more of:
+//   ┌───────────────────────┬────────────┐
+//   │  stage                │  machine   │
+//   │                       │  meters    │
+//   ├───────────────────────┤  abilities │
+//   │  speaker · line ·     │            │
+//   │  choices              │            │
+//   └───────────────────────┴────────────┘
+//
+// PORTRAIT (phone or iPad upright) stacks the same two columns:
 //
 //   ┌──────────────────────────────┐
-//   │   stage — 16:9               │
-//   ├──────────────────────────────┤
-//   │   meters                     │
-//   ├──────────────────────────────┤
-//   │   abilities                  │
+//   │   stage                      │
 //   ├──────────────────────────────┤
 //   │   speaker · line · choices   │
+//   ├──────────────────────────────┤
+//   │   machine / meters / rail    │
 //   └──────────────────────────────┘
 
 interface StageConsoleProps {
@@ -109,6 +104,13 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
       className={`w-full h-full flex flex-col [@media(min-aspect-ratio:1/1)]:flex-row ${skin.shell} ${moodClass}`}
       style={skin.shellStyle}
     >
+      {/* THE MAIN COLUMN — the show itself: the picture, and the words
+          directly beneath it. The instruments live in their own column
+          beside (landscape) or below (portrait), so nothing ever comes
+          between what the player is looking at and what they are
+          reading. */}
+      <div className="flex-1 min-w-0 flex flex-col">
+
       {/* THE STAGE — never changes size for any reason.
           It is also the advance target. On a touchscreen there is no
           space bar and no click-the-sentence: tapping the picture is the
@@ -175,59 +177,6 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
         )}
       </div>
 
-      {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
-          narrow one. Fixed width when it stands beside, so the stage gets
-          every pixel left over and never has to guess. */}
-      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20 [@media(max-aspect-ratio:1/1)]:flex-1 [@media(max-aspect-ratio:1/1)]:min-h-0 [@media(max-aspect-ratio:1/1)]:overflow-y-auto">
-
-      {/* THE MACHINE, RUNNING — the mechanism under the scene. The
-          gauges say a number moved; this says what it feeds. Fixed
-          height, like every region of this cabinet. */}
-      <div
-        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} ${skin.label} px-3 py-1 shrink-0`}
-        style={{ height: '118px' }}
-      >
-        <MachineDiagram rows={meterRows} />
-      </div>
-
-      {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
-      <div
-        className={`${skin.divider} ${skin.shelf} overflow-y-auto shrink-0`}
-        style={{ height: '132px' }}
-      >
-        {showMeters ? (
-          <MeterPanel
-            rows={meterRows}
-            worldState={worldState}
-            moneyFormat={moneyFormat}
-            maxRows={3}
-            // The cabinet decides which era's instruments get drawn:
-            // linen dials for William, brass for Leopold, and so on.
-            frame={frame}
-          />
-        ) : (
-          <div className={`h-full flex items-center justify-center opacity-40 text-[10px] uppercase tracking-[0.3em] ${skin.label}`}>
-            instruments off
-          </div>
-        )}
-      </div>
-
-      {/* THE ABILITY RAIL — five switches on the cabinet itself, so the
-          adjustments you make BECAUSE OF what is happening right now do
-          not require stopping the show and opening a drawer. Fixed
-          height, like everything else here. */}
-      {abilityBar && (
-        <div
-          // skin.label is what gives the switches a colour: they draw
-          // themselves in `currentColor` so they suit any cabinet, which
-          // means they are INVISIBLE unless the rail sets one.
-          className={`${skin.divider} ${skin.shelf} ${skin.label} px-3 py-1 flex items-center shrink-0 overflow-hidden`}
-          style={{ height: '62px' }}
-        >
-          {abilityBar}
-        </div>
-      )}
-
       {/* THE SPEAKING PLATE — fixed height; an empty plate is correct.
           Everything said and every choice offered happens here, in one
           place, at one size. No balloons over the stage: the picture is
@@ -235,10 +184,10 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           needs large text or a screen reader gets one predictable region
           instead of text scattered across the art. */}
       <div
-        // Beside the stage it takes whatever height is left (flex-1);
-        // stacked beneath, it keeps its reserved 188px so nothing on
-        // screen moves when a line or a choice arrives.
-        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto h-[188px] [@media(min-aspect-ratio:1/1)]:h-auto [@media(min-aspect-ratio:1/1)]:flex-1 [@media(min-aspect-ratio:1/1)]:min-h-0`}
+        // Directly under the stage now, in both orientations: the words
+        // belong next to the picture. Fixed 188px either way, so the
+        // stage takes any slack and nothing moves when a line arrives.
+        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto h-[188px] shrink-0`}
         // The plate advances on tap too, so a reader whose eyes are on
         // the words does not have to reach back up to the picture.
         onClick={(e) => {
@@ -308,6 +257,62 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           </div>
         )}
       </div>
+      </div>
+
+
+      {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
+          narrow one. Fixed width when it stands beside, so the stage gets
+          every pixel left over and never has to guess. */}
+      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20 [@media(max-aspect-ratio:1/1)]:flex-1 [@media(max-aspect-ratio:1/1)]:min-h-0 [@media(max-aspect-ratio:1/1)]:overflow-y-auto">
+
+      {/* THE MACHINE, RUNNING — the mechanism under the scene. The
+          gauges say a number moved; this says what it feeds. Fixed
+          height, like every region of this cabinet. */}
+      <div
+        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} ${skin.label} px-3 py-1 shrink-0`}
+        style={{ height: '182px' }}
+      >
+        <MachineDiagram rows={meterRows} worldState={worldState} />
+      </div>
+
+      {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
+      <div
+        className={`${skin.divider} ${skin.shelf} overflow-y-auto shrink-0`}
+        style={{ height: '132px' }}
+      >
+        {showMeters ? (
+          <MeterPanel
+            rows={meterRows}
+            worldState={worldState}
+            moneyFormat={moneyFormat}
+            maxRows={3}
+            // The cabinet decides which era's instruments get drawn:
+            // linen dials for William, brass for Leopold, and so on.
+            frame={frame}
+          />
+        ) : (
+          <div className={`h-full flex items-center justify-center opacity-40 text-[10px] uppercase tracking-[0.3em] ${skin.label}`}>
+            instruments off
+          </div>
+        )}
+      </div>
+
+      {/* THE ABILITY RAIL — five switches on the cabinet itself, so the
+          adjustments you make BECAUSE OF what is happening right now do
+          not require stopping the show and opening a drawer. Fixed
+          height, like everything else here. */}
+      {abilityBar && (
+        <div
+          // skin.label is what gives the switches a colour: they draw
+          // themselves in `currentColor` so they suit any cabinet, which
+          // means they are INVISIBLE unless the rail sets one.
+          className={`${skin.divider} ${skin.shelf} ${skin.label} px-3 py-1 flex items-center shrink-0 overflow-hidden`}
+          style={{ height: '62px' }}
+        >
+          {abilityBar}
+        </div>
+      )}
+
       </div>
     </div>
   );

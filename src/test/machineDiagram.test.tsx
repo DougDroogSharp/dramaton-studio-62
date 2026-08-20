@@ -22,8 +22,8 @@ describe('the Machine diagram', () => {
       <MachineDiagram rows={[row('rent', 10, 30, 1), row('wages', 40, 22, 2)]} />
     );
     const label = container.querySelector('svg')!.getAttribute('aria-label')!;
-    expect(label).toMatch(/Rent rising/);
-    expect(label).toMatch(/Wages falling/);
+    expect(label).toMatch(/RENT rising/);
+    expect(label).toMatch(/WAGES falling/);
   });
 
   it('ignores a variable that belongs to no node', () => {
@@ -43,7 +43,7 @@ describe('the Machine diagram', () => {
     const { container } = render(
       <MachineDiagram rows={[row('rent', 10, 30, 1), row('rent', 30, 12, 2)]} />
     );
-    expect(container.querySelector('svg')!.getAttribute('aria-label')).toMatch(/Rent falling/);
+    expect(container.querySelector('svg')!.getAttribute('aria-label')).toMatch(/RENT falling/);
   });
 });
 
@@ -62,5 +62,42 @@ describe('the why box', () => {
     // would be inventing a causal claim the model did not make.
     const { container } = render(<MachineDiagram rows={[row('rent', 5, 20, 1)]} />);
     expect(container.querySelector('p')).toBeNull();
+  });
+});
+
+describe('every node is a gauge', () => {
+  it('reads its own live value and says it aloud', () => {
+    // Doug: "Every node is a guage and is labelled." A node that only
+    // lit up said something changed but never how much.
+    const { container } = render(
+      <MachineDiagram
+        rows={[row('rent', 10, 40, 1)]}
+        worldState={{ rent: 40, hoard: 12, wages: 25, shared: 25, land: 60 }}
+      />
+    );
+    const label = container.querySelector('svg')!.getAttribute('aria-label')!;
+    expect(label).toMatch(/RENT rising, now 40/);
+  });
+
+  it('labels every node, moved or not', () => {
+    const { getByText } = render(<MachineDiagram rows={[]} worldState={{}} />);
+    for (const name of ['LAND', 'RENT', 'HOARD', 'WAGES', 'SHARED']) {
+      expect(getByText(name), `${name} has no label`).toBeTruthy();
+    }
+  });
+
+  it('draws no needle for a variable the game does not track', () => {
+    // A dial with no reading must show an empty face rather than a
+    // needle pinned at zero, which would be a claim the model never made.
+    const { container } = render(<MachineDiagram rows={[]} worldState={{}} />);
+    expect(container.querySelectorAll('line').length).toBe(0);
+  });
+
+  it('pins rather than spins when a value runs past its scale', () => {
+    // hoard is unbounded in the model but the dial is 0-100.
+    const { container } = render(
+      <MachineDiagram rows={[]} worldState={{ hoard: 999999 }} />
+    );
+    expect(container.querySelectorAll('line').length).toBe(1);
   });
 });
