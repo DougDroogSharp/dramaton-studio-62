@@ -28,7 +28,6 @@ export type ScriptCommandType =
   | 'GOTO'
   | 'TWEEN'
   | 'BACKDROP'
-  | 'FACE'
   | 'CAMERA'
   | 'TICK'
   | 'BIND'
@@ -201,13 +200,6 @@ export interface BackdropCommand {
   duration: number; // seconds (0 = instant)
 }
 
-// Flip a sprite horizontally so it faces the other way.
-export interface FaceCommand {
-  type: 'FACE';
-  elementId: string;
-  direction: 'left' | 'right';
-}
-
 // Camera: named shot presets (the 1986 SHOT0/1/2) or free zoom/pan.
 export interface CameraCommand {
   type: 'CAMERA';
@@ -358,7 +350,6 @@ export type ScriptCommand =
   | GotoCommand
   | TweenCommand
   | BackdropCommand
-  | FaceCommand
   | CameraCommand
   | TickCommand
   | BindCommand
@@ -633,16 +624,6 @@ function parseLine(line: string): ScriptCommand | null {
         type: 'BACKDROP',
         dropId: backdropMatch[1],
         duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
-      };
-    }
-
-    // FACE element left|right
-    const faceMatch = content.match(/^FACE\s+(\w+)\s+(left|right)$/i);
-    if (faceMatch) {
-      return {
-        type: 'FACE',
-        elementId: faceMatch[1],
-        direction: faceMatch[2].toLowerCase() as 'left' | 'right',
       };
     }
 
@@ -1153,8 +1134,6 @@ export function commandToString(cmd: ScriptCommand): string {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       return `[BACKDROP ${cmd.dropId} over ${dur}]`;
     }
-    case 'FACE':
-      return `[FACE ${cmd.elementId} ${cmd.direction}]`;
     case 'CAMERA': {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       let body: string;

@@ -17,14 +17,11 @@ describe('staging commands: parsing', () => {
     });
   });
 
-  it('parses BACKDROP, FACE and CAMERA forms', () => {
+  it('parses BACKDROP and CAMERA forms', () => {
     expect(parseScript('[BACKDROP wm_village over 2s]')[0]).toEqual({
       type: 'BACKDROP', dropId: 'wm_village', duration: 2,
     });
     expect(parseScript('[BACKDROP wm_village]')[0]).toMatchObject({ duration: 0 });
-    expect(parseScript('[FACE king left]')[0]).toEqual({
-      type: 'FACE', elementId: 'king', direction: 'left',
-    });
     expect(parseScript('[CAMERA shot closeup on king over 1.5s]')[0]).toEqual({
       type: 'CAMERA', shot: 'closeup', targetId: 'king', duration: 1.5,
     });
@@ -35,11 +32,10 @@ describe('staging commands: parsing', () => {
     expect(parseScript('[CAMERA reset]')[0]).toMatchObject({ shot: 'reset' });
   });
 
-  it('round-trips all four', () => {
+  it('round-trips all three', () => {
     const src = [
       '[TWEEN boss.scale to 3 over 2s]',
       '[BACKDROP wm_village over 2s]',
-      '[FACE king left]',
       '[CAMERA shot closeup on king over 1.5s]',
     ].join('\n');
     expect(commandsToScript(parseScript(src))).toBe(src);
@@ -80,12 +76,6 @@ describe('staging commands: execution', () => {
     expect(result.current.state.elementOverrides.get('king')).toMatchObject({
       scale: 3, transitionDuration: 2,
     });
-  });
-
-  it('FACE flips the sprite', () => {
-    const game = run('[FACE king left]');
-    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
-    expect(result.current.state.elementOverrides.get('king')?.flipX).toBe(true);
   });
 
   it('BACKDROP swaps to a real drop and warns on unknown ids', () => {

@@ -563,16 +563,6 @@ export function useScriptRunner({
         return true;
       }
 
-      case 'FACE': {
-        setState(prev => {
-          const overrides = new Map(prev.elementOverrides);
-          const existing = overrides.get(command.elementId) || {};
-          overrides.set(command.elementId, { ...existing, flipX: command.direction === 'left' });
-          return { ...prev, elementOverrides: overrides };
-        });
-        return true;
-      }
-
       case 'BACKDROP': {
         if (!game.drops?.some(d => d.id === command.dropId)) {
           warnOnce(`BACKDROP ${command.dropId}: no such drop; keeping the current backdrop`);

@@ -60,7 +60,6 @@ export interface StageElement {
   pose?: string;
   expression?: string;
   spriteAngle?: number;
-  flipX?: boolean;   // FACE: mirror the sprite horizontally
   activeSfx?: string[];
   text?: string;
   balloonType?: 'SPEECH' | 'THOUGHT';

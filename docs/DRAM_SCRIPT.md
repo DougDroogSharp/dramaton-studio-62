@@ -214,26 +214,6 @@ Swaps the scene backdrop without changing scenes, crossfading over the given dur
 [BACKDROP wm_village_burnt over 2s]
 ```
 
-#### `FACE`
-
-Mirrors a sprite horizontally so it faces the other way — turn a speaker toward whoever they are addressing without drawing mirrored art.
-
-**Syntax:**
-```
-[FACE element left|right]
-```
-
-**Parameters:**
-| Name | Type | Description |
-|------|------|-------------|
-| `element` | string | Stage element id |
-| `direction` | string | left or right |
-
-**Example:**
-```
-[FACE h_william left]
-```
-
 #### `CAMERA`
 
 Moves the camera over the stage. Named shots are the 1986 King of Chicago cuts: wide (full stage), two (a two-shot), closeup (push in) — add "on element" to center them. Free form takes an explicit zoom factor and optional focus point. "follow element" tracks a moving element continuously (pairs with MOVE walk cycles). "reset" returns to the full stage.
@@ -1014,7 +994,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **39 commands documented**
+✅ **38 commands documented**
 
 ---
 

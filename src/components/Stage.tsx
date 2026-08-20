@@ -153,7 +153,7 @@ export const Stage: React.FC<StageProps> = ({
         style={{
           left: `${el.x}%`,
           top: `${el.y}%`,
-          transform: `translate(-50%, -50%) scale(${el.flipX ? -el.scale : el.scale}, ${el.scale}) rotate(${el.rotation}deg)`,
+          transform: `translate(-50%, -50%) scale(${el.scale}) rotate(${el.rotation}deg)`,
           zIndex: draggingId === element.id ? 1000 : el.zIndex,
           ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
           // MOVE animates at its scripted duration; ENTER snaps (0)

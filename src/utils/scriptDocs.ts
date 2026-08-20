@@ -424,18 +424,6 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
-    type: 'FACE',
-    category: 'actor',
-    syntax: '[FACE element left|right]',
-    description: 'Mirrors a sprite horizontally so it faces the other way — turn a speaker toward whoever they are addressing without drawing mirrored art.',
-    parameters: [
-      { name: 'element', type: 'string', description: 'Stage element id' },
-      { name: 'direction', type: 'string', description: 'left or right' },
-    ],
-    example: '[FACE h_william left]',
-    implemented: true,
-  },
-  {
     type: 'CAMERA',
     category: 'actor',
     syntax: '[CAMERA shot wide|closeup|two [on element] [over duration]]  |  [CAMERA zoom 1.5 [at x,y] [over duration]]  |  [CAMERA follow element]  |  [CAMERA reset]',
@@ -643,7 +631,6 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
   { type: 'TWEEN', label: 'TWEEN', insertText: 'TWEEN ', description: 'Animate scale/rotation/opacity/position' },
   { type: 'BACKDROP', label: 'BACKDROP', insertText: 'BACKDROP ', description: 'Crossfade the backdrop mid-scene' },
-  { type: 'FACE', label: 'FACE', insertText: 'FACE ', description: 'Flip a sprite to face left/right' },
   { type: 'CAMERA', label: 'CAMERA', insertText: 'CAMERA ', description: 'Shots, zoom, pan, follow' },
   { type: 'LABEL', label: 'LABEL', insertText: 'LABEL ', description: 'Named jump target' },
   { type: 'GOTO', label: 'GOTO', insertText: 'GOTO ', description: 'Jump to a label in this scene' },
@@ -663,7 +650,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {
   const allTypes: ScriptCommandType[] = [
-    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'FACE', 'CAMERA',
+    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'CAMERA',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',
