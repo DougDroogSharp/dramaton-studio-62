@@ -2,6 +2,7 @@ import React from 'react';
 import { MeterMeaning } from '@/types';
 import { interpolateWithMoney } from '@/utils/interpolate';
 import { WorldVars } from '@/utils/expression';
+import { WealthGauge } from './WealthGauge';
 
 // The model, showing its work.
 //
@@ -40,8 +41,22 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
     );
   }
 
-  const shown = [...rows].sort((a, b) => b.seq - a.seq).slice(0, maxRows);
-  const newest = shown[0];
+  // HOARD and SHARED are one fact divided, so they collapse into a
+  // single dial with two needles — the gap between them is the point,
+  // and two separate bars hide it.
+  const hoardRow = rows.find(r => r.meaning.variable === 'hoard');
+  const sharedRow = rows.find(r => r.meaning.variable === 'shared');
+  const showWealth = !!(hoardRow && sharedRow);
+  const wealthLit = showWealth &&
+    Math.max(hoardRow!.seq, sharedRow!.seq) === Math.max(...rows.map(r => r.seq));
+
+  const rest = showWealth
+    ? rows.filter(r => r.meaning.variable !== 'hoard' && r.meaning.variable !== 'shared')
+    : rows;
+
+  const shown = [...rest].sort((a, b) => b.seq - a.seq).slice(0, maxRows);
+  // Commentary still follows whatever moved last, wealth included.
+  const newest = [...rows].sort((a, b) => b.seq - a.seq)[0];
   const rising = newest.to > newest.from;
   const harm = newest.meaning.risingIsHarm === undefined
     ? undefined
@@ -49,7 +64,18 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
 
   return (
     <div className="w-full">
-      <div className="grid gap-1.5 px-3 pt-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex gap-2 px-3 pt-2">
+        {showWealth && (
+          <div className="shrink-0 flex items-center">
+            <WealthGauge
+              hoard={hoardRow!.to}
+              shared={sharedRow!.to}
+              lit={wealthLit}
+              size={104}
+            />
+          </div>
+        )}
+        <div className="flex-1 grid gap-1.5 sm:grid-cols-2 min-w-0">
         {shown.map((row, i) => {
           const min = row.meaning.min ?? 0;
           const max = row.meaning.max ?? 100;
@@ -108,6 +134,7 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Commentary: what the newest movement MEANS. */}
