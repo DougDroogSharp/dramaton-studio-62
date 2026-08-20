@@ -307,6 +307,25 @@ const Theater: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hasStarted, scriptRunner, scanning, scanIndex]);
 
+  // Meter rows: only variables this scene has actually moved AND that
+  // we can explain. An unmoved or unexplained gauge is noise.
+  //
+  // This MUST stay above the early returns below. It used to sit down
+  // beside the render that uses it, which meant the title screen ran
+  // one fewer hook than the playing screen — so the click on START
+  // crashed React with "Rendered more hooks than during the previous
+  // render." Hooks run unconditionally or not at all.
+  const meterRows: MeterRow[] = React.useMemo(() => {
+    if (!game) return [];
+    const known = metersFor(game.meters);
+    const rows: MeterRow[] = [];
+    for (const [variable, move] of scriptRunner.state.meterMoves) {
+      const meaning = known.get(variable);
+      if (meaning) rows.push({ meaning, from: move.from, to: move.to, seq: move.seq });
+    }
+    return rows;
+  }, [scriptRunner.state.meterMoves, game]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -402,18 +421,6 @@ const Theater: React.FC = () => {
     ? game.drops.find(d => d.id === currentScene.dropId) 
     : undefined;
   
-  // Meter rows: only variables this scene has actually moved AND that
-  // we can explain. An unmoved or unexplained gauge is noise.
-  const meterRows: MeterRow[] = React.useMemo(() => {
-    const known = metersFor(game.meters);
-    const rows: MeterRow[] = [];
-    for (const [variable, move] of scriptRunner.state.meterMoves) {
-      const meaning = known.get(variable);
-      if (meaning) rows.push({ meaning, from: move.from, to: move.to, seq: move.seq });
-    }
-    return rows;
-  }, [scriptRunner.state.meterMoves, game.meters]);
-
   // Find actor for dialogue
   const dialogueActor = scriptRunner.state.activeDialogue?.actorId
     ? game.actors.find(a => a.id === scriptRunner.state.activeDialogue?.actorId)
