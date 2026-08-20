@@ -33,6 +33,10 @@ interface StageConsoleProps {
   narrationKey?: string | number;
   /** Which cabinet: diesel | linen | brass | amiga | flat. */
   frame?: string;
+  /** Content for the drawer that rises over the stage; null = closed. */
+  drawer?: React.ReactNode;
+  drawerTitle?: string;
+  onCloseDrawer?: () => void;
 }
 
 export const StageConsole: React.FC<StageConsoleProps> = ({
@@ -44,12 +48,49 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   narration,
   narrationKey,
   frame,
+  drawer,
+  drawerTitle,
+  onCloseDrawer,
 }) => {
   const skin = frameFor(frame);
   return (
     <div className={`w-full ${skin.shell}`} style={skin.shellStyle}>
       {/* THE STAGE — never changes size for any reason */}
-      <div className="relative">{children}</div>
+      <div className="relative overflow-hidden">
+        {children}
+
+        {/* The drawer rises out of the console and covers the stage.
+            The show is still there behind it, and closing it puts
+            everything back exactly where it was — no modal, no blanked
+            screen, no layout moved. */}
+        {drawer && (
+          <div
+            className="absolute inset-0 flex flex-col animate-drawer-up"
+            style={{ zIndex: 400 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={drawerTitle ?? 'Settings'}
+          >
+            <div
+              className={`flex items-center justify-between px-4 py-2 ${skin.divider} ${skin.plate}`}
+            >
+              <span className={`text-[11px] uppercase tracking-[0.25em] ${skin.label}`}>
+                {drawerTitle ?? 'Settings'}
+              </span>
+              <button
+                onClick={onCloseDrawer}
+                autoFocus
+                className={`px-3 py-1 text-xs uppercase tracking-widest border ${skin.label} hover:opacity-100 opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-diesel-gold`}
+              >
+                Close
+              </button>
+            </div>
+            <div className={`flex-1 overflow-y-auto px-4 py-3 ${skin.shelf}`}>
+              {drawer}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
       <div

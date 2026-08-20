@@ -296,3 +296,16 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-meter-lit { animation: none; }
 }
+
+
+/* The settings drawer rises out of the console over the stage, rather
+   than a modal blanking the screen — the show stays visible behind it. */
+@keyframes drawer-up {
+  from { transform: translateY(100%); opacity: .6; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-drawer-up { animation: drawer-up .28s cubic-bezier(.2,.8,.3,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drawer-up { animation: none; }
+}

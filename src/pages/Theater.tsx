@@ -482,6 +482,45 @@ const Theater: React.FC = () => {
               : null)
           }
           narrationKey={scriptRunner.state.ambientNarration?.id ?? scriptRunner.state.currentCommandIndex}
+          drawerTitle="Settings"
+          onCloseDrawer={() => setShowSettings(false)}
+          drawer={showSettings ? (
+            <div className="space-y-5">
+              <button
+                onClick={() => {
+                  setOnboardingFirstRun(false);
+                  setShowSettings(false);
+                  setShowOnboarding(true);
+                }}
+                className="w-full px-3 py-2 border border-diesel-gold/60 text-diesel-gold text-xs uppercase tracking-widest hover:bg-diesel-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-diesel-gold"
+              >
+                Change how you play
+              </button>
+
+              <AbilityPanel settings={ability} onChange={updateAbility} />
+
+              <div className="space-y-3 border-t border-diesel-border pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-diesel-paper text-sm">Sound</span>
+                  <button
+                    onClick={() => setIsMuted(!isMuted)}
+                    className={`px-4 py-1.5 border text-xs uppercase ${isMuted ? 'border-diesel-rust text-diesel-rust' : 'border-diesel-green text-diesel-green'}`}
+                  >
+                    {isMuted ? 'Muted' : 'On'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-diesel-paper text-sm">Auto-play</span>
+                  <button
+                    onClick={scriptRunner.toggleAutoPlay}
+                    className={`px-4 py-1.5 border text-xs uppercase ${scriptRunner.state.isAutoPlay ? 'border-diesel-green text-diesel-green' : 'border-diesel-steel text-diesel-steel'}`}
+                  >
+                    {scriptRunner.state.isAutoPlay ? 'On' : 'Off'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         >
           {currentScene && (
             <Stage
@@ -601,58 +640,8 @@ const Theater: React.FC = () => {
       )}
       
       {/* Settings overlay (placeholder) */}
-      {showSettings && (
-        <div 
-          className="fixed inset-0 bg-diesel-black/90 flex items-center justify-center z-50"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="bg-diesel-panel border-2 border-diesel-gold p-8 max-w-md w-full mx-4 max-h-[88vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <h2 className="text-2xl text-diesel-paper font-bold mb-6 text-center">Settings</h2>
-            <div className="mb-6 pb-6 border-b border-diesel-border">
-              <button
-                onClick={() => {
-                  setOnboardingFirstRun(false);
-                  setShowSettings(false);
-                  setShowOnboarding(true);
-                }}
-                className="w-full mb-4 px-3 py-2 border border-diesel-gold/60 text-diesel-gold text-xs uppercase tracking-widest hover:bg-diesel-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-diesel-gold"
-              >
-                Change how you play
-              </button>
-              <AbilityPanel settings={ability} onChange={updateAbility} />
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-diesel-paper">Sound</span>
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className={`px-4 py-2 border ${isMuted ? 'border-diesel-rust text-diesel-rust' : 'border-diesel-green text-diesel-green'}`}
-                >
-                  {isMuted ? 'Muted' : 'On'}
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-diesel-paper">Auto-Play</span>
-                <button
-                  onClick={scriptRunner.toggleAutoPlay}
-                  className={`px-4 py-2 border ${scriptRunner.state.isAutoPlay ? 'border-diesel-green text-diesel-green' : 'border-diesel-steel text-diesel-steel'}`}
-                >
-                  {scriptRunner.state.isAutoPlay ? 'On' : 'Off'}
-                </button>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full mt-6 py-3 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold font-bold uppercase hover:bg-diesel-gold/30"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Settings now rise as a drawer out of the console, over the
+          stage — see StageConsole. No modal blanks the show. */}
     </div>
   );
 };
