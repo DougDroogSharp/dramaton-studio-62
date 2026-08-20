@@ -15,7 +15,8 @@
     "build:machine": "node scripts/build-machine-toy.mjs",
     "build:campaign": "node scripts/build-campaign.mjs",
     "build:artdemo": "node scripts/build-art-demo.mjs",
-    "gen:art": "node scripts/generate-art.mjs"
+    "gen:art": "node scripts/generate-art.mjs",
+    "docs:dram:html": "tsx src/utils/generateDramReference.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
