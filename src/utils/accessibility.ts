@@ -80,6 +80,27 @@ export function loadAbilitySettings(): AbilitySettings {
   }
 }
 
+const ONBOARDED_KEY = 'dramaton.ability.onboarded';
+
+/** Has this player been through the "how do you want to play?" screen? */
+export function hasOnboarded(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    return localStorage.getItem(ONBOARDED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markOnboarded(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(ONBOARDED_KEY, '1');
+  } catch {
+    /* storage disabled — they'll simply see it again */
+  }
+}
+
 export function saveAbilitySettings(settings: AbilitySettings): void {
   if (typeof localStorage === 'undefined') return;
   try {

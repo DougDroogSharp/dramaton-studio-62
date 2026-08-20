@@ -15,7 +15,8 @@ import { loadPublishedGame } from '@/utils/cloudPublish';
 import { DramatonLogo } from '@/components/DramatonLogo';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { AbilityPanel } from '@/components/theater/AbilityPanel';
-import { AbilitySettings, loadAbilitySettings, saveAbilitySettings } from '@/utils/accessibility';
+import { AbilityOnboarding } from '@/components/theater/AbilityOnboarding';
+import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -35,6 +36,14 @@ const Theater: React.FC = () => {
     saveAbilitySettings(next);
   }, []);
   const [hasStarted, setHasStarted] = useState(false);
+  // Onboarding is the front door, not a buried menu: every player is
+  // asked how they want to play before the first game.
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
+  const [onboardingFirstRun, setOnboardingFirstRun] = useState(() => !hasOnboarded());
+  const finishOnboarding = useCallback(() => {
+    markOnboarded();
+    setShowOnboarding(false);
+  }, []);
   
   // Load game data
   useEffect(() => {
@@ -292,6 +301,19 @@ const Theater: React.FC = () => {
   };
 
   // Title screen (before starting)
+  // The access question comes before the title card — everyone answers
+  // it, so nobody has to go looking for a special menu.
+  if (showOnboarding) {
+    return (
+      <AbilityOnboarding
+        settings={ability}
+        onChange={updateAbility}
+        onDone={finishOnboarding}
+        firstRun={onboardingFirstRun}
+      />
+    );
+  }
+
   if (!hasStarted) {
     return (
       <div className="min-h-screen bg-diesel-black flex items-center justify-center">
@@ -549,6 +571,16 @@ const Theater: React.FC = () => {
           >
             <h2 className="text-2xl text-diesel-paper font-bold mb-6 text-center">Settings</h2>
             <div className="mb-6 pb-6 border-b border-diesel-border">
+              <button
+                onClick={() => {
+                  setOnboardingFirstRun(false);
+                  setShowSettings(false);
+                  setShowOnboarding(true);
+                }}
+                className="w-full mb-4 px-3 py-2 border border-diesel-gold/60 text-diesel-gold text-xs uppercase tracking-widest hover:bg-diesel-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-diesel-gold"
+              >
+                Change how you play
+              </button>
               <AbilityPanel settings={ability} onChange={updateAbility} />
             </div>
             <div className="space-y-4">

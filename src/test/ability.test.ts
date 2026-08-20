@@ -8,6 +8,8 @@ import {
   AbilitySettings,
   loadAbilitySettings,
   saveAbilitySettings,
+  hasOnboarded,
+  markOnboarded,
 } from '@/utils/accessibility';
 
 // Ability settings change execution at the source: the runner reads
@@ -131,6 +133,24 @@ describe('ability presets and persistence', () => {
 
     localStorage.setItem('dramaton.ability', 'not json');
     expect(loadAbilitySettings().presentation).toBe('both');
+    localStorage.removeItem('dramaton.ability');
+  });
+});
+
+describe('onboarding gate', () => {
+  afterEach(() => localStorage.removeItem('dramaton.ability.onboarded'));
+
+  it('is unseen until marked, then stays seen', () => {
+    expect(hasOnboarded()).toBe(false);
+    markOnboarded();
+    expect(hasOnboarded()).toBe(true);
+  });
+
+  it('survives a settings change (they are independent records)', () => {
+    markOnboarded();
+    saveAbilitySettings(ability({ reduceMotion: true }));
+    expect(hasOnboarded()).toBe(true);
+    expect(loadAbilitySettings().reduceMotion).toBe(true);
     localStorage.removeItem('dramaton.ability');
   });
 });
