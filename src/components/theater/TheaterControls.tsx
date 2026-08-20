@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home, ArrowLeft } from 'lucide-react';
+import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home, ArrowLeft, Gauge } from 'lucide-react';
 
 interface TheaterControlsProps {
   isAutoPlay: boolean;
@@ -14,6 +14,8 @@ interface TheaterControlsProps {
 }
 
 export const TheaterControls: React.FC<TheaterControlsProps> = ({
+  showMeters,
+  onToggleMeters,
   isAutoPlay,
   isMuted,
   onToggleAutoPlay,
@@ -102,6 +104,19 @@ export const TheaterControls: React.FC<TheaterControlsProps> = ({
               {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
             
+            {onToggleMeters && (
+              <button
+                onClick={onToggleMeters}
+                aria-pressed={!!showMeters}
+                className={`p-2 transition-colors ${
+                  showMeters ? 'text-diesel-gold' : 'text-diesel-steel hover:text-diesel-gold'
+                }`}
+                title={showMeters ? 'Hide the model' : 'Show the model: what this scene is changing'}
+              >
+                <Gauge size={20} />
+              </button>
+            )}
+
             <button
               onClick={onOpenSettings}
               className="p-2 text-diesel-steel hover:text-diesel-gold transition-colors"

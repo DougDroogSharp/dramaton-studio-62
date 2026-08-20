@@ -24,6 +24,9 @@ export interface GameInfo {
   enableAutosave: boolean;
   customPoses?: string[];
   customExpressions?: string[];
+  // Era coin for {var:money} in meter commentary: pence (Norman
+  // England), francs, dollars1929, dollars, plain.
+  moneyFormat?: string;
 }
 
 export interface ActorGraphic {
@@ -138,6 +141,25 @@ export interface Scene {
   narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
+}
+
+// What a world variable MEANS, in words, so a moving gauge can explain
+// itself. Doug's rule: say it in general terms and in concrete terms —
+// "rent takes a larger share" AND "a week's work buys less bread".
+export interface MeterMeaning {
+  variable: string;
+  label: string;              // RENT
+  /** What it means when this rises — general. */
+  rising: string;
+  /** What it means when this falls — general. */
+  falling: string;
+  /** The same thing said concretely, in a life. */
+  concrete?: string;
+  /** Display range; defaults 0-100. */
+  min?: number;
+  max?: number;
+  /** true when rising is bad for the humans (colours the readout). */
+  risingIsHarm?: boolean;
 }
 
 // A named thing visible IN a backdrop image — BOAT1, BAR_STOOL,
@@ -289,6 +311,8 @@ export interface GameData {
   sfx: Sfx[];
   buttons: Button[];
   episodes: Episode[];
+  // What the world variables MEAN, for the live meter panel
+  meters?: MeterMeaning[];
   quotes?: Quote[];
   quoteTriggers?: QuoteTrigger[];
 }

@@ -17,6 +17,8 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { AbilityPanel } from '@/components/theater/AbilityPanel';
 import { AbilityOnboarding } from '@/components/theater/AbilityOnboarding';
 import { EndCard } from '@/components/theater/EndCard';
+import { MeterPanel, MeterRow } from '@/components/theater/MeterPanel';
+import { metersFor } from '@/utils/meters';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
@@ -37,6 +39,9 @@ const Theater: React.FC = () => {
     saveAbilitySettings(next);
   }, []);
   const [hasStarted, setHasStarted] = useState(false);
+  // The model showing its work: shrink the stage and show the meters
+  // this scene has actually moved, with commentary. Toggleable.
+  const [showMeters, setShowMeters] = useState(false);
   // Onboarding is the front door, not a buried menu: every player is
   // asked how they want to play before the first game.
   const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
@@ -380,6 +385,18 @@ const Theater: React.FC = () => {
     ? game.drops.find(d => d.id === currentScene.dropId) 
     : undefined;
   
+  // Meter rows: only variables this scene has actually moved AND that
+  // we can explain. An unmoved or unexplained gauge is noise.
+  const meterRows: MeterRow[] = React.useMemo(() => {
+    const known = metersFor(game.meters);
+    const rows: MeterRow[] = [];
+    for (const [variable, move] of scriptRunner.state.meterMoves) {
+      const meaning = known.get(variable);
+      if (meaning) rows.push({ meaning, from: move.from, to: move.to, seq: move.seq });
+    }
+    return rows;
+  }, [scriptRunner.state.meterMoves, game.meters]);
+
   // Find actor for dialogue
   const dialogueActor = scriptRunner.state.activeDialogue?.actorId
     ? game.actors.find(a => a.id === scriptRunner.state.activeDialogue?.actorId)
@@ -441,7 +458,14 @@ const Theater: React.FC = () => {
       <div className="flex-1 flex items-start justify-center p-2 min-h-0">
         <div
           className="w-full relative"
-          style={{ maxWidth: 'min(72rem, calc((100vh - 120px) * 16 / 9))' }}
+          style={{
+            // The stage gives up height to the meter panel when it is
+            // open, so the model and the drama share one screen.
+            maxWidth: showMeters
+              ? 'min(56rem, calc((100vh - 340px) * 16 / 9))'
+              : 'min(72rem, calc((100vh - 120px) * 16 / 9))',
+            transition: 'max-width 300ms ease-in-out',
+          }}
         >
           {currentScene && (
             <Stage
@@ -506,6 +530,14 @@ const Theater: React.FC = () => {
           {/* Quote pop-up card */}
           {activeQuote && <QuoteCard quote={activeQuote} onDismiss={dismissQuote} />}
         </div>
+
+        {/* The model, showing its work — only what this scene moved. */}
+        {showMeters && (
+          <div className="w-full mt-2 bg-diesel-panel/70 border border-diesel-border max-h-[210px] overflow-y-auto"
+               style={{ maxWidth: 'min(56rem, 100%)' }}>
+            <MeterPanel rows={meterRows} worldState={scriptRunner.state.worldState} moneyFormat={game.info.moneyFormat} />
+          </div>
+        )}
       </div>
 
       {/* Controls */}
@@ -516,6 +548,8 @@ const Theater: React.FC = () => {
         onToggleMute={() => setIsMuted(!isMuted)}
         onOpenMenu={() => setShowMenu(true)}
         onOpenSettings={() => setShowSettings(true)}
+        showMeters={showMeters}
+        onToggleMeters={() => setShowMeters(v => !v)}
         onGoHome={async () => {
           const shouldReturn = await confirm({ 
             title: 'Return to Title',

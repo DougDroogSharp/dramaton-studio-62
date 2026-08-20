@@ -140,6 +140,10 @@ export interface ScriptRunnerState {
   backdrop: { dropId: string; duration: number } | null;
   // CAMERA: zoom/pan over the stage; follow tracks an element
   camera: { zoom: number; x: number; y: number; duration: number; follow?: string } | null;
+  // Meters: the most recent move of every world variable this scene has
+  // touched, so the player can watch the model react and read what the
+  // movement means. Reset on scene change.
+  meterMoves: Map<string, { from: number; to: number; seq: number }>;
 }
 
 interface UseScriptRunnerOptions {
@@ -180,6 +184,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -201,6 +206,8 @@ export function useScriptRunner({
   // NARRATE: expiry timer and a monotonic id so each line re-announces.
   const narrateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const narrateSeqRef = useRef(0);
+  // Monotonic counter so the meter panel can tell which move is newest.
+  const meterSeqRef = useRef(0);
   // ANIMATE: looping pose cycles, one per element (flames flickering,
   // birds flapping). Keyed by element id so a second ANIMATE on the
   // same element replaces the first instead of stacking.
@@ -864,6 +871,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
           isWaiting: false,
           isComplete: false,
         }));
@@ -913,6 +921,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
               isWaiting: false,
               isComplete: false,
             }));
@@ -924,10 +933,27 @@ export function useScriptRunner({
       case 'SET': {
         // Write the ref synchronously (so later commands in this pass
         // see it), then mirror into state for rendering.
+        const before = worldStateRef.current[command.variable];
         const resolved = resolveSetValue(command, worldStateRef.current);
         worldStateRef.current = { ...worldStateRef.current, [command.variable]: resolved };
         const snapshot = worldStateRef.current;
-        setState(prev => ({ ...prev, worldState: snapshot }));
+        // Record the move so the meter panel can show what this scene
+        // touched, and by how much. Numbers only; a changed string is
+        // not a gauge.
+        const from = typeof before === 'number' ? before : Number(before);
+        const to = typeof resolved === 'number' ? resolved : Number(resolved);
+        const moved = Number.isFinite(from) && Number.isFinite(to) && from !== to;
+        meterSeqRef.current += 1;
+        const seq = meterSeqRef.current;
+        setState(prev => {
+          if (!moved) return { ...prev, worldState: snapshot };
+          const meterMoves = new Map(prev.meterMoves);
+          // Keep the ORIGINAL from-value for this scene so a variable
+          // nudged repeatedly by a TICK shows its whole journey.
+          const prior = meterMoves.get(command.variable);
+          meterMoves.set(command.variable, { from: prior?.from ?? from, to, seq });
+          return { ...prev, worldState: snapshot, meterMoves };
+        });
         applyBindings();
         return true;
       }
@@ -1095,6 +1121,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
           isWaiting: false,
           isComplete: false,
         }));
@@ -1334,6 +1361,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
       isWaiting: false,
       isComplete: false,
     }));
@@ -1381,6 +1409,7 @@ export function useScriptRunner({
       ambientNarration: null,
       backdrop: null,
       camera: null,
+      meterMoves: new Map(),
       isWaiting: false,
       isComplete: false,
     }));
