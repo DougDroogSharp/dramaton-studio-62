@@ -19,7 +19,7 @@ function interpolateText(text: string, vars: WorldVars): string {
   return text.replace(/\{(\w+)\}/g, (_, name: string) => {
     const v = vars[name];
     if (v === undefined) {
-      warnOnce(`SET_TEXT: variable "${name}" is not defined; showing ??`);
+      warnOnce(`{${name}}: variable is not defined; showing ??`);
       return '??';
     }
     if (typeof v === 'number') {
@@ -276,6 +276,12 @@ export function useScriptRunner({
     switch (command.type) {
       case 'DIALOGUE': {
         const actorId = findActorByName(command.actorName, game.actors);
+        // {var} interpolation (the 1986 SAY_VAR, reborn): the sim's
+        // numbers come out of the characters' mouths. Resolved at
+        // speak time against the live world state.
+        const spokenText = command.text.includes('{')
+          ? interpolateText(command.text, worldStateRef.current)
+          : command.text;
 
         // Animate the speaker: an explicit (Pose/Expression) tag wins;
         // otherwise auto-vary among the actor's graphics per utterance
@@ -329,9 +335,9 @@ export function useScriptRunner({
           activeDialogue: {
             actorId,
             actorName: command.actorName,
-            text: command.text,
+            text: spokenText,
             style: command.style,
-            displayedText: isNarrator ? '' : command.text,
+            displayedText: isNarrator ? '' : spokenText,
             isComplete: !isNarrator,
             ...(chosenExpression ? { expression: chosenExpression } : {}),
             ...(chosenPose ? { pose: chosenPose } : {}),
@@ -344,8 +350,8 @@ export function useScriptRunner({
         let charIndex = 0;
         typewriterRef.current = setInterval(() => {
           charIndex++;
-          const displayedText = command.text.slice(0, charIndex);
-          const isComplete = charIndex >= command.text.length;
+          const displayedText = spokenText.slice(0, charIndex);
+          const isComplete = charIndex >= spokenText.length;
           
           setState(prev => ({
             ...prev,

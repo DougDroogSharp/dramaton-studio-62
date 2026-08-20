@@ -82,3 +82,29 @@ describe('SET_TEXT / AUTOPLAY runtime', () => {
     expect(r2.current.state.isAutoPlay).toBe(false);
   });
 });
+
+describe('dialogue {var} interpolation', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('speaks live world-state values', () => {
+    const game = createDefaultGame();
+    game.info.worldState = { gold: 42.25 };
+    game.scenes.push({ id: 's1', name: 'S1', script: 'Boss: "We are sitting on a cool {gold} grand."' });
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+    expect(result.current.state.activeDialogue?.text).toBe('We are sitting on a cool 42.3 grand.');
+  });
+
+  it('unknown variables degrade to ?? without crashing', () => {
+    const game = createDefaultGame();
+    game.scenes.push({ id: 's1', name: 'S1', script: 'Boss: "Owe me {nothing}."' });
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+    expect(result.current.state.activeDialogue?.text).toBe('Owe me ??.');
+  });
+});

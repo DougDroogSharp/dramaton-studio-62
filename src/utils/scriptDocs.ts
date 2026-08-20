@@ -27,7 +27,7 @@ export const COMMAND_DOCS: CommandDoc[] = [
     type: 'DIALOGUE',
     category: 'dialogue',
     syntax: 'ACTOR_NAME: "text"  |  ACTOR_NAME (Expression): "text"  |  ACTOR_NAME (Pose/Expression): "text"  |  ACTOR_NAME (thinking): "text"',
-    description: 'Displays dialogue spoken by an actor. An optional acting tag switches the speaker\'s stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon.',
+    description: 'Displays dialogue spoken by an actor. An optional acting tag switches the speaker\'s stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon. Text supports {variable} interpolation against the live world state, resolved at speak time — numbers round to 1 decimal, unknown variables show ?? with a warning (the 1986 SAY_VAR, reborn).',
     parameters: [
       { name: 'actorName', type: 'string', description: 'The name of the speaking actor (case-sensitive, starts with uppercase)' },
       { name: 'acting tag', type: 'string', description: 'Optional: thinking, an Expression, or Pose/Expression — must match a graphic in the actor\'s pose library', optional: true },

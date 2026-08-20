@@ -178,7 +178,7 @@ Commands for displaying character dialogue and narration.
 
 #### `DIALOGUE`
 
-Displays dialogue spoken by an actor. An optional acting tag switches the speaker's stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon.
+Displays dialogue spoken by an actor. An optional acting tag switches the speaker's stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon. Text supports {variable} interpolation against the live world state, resolved at speak time — numbers round to 1 decimal, unknown variables show ?? with a warning (the 1986 SAY_VAR, reborn).
 
 **Syntax:**
 ```
