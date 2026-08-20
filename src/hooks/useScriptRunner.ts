@@ -277,12 +277,14 @@ export function useScriptRunner({
   // id, which used to make the command a silent no-op — 44 of them
   // across the shipped games. Ambiguity (the same actor twice on
   // stage) takes the first and warns.
-  const resolveElementId = useCallback((name: string): string | undefined => {
+  // Never fails: an unrecognised name is returned unchanged, so this
+  // only ever REDIRECTS an actor id to its element and never blocks a
+  // write that used to work (ENTER-created ids, scenes with no stage).
+  const resolveElementId = useCallback((name: string): string => {
     const stage = currentSceneRef.current?.stage;
-    if (!stage) return undefined;
-    if (stage.some(e => e.id === name)) return name;
+    if (!stage || stage.some(e => e.id === name)) return name;
     const byActor = stage.filter(e => e.type === 'ACTOR' && e.assetId === name);
-    if (byActor.length === 0) return undefined;
+    if (byActor.length === 0) return name;
     if (byActor.length > 1) {
       warnOnce(`"${name}" is an actor on stage ${byActor.length} times; using element "${byActor[0].id}"`);
     }
@@ -664,10 +666,6 @@ export function useScriptRunner({
 
         // Accept an element id OR an actor id, as POSE does
         const animId = resolveElementId(elementId);
-        if (!animId) {
-          warnOnce(`ANIMATE ${elementId}: not a stage element or an actor on this stage; skipped`);
-          return true;
-        }
         // Reduced motion: show the first frame and hold it.
         const setFrame = (pose: string) => setState(prev => {
           const overrides = new Map(prev.elementOverrides);
@@ -788,10 +786,6 @@ export function useScriptRunner({
       case 'POSE': {
         // Accept an element id OR an actor id (see resolveElementId)
         const targetId = resolveElementId(command.actorId);
-        if (!targetId) {
-          warnOnce(`POSE ${command.actorId}: not a stage element or an actor on this stage; skipped`);
-          return true;
-        }
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(targetId) || {};

@@ -120,9 +120,12 @@ describe('ANIMATE execution', () => {
     expect(poseOf(r)).toBe('A');
   });
 
-  it('warns and skips when the element does not exist', () => {
+  it('an unknown name falls through unchanged rather than being dropped', () => {
+    // Resolution only ever REDIRECTS an actor id to its element; it
+    // must never block a write that used to work (ENTER-created ids,
+    // scenes with no stage array).
     const r = run('[ANIMATE nope A B]\n[SET after = 1]');
-    expect(r.result.current.state.elementOverrides.get('nope')).toBeUndefined();
+    expect(r.result.current.state.elementOverrides.get('nope')?.pose).toBe('A');
     expect(r.result.current.state.worldState.after).toBe(1);
   });
 });
@@ -175,11 +178,11 @@ describe('actor-id targeting (the 44 silent no-ops)', () => {
     expect(result.current.state.elementOverrides.get('em_feed')?.pose).toBe('A');
   });
 
-  it('an unknown name warns and is skipped', () => {
+  it('an unknown name falls through unchanged (never blocks a write that used to work)', () => {
     const { result } = renderHook(() => useScriptRunner({
       game: makeGame('[POSE nobody pose=Sit expression=Sad]\n[SET after = 1]'), startSceneId: 's1',
     }));
-    expect(result.current.state.elementOverrides.get('nobody')).toBeUndefined();
+    expect(result.current.state.elementOverrides.get('nobody')).toMatchObject({ pose: 'Sit' });
     expect(result.current.state.worldState.after).toBe(1);
   });
 });
