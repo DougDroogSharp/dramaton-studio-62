@@ -1,0 +1,1549 @@
+{
+ "byDay": {
+  "2025-01-01": [
+   {
+    "hash": "b331aa1",
+    "subject": "template: new_style_vite_react_shadcn_ts_testing_2026-01-08"
+   }
+  ],
+  "2026-01-15": [
+   {
+    "hash": "11554b9",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9b47f0e",
+    "subject": "Migrate to Lovable core UI"
+   },
+   {
+    "hash": "ded0a53",
+    "subject": "Changes"
+   },
+   {
+    "hash": "5cb1e8d",
+    "subject": "Restore splash screen layout"
+   },
+   {
+    "hash": "cb61b6e",
+    "subject": "Changes"
+   },
+   {
+    "hash": "e31c34d",
+    "subject": "Phase 2 editors wiring"
+   },
+   {
+    "hash": "cc58b30",
+    "subject": "Changes"
+   },
+   {
+    "hash": "1d2af3f",
+    "subject": "Wire in editors to Index.tsx"
+   },
+   {
+    "hash": "5a4a0ed",
+    "subject": "Changes"
+   },
+   {
+    "hash": "21043e0",
+    "subject": "Add load icon button"
+   },
+   {
+    "hash": "ead7ef6",
+    "subject": "Changes"
+   },
+   {
+    "hash": "a7c0e59",
+    "subject": "Add ElevenLabs voice browser integration"
+   },
+   {
+    "hash": "332b3f4",
+    "subject": "Changes"
+   },
+   {
+    "hash": "33a8d59",
+    "subject": "Add actor references UI"
+   },
+   {
+    "hash": "251283a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "900755a",
+    "subject": "Add AI image for drops"
+   },
+   {
+    "hash": "922ec24",
+    "subject": "Changes"
+   },
+   {
+    "hash": "afb11f4",
+    "subject": "Connect to Lovable Cloud"
+   },
+   {
+    "hash": "2d8e64c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "5270170",
+    "subject": "Adjust image generation edge"
+   },
+   {
+    "hash": "1b800db",
+    "subject": "Changes"
+   },
+   {
+    "hash": "b104701",
+    "subject": "Validate reference image size on upload"
+   },
+   {
+    "hash": "7276081",
+    "subject": "Changes"
+   },
+   {
+    "hash": "6767c94",
+    "subject": "Show title scene image"
+   },
+   {
+    "hash": "da986fa",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c00b005",
+    "subject": "Skip base64 in image gen edge"
+   },
+   {
+    "hash": "0abbefa",
+    "subject": "Changes"
+   },
+   {
+    "hash": "062d609",
+    "subject": "Add image popup for actors"
+   },
+   {
+    "hash": "6db87d2",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fa36d1c",
+    "subject": "Add reference image compression"
+   },
+   {
+    "hash": "340f997",
+    "subject": "Changes"
+   },
+   {
+    "hash": "3ba5954",
+    "subject": "Add voice preview prompt"
+   },
+   {
+    "hash": "1553e7f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "b2c9533",
+    "subject": "Restore improved image generation flow"
+   },
+   {
+    "hash": "5a42ee2",
+    "subject": "Changes"
+   },
+   {
+    "hash": "2f98a3a",
+    "subject": "Enforce pacing rest window"
+   },
+   {
+    "hash": "7e2a845",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ca44f3c",
+    "subject": "Enhance DropEditor AI editing"
+   },
+   {
+    "hash": "2ff5b12",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9d8def9",
+    "subject": "Add style guide button"
+   },
+   {
+    "hash": "66e3257",
+    "subject": "Changes"
+   },
+   {
+    "hash": "cbf56f6",
+    "subject": "Integrate editable prompts UI"
+   },
+   {
+    "hash": "8211cc6",
+    "subject": "Changes"
+   },
+   {
+    "hash": "d114646",
+    "subject": "Update pose UI and framing logic"
+   },
+   {
+    "hash": "8a74fdf",
+    "subject": "Changes"
+   },
+   {
+    "hash": "beaa193",
+    "subject": "Smaller USA vs MAGA title"
+   },
+   {
+    "hash": "1b44325",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9cffb5c",
+    "subject": "Integrate custom poses UI"
+   },
+   {
+    "hash": "0cffcb0",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ff53101",
+    "subject": "Commit drop, lock UI, and item gen"
+   },
+   {
+    "hash": "a2f92ed",
+    "subject": "Changes"
+   },
+   {
+    "hash": "60d0abe",
+    "subject": "Reorder drop editor UI"
+   },
+   {
+    "hash": "e3786a1",
+    "subject": "Changes"
+   },
+   {
+    "hash": "d9ca689",
+    "subject": "Enhance scene editor UX"
+   }
+  ],
+  "2026-01-16": [
+   {
+    "hash": "beccd2c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c2d3ca9",
+    "subject": "Hide previews except settings"
+   },
+   {
+    "hash": "a895b3b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "6cb00e8",
+    "subject": "Narrow top menu tabs"
+   },
+   {
+    "hash": "a93ffd1",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9533578",
+    "subject": "Move reference images bottom in ActorEditor"
+   },
+   {
+    "hash": "1470d5c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "7837cf4",
+    "subject": "Integrate actor graphic picker"
+   },
+   {
+    "hash": "8f342c1",
+    "subject": "Changes"
+   },
+   {
+    "hash": "daed29a",
+    "subject": "Add scrollbar for editors"
+   },
+   {
+    "hash": "a529874",
+    "subject": "Changes"
+   },
+   {
+    "hash": "f8abe03",
+    "subject": "Narrow actor graphics"
+   },
+   {
+    "hash": "822142b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "86b5a01",
+    "subject": "Play voice sample on select"
+   },
+   {
+    "hash": "008aa0b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "98d418f",
+    "subject": "Redesign ActorEditor graphics"
+   },
+   {
+    "hash": "3ce7751",
+    "subject": "Changes"
+   },
+   {
+    "hash": "e602b3a",
+    "subject": "Enhance SceneEditor generator"
+   },
+   {
+    "hash": "6ec9f47",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9ac0947",
+    "subject": "Compact Voice and Gen UI"
+   },
+   {
+    "hash": "046416a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "09fcee1",
+    "subject": "Dieselpunk landing visuals"
+   },
+   {
+    "hash": "749ffca",
+    "subject": "Changes"
+   },
+   {
+    "hash": "990047f",
+    "subject": "Add dieselpunk loading animation"
+   },
+   {
+    "hash": "f105904",
+    "subject": "Changes"
+   },
+   {
+    "hash": "6a9e959",
+    "subject": "Integrate DieselpunkLoader"
+   },
+   {
+    "hash": "db53fbd",
+    "subject": "Changes"
+   },
+   {
+    "hash": "a0c847a",
+    "subject": "Add glow tubes to landing"
+   },
+   {
+    "hash": "097b474",
+    "subject": "Changes"
+   },
+   {
+    "hash": "749bc00",
+    "subject": "Switch to single countdown dial"
+   },
+   {
+    "hash": "3dcba8c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "2ef7724",
+    "subject": "Fix countdown needle tick"
+   },
+   {
+    "hash": "3575663",
+    "subject": "Changes"
+   },
+   {
+    "hash": "d737b18",
+    "subject": "Add scene audio support"
+   },
+   {
+    "hash": "8fceecb",
+    "subject": "Changes"
+   },
+   {
+    "hash": "8e8c4f3",
+    "subject": "Start splash screen on startup"
+   },
+   {
+    "hash": "82a9608",
+    "subject": "Changes"
+   },
+   {
+    "hash": "3beb887",
+    "subject": "Handle image policy errors"
+   },
+   {
+    "hash": "0136a67",
+    "subject": "Changes"
+   },
+   {
+    "hash": "b355105",
+    "subject": "Add Actor button in editor"
+   },
+   {
+    "hash": "b99b380",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ec59e83",
+    "subject": "Add item editor button"
+   },
+   {
+    "hash": "072cae7",
+    "subject": "Changes"
+   },
+   {
+    "hash": "cb84681",
+    "subject": "Add style lock label"
+   },
+   {
+    "hash": "87622c2",
+    "subject": "Changes"
+   },
+   {
+    "hash": "aadd977",
+    "subject": "Strengthen styleLock prompts"
+   },
+   {
+    "hash": "eda8a57",
+    "subject": "Changes"
+   },
+   {
+    "hash": "8b36e08",
+    "subject": "Add new game flow"
+   },
+   {
+    "hash": "09efe8a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fd00b7c",
+    "subject": "Fix pacing dial ticks alignment"
+   },
+   {
+    "hash": "14d27b4",
+    "subject": "Changes"
+   },
+   {
+    "hash": "9800476",
+    "subject": "Add SFX audio generation"
+   },
+   {
+    "hash": "3b902e5",
+    "subject": "Changes"
+   },
+   {
+    "hash": "6f769da",
+    "subject": "Add audio upload for SFX"
+   },
+   {
+    "hash": "8f2aba1",
+    "subject": "Changes"
+   },
+   {
+    "hash": "084ba89",
+    "subject": "Fix dial countdown needle"
+   },
+   {
+    "hash": "362bca5",
+    "subject": "Changes"
+   },
+   {
+    "hash": "df559d6",
+    "subject": "Add compress style guide 512px"
+   },
+   {
+    "hash": "93a821e",
+    "subject": "Changes"
+   },
+   {
+    "hash": "85a6e34",
+    "subject": "Show token estimate UI"
+   },
+   {
+    "hash": "38c3c7f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fb2e478",
+    "subject": "Add asset tree view"
+   },
+   {
+    "hash": "00fa53a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "1955225",
+    "subject": "Add asset search filter"
+   },
+   {
+    "hash": "c91cc3a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "7af025d",
+    "subject": "Replace timer with hourglass"
+   },
+   {
+    "hash": "d753dec",
+    "subject": "Changes"
+   },
+   {
+    "hash": "42e2d5a",
+    "subject": "Guard against undefined game"
+   },
+   {
+    "hash": "d6420bf",
+    "subject": "Changes"
+   },
+   {
+    "hash": "a2765d7",
+    "subject": "Fix asset tree guards"
+   },
+   {
+    "hash": "af5d851",
+    "subject": "Changes"
+   },
+   {
+    "hash": "b2d3c54",
+    "subject": "Compact rest protocol header"
+   },
+   {
+    "hash": "4b51e9c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "131108e",
+    "subject": "Auto-save once at protocol start"
+   },
+   {
+    "hash": "a8926fc",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ad7299f",
+    "subject": "Style rest overlay blue calm"
+   },
+   {
+    "hash": "2e03985",
+    "subject": "Changes"
+   },
+   {
+    "hash": "11f4e96",
+    "subject": "Hide desktop gears on mobile rest popup"
+   }
+  ],
+  "2026-01-18": [
+   {
+    "hash": "b357fd5",
+    "subject": "Changes"
+   },
+   {
+    "hash": "4cc24a1",
+    "subject": "Pass styleGuide to SceneEditor"
+   },
+   {
+    "hash": "ac6d2ea",
+    "subject": "Changes"
+   },
+   {
+    "hash": "11e386a",
+    "subject": "Add library UI support"
+   },
+   {
+    "hash": "2729c07",
+    "subject": "Changes"
+   },
+   {
+    "hash": "28d29ac",
+    "subject": "Add asset notes and status"
+   },
+   {
+    "hash": "2ddcc8a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "8bf253d",
+    "subject": "Move library to page top nav"
+   },
+   {
+    "hash": "62ae2ec",
+    "subject": "Changes"
+   },
+   {
+    "hash": "51d191b",
+    "subject": "Add Library nav tab"
+   },
+   {
+    "hash": "374c659",
+    "subject": "Changes"
+   },
+   {
+    "hash": "a8804ad",
+    "subject": "Move custom poses to Actor page"
+   },
+   {
+    "hash": "9ae136a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "2aba54b",
+    "subject": "Reset save on New Game"
+   },
+   {
+    "hash": "7cd8f11",
+    "subject": "Changes"
+   },
+   {
+    "hash": "447fd93",
+    "subject": "Integrate Theater framework"
+   },
+   {
+    "hash": "1726f04",
+    "subject": "Changes"
+   },
+   {
+    "hash": "726d361",
+    "subject": "Add preview scene button"
+   },
+   {
+    "hash": "40233ac",
+    "subject": "Changes"
+   },
+   {
+    "hash": "b00bf05",
+    "subject": "Use shared Stage in SceneEditor"
+   },
+   {
+    "hash": "0f611ba",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c48d63b",
+    "subject": "Add Play/Edit splash buttons"
+   },
+   {
+    "hash": "8fc1cd4",
+    "subject": "Changes"
+   },
+   {
+    "hash": "4e4616c",
+    "subject": "Add back to menu button"
+   },
+   {
+    "hash": "b1d2ce3",
+    "subject": "Changes"
+   },
+   {
+    "hash": "743fb34",
+    "subject": "Implement auto-status promotion"
+   },
+   {
+    "hash": "d9f3475",
+    "subject": "Changes"
+   },
+   {
+    "hash": "af520ef",
+    "subject": "Remove Scene Type menu"
+   },
+   {
+    "hash": "27359a4",
+    "subject": "Changes"
+   },
+   {
+    "hash": "85e0054",
+    "subject": "Auto update previews and drops"
+   },
+   {
+    "hash": "695c79b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "7bd54ad",
+    "subject": "Fix drop background green bg bug"
+   },
+   {
+    "hash": "5d5c531",
+    "subject": "Changes"
+   },
+   {
+    "hash": "abcc521",
+    "subject": "Replace native dialogs with in-app prompts"
+   },
+   {
+    "hash": "d33522c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "e16cc5e",
+    "subject": "Switch to native file picker"
+   },
+   {
+    "hash": "735d5aa",
+    "subject": "Changes"
+   },
+   {
+    "hash": "384d778",
+    "subject": "Add DRAM button support"
+   },
+   {
+    "hash": "0dda39f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "00fb917",
+    "subject": "Add splash load button fix"
+   },
+   {
+    "hash": "22029d8",
+    "subject": "Changes"
+   },
+   {
+    "hash": "5c25b78",
+    "subject": "Finish Theater button interactivity"
+   },
+   {
+    "hash": "5f3841d",
+    "subject": "Changes"
+   },
+   {
+    "hash": "a272a0c",
+    "subject": "Generate DRAM docs auto"
+   },
+   {
+    "hash": "c0a6d43",
+    "subject": "Changes"
+   },
+   {
+    "hash": "73af2fe",
+    "subject": "Automate project state capture"
+   },
+   {
+    "hash": "fba7e8f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "4791f41",
+    "subject": "Automate DRAM docs registry"
+   },
+   {
+    "hash": "dd11855",
+    "subject": "Changes"
+   },
+   {
+    "hash": "3a87381",
+    "subject": "Add draggable stage buttons"
+   },
+   {
+    "hash": "6bda54f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fde4ab2",
+    "subject": "Add load button on splash"
+   },
+   {
+    "hash": "3a59978",
+    "subject": "Changes"
+   },
+   {
+    "hash": "46ee67d",
+    "subject": "Rework SceneEditor layout"
+   },
+   {
+    "hash": "afc74cc",
+    "subject": "Changes"
+   },
+   {
+    "hash": "82ecd9b",
+    "subject": "Add splash screen PDF capture"
+   },
+   {
+    "hash": "7422296",
+    "subject": "Changes"
+   },
+   {
+    "hash": "58face5",
+    "subject": "Implement segmented PDF capture"
+   },
+   {
+    "hash": "774f4a8",
+    "subject": "Changes"
+   },
+   {
+    "hash": "78b163a",
+    "subject": "Fix hook order in capture hook"
+   },
+   {
+    "hash": "b7e5d63",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c06bf9d",
+    "subject": "Adjust actor status handling"
+   },
+   {
+    "hash": "5042a63",
+    "subject": "Changes"
+   },
+   {
+    "hash": "926ee2d",
+    "subject": "Enable manual status edits across editors"
+   },
+   {
+    "hash": "aa18a86",
+    "subject": "Changes"
+   },
+   {
+    "hash": "67255ad",
+    "subject": "Compact splash screen"
+   },
+   {
+    "hash": "98da333",
+    "subject": "Changes"
+   },
+   {
+    "hash": "87e6036",
+    "subject": "Consolidate splash load buttons"
+   },
+   {
+    "hash": "5c4469b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "bf26346",
+    "subject": "Add confirm on New game start"
+   },
+   {
+    "hash": "64bc86e",
+    "subject": "Changes"
+   },
+   {
+    "hash": "534121c",
+    "subject": "Shift splash up"
+   },
+   {
+    "hash": "3a459dc",
+    "subject": "Changes"
+   },
+   {
+    "hash": "3167c1f",
+    "subject": "Wrap app in StrictMode"
+   }
+  ],
+  "2026-01-19": [
+   {
+    "hash": "bc13796",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fa9e2a6",
+    "subject": "Add cloud publish flow"
+   },
+   {
+    "hash": "93e0e90",
+    "subject": "Changes"
+   },
+   {
+    "hash": "0f0a573",
+    "subject": "Enable picker directory save"
+   },
+   {
+    "hash": "e68bc18",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ad289f8",
+    "subject": "Show first editor in PDF save"
+   },
+   {
+    "hash": "34c35a2",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c74a19f",
+    "subject": "Show AI generation progress"
+   },
+   {
+    "hash": "bde5bdd",
+    "subject": "Changes"
+   },
+   {
+    "hash": "3588445",
+    "subject": "Improve pdf capture clarity"
+   },
+   {
+    "hash": "99c345a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "2930b40",
+    "subject": "Make reference images smaller"
+   },
+   {
+    "hash": "1363a47",
+    "subject": "Changes"
+   },
+   {
+    "hash": "12732c6",
+    "subject": "Enable auth and patch UI"
+   },
+   {
+    "hash": "da8a3e3",
+    "subject": "Changes"
+   },
+   {
+    "hash": "c433786",
+    "subject": "Move pose library top in ActorEditor"
+   },
+   {
+    "hash": "00edb95",
+    "subject": "Changes"
+   },
+   {
+    "hash": "aed8c23",
+    "subject": "Improve PDF capture views"
+   },
+   {
+    "hash": "e953e45",
+    "subject": "Changes"
+   },
+   {
+    "hash": "91c3f94",
+    "subject": "Rename protocol to game UI text and defaults"
+   },
+   {
+    "hash": "a7afbce",
+    "subject": "Changes"
+   },
+   {
+    "hash": "76af352",
+    "subject": "Rename splash tagline"
+   },
+   {
+    "hash": "edacead",
+    "subject": "Changes"
+   },
+   {
+    "hash": "5b2151b",
+    "subject": "Remove ElevenLabs API key UI"
+   },
+   {
+    "hash": "1fcc3f7",
+    "subject": "Changes"
+   },
+   {
+    "hash": "005033e",
+    "subject": "Add lazy load pages"
+   },
+   {
+    "hash": "e78d7ae",
+    "subject": "Changes"
+   },
+   {
+    "hash": "533f016",
+    "subject": "Show scene buttons in AssetTree"
+   },
+   {
+    "hash": "547ae13",
+    "subject": "Changes"
+   },
+   {
+    "hash": "fe75ce0",
+    "subject": "Add Episode system"
+   },
+   {
+    "hash": "b404b9f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "ece423e",
+    "subject": "Add episode support to load"
+   },
+   {
+    "hash": "bb7161b",
+    "subject": "Changes"
+   },
+   {
+    "hash": "6e35070",
+    "subject": "Add episode scene manage"
+   },
+   {
+    "hash": "d150586",
+    "subject": "Changes"
+   },
+   {
+    "hash": "af1c99c",
+    "subject": "Reorder Pose Generator UI"
+   },
+   {
+    "hash": "460182a",
+    "subject": "Changes"
+   },
+   {
+    "hash": "69dbc90",
+    "subject": "Compact Pose Generator UI"
+   },
+   {
+    "hash": "a6582a7",
+    "subject": "Changes"
+   },
+   {
+    "hash": "7ac20ea",
+    "subject": "Reflow SceneEditor layout"
+   },
+   {
+    "hash": "fb4fe2c",
+    "subject": "Changes"
+   },
+   {
+    "hash": "94ab750",
+    "subject": "Add auto dram docs"
+   },
+   {
+    "hash": "2bc125f",
+    "subject": "Changes"
+   },
+   {
+    "hash": "45d857f",
+    "subject": "Add DramScript editor core"
+   },
+   {
+    "hash": "f03ed69",
+    "subject": "Changes"
+   },
+   {
+    "hash": "d3cdf78",
+    "subject": "Fix ParameterControls updateField types"
+   },
+   {
+    "hash": "921bb34",
+    "subject": "Code edited in Lovable Code Editor"
+   }
+  ],
+  "2026-08-17": [
+   {
+    "hash": "cb857c6",
+    "subject": "Repair Index.tsx encoding; fully disable rest-period autosave skip"
+   },
+   {
+    "hash": "b51c05e",
+    "subject": "Title: Phrog Able"
+   },
+   {
+    "hash": "7068c0c",
+    "subject": "Scene types: restore the AGENCY/WITNESS pair from Dramaton Editor 2.0"
+   },
+   {
+    "hash": "7477534",
+    "subject": "Migration: load Dramaton Editor 2.0 saves (screens -> drops)"
+   },
+   {
+    "hash": "0e0d6e8",
+    "subject": "Items: adopt the salvage taxonomy (costume/prop/knowledge/gear)"
+   },
+   {
+    "hash": "e68704e",
+    "subject": "Cost meter: always-visible token readout in the editor header"
+   },
+   {
+    "hash": "db3cbb3",
+    "subject": "Remove the rest-period pacing system"
+   },
+   {
+    "hash": "4d3a264",
+    "subject": "Remove the rest-period pacing system (editor and PDF capture)"
+   }
+  ],
+  "2026-08-18": [
+   {
+    "hash": "e1291ca",
+    "subject": "Create handoff brief for The Machine project"
+   },
+   {
+    "hash": "b7e60cc",
+    "subject": "Add npm run docs:dram - the missing doc regeneration command"
+   },
+   {
+    "hash": "418727f",
+    "subject": "Expressions in SET and IF - arithmetic over worldState variables"
+   },
+   {
+    "hash": "f8e6edd",
+    "subject": "TICK - the simulation heartbeat"
+   },
+   {
+    "hash": "5a8c83a",
+    "subject": "Make ENTER/MOVE/POSE actually render, and fix WAIT/IF/SCENE flow"
+   },
+   {
+    "hash": "1410fe0",
+    "subject": "BIND and UNBIND - variable-driven stage elements"
+   },
+   {
+    "hash": "2cc3dc2",
+    "subject": "SLIDER and GAUGE - the instrument panel"
+   },
+   {
+    "hash": "48cb452",
+    "subject": "NARRATON - the 1986 selector, reborn"
+   },
+   {
+    "hash": "0253be9",
+    "subject": "Ignore vite config timestamp temp files"
+   },
+   {
+    "hash": "e7cf2c5",
+    "subject": "The Machine toy scene - placeholder rig, ticking Georgist economy"
+   },
+   {
+    "hash": "76f2cb8",
+    "subject": "Tuning cockpit - every coefficient on a live slider"
+   },
+   {
+    "hash": "f6af249",
+    "subject": "Campaign scaffold - How the Billionaires Gained Power"
+   },
+   {
+    "hash": "94eca7c",
+    "subject": "Theater: dialogue bar on top, stage capped to the viewport"
+   },
+   {
+    "hash": "086f13e",
+    "subject": "De-Lovable the app; flame and glow FX; title is Humans vs Billionaires"
+   },
+   {
+    "hash": "bea0818",
+    "subject": "Move Vite cache out of the Dropbox tree"
+   },
+   {
+    "hash": "b257393",
+    "subject": "Campaign continuity - the fortune crosses the century"
+   },
+   {
+    "hash": "7d515f5",
+    "subject": "Broaden the config-timestamp ignore to all *.timestamp-*.mjs"
+   },
+   {
+    "hash": "0149ef1",
+    "subject": "CHAPTERS button on every campaign hub; same-chapter re-entry resumes"
+   },
+   {
+    "hash": "b9b878b",
+    "subject": "Make TUNE/CHAPTERS actually visible"
+   },
+   {
+    "hash": "b4efc47",
+    "subject": "Tuning cockpit: legacy carry-over coefficients on sliders too"
+   },
+   {
+    "hash": "1183337",
+    "subject": "SET_TEXT and AUTOPLAY - live news text and scripted auto-advance"
+   },
+   {
+    "hash": "958b422",
+    "subject": "Dramatic scenes: ORDERS, outcomes, news ticker, autopilot"
+   },
+   {
+    "hash": "5499d05",
+    "subject": "Create RESEARCH_BRIEF.md"
+   },
+   {
+    "hash": "4cf8aff",
+    "subject": "Flux image bridge - editor graphics via a BFL API key"
+   },
+   {
+    "hash": "240e783",
+    "subject": "Flux bridge: support fal.ai keys alongside BFL"
+   },
+   {
+    "hash": "16a0c29",
+    "subject": "Flux bridge: era style packs from a reference folder"
+   },
+   {
+    "hash": "ab3e0e0",
+    "subject": "Actor generator: face/body references are optional now"
+   },
+   {
+    "hash": "50167d3",
+    "subject": "Actor generator prompt includes the actor's Notes as DESCRIPTION"
+   }
+  ],
+  "2026-08-19": [
+   {
+    "hash": "14ea5ae",
+    "subject": "Era style packs carry their own words: style.txt per folder"
+   },
+   {
+    "hash": "d01f67c",
+    "subject": "Art style pack is a per-game setting"
+   },
+   {
+    "hash": "63692d9",
+    "subject": "Style pack owns the art style: the STYLE lock stands down"
+   },
+   {
+    "hash": "b6f22da",
+    "subject": "New scenes require choosing a backdrop up front"
+   },
+   {
+    "hash": "c059306",
+    "subject": "Splash screen: recent games list for one-click switching"
+   },
+   {
+    "hash": "7c90bcf",
+    "subject": "Show the active style pack in the generator; widen fal moderation tolerance"
+   },
+   {
+    "hash": "cb31767",
+    "subject": "Fold the research into the campaign - every TODO becomes the record"
+   },
+   {
+    "hash": "91f42ac",
+    "subject": "Flux-generated art demo - four eras, four styles, one playable game"
+   },
+   {
+    "hash": "cfc1285",
+    "subject": "Leopold era game - agent-built, 8 scenes, 7 new art pieces"
+   },
+   {
+    "hash": "0cfbbfe",
+    "subject": "Capone era game - agent-built, 8 scenes, 6 new art pieces"
+   },
+   {
+    "hash": "d61e35c",
+    "subject": "William era game - agent-built, 7 scenes, 8 new art pieces"
+   },
+   {
+    "hash": "0c862f8",
+    "subject": "Elon era game - agent-built, 7 scenes, 6 new art pieces"
+   },
+   {
+    "hash": "f001900",
+    "subject": "README: list all playable game URLs"
+   },
+   {
+    "hash": "642fa69",
+    "subject": "Smoke-play tests: all five new games are playable end to end"
+   },
+   {
+    "hash": "085c644",
+    "subject": "Double the typewriter speed (50 -> 100 chars/sec)"
+   },
+   {
+    "hash": "ea2225c",
+    "subject": "Glow hugs the sprite silhouette, not its rectangle"
+   },
+   {
+    "hash": "9a26d1f",
+    "subject": "Dialogue box: per-speaker colors, neutral italic narration"
+   },
+   {
+    "hash": "3e9bf2d",
+    "subject": "Dialogue box: per-utterance speaker portraits"
+   },
+   {
+    "hash": "954863b",
+    "subject": "Remove the audience reaction palette from the theater"
+   },
+   {
+    "hash": "a9ea4be",
+    "subject": "William deepened - 16 scenes, ruthlessness web, two endings, poses"
+   },
+   {
+    "hash": "6c8b513",
+    "subject": "Elon deepened - 23 scenes, prestige/exposure webs, two endings"
+   },
+   {
+    "hash": "bcece6c",
+    "subject": "Talk balloons on stage; choices in a thought balloon"
+   },
+   {
+    "hash": "c798cc1",
+    "subject": "Actors change pose as they talk - acting tags + auto-vary"
+   },
+   {
+    "hash": "d150844",
+    "subject": "Balloons: smart placement above heads, instant full text"
+   },
+   {
+    "hash": "a06f295",
+    "subject": "In-scene dialogue editing: double-click a balloon to rewrite the line"
+   },
+   {
+    "hash": "3cf4096",
+    "subject": "Checkpoint: episode-expansion agents in flight"
+   },
+   {
+    "hash": "639a63b",
+    "subject": "William: 100-episode reaction layer - 127 scenes total"
+   },
+   {
+    "hash": "9ef0b5c",
+    "subject": "Leopold: 100-episode reaction layer - 128 scenes total"
+   },
+   {
+    "hash": "2b2a493",
+    "subject": "Capone: 100-episode reaction layer - 135 scenes total"
+   },
+   {
+    "hash": "615f9af",
+    "subject": "Capone: cutscenes, impact ledgers, and the Machine 1929 - 140 scenes"
+   },
+   {
+    "hash": "4abe549",
+    "subject": "Capone at 203 scenes: duets, aftermath chains, the Record"
+   },
+   {
+    "hash": "9666dcf",
+    "subject": "Research Pass 2: deep-dive enrichment dossiers"
+   },
+   {
+    "hash": "84d0c6d",
+    "subject": "Checkpoint: Pass 2 enrichment agents in flight"
+   },
+   {
+    "hash": "4b061a9",
+    "subject": "Pass 2 enrichment: William 221, Leopold 220 scenes"
+   },
+   {
+    "hash": "1dc9363",
+    "subject": "Design Addendum 01: personified machine, ledger, quote system"
+   },
+   {
+    "hash": "3eda9b2",
+    "subject": "Pass 2 enrichment complete: Capone 218, Elon 216 - 875 scenes total"
+   },
+   {
+    "hash": "2656aff",
+    "subject": "Narration overlays the stage as a comic caption - no more layout jump"
+   },
+   {
+    "hash": "024d145",
+    "subject": "Buttons can set worldState variables; quote banks land"
+   },
+   {
+    "hash": "1edcbb7",
+    "subject": "Quote engine: threshold-triggered pop-up cards"
+   },
+   {
+    "hash": "f2c523c",
+    "subject": "Netlify SPA redirect rule for web sharing"
+   },
+   {
+    "hash": "16ad5c5",
+    "subject": "Web builds ship theater-only with a public games landing page"
+   },
+   {
+    "hash": "6f34ad7",
+    "subject": "Quote library as data: 175 tagged verbatim quotes"
+   },
+   {
+    "hash": "f68e834",
+    "subject": "THE PERSONIFIED MACHINE - Design Addendum 01 implemented in full"
+   },
+   {
+    "hash": "a90d0f6",
+    "subject": "Two-frame walk cycle: MOVE flips Walk1/Walk2 poses while in flight"
+   },
+   {
+    "hash": "abdea16",
+    "subject": "Regenerate all William art in the sparse Bayeux style + Aldric walks"
+   },
+   {
+    "hash": "c2349b2",
+    "subject": "Single-option choices announce themselves and auto-resolve"
+   },
+   {
+    "hash": "fda80da",
+    "subject": "Fix MOVE teleporting when ENTER precedes it in the same pass"
+   },
+   {
+    "hash": "77d14b7",
+    "subject": "8-direction walk cycles: MOVE picks the pair facing the travel direction"
+   },
+   {
+    "hash": "c35678a",
+    "subject": "8-direction walk sets for the William majors + identity-locked angry king"
+   },
+   {
+    "hash": "4211f1c",
+    "subject": "rand(min, max): ranged randomness in expressions"
+   },
+   {
+    "hash": "a4b5daa",
+    "subject": "ELSE / ELSEIF: full conditional chains in DramScript"
+   },
+   {
+    "hash": "7b371f9",
+    "subject": "Dialogue {var} interpolation: the sim speaks its own numbers"
+   },
+   {
+    "hash": "1ab83f1",
+    "subject": "RANDOM block: play one branch, chosen at runtime"
+   },
+   {
+    "hash": "ea684c1",
+    "subject": "LABEL + GOTO: in-scene jumps"
+   },
+   {
+    "hash": "ed73eca",
+    "subject": "Choice upgrades: gated options, side-effects, timed choices"
+   },
+   {
+    "hash": "e6c103e",
+    "subject": "Staging block: TWEEN, BACKDROP, FACE, CAMERA"
+   },
+   {
+    "hash": "214e064",
+    "subject": "DramScript HTML reference generated from the command registry"
+   },
+   {
+    "hash": "6ad8857",
+    "subject": "Remove FACE: sprite mirroring is a hand-drawn-era trick"
+   },
+   {
+    "hash": "52aba88",
+    "subject": "Capone: all narrative text rewritten in the Droog voice"
+   },
+   {
+    "hash": "603393b",
+    "subject": "William: 19 new episodes built on the new DramScript commands"
+   },
+   {
+    "hash": "d389b83",
+    "subject": "FACE as facing, plus addressable backdrops: DropAnchor"
+   },
+   {
+    "hash": "faec948",
+    "subject": "Codebase brief for outside review"
+   },
+   {
+    "hash": "ed85bbb",
+    "subject": "Machine: 18.2 MB -> 8.0 MB by sharing sprites instead of copying them"
+   },
+   {
+    "hash": "b5d5dc4",
+    "subject": "NARRATE: the simulation can finally describe itself"
+   },
+   {
+    "hash": "9d2293a",
+    "subject": "Narraton act gate: BEGINNING / MIDDLE / END"
+   },
+   {
+    "hash": "fe06b59",
+    "subject": "Ability settings: the player says what they need, the engine adapts"
+   },
+   {
+    "hash": "51de751",
+    "subject": "Access onboarding: ask before the title card, change any time"
+   },
+   {
+    "hash": "e5a987b",
+    "subject": "Choices by arrow keys, an end card with credits, and shipped games in the editor"
+   },
+   {
+    "hash": "908c2a1",
+    "subject": "Three doors per room, the Bayeux tapestry, and the God Gamer"
+   },
+   {
+    "hash": "f135c95",
+    "subject": "Walk frames that hold identity, a fixed motte, and four title cards"
+   },
+   {
+    "hash": "a4f876b",
+    "subject": "Identity lock for actor generation: expressions keep the same face"
+   },
+   {
+    "hash": "e374e77",
+    "subject": "ANIMATE: looping frame cycles untied to movement"
+   }
+  ],
+  "2026-08-20": [
+   {
+    "hash": "c72ea3c",
+    "subject": "Two builds, and POSE stops silently failing"
+   },
+   {
+    "hash": "eee592e",
+    "subject": "Fix the POSE regression: resolution redirects, never blocks"
+   },
+   {
+    "hash": "7ad48d4",
+    "subject": "The model shows its work: live meters with commentary"
+   },
+   {
+    "hash": "2705e50",
+    "subject": "A console the show is played inside, dressed for each century"
+   },
+   {
+    "hash": "6f4a535",
+    "subject": "Settings rise from the console instead of blanking the screen"
+   },
+   {
+    "hash": "5dd1842",
+    "subject": "FRAME: the cabinet reacts, sparingly"
+   },
+   {
+    "hash": "257e10c",
+    "subject": "The show can read itself aloud, and the instruments have faces"
+   },
+   {
+    "hash": "1b69af0",
+    "subject": "Voice bridge: generate once, ship the file"
+   }
+  ]
+ },
+ "summary": [
+  {
+   "date": "2025-01-01",
+   "total": 1,
+   "usable": 1
+  },
+  {
+   "date": "2026-01-15",
+   "total": 54,
+   "usable": 27
+  },
+  {
+   "date": "2026-01-16",
+   "total": 78,
+   "usable": 39
+  },
+  {
+   "date": "2026-01-18",
+   "total": 74,
+   "usable": 37
+  },
+  {
+   "date": "2026-01-19",
+   "total": 47,
+   "usable": 24
+  },
+  {
+   "date": "2026-08-17",
+   "total": 8,
+   "usable": 8
+  },
+  {
+   "date": "2026-08-18",
+   "total": 28,
+   "usable": 28
+  },
+  {
+   "date": "2026-08-19",
+   "total": 72,
+   "usable": 72
+  },
+  {
+   "date": "2026-08-20",
+   "total": 8,
+   "usable": 8
+  }
+ ]
+}
