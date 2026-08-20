@@ -1,1 +1,1646 @@
-{}
+{
+  "8a13b47990c5aa8ff2b7dfd503f76639f04882091b0fcb66ca18d89f77791891": {
+    "text": "HUMANS VS BILLIONAIRES — Chapter 1: WILLIAM THE CONQUEROR. Three years after Hastings, the conquest is still not paid for.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_court"
+  },
+  "326632f5bce49509de7efe5c8fd0a1c48dd33a8e3910503239810187b1a33d0c": {
+    "text": "The order under consideration: a scorched-earth winter campaign across Yorkshire — villages, food stores, livestock. The chroniclers will call it the Harrying of the North.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_court"
+  },
+  "da03f9fe48031f8bc3c63d55f30a391630b9b34fe9620577dbb930d67a4042e9": {
+    "text": "Your choices will move the RUTHLESSNESS gauge. The gauge decides what kind of ending this king deserves.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_court"
+  },
+  "4c3377e17f415b71f6a4c07532848de0ab35aa0c536e1b7d4546f035947c5f2e": {
+    "text": "The gauge in the corner is called RUTHLESSNESS. It starts at {ruthless}. Every order you give writes to it, and at Rouen it will be read back to you.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_court"
+  },
+  "9d3aeb583138052d1225f6a6793a64c700032786d1705a9ab2b38f87f7c0e7a8": {
+    "text": "Watch the RUTHLESSNESS gauge. It is not a score. It is the total this king gets buried with.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_court"
+  },
+  "902ea740209b94ce955fd344aa053624ecdb2cae7c75bca5023aab9ab9572873": {
+    "text": "Whatever he says next, a chronicler will write it down wrong, and the shires will feel it correctly.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_answer"
+  },
+  "af1957df3f4ad4a458eb0ffaf19495070841ba852b9b7e0114a1ad6271d355da": {
+    "text": "The order goes north with the knights. No one in the hall speaks against it — counsel costs land, and land is the only currency here.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_order"
+  },
+  "0bc898dac9da1c19311b7a411e696f6298dfce1145887cf0b203811cf92bc168": {
+    "text": "You counsel mercy. For a moment, the order is not given.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_refuse"
+  },
+  "839f719cd0aa537e088895c467324d21d3230fa0b942b391d472aab9de72fca8": {
+    "text": "This is the machine's logic: repression is cheaper than losing the rent. In the history we actually have, no such refusal survived the winter.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_refuse"
+  },
+  "c18b22029e44240888c4a54f001ef4d452b954e6294b48eb88031090fb5c810e": {
+    "text": "The counsel is overridden. The order goes north with the knights.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_refuse"
+  },
+  "465da0ed97817849a915ba5823d62e096f277e64786c208dfdd5573a080d63fd": {
+    "text": "Norman columns move village to village. Crops, stores, and livestock burn so that nothing can feed a rebel — or anyone else.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_harrying"
+  },
+  "007c4679fd81dd19703a79ac71395001934cc7928ae493ab7c5078aee55894d8": {
+    "text": "You counseled mercy in the hall. The fires burn anyway. In this machine, one refusal changes the king's conscience, not the king's arithmetic.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_harrying"
+  },
+  "c5257b1e9e7c6253c1a55f6f0bca0994e3f78064a5a5eeb2ce411e679269b8fa": {
+    "text": "Famine follows the fires through the winter. Orderic Vitalis — writing some fifty-five years after the event — will claim more than a hundred thousand dead; modern historians accept a catastrophe in the tens of thousands. One dissenter, Mark Hagger, argues it was no worse than other wars of the age; most scholars disagree with him.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_harrying"
+  },
+  "375522265fd807f96fe733dc0c5906d3ec5c3e1986fb544b0315237bf27a0ac5": {
+    "text": "Symeon of Durham will write that no village remained inhabited between York and Durham. Seventeen years later, the king's own survey will still mark two-thirds of Yorkshire 'vasta' — waste.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_harrying"
+  },
+  "d9142ab09717ffbd2a106e1a265ac8dd6cd0e61362e4f961f55a1d71a841fe7a": {
+    "text": "Ahead lies the next village: Aldric's. The column awaits the word.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_harrying"
+  },
+  "20c24a117c7b46813d42dd21088b671575cb7ea3acc8db20395fa339fc63895f": {
+    "text": "The village burns like the rest. In the spring, the survey teams will write one word next to its name: vasta.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_press"
+  },
+  "357d03347f092982ef9473bf441f00bcafa839cf2a263d49f76a1ef852710661": {
+    "text": "One village eats this winter. The chronicles will not record its name — mercy leaves a thinner paper trail than fire. But Aldric will remember.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_spare"
+  },
+  "084f236a56f98ba7e04c6875907b1da10e715c71ea1e8fa2666e8ca40c171650": {
+    "text": "Where the houses stood, earth is heaped into a motte. English hands dig it; a Norman keep will crown it. Some five hundred castles rise in a generation — the conquest, poured in timber and soil.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_motte"
+  },
+  "be743f3505f0c8a55a961e6b070e3f73167d2a6fb5d3a8d2117fd8d4c6e465ec": {
+    "text": "A motte is not architecture. It is a village turned inside out: the same soil, the same hands, rearranged into a thing that watches them. Some five hundred of these rise in a generation.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_motte"
+  },
+  "882244166a371beaa433885d25ee4fcf5aad20c261e638d4acc0ff72b8f5fc88": {
+    "text": "Not everyone starves quietly. In the fens of Ely, the water itself is a wall.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_fens"
+  },
+  "5a41849fb4103fdc21612d64888a1769c47691c2127236953d022ff4174f7b84": {
+    "text": "Hereward the Wake — part fact, part legend — holds the Isle of Ely with Anglo-Saxon rebels through 1071. The chronicles remember him because resistance, too, gets written down.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_fens"
+  },
+  "dd9109f07e3a53af396ddbe9d3baed65e7add5126c2ed1e6f087cd3d9a34d019": {
+    "text": "In Winchester the king weighs the isle. Three ways in, and every one of them is a policy.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_fens"
+  },
+  "1a7078e6c0b22fe636147d0cca9d1ae7baba6d21dc7df488ba1c2f8a32487ec8": {
+    "text": "The first causeway collapses under the weight of armored knights; the fen swallows men whole. Legend adds a hired witch on a wooden tower, and Hereward burning the whole works around her.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_assault"
+  },
+  "b367ef7eb5a7b0c3fd249ff8324cd354fbd5fb9ce6007cb7d3a2411375c8d8cf": {
+    "text": "In the end it is not the causeway that takes the isle — the monks of Ely, their lands squeezed, show the king a safe path. The garrison is mutilated or imprisoned. Hereward slips into the fen-mist, and into legend.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_assault"
+  },
+  "e3d7c12d23b4249833aa9d261bf0f44bfe5fc4e5b6cdf9adc10f3cd7af3cfd45": {
+    "text": "The same logic as the Harrying, at a slower burn: cut the food, wait for the body to fail. The fen feeds its own — eels, fowl, fish — but the abbey's estates outside the water are hostage.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_starve"
+  },
+  "eee5c8229ab89c831153ac83e1f81d83e3fc0afe62e81ced4766ef969cd56674": {
+    "text": "The monks of Ely, their revenues strangled, treat with the king and show his men the safe path in. The isle falls without a battle worth the name. Hereward slips into the mist, and into legend.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_starve"
+  },
+  "6b0cd0ef7ea363afa5b5d505d9a4626ec966fe74ddf669770df8fd9708e17089": {
+    "text": "Some English lords do take terms and keep their lands — at double relief and a Norman overlord. The machine prefers a paying tenant to a dead rebel, when the price is right.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_terms"
+  },
+  "764f0734246d3ecf21138d5bd7c91edb42bd8b8d7a72d5f0b3786ae27c6502f4": {
+    "text": "The monks of Ely settle first, as owners do, and show the king the causeway path. The isle passes into the survey with its rents intact. Mercy, it turns out, was also a rate.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ely_terms"
+  },
+  "e4412b2631a9c74970a82a19f76b6e9c9a253331daf80930c746c9d06bbb566b": {
+    "text": "1086. Royal commissioners fan out to survey every hide of land in England — more than thirteen thousand places, their holders, and their taxable value, so nothing escapes render.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_domesday"
+  },
+  "9a46f8bbb012d0fea8852b3077744c6b5d8e6bfbc27c45924965f170e6cf274a": {
+    "text": "The survey done, William summons the landholders of England to Salisbury to swear fealty directly to him — over the heads of their own lords.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_salisbury"
+  },
+  "2277104db2a983350005ae13e690ed00d1881465443201af054ca82bda4ce47a": {
+    "text": "Anglo-Saxon lords are dispossessed; their tenants pay new Norman lords. Conquest has been converted into a permanent rent system — the machine this whole game is about.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_salisbury"
+  },
+  "8a562747ae07c6c4da2381e719e78786c1fe475dfdb4b2693414a9aca786ab8f": {
+    "text": "9 September 1087. William lies dying near Rouen, his intestines ruptured against the saddle pommel when his horse threw him. What happens next depends on who is holding the pen.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_deathbed"
+  },
+  "793bf9bc055f8b202ff162036af34699b5eec4ee19ee9f2739475052a6670341": {
+    "text": "What is documented: on his deathbed he released prisoners and pardoned enemies, including his half-brother Odo. Then, Orderic reports, his attendants stripped the room and fled, leaving the body almost naked on the floor.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_deathbed"
+  },
+  "cd244a19573c63f7cfeb9cd51d305e0023a748d4f69c9f5664bbd6f6cb16803b": {
+    "text": "ENDING: THE TOTAL. The king who burned the North is carried to the abbey he built at Caen — and even his funeral is an extraction dispute.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_funeral"
+  },
+  "0288c7d1e492189cf259ece884cec10da628387686e64487c7a1d6441f6061b2": {
+    "text": "Then the bearers forced the swollen body into a stone sarcophagus cut too small. The corpse burst. Orderic records the stench driving the mourners from the church, incense helpless against it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_funeral"
+  },
+  "65adf8883013e3e326a21f6f56930af9abc223802f185324e55a646ba8da558d": {
+    "text": "The extraction system did not die with him. It hardened into English feudalism, and its heirs are still collecting. That is why this chapter is first.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_funeral"
+  },
+  "729c612b0878ac6f8462158bbc63ced827aae43022a35d73ebc71478e48a2be3": {
+    "text": "Final total on the gauge: RUTHLESSNESS {ruthless}. Run it again and choose differently — the machine will show you how little that changes, and exactly how much.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_funeral"
+  },
+  "6d564c9c895ebd2de34754c7ad5e34511db0093e2c145ade8c2eea3ff16fb74d": {
+    "text": "You ended at RUTHLESSNESS {ruthless}. There is a lower number available. Whether the lower number buys anything is the question this chapter is actually asking.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_funeral"
+  },
+  "7684e6d33c6ea1775e25d596fd62f5ccfed0c8f56ca1fe4ad89fbf880fc35d59": {
+    "text": "ENDING: THE SEED CORN. A quieter reckoning. The king is buried at Caen; the machine he built keeps collecting. But you were not only its instrument — and neither was everyone else.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_coda"
+  },
+  "eb0326cafc1f5944b20be87852768a517ea22967826df780d15a46e0658b74ff": {
+    "text": "In 1217, a hundred and thirty years after William's death, the Charter of the Forest will be sealed: commoners' rights to wood, pasture, and pannage restored — the first great clawback from the conquest machine.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_coda"
+  },
+  "2610ae267b8c40cf5bfac732d0521ae6101ef579a1b99affe3ebaff8cec47609": {
+    "text": "Final total on the gauge: RUTHLESSNESS {ruthless}. The lowest number this chapter permits is not zero. Work out why, and you have understood the machine.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_coda"
+  },
+  "2dcb294c15d8159306d8cec8413eb061d34eb1f8c988cd2775d73a6a84dc4feb": {
+    "text": "You ended at RUTHLESSNESS {ruthless} — and the North still burned. Play it again if you want to prove the gauge wrong. It has been tried.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_coda"
+  },
+  "71562900c5fc293e0b8d6ae3286409b74fdd3129d1933f7ba8e32408c1667609": {
+    "text": "28 September 1066. The Norman fleet lands unopposed at Pevensey while Harold's army is far to the north.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_pevensey"
+  },
+  "0ccc9d20b0d37234900130b54e7ed33e2a9b0bfe90c1ace587df6ab700b9c3fe": {
+    "text": "Who speaks? Three benches in this hall, and none of them will look at the other two.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_pevensey"
+  },
+  "e79ac6dfe1f514b26a820073ae82f3f6c9019cf7124b14ac3c5f0071968c6556": {
+    "text": "Six mouths were within earshot of that, and they do not sit together. Pick a bench.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_pevensey"
+  },
+  "6c5abc10c606ef54ff92809ba2f2ea2d00928e5e00e8b481e75c7b39dd5698f3": {
+    "text": "Same event, six vantage points, three benches. Whose account do you want on the record?",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_pevensey"
+  },
+  "c9f81e1057aa4800c0c1b29dcbc47c74523711833f70bf43f296fee126c41e02": {
+    "text": "Every one of them was there, and every one of them tells it differently. That is not a flaw in the sources. That IS the sources. Start with a bench.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_pevensey"
+  },
+  "1b1de7bdead45f82399cb57bcb337c1e0c281815293280acccbd4a1c29242410": {
+    "text": "The two men who signed it. Half-brothers, whole accomplices, and each of them certain the other is the reckless one.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmchg_pevensey_normans"
+  },
+  "6f433b64e237221657e3b26eb2cf44a0db7774e2d655754d8e85cf58a578330a": {
+    "text": "The outlaw in the fen and the ploughman in the furrow. One of them is remembered. The other one fed him.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmchg_pevensey_english"
+  },
+  "eb675e2afb280ace8fca7e76cb958a8df33934f6d0b630e58adb00337315ce94": {
+    "text": "The man who writes it down eats at the abbey the conquest paid for. The village does not, and says so at volume.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmchg_pevensey_page"
+  },
+  "04c43469d22788232f19c82788389f8d58deeae0ddd5a9e69a28d8654822e6b5": {
+    "text": "The stumble and the answer are chroniclers' polish; the unopposed landing is fact.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmv_pevensey_william"
+  },
+  "4ffaab07aa4c5dcedfd02a7b9ace6366000fc10c5a21e5a33b5f47543a077077": {
+    "text": "The near-contemporary Ship List records some 776 vessels pledged for the crossing — Odo's hundred among them, and his brother Mortain's hundred and twenty. The fleet was a subscription: every hull a share in land not yet taken.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmv_pevensey_odo"
+  },
+  "27af9b8e4cf156f96f1af8cb6d9e881c1ffb7951411127df46491059beaf2ee5": {
+    "text": "14 October 1066. Nine hours on Senlac ridge end with Harold dead and England's door broken open.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_hastings"
+  },
+  "aa3f69adc8c56419514e38796dce36cef3e0eb141fe1060066ae245bebdd73b5": {
+    "text": "That the cause was Harold's oath-breaking is Norman framing; the arrow in his eye is tapestry tradition, not certainty.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmv_hastings_william"
+  },
+  "3181e624467213cd79737dbf1ad25e1b680a56c6fcb93aa56d951be8608ade06": {
+    "text": "Christmas Day 1066. William is crowned at Westminster while his guards, mistaking English cheers for riot, fire the surrounding houses.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_coronation"
+  },
+  "39cc2ae5a5d855533ae0f430b53c0162dfa5206c76579dbf80961049bca4a25c": {
+    "text": "Winter 1069. The order goes out: burn everything north of the Humber that can feed a rebel.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_harrying"
+  },
+  "fb9a6e158b3bcbe58d4e60adf842ea6e7c95ba222866c70ea58d0b5cd889fe7d": {
+    "text": "Winter 1069-70. The columns move village to village; the North becomes smoke.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_burning"
+  },
+  "2dac2d011a5120a3ed119c61db7fd45b91282cb3624078ac28207e71c9eb1fc6": {
+    "text": "The hungry winter, 1070. Famine follows the fires; the king's own survey will still say",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_famine"
+  },
+  "52e2a55b188e6832327e8a669cc922794061f1e3bf1ccc174d8f21f44339f520": {
+    "text": "The deathbed confession is Orderic's composition, decades later. The famine needed no author.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmv_famine_william_resigned"
+  },
+  "1289949995b710d9697404d8592610c02504277d66f6faa0a698ba59e2b25c76": {
+    "text": "1067 to 1087. Some five hundred castles rise in a generation, many on razed streets.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_castles"
+  },
+  "e2c3755add216734ba054d4f949d3effd4c77942437120aaef661a9ca969e613": {
+    "text": "Around 1079. Forest law closes the woods; the New Forest is set aside for the king's deer.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_forest"
+  },
+  "5f8a06cfc7dbc8af12360664eee358f9bca0a8c5b39b5cb98edf1ceacf1ab813": {
+    "text": "1086. Royal commissioners survey every hide in England for the king's book — more than thirteen thousand places.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_domesday"
+  },
+  "52f62cd3600e12dd974ba530b09a86e7b5f541d475577458db9b8fdaf0a60011": {
+    "text": "1 August 1086. The landholders of England swear to William directly, over their own lords' heads.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmch_salisbury"
+  },
+  "ca04b68b0589d7151a1f131cdc17e72de17c19f16e2107e6e8d108c55750725a": {
+    "text": "The king and his enforcer-bishop. Half-brothers, whole accomplices — until the arithmetic parts them.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo"
+  },
+  "5ee36a94fd594982620b25e365d5a173e38cdafb520a09a8aa584b77647231c8": {
+    "text": "Close the door and pick the argument.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo"
+  },
+  "d5531af9d4d9e160e53e06efcf9f1e084617756941e37e3a6af1254a6a7163b4": {
+    "text": "Two chairs, no witnesses, no chronicler taking dictation. Which conversation?",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo"
+  },
+  "674949e712bfdc7a58bb231dadf1ed3ba4f619075577a24110b3a0f649622c6f": {
+    "text": "Set them at each other. The record is thinnest exactly where these two talked, which is why the stage is here at all.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo"
+  },
+  "6775a7470502e01977fdb90b6a490da129c9e7f3bdb63893058987fff386029d": {
+    "text": "These two are not finished with each other.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo_p2"
+  },
+  "3c9a69df861841b049c4e7f53db7058828135375fb5d0be1effc41900b73b25a": {
+    "text": "There is more between them than one evening holds.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wo_p2"
+  },
+  "77e81f865ea34e86b06343fa208a06fa5887465621f94487841c136764e524e8": {
+    "text": "The king and the monk who will write him. These meetings happen only on the page — Orderic was born in 1075 — and the page admits it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_worc"
+  },
+  "0d986ddcc14ee3ab1d9fb6033dc7956913d13879efe67728e4ae29c3d73bbb8b": {
+    "text": "The rebel and the ploughman. One wants recruits; the other wants a harvest.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_ha"
+  },
+  "6eabe6ce903c70cee7f3b03c7b566cc863e8ba4bbf4b058eb00deae61bc43139": {
+    "text": "The patron and the scribe. One commissions the story; the other keeps writing the wrong one.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_oo"
+  },
+  "dcd24af8ea4c0a3cfa216781e82be55c393df3e156958cab642b138fd85d25c4": {
+    "text": "The king and the outlaw. No chronicle records them meeting — so this stage does what chronicles do, and invents carefully.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_wh"
+  },
+  "1b509ad6942f5108d4657dc9cde741d7fe98c30f6737d52c2f4749e50bc68253": {
+    "text": "The ploughman and his neighbors. Every royal policy ends here, as an argument at the moot.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_ac"
+  },
+  "8dbc205b7a3f237cb6372ba4c139f76f7759fd9882c6b93fe8f91d031016c0d7": {
+    "text": "The survey's deepest function, historians note, was exactly this: fixing what the king's own barons owed him. Extraction disciplines its middlemen first.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_survey"
+  },
+  "39c5a33ef95d571f54a5b88ccca5989cb7ac89ffc5918bdb35a9829a6686e8fa": {
+    "text": "It took four and a half centuries, but a king did the sums. The dissolution of the monasteries was Domesday's logic finally applied to Domesday's biggest winner.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_church"
+  },
+  "b627b762a35cd1639e0b676cd09abdcd5e568343ea6ebf1e05652cc6e98f0d31": {
+    "text": "1082. Odo — regent, richest man in England after the king — is caught recruiting knights for a private venture in Italy. Some said he meant to buy the papacy itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_odo_fall"
+  },
+  "6c6284ec300dc97795d523fcfcac662fe46e52cabf9b95bfb83989f6a8dd405c": {
+    "text": "The lawyer's trick is reported by the chroniclers. Domesday values the arrested earl's lands at some £3,000 across twenty-two counties — second only to the king's. Odo sat imprisoned at Rouen until William, dying, pardoned him — the machine forgiving its own component.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_odo_fall"
+  },
+  "a37ee9db3c8fc52c36df98c064dba3eddb4ea766000e84da2caa73b59d99033e": {
+    "text": "The great geld of 1085 and the Domesday inquest were twin instruments: the emergency tax, then the machine to make every future tax inescapable.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_geld"
+  },
+  "e408892f3cc12ef888515700f9c59f78cdd8ef2cad3a4aa66ad2285c803ffb5f": {
+    "text": "Castle-work was among the burdens the Anglo-Saxon Chronicle listed bitterly under this reign: the conquered digging the conquest in deeper, at their own charge.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_castles"
+  },
+  "595ce87f13d1e20d9e4be37359a91f834f8a3e7d70f32e050ffe217e4e2e0f6a": {
+    "text": "September 1087. The dying king has pardoned nearly everyone — except, for days, one name.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_trust"
+  },
+  "ee3fcfdd9fbf39568e6e3b6173e1920cefdf82466a9325c7ec3179020407d994": {
+    "text": "He did pardon him — documented, unlike the speeches. And Odo did trouble his sons: within a year he led the rebellion of 1088 against William Rufus. The wound knew itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wo_trust"
+  },
+  "dfdd11d15e3dc234cc1ca0c587385d7e15e9e2979e93b38e27d3d1742486e31e": {
+    "text": "Understand the device before it speaks: Orderic Vitalis was born in 1075, nine years after Hastings. He never stood before this king. Every meeting here happens where all their meetings happened — on the page.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_worc_frame"
+  },
+  "9e0ee26746bfe76a1ea260dbcd44d2d22a579f074be35fa8e0ab9fd082869b69": {
+    "text": "Orderic wrote this some fifty-five years after the fires. The historians' consensus runs tens of thousands against his 100,000; Mark Hagger dissents that the Harrying was no worse than other conflicts of the age, and most of his colleagues dissent from the dissent. No historian runs it to zero.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_worc_number"
+  },
+  "326a7ec082396cf1f1f8ab0ef76b24876d1fee792f08ff233d7b9846b6dc838a": {
+    "text": "The rebellion and the ploughman: allies against the machine, and not quite allies about what should replace it. This argument is older than both of them, and outlived both.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_ha_bread"
+  },
+  "0e33e3cd3355a7f7c2741bce7bf952dae4533d075d993c5f36fcd10617c20845": {
+    "text": "The fen as sanctuary is well-attested; its limits equally so. Every resistance is also a ration.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_ha_fen"
+  },
+  "c73fac8a6773ac6879a17de3f380b233d51b2343a9fd414feae0b5d111190fda": {
+    "text": "The Bayeux Tapestry's Norman program and its ambiguous English-made margins are both real, and art historians still argue over what the borders mutter.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_oo_tapestry"
+  },
+  "0d510d0a7ac016efb4c9d8c88823e4e433a8ac262b5721f9a44d499bc60f3c02": {
+    "text": "Halley's Comet did appear in spring 1066; every party read it as an omen against the other. Omens are the medieval word for editorial.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_oo_comet"
+  },
+  "dd916b278d81d601dc8653a4f4e112d82f866b98fed17009773fcb47febe7deb": {
+    "text": "Flag this plainly: no chronicle records William and Hereward ever meeting. What follows is counterfactual — the conversation the sources leave a hole shaped like.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wh_parley"
+  },
+  "cc202dad81ea3184c05f069922cb676e702be2c585fb0ba209790301a1f27998": {
+    "text": "Counterfactual, again — though this one nearly happened: some traditions say Hereward eventually made peace and held land under William. The chroniclers disagree; the stage may choose.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wh_terms"
+  },
+  "d206e6dc3d0931a7eb565a67680e4762bbe70c6491ad36aca405bfbf4df7e273": {
+    "text": "A third invented meeting: two theories of England, given one stage.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wh_map"
+  },
+  "368d2699506e521c80c4b1b5351417b4b3abdd38a75651900532f04d453bdadc": {
+    "text": "Forest law was, among other things, the crown's attempt to conquer the between-places. It manufactured outlaws for two centuries, and then it manufactured Robin Hood.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wh_map"
+  },
+  "39619d41d1cf87456f536b8f77a0fe566d0bda2fd470f4fea5fab6f82e9cd9aa": {
+    "text": "Last invention: both men dead, arguing over the estate that neither can hold — memory.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_wh_legend"
+  },
+  "fc0461884e30868e1764f1d008b47774953d8758e17a96125467308f1dcb0d1c": {
+    "text": "No chronicle records this parish or this floor. Chronicles record what lords do. What villages did under their fonts is exactly the kind of fact that survives as absence — and as the villages that, somehow, sowed in spring.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_ac_seed"
+  },
+  "53eccb9b4608936ffee77eafbcf7352a8b93ee2b36a404a14629e300c83a6684": {
+    "text": "This quiet trespass, multiplied by every forest village for a century and a half, is what the Charter of the Forest finally wrote back into law in 1217. First the practice, then the right.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duet_ac_forest"
+  },
+  "a3115743ae227ea8da915e1a23566d7fef554968a40ef72efad558cf66602e2e": {
+    "text": "Put two of them in a room and close the door. Where the chronicles record no such room, the stage says so out loud.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_hub"
+  },
+  "ad68a30a9d09ce5db0b31f79d85092770a107468edc3167cc4e0d56333405e20": {
+    "text": "History is mostly one voice at a time, edited. Put two in a room and the edits start arguing with each other. Where no such room existed, this stage admits it in the first line.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_hub"
+  },
+  "0b2937652ac7704a7be5b751c7917a9958e37223937a5e9d07f4df7be5ce67be": {
+    "text": "Six pairings. Some of these meetings are documented, some are counterfactual, and every counterfactual one flags itself before it opens its mouth. That is the house rule.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_hub"
+  },
+  "59b9a42032aec9445006b24d4ca7a6e16b9eaa6881b023e204621eb0dbfce6cf": {
+    "text": "Two rooms where the conquerors argue with the conquerors. Nobody in either room speaks English, and nobody in either room thinks that is a problem.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_g_norman"
+  },
+  "dc2c6826bde6532d23b0b51fbea2312fa24314dd37ec08daa8817b20b81b5f1a": {
+    "text": "Two rooms that never existed. One puts the king in front of the monk who will damn him; one puts him in front of the outlaw he never caught. Both flag themselves in the first line.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_g_page"
+  },
+  "66b72c501db8969bf73717ec451667da27419e6c8274bb5dd73b3012c31a023e": {
+    "text": "Two rooms with no Normans in them at all. This is where the conquest gets argued about by the people it actually happened to.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_duets_g_english"
+  },
+  "584af838bceff49aae6abb2349e1be21986eefec2c66aceb1d35bf34826ff91b": {
+    "text": "That night there were hundreds of such roads. The chronicles compress them into a sentence; the sentence took all winter to walk.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_aldric_0"
+  },
+  "a38e8f26b7d91117e42c4391e1fc8c409a4377b97f035a7f6093ff06f79a7966": {
+    "text": "Famine's second year is crueler than its first: the first eats the food, the second eats the future. That is what burning seed corn buys.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_aldric_1"
+  },
+  "8ea1f4f0195460322bce91fe6962e9268e7f9a45e6c2648dee4f31647bee0285": {
+    "text": "The Harrying's last casualty was the memory of alternatives. When the survey's grandchildren paid their dues, they paid them as the order of nature.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_aldric_2"
+  },
+  "cd405fda4cc55b8cc0f31a9455f33803ee10e15b8f38a992155e6287ebfdbdef": {
+    "text": "Complicity by silence is the machine's cheapest component. It was fully staffed that night.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_odo_0"
+  },
+  "141f8f03cb598ac666b617bc5e55bf8940c6e3019dcb58e0aa0aecfd8f3f068e": {
+    "text": "The regime's own arithmetic condemned the policy sooner than its conscience did. Waste pays no rent — the survey would spend pages proving it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_odo_1"
+  },
+  "4afbe8e81353839af371951ba5b234227136f153ea7ea7317d473bc6ca0284cd": {
+    "text": "Every extraction system learns this accounting: atrocity is a loss on every page except the one that matters to power. Keep your eye on which page they balance.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_harrying_odo_2"
+  },
+  "cf6bc5034d16f1f96cfcd13f7e27414ee5b4f15d13fc6fdc1c2f74084beeb5cd": {
+    "text": "It did. What is assessed is owned differently forever after. The village learned in one afternoon what economists would need eight centuries to phrase.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_aldric_0"
+  },
+  "fd81d0115e92cbaa44c1d881182fcbd2123bf33722cb7e98fa9332d6faefa5fe": {
+    "text": "A fixed assessment converts every bad harvest into debt. The book's permanence — its whole point — is precisely what made it merciless.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_aldric_1"
+  },
+  "63d40c420b4b387b62efffbc3ea377ae35b04868fb4cee3b426f5f4d729150ed": {
+    "text": "Domesday's entries were cited in English courts into the twentieth century. The boy's morning lasted, by conservative count, eight hundred years.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_aldric_2"
+  },
+  "8812352a3c4c53cd6d7391a52c71c03cb06613d50326b1529e294b2ec4abe7d4": {
+    "text": "The sworn local juries are documented procedure. Extraction that co-signs its subjects is extraction that plans to last.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_orderic_0"
+  },
+  "7a90d9863db90b2d190b3481622b84e069fe6e90a502b5db30fb521bf008046d": {
+    "text": "Great Domesday was largely written by a single scribe, and work continued around the king's death. Systems outlive the appetites that commission them — that is what makes them systems.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_orderic_1"
+  },
+  "70b78281004a25fbd870a8a1f53b6acd88cbd865e3aee38237dadcd52bb7dee2": {
+    "text": "By the 1170s the English themselves called it Domesday — judgment day — 'because its decisions, like those of the Last Judgement, are unalterable.' The nickname is the review.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_domesday_orderic_2"
+  },
+  "5305bf290058d681bfdff85efa764e75741bdda01563b22e881daeaa70e8381c": {
+    "text": "Forest law criminalized custom itself — firewood, pannage, the hare in the pot. It is the purest case in the whole chapter: nothing was taken except the right to use.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_aldric_0"
+  },
+  "00240b33a541b4de1873ae069143803466bebf905c5fa85d85542872b7578879": {
+    "text": "The court's penalties — mutilation in the harshest tellings, chronicler-reported — did the advertising. The dusk-paths did the resisting. Both institutions ran for a century and a half.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_aldric_1"
+  },
+  "7270d7c1c88705e196aa78397637a5611a032312625546f34a4e63f70c4db18d": {
+    "text": "William Rufus died by arrow in the New Forest in 1100 — accident by every sober account, judgment by every village one. When a law manufactures outlaws, it also manufactures the audience for that whisper.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_aldric_2"
+  },
+  "e8924b1b211760dda696b4c08d724368574487ed401e6be78759bf9c79a7ab97": {
+    "text": "The royal forest was a Norman legal invention on English ground: jurisdiction as property. It is rent abstracted one full turn further than land itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_william_0"
+  },
+  "8cd8e6811db9628f0e8b939241c6ae4b2bd5f9e59aef1a20023ee5a117a5fc02": {
+    "text": "He understood commons better than the commoners' own advocates: every use-right is a leak in the rent. Forest law was the caulking.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_william_1"
+  },
+  "1eea30b828f8900fa81d456716213424ae01a28f0f5d933fc70f812079b11938": {
+    "text": "The Chronicle's verse obituary is real and unsparing: the deer-line, the castles, the geld. A century of forest misery later, the Charter of 1217 began prying the fence back open.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_forest_william_2"
+  },
+  "70a802599f794c544b211c1edc9ef2d159058d504a108b899683b8f0c28e3451": {
+    "text": "The Salisbury oath cut across the feudal chain — vassal's vassal bound directly to the crown. It is the constitutional moment of the whole machine: no ground, and now no allegiance, outside the system.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_william_0"
+  },
+  "25ffec52d90946a4a47955bccd07836d23b043687bbb17002790571d2990d6c8": {
+    "text": "The reservation of fealty to the king became standard in homage. Conquest had finished converting itself into boilerplate — the most durable material known to power.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_william_1"
+  },
+  "a875178ce68aa8533a857eccc45c874115258d6df0979bf2b340805e0e5e9452": {
+    "text": "Tenures traceable to the Conquest settlement structured English landholding for centuries; its doctrine — all land held of the Crown — remains the formal root of English land law today. Forever was only barely an exaggeration.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_william_2"
+  },
+  "79c018a071fff1c6cb3d73607519ee82f04459cdedd30a8e4ea1597325705de9": {
+    "text": "For the plough, the oath changed nothing that day — which is itself the finding. Constitutional revolutions at the top arrive at the bottom as continuity.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_aldric_0"
+  },
+  "5e50f078e195fff12617b456a415c5ca75432dd9a58ea150dbf73d7af1206ff8": {
+    "text": "Interchangeable lordship is the oath's deepest gift to extraction: the system no longer depends on any particular extractor. George would recognize it instantly — the rent survives every landlord.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_aldric_1"
+  },
+  "a59d46e5408346e308bacaecb4afda518d743e3e994ae7212d3044709573592d": {
+    "text": "Post-Conquest law hardened many free English smallholders toward villeinage — free in name, bound in obligation. The chapter's thesis in one household: the margin did not close by decree; it closed by arithmetic.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_salisbury_aldric_2"
+  },
+  "164d8f0d9a516dff089d89a3d1de09a981b556893e471d3e6bf97b2c2fe2adbd": {
+    "text": "An order is an evening's work. What it ordered goes on for generations. Four policies, two vantage points each: that night, a season later, a generation later.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_hub"
+  },
+  "de1ce103b0b7ac074fefb100b5d4deced6bb2054cdb56a86b999aeeba96b27f6": {
+    "text": "Policy is fast. Consequence is slow. Four orders, followed down three time-scales apiece — the night it happened, the season it bit, the generation that could no longer imagine otherwise.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_hub"
+  },
+  "9bbfad46487867b644409345a606a654befa673f0e8619550553875c257d0e8a": {
+    "text": "The chronicles give you the evening the order was signed. They almost never give you the spring. Here are the springs.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_after_hub"
+  },
+  "5f6cbcc79082fb90f56df830e73d3e1a7969f7ad75fafeef357f8fdb600d0faf": {
+    "text": "One winter's order. Follow it from the man whose barn went up, or from the man who added the column afterward and found the arithmetic acceptable.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wma_harrying"
+  },
+  "cdc60d2261fcd8947d1a302f225f57ca1a9625e24168276a9f19ee2b700f9dad": {
+    "text": "A survey is an evening's work for the clerk and a permanent condition for the vill. Two vantage points: the assessed, and the record.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wma_domesday"
+  },
+  "30d29ba7c00533879243910675347aa58167ee880be6ec1b5efe6e47f9d9ab04": {
+    "text": "Two more orders with very long tails: a forest fenced against the people living in it, and a field full of men swearing to one man forever.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wma_late"
+  },
+  "8a788c4224dab579c730a59dff99eecf4844b6d6b5d9ea4c1845161b3db988b4": {
+    "text": "Deer become the king's deer, and a man who has hunted that wood his whole life becomes a poacher without moving. Two vantage points.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wma_forest"
+  },
+  "504a479fac66137399e28d93e78d27c244b1121897a0ee1d7a44371283edaf85": {
+    "text": "Every landholder in England, in one field, swearing past his own lord straight to the king. Two vantage points: the crown, and the ground it is standing on.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wma_salisbury"
+  },
+  "b68121770ca2da9fb53633db5fe2f396ca46da16caad958832c65395ad10e53e": {
+    "text": "1075. The Revolt of the Earls — the last serious rising of the reign, and it is not English at all. It is hatched by William's OWN earls, at a wedding.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_earls1"
+  },
+  "b3fe9e62b64dfcc807ca90f0076558164402a3616710b144d68d5a6b5e8f6bde": {
+    "text": "Greed inside the machine proved as combustible as grievance outside it. The revolt collapsed within months — the interesting part is what happened to each conspirator.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_earls1"
+  },
+  "d53919bf7abf937176c65f3cf8412719d6d99528fd4d94a91df4efd05eaedaca": {
+    "text": "The revolt is crushed while William is still in Normandy — the system suppressing a rising without its king, which is its own grim milestone. Then the sentencing.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_earls2"
+  },
+  "d162fbcaddd758141401ae79f3501c846b0fa01c0890fff194bd555a47d287ec": {
+    "text": "The Danish fleet that came for the 1069 rising winters in the Humber — the rebels' great hope, the invasion that could reopen everything. William does not fight it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_danes1"
+  },
+  "80a86846aca3eee8f9569e2fd0b354ba3bd89f8fdb5e111519f4f223b8623869": {
+    "text": "The Danes took the Danegeld and sailed, as Danes had before and would again. The North's last outside hope left with them — bought, not beaten.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_danes1"
+  },
+  "3e2a05c6e7c3ff98303ceaf481e97c3a94008b87b2832e5dcaf51cc0a710e3b5": {
+    "text": "1085. Cnut IV of Denmark assembles a great fleet to invade England. William's response is the largest army ever brought into the kingdom — of mercenaries.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_danes2"
+  },
+  "36b2a44c229fa8d1da50c4a2e380d3f03fb0094de516a3f94b2570ec0fb10e59": {
+    "text": "The Chronicle links the great host of 1085 and the deep speech at Gloucester that launched Domesday. The invasion never came; the invoice became permanent. Emergencies are how machines acquire new organs.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_danes2"
+  },
+  "89237eea06463ab31c97e48ff2e8507847a67f37ebeb224280e69db624eac42e": {
+    "text": "The heavy geld of 1084 at six shillings the hide is on the record; the survey followed within two years. Tax first, then build the instrument that perfects the tax: the sequence is the signature of the machine.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_geld"
+  },
+  "4a40bf65c81dd43b70719089a24bb24f66c030238489f4e044c86b966ac22141": {
+    "text": "How did the unassailable isle fall? Not to the causeway. The abbey of Ely held rich estates OUTSIDE the fens — and the king quietly took possession of every one.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ely_fall1"
+  },
+  "f2a8aacf6b4bcbaec1263cc0a9468b75eb5c4a436512947f8e9464f7e91e7e99": {
+    "text": "Property held hostage beat an impregnable position. Note the mechanism — it is the same one that ends most resistance in this game: not defeat. Foreclosure.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ely_fall1"
+  },
+  "db519f014990cf9b956612a1969434425842395c75a4c937023d55e6e77c6e8a": {
+    "text": "The king's men cross by the shown path. The isle that could not be stormed is simply walked into. Then the sentences.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ely_fall2"
+  },
+  "0f86ac4a75eb385a7f81179165ad09e2856b41ddf864409dfd33777776fc3964": {
+    "text": "The mutilation of the Ely garrison is chronicle-reported; Hereward's end is genuinely unknown. Both facts have been doing their separate work ever since.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ely_fall2"
+  },
+  "26ec7aa69b0efade25db30ba96ccd067db4902a76ca046eeb8bc004a668f8b4a": {
+    "text": "Lammas Day, 1086. The Chronicle's own words: there came to him 'all the land-holding men of any account throughout England, whosesoever men they were.' Whosesoever men they were — the clause that changed the constitution.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_oath"
+  },
+  "30f0f1a1a94d4600d30ec82da670a197fc139ea8d0a25b0ee4c2dba6aa5d3a3b": {
+    "text": "Historians pair the oath with Domesday as the Conquest's administrative consummation: first know exactly what every man holds, then bind every holder directly to the crown. The machine's two hands, closing.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_oath"
+  },
+  "784ec0ab25545e64d527054f97c6b6f00f64bc6e2c3a2f059b8de412e6f89512": {
+    "text": "Foreshadow, thirteen years past the king's death. His son William Rufus, hunting in the New Forest his father emptied by law, takes an arrow through the chest. His companions abandon the body; a charcoal-burner carts it to Winchester.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_rufus"
+  },
+  "7e90353fad533ca656b69da575474d54b1fba3488702facf61c74e3429949a29": {
+    "text": "The Rufus death is fact; the meaning is folklore — and the folklore is data. When a legal system is hated enough, even its accidents get entered on the other side of the ledger.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_rufus"
+  },
+  "ea06bfce2dce962ab81285780eb317b70f5707601412e9cd1bfd908e23967ed9": {
+    "text": "The funeral at Caen, and the moment the whole chapter has been arguing toward. As the body is borne to the grave, a man steps out of the crowd and stops the rite.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_funeral1"
+  },
+  "c119fdb969e1dd4a53d013bd211216b33f96ff95c893578ff3962a85594a2ac8": {
+    "text": "Orderic and the other chroniclers report the scene in detail. Whatever they embellished, the shape is perfect beyond invention: the machine's founder could not enter the ground until the ground was paid for.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_funeral1"
+  },
+  "3ae24480a87c57df1eb6c08f297f30f11293e1a952a107fb49e737dc47fe91a1": {
+    "text": "The looted deathbed, the graveside extortion, the coffin that would not fit: the chroniclers assembled William's ending into the medieval world's most complete parable of extraction. This game did not have to invent its moral. 1087 wrote it first.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_funeral2"
+  },
+  "2847fc1f19220505d9ce48ab1cd63c999c9fa0d5bf3d3f4ebd58738d71dad5a9": {
+    "text": "The year the king dies, an English monk writes his obituary in the Anglo-Saxon Chronicle — in verse, in English, for English readers. It is the conquered's considered review of the Conqueror.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_chronicle1"
+  },
+  "1b6e354c7be350993aa67a3903fe42d2f1e7ff3177d3be1d912970a86de0f261": {
+    "text": "The Peterborough Chronicle's verdict, written under Norman rule by men with everything to lose, survived nine centuries. Every regime learns it eventually: you can dispossess the literate, but they file a report.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_chronicle1"
+  },
+  "4bb4a4703bf9885921b501f4b42ea50ece3b7adde84397874625eac8db09500f": {
+    "text": "The Anglo-Saxon Chronicle ran to 1154 — the longest act of documentary resistance in this whole game, and the direct ancestor of every witness, chronicler, and whistleblower in the chapters that follow. The machine builds its book. Someone always builds the other one.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_chronicle2"
+  },
+  "a227e2708f39613455048ab9972ca913f7ade9e0c56c65c8b3b8827d1452f14e": {
+    "text": "One loose end the machine handled with strange gentleness: Edgar Aetheling, last male heir of the House of Wessex — the boy the North rose for in 1069, the rightful king by English blood.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_edgar"
+  },
+  "2cd479690c8cd39097beae56152dad657031dfea0bd8cf7f1c49331a9752ee89": {
+    "text": "Edgar outlived William by nearly forty years, on the pension, in the record — the revolution that was never crushed because it was successfully SALARIED.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_edgar"
+  },
+  "ee72fe5f5a88b9bf1b33463b06ea3013bbbf1a29563b2aac3e047c98713a74b9": {
+    "text": "Before a single ship is built, the enterprise acquires its most valuable cargo: a consecrated banner from Pope Alexander II. Watch the two meters this one object moves.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_banner"
+  },
+  "f09eacecdbff954cfddb956f0d9274e494a50fe36c18ef0f10624958b378ae32": {
+    "text": "In the machine's terms: PRESTIGE up, REGULATION down — the referee blessed the acquisition before it happened. Moral cover is the cheapest insurance extraction ever buys. (The record wobbles: some scholars argue the banner was formally conferred only at Winchester, c.1070 — the receipt possibly backdated.)",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_banner"
+  },
+  "bd7309040c0f0d5de29e836e63b7744df60ab1dadc02e730e4255a8e4dd8fd34": {
+    "text": "Lillebonne, January 1066. The barons of Normandy balk: no feudal duty obliges them to cross a sea. So William makes them an offer that is the Georgist seed of this whole chapter.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_lillebonne"
+  },
+  "9944757cba1a963b24ccf5c71912a2cf67cf7e10bfc86f7609cffd8dab2bdebc": {
+    "text": "They did. Hold the sequence in view, because every chapter of this game repeats it: conquest converted into property, property into rent, rent into perpetuity. The swords were the down payment; England's fields were the dividend; the payout schedule was FOREVER.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_lillebonne"
+  },
+  "fd5f446c335cb8feae406ef340d3c8b5dbc79cddb3d03941ed1ae76871825c41": {
+    "text": "The fleet gathers at the mouth of the Dives by mid-August — and the wind refuses. For about a month the greatest speculation of the century sits at anchor, eating itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_shiplist"
+  },
+  "dbad767671e06ecac54aac0f1c09408100c21989e8c0fd8c8c8addf066f7f6dc": {
+    "text": "The wind turned at Michaelmas; the fleet crossed the night of 27-28 September and landed unopposed. Wace later counted 696 ships — chroniclers audit each other too. But the shape is exact: England was not just invaded. It was UNDERWRITTEN.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_shiplist"
+  },
+  "12bf201603b29be4b5729de7ff8d3ae69fc5f922eb1dfe7cbee23d1114ffd665": {
+    "text": "FLAG THIS SCENE BEFORE IT PLAYS: everything in it is Norman testimony. No English source corroborates the oath. This is the story the conquest told to license itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_bayeux"
+  },
+  "e5b176b09a9a8fcae5a38ef3710d976a9fb6768135a0d67294a73d194c0a2fd8": {
+    "text": "The oath was argued at Rome by Lanfranc and became the banner, the invasion's license. Whether it happened — and what Harold thought he swore, under what duress — the sources cannot say. The machine did not need it true. It needed it TOLD.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_bayeux"
+  },
+  "03dc3e8364459667eb855cf14e6663ba2f99b24e78b2212360d0ce11d1b45210": {
+    "text": "Christmas Day, 1066. Ealdred, Archbishop of York — who crowned Harold in January — now crowns William in December. The rite is asked in two languages.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_crownfire"
+  },
+  "7dfea782ec5c1f37ca2e195b1318f80a6d0380d6c8f69381c4fdc7d156496784": {
+    "text": "Reported by Orderic, writing later — but the shape is the reign in miniature: consent, illegible to the enforcers, answered with fire; and at the center of the smoke, an anointed king shaking. He was crowned by a machine that could not tell cheering from rebellion, and never learned to.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_crownfire"
+  },
+  "267f264e5ca7a59d9b4dd5cda8924d81ba2c729177d57d83a8c42871b75baf5a": {
+    "text": "Consider the defendant's portfolio. Bishop of Bayeux. Earl of Kent. One hundred ships at the crossing. Lands Domesday will value near £3,000 across twenty-two counties — second only to the king. And, most likely, the patron who commissioned the Bayeux Tapestry itself.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_odo_trial"
+  },
+  "ae5f62c14a8617ac1cfc74d5fc932cca8f2fe15fca98868cea580eff5d9d8c90": {
+    "text": "Arrest, trial, prison at Rouen — the sentence the dying king reluctantly lifted. Odo died in 1097 en route to Crusade. Mark the lesson every chapter of this game repeats: the machine forgives its enemies before its auditors. Extraction can absorb any crime except skimming.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_odo_trial"
+  },
+  "79de7f88dfa2168a0c0eaee54cb9b870821abc0fab2419c0652e86388c04b49f": {
+    "text": "Open the book to the winners' pages. Read what each man took — and, where the record kept it, whose it was.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_barons"
+  },
+  "f92eee951a68fb2aeb0ffe8e36948e5a931f5deb63d87039cfcd986b1bb61bda": {
+    "text": "Every line of the ledger has an erased name under it. Domesday is a palimpsest: a conquest written over a country, in the neatest hand in Europe. And the ink is not dry yet — turn the page nine hundred years.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_barons"
+  },
+  "5a36d27bac90ac75b6365a789a9e8600d5dd3b796af4ba7a5fa1b762b59f9e1d": {
+    "text": "Around 1070 the Church presents the victors with a bill. The Penitential Ordinance of Ermenfrid of Sion prices the conquest, sin by sin — read the tariff.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_penance"
+  },
+  "79b8b804f1eab51c18f6e3b88375c0c44da10c5a4ae9357e421d39a93cc86ad1": {
+    "text": "A moral system that prices every sin and exempts the principal shareholder is not a conscience — it is a subsidiary. The Church billed the workforce and comped the owner. Now watch what the owner built with the savings.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_penance"
+  },
+  "b820f2445e7c7afb928fcce182b3f8700164e1d9a409d32ef00c8e6b24635de1": {
+    "text": "Tally the insulation: a banner from the Pope, a penance that exempted the principal, an abbey on the enemy's grave, a court history for the record. Prestige is not the machine's decoration. It is the machine's ARMOR — and it was itemized.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_prestige"
+  },
+  "f926188e3a4c1c719daf0fb8e216444241fbfc0ef58c920089501d9d5aa6c43f": {
+    "text": "One voice ran through every legal joint of the conquest: Lanfranc of Bec — the lawyer who argued William's case at Rome, then came to collect the fee.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_lanfranc"
+  },
+  "67d7a51481677f7f0bedb27b970eb3b4cce4283eb67fa1509a9cc73b0ccc467e": {
+    "text": "January 1066: Ealdred of York crowns Harold Godwinson. December 1066: the same hands, the same rite, crown William. One year, two kings, one archbishop.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ealdred"
+  },
+  "66febe3fb976c809eb96c319534540059195169f73359d1f47516b767ea12019": {
+    "text": "The institution survives every king it crowns; that is its power and its alibi. Ealdred's bargain — legitimacy in exchange for promises — is the oldest trade in this game. The promises were spent by spring. The legitimacy is still earning.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_ealdred"
+  },
+  "933148282025ffc81fb5dec18ee25022f839deac0d2bbb4851ad59d3c8965efb": {
+    "text": "Last entry in the Chronicle, and the spine of the whole game, made explicit. The question is simple: did the extraction of 1066 ever actually STOP?",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_grosvenor"
+  },
+  "1a785e6a4b7c5c98d986a1feb379b62e04a267c9e9121ab07a2d3dc017851e6b": {
+    "text": "Conquest became property; property became rent; rent became a rich list with the conquest's surnames on it. That is why this chapter is first, and why Henry George haunts every one that follows: the fire went out in 1070. The RENT is being collected this morning.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_x_grosvenor"
+  },
+  "caea79bd9b6f979e2c224ebbfec7016f544a02821979e3c1196cf62bb3bc4999": {
+    "text": "The research holds more than the main stage could carry: the papal banner and the land-for-swords bargain, the windbound fleet, the coronation fire, the earls' revolt, the barons' ledger, the funeral — and the rent still being collected this morning. Orderic keeps the index.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_chronicle_hub"
+  },
+  "68d62c25b08931395884595010076da5edab7f4137f5578cc0c7dca92d61bb75": {
+    "text": "The art in this chapter is a forgery of something real. Here is the real thing: seventy metres of embroidered linen, made by English hands within living memory of the conquest, telling the conquerors' side of it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tapestry"
+  },
+  "7a9af514de4d3053c748c54447ffd2feaab016805fd02002cfb1d8a8748e1b65": {
+    "text": "One object survives the whole of Chapter One: a strip of linen half a metre tall and seventy long, with the invasion sewn onto it in coloured wool. It is the closest thing 1066 has to a camera.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tapestry"
+  },
+  "ab4bcae6db0b1acb99da34b2f34a1b357654d3b69632809c992ac377ab77ea84": {
+    "text": "Read it as this game reads everything else — as a document with an owner. Somebody paid for it, somebody stitched it, and those were not the same people.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tapestry"
+  },
+  "d5216205596aef69a7f888b82ea91d5c9e1085e47a0705a37ae257c62c311307": {
+    "text": "Start with the thing itself, because almost everything people say about it is wrong at the first word. It is not a tapestry. A tapestry is woven — the picture IS the cloth. This is embroidery: wool worked with a needle onto linen that was already there.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_what"
+  },
+  "294c8e4c679012108d519fff7402d7a3464618f826d40e5b81a8a1c6a9640aed": {
+    "text": "Nine strips of bleached linen, seamed together so cleanly the joins hide inside the pictures. Near seventy metres end to end, about fifty centimetres tall. The usual count gives some six hundred people, two hundred horses, forty-one ships, and about fifty-eight lines of Latin — and the counts differ depending on who is counting.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_what"
+  },
+  "77f8d5833818d8701f63c94e5fbfd91e1a44ad49d118459ba9c463f2a208c9aa": {
+    "text": "Hold what that means. Within a decade or two of Hastings, English women — the conquered, in a conquered county, working for the conqueror's half-brother — sewed the conquest of England, in the conquerors' Latin, at their own speed, with their own fingers.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_what"
+  },
+  "b58d5b9a1f2eba58c9e436c5ac3279da32d9724917e3180c75e5a1338a1a078b": {
+    "text": "This is the part the chapter's own pictures are stealing from, so it is worth a minute.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_stitch"
+  },
+  "b85f4074ccb5ce41da258d2d871372ddec480ae3cb9ec938d4e0ac63b3214031": {
+    "text": "One flag before the clips. Sections of the cloth were repaired and restitched in the nineteenth century, and at least one famous detail may have been changed in the repairing. That matters shortly.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_stitch"
+  },
+  "5ce6bba178bbddcdbc44f8034da3e375889115773258febbf0458427a74626dc": {
+    "text": "Clip one. Six men on the cloth, shoulder to shoulder, every one of them pointing up at the same thing, and four words stitched over their heads: ISTI MIRANT STELLA. These men wonder at the star.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_comet"
+  },
+  "18511a96b22dfef2f516d590b4c50a0a2de8bc77184197c47e4ab7956b8f665b": {
+    "text": "Halley's Comet, spring 1066 — the same comet, on the same orbit, that came back in 1910 and 1986 and will come back in 2061. On the cloth it hangs over the new king like a thrown stone that has not landed yet.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_comet"
+  },
+  "a18e2d213479af47c4b64bcbc3d86b26f90ffcb0d8a07d5e57352eaab85b1c93": {
+    "text": "It became one. That is the whole use of an omen: it moves the conquest out of the column marked THEFT and into the column marked SCHEDULE. Heaven signed off in April; the invoice arrives in October.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_comet"
+  },
+  "baef3828ddec3f1db7aae2275199b472186c6514505ff9f817567191975864ba": {
+    "text": "Clip two, and it is the least famous and the most useful stretch on the whole cloth: HERE DUKE WILLIAM ORDERED SHIPS TO BE BUILT.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_ships"
+  },
+  "e000a5e3cccc27b3a96b7965966c45c8f3e8ab34708ce4109678a8a7baa48f07": {
+    "text": "Then the sequence, in order, as any shipwright would tell it: men fell the trees with axes. Men shape the trunks with adzes. Hulls take shape on trestles. Ropes drag them to the water. Then the loading — mail-shirts slung on poles between two men, helmets, spear-bundles, a cask of wine, and horses walked up the planks.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_ships"
+  },
+  "9f81d2cf8800f23200cac409718423c1f5e7658f2182af2688770eaf5466850a": {
+    "text": "The Tapestry is the conquest's own advertisement, and it advertises the supply chain: fell, build, load, land, forage, feast. The fighting is the last quarter. The first three-quarters are LOGISTICS — which is where every conquest in this game actually happens.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_ships"
+  },
+  "b161795b0470578ec4d375341a2f109e111c8296152ba4158f8e21eabe26aee8": {
+    "text": "Clip three. Run a strip above the story and a strip below it, and fill both with animals: lions, griffins, camels, peacocks, dogs, birds without number. Over five hundred creatures, and most of them are decoration.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_borders"
+  },
+  "3d27373c4824ebab98f4361171884cba09f5196ca34657f3c6d193fdebdb9529": {
+    "text": "And note where the borders end up. As the battle comes on, the fables stop. The lower border fills with severed heads, dropped shields, and men stripping mail off corpses — the salvage crew of history, working the margins while the story above stays heroic.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_borders"
+  },
+  "00be9553cf1172194c3574269f166353b6ca4410f32b8895329e27ec63243d71": {
+    "text": "Clip four is the strangest object in the room. A woman stands in a doorway between two carved pillars. A tonsured churchman reaches in and touches — or strikes — her face. The caption reads: WHERE A CERTAIN CLERIC AND AELFGYVA. And then the cloth moves on and never mentions either of them again.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_elfgyva"
+  },
+  "39e55fcbac4d7a81ce4440df1eec034fea40ef739163ac9d6df2235f2d08dba0": {
+    "text": "The honest list of candidates, all of them proposed, none of them established: Aelfgifu of Northampton, King Cnut's first wife, whose sons' paternity was gossip for a generation. Emma of Normandy, who took the name Aelfgifu in England. A sister of Harold, spoken of in a marriage bargain with a Norman. An abbess of Leominster and a Godwinson. Some scholars think the scene is scandal; some think it is a legal dispute over a woman's property; some think it is a joke about a churchman.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_elfgyva"
+  },
+  "a4a5cdc499a01ac3a9e5a772d39ce2cec6514366fc9e9f3de74c1f51de952a0f": {
+    "text": "This game will not tell you what happened to Aelfgyva, because nobody knows. What it will tell you is what the panel proves: an entire scandal, obvious enough to be sewn into a state document, can vanish so completely that only a woman's name survives it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_elfgyva"
+  },
+  "bbf83e4072de93e0ac3a1c4569fa4f3b978b47c58189cdb8ec54b331d7fc8312": {
+    "text": "Clip five. The most reproduced image of the eleventh century, and the one people are surest about, and the one they should be least sure about.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_harold"
+  },
+  "5471bf276ecec26f33dfc5c31ee927f33fb85e4980aa4f35620f4752e9b3796c": {
+    "text": "HERE KING HAROLD WAS KILLED. The caption runs across TWO figures. One stands under the word HAROLD with a shaft at his helmet, hand up at his face. The next is being cut down by a mounted knight, a sword to the thigh.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_harold"
+  },
+  "140fae138b531180142de8000f3099da2ebd6772bfe12386143f928babe6679b": {
+    "text": "The written sources split the same way. The Norman writer closest to the battle says nothing about an eye. A chronicler some fifteen years later has the eye; another, thirty-odd years on, has the arrow. And blinding was the standard punishment for a perjurer — which makes an arrow in the oath-breaker's eye the tidiest ending the Norman case could possibly have.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_harold"
+  },
+  "accba7a8b201b2672d148120a33f3381407b07f9e47c98410bc7366f2d711b51": {
+    "text": "One more thing about this end of the cloth: it does not have an end. The linen stops mid-rout, with English foot running into the border. The final panel is lost — most reckon it showed the coronation. The last word of the conquest's own account of itself has gone missing, and everybody has been filling it in ever since.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_harold"
+  },
+  "cd0e5670add97c2ebf86611347365b5ae9fe2286e45aee51a258464c254baf68": {
+    "text": "Last clip, and it is not on the cloth. It is what happened TO the cloth — which is the same story the rest of this chapter tells, run at the speed of centuries.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_after"
+  },
+  "ee6fb9abf870a14be5cf1f4e13821f3b88ea20d5908f45eb9e5e91270102356a": {
+    "text": "Eleven years later it is in Paris, on public display, while Napoleon assembles an army to invade England from the same coast. The star gets pointed at: a comet appeared in 1066, a comet had appeared again, and the exhibition is an argument with a queue. When the invasion is shelved, the cloth goes home.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_after"
+  },
+  "88c5e7e86c47bc312e248a4009cc9d67b234042d23dd26617ba37ba4702e32c3": {
+    "text": "1885 and 1886. In Leek, in Staffordshire, Elizabeth Wardle and some thirty-five needlewomen embroider a full-size replica from hand-coloured photographs — the whole seventy metres, again, by hand. It hangs in Reading to this day. They made one alteration: the naked figures were given drawers. The Victorians could copy a conquest and not a penis.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_after"
+  },
+  "2c0cb6888f7627215930612f043c3f0f1ba0d437696c04e6beeb6b22bdcbf14d": {
+    "text": "Back to Bayeux after the war; in its own museum since 1983; on the UNESCO Memory of the World register since 2007. France announced in 2025 that it would lend the cloth to the British Museum while Bayeux rebuilds the gallery — which would put it back in the country that probably made it, for the first time in nine centuries.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_tap_after"
+  },
+  "3b718c2b8b52403bcf6cf72fd07e3b0cc4e8a2beca27997d325687740ca6a2d6": {
+    "text": "Twenty-one years, ten turnings of the screw. Choose an event and hear how it landed — on the king, on his lieutenant, on the rebels, on the chronicler, on the people who ploughed.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_hub"
+  },
+  "dec93644a4ef8b4b7736911945bef6fe0a15c72ab52471c201ae1ccb6cc4077e": {
+    "text": "Ten events, twenty-one years, and not one of them experienced the same way twice. Pick a turning of the screw.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_hub"
+  },
+  "1e6add9121a197fed9de4a463a074097d71f2eab20b209d3bb94c6e8689e66d2": {
+    "text": "Twenty-one years in three movements: taking the country, burning it quiet, and writing it down so it can never argue again.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmg_events"
+  },
+  "0f3ff7aef6e1dfe4cb903ce6b293a7067be9df2e73bb68c27e8e3dea2ee0e2a7": {
+    "text": "One autumn. A beach, a ridge, and a coronation that caught fire while the choir was still singing.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmg_taking"
+  },
+  "128d7758180b98e00a2b371301ec9f302287216a9ce313fff5c629d9e486e89f": {
+    "text": "An order, a winter, and a spring where nothing came up. Three turnings, and the third one is only arithmetic — how many did not eat.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmg_harrying"
+  },
+  "a6c5993c51aff0e5d08b602200a92c00539c38f01143320014b59329723f416c": {
+    "text": "Then the slow part. Stone on the high ground, a forest fenced against the men who lived in it, and a book that turns a country into a column of figures.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmg_keeping"
+  },
+  "db078a58c53dd7b2d9155a2556000db4e5ad66f006ac71ecef6a5e7d0be9cade": {
+    "text": "In one year he counts every plough in England and then makes every landholder in it swear to him personally. The two acts are the same act.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wmg_book"
+  },
+  "6d8b978c069474b9a25a07d1f23fffb5e45a789a705e1ff54a03ea78deed8972": {
+    "text": "So it is sorted. Two-handed arguments here, the long tail of policy there, and everything else in the index.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_records"
+  },
+  "66e55989bbd0f8e54404814fbfca9abd6355236bede030459f1e6edacd5cfdab": {
+    "text": "Two reels with no choices in them. A winter, and a book. Watch. That is the whole instruction.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_reels"
+  },
+  "214b2e4475c6937c4b374b1d14d00aa1276825eadfe8a28260b3ef8fc5156b3f": {
+    "text": "1086. The commissioners reach the hundred court. Every man of the vill is sworn; the jurors are half English, half French; and a second panel will come behind this one to check its work.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize"
+  },
+  "948293be213859c0bf34af7dcbeb75d684be39e0cb771ede885971f2824a8f27": {
+    "text": "Historical note before anyone speaks: the inquest panels were barons, bishops and clerks deliberately sent into shires where they held no land, so that no man audited his own rents. Odo of Bayeux really did preside at the great plea on Penenden Heath. The stage gives him this bench too.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize"
+  },
+  "8bff54117ce5404d98d7d5125312bc391e0f7546512d8c7aa24238e9c69aea02": {
+    "text": "Domesday counted ploughs because ploughs were the medieval unit of productive capacity — the closest thing the eleventh century had to a machine-hours figure. Once a capacity is written down, it can be taxed whether or not it turns.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_ploughs"
+  },
+  "fb5fe1ce3efb6fb0f806b3f526b4d4a56a718b89e6cb7e69f1a3a994500c5f71": {
+    "text": "Domesday records some six thousand mills in England. Within two centuries lords across Europe were suppressing hand-querns to force tenants to the seigneurial mill — the same logic, made explicit: own the bottleneck, and the harvest walks to you.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_mill"
+  },
+  "012a794cc331dc9a89a48bef2b9491e5c16e1952341e0ba62b74529b37f230e2": {
+    "text": "Woodland really was entered in Domesday as pannage for so many swine. Within a generation forest law would criminalize the same use it here merely prices — first the wood is assessed, then it is fenced.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_wood"
+  },
+  "6f07cebd9325054ac3af3bee634ea53d0e0037ad885ff8b7a90c5015bc56b5f2": {
+    "text": "Under-declaration was real and so were its penalties: the second panel existed precisely to catch it. Choose what the vill swears.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_widow"
+  },
+  "e1cfeb1c0261ce9fa6d8381e792a24c327ecc206d27c7b6a5eb33c2ad1c998d9": {
+    "text": "The board stands at {geld} shillings. One hide of it does not exist. That gap — the difference between what a place is and what a book says it is — is the only room a village ever gets, and it closes a little every survey.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_widow_waste"
+  },
+  "e35b02e5085d2e1eb04647e911154fd45939a01ce577f1182c00ec13d361dcb8": {
+    "text": "The board stands at {geld} shillings, and every one of them is true. This is the chapter's hardest sentence: a completely honest survey is still a machine for taking things.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_widow_sown"
+  },
+  "2f5324254c7d4c577936b7bbe6d1e9a1ef561dd11c0d40c579b6a1f641aef19b": {
+    "text": "A fixed assessment turns every bad harvest into arrears. The book's permanence — its entire purpose — is exactly what made it merciless. Domesday entries were still being cited in English courts in the twentieth century.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_sign"
+  },
+  "62032b6aa2414c6f56a98e7ed7a6d4cd0010628915696eb51b3f02ed058ccd7c": {
+    "text": "The dispute changed nothing and cost nothing, which is what makes it worth staging. The Anglo-Saxon Chronicle is one long version of exactly this move: you cannot stop the entry, so you file the objection, and you keep the objection alive for nine hundred years.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_assize_resist"
+  },
+  "3e0076c0b403f0ff687386ea39b4bba409ee32f7581f3dd85190e121797cb685": {
+    "text": "A walking episode. Aldric leaves the vill on foot and keeps going. The pack holds three days of bread; the road holds whatever it holds.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_start"
+  },
+  "922e37b32aa3d4f562fd4d58d85d20b2ec7672bf05f8f1fabfa9198a4d7e5b95": {
+    "text": "The road out of a burned country is not empty. It is the busiest place in England, and every person on it is going the same direction for the same reason.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_start"
+  },
+  "19ddc448afb330490b6387036add47db1ac0a80e9510781e9f0feebb4ad6d93e": {
+    "text": "Open ground, no cover, and the wind doing the work the knights did not have to.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_moor"
+  },
+  "c85e0232155c6902e836dab6c7619c51e2186bda29ed0f2174b0c6e809a2d5da": {
+    "text": "He gives away a third of the pack in eleven seconds, having thought about it for none of them. Charity on a famine road is not a virtue. It is a protocol.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_moor"
+  },
+  "56fddb3bd08e0e68703eba22441f8f79eaf24a9338cfa0b03061b2bebb4db1fe": {
+    "text": "A vill by the track, roofs intact, doors open, nobody in it. Not burned. Just left.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_moor"
+  },
+  "5fa102eb86ea7fedd47ca01cb2df6197933277b3c6638f54200de27d12fe90e5": {
+    "text": "Two horsemen pass at a walk, sixty yards off, looking at nothing. It takes a full minute. It is the longest minute in the episode and nothing whatever happens in it.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_moor"
+  },
+  "1b64b3a18bfd9b98acb404d3370580389d757256e36428b52d556ca044847550": {
+    "text": "A sack goes over the tail-board anyway, because a carter is a man too and it is a long way to Durham. Nobody says anything. That is also documented behaviour, in the negative: the famine chronicles cannot explain how anyone at all survived.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_moor"
+  },
+  "049eaa0b2bba0017ade72a5592df61d0a5fe7ee2b4cb6ada09bea9c9dee7546a": {
+    "text": "The road runs under a raw motte, the timber still pale. There is no way round it. Roads go where castles are; that is the entire design.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_castle"
+  },
+  "ad76d18c4bb2b23add41b0333b7f44aa48c247f4a8b69a0456715057f5e7c213": {
+    "text": "Nobody stops him. The gate is manned, the men are bored, and a thin man walking south with a hoe is not a threat, an asset, or an entry.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_castle"
+  },
+  "c700cc26a9ffbb6dbb76f7b12e6b05d17632d22d5f56c8a5d37ab71694fbfaf3": {
+    "text": "The country he is walking through was harried at RUTHLESSNESS {ruthless}. There is no relief here, no almonry, no abbey with stores — the columns came through and the abbeys gave out their grain in the first month.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_castle"
+  },
+  "79fa72e2f74f8984982157230db4a7cc7dc6ba9a985e368a3887edfdf5579043": {
+    "text": "The harrying reached here in a thinner form: some stores intact, some vills paying, the machine already back at work collecting from the survivors.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_castle"
+  },
+  "6432320d23ebb6f0641b3e7fb5bcb028335e42f0c5f644088957961f09614b7d": {
+    "text": "The order came late here and light, and it shows: byres standing, smoke from chimneys, and a reeve on the track counting people as they pass.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_castle"
+  },
+  "c97d76c2b53cf56740c874f00bb80642ebcc4e6e46487e1e10f7335c4f2b3d38": {
+    "text": "Where the road gives up and the water starts. A man is standing in it to the knee, doing something to a net, and has clearly been watching the road for some time.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_fen"
+  },
+  "0cf12e71071fe1d9d681e6966cb197b78fe821d49295e3358f41543d010af744": {
+    "text": "{roadMiles} miles, six days, one man, one hoe. The chronicles compress this into a clause. The clause took a week to walk.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_end"
+  },
+  "5f4b7c6792ce11fd185f0df07e4d1812173dd821a25bd4ec9008facac54a4133": {
+    "text": "Behind him: a shire harried at RUTHLESSNESS {ruthless}, two-thirds of it still marked vasta in the king's own book seventeen years on.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_end"
+  },
+  "62aa1a11a92a7a6b2705e5e7c21235e3ff9c87154dcdd647d21154e28fbebb2c": {
+    "text": "Behind him: one granary the column passed by, and a country that otherwise burned exactly as scheduled. One exception does not make a policy. It makes a witness.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_end"
+  },
+  "6eaf2090069b9a41a92daa1bc40229fde0c9a3e722f959ea4a568807c54abd21": {
+    "text": "Behind him: a shire that burned whatever the king felt about it in the hall. The gauge reads {ruthless} and the smoke does not care.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_end"
+  },
+  "6a739074b5fbf377970f4a7689286bcbcf9bdd8c406780a9aff7db857bc00587": {
+    "text": "Post-Conquest law spent the next two centuries closing exactly that gap — villeinage bound the tenant to the land and made leaving without licence an offence. He is right that it is the last free thing. He is early to notice, and the machine is already drafting.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_road_end"
+  },
+  "976f738fd9e7415171135744403c4ed2d8d876bf5823433d28e346d8ae8e2086": {
+    "text": "The commissioners ride out at noon. By evening the figure is at the cross, and a figure at a cross stops being a fact and starts being a career.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_cross"
+  },
+  "c08efaf66e44a4e23d38d25475ca4f8888044e6f18b6e155b4907d8db78dfa7a": {
+    "text": "Two-thirds of Yorkshire was still returned as waste in 1086; the geld went out regardless. Note the mechanism, because it recurs in every chapter of this game: the machine's own records document its damage, and the records do not slow the collection by one day.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_cross"
+  },
+  "9653cedd638af8e06cb6afe2e5aca896e525e3817ba50ccd25939fb1e633bc5e": {
+    "text": "Three hundreds over, at the end of a week, with ale in it. Watch a true number become a useful one.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_alehouse"
+  },
+  "afbaab78476233228a3524ada894b8526cd71083828134890e71e40e03abb661": {
+    "text": "The true figure is {geld}. The travelling figure is {rumorGeld}. Both of them are now historical forces, and only one of them is a fact — which is the oldest problem in the trade and the reason this game shows its sources.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_alehouse"
+  },
+  "b1bd5f194087841905f7d92d1ff0e9a311f17a5ad9e9fff9b3da9ea38cfc9067": {
+    "text": "It takes eleven days for a village number to reach a king, and it arrives wearing a different coat.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_hall"
+  },
+  "239359189316f331c9f847b584e45350f231700c49eaeaa7d318dd3068396d92": {
+    "text": "Power owns the true number and the means to enforce it; everyone else owns the travelling one. Nine centuries later the asymmetry is unchanged, except that the travelling number now moves at the speed of light and the enforcement still moves at the speed of a sheriff.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_rumor_hall"
+  },
+  "65763a2134db4d640d1ce6c13600a12036aeab73e3d087615e633f2b9e46e299": {
+    "text": "Nobody else awake. A man with a stick, a floor, and a number he cannot make come out.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_reeve"
+  },
+  "2be46fccabd53369551d033460a82626deeb8575b1342e6045fe4534e8195c09": {
+    "text": "Henry George, eight hundred years downstream, in one sentence: rent takes the difference between what the land yields and what it costs to live. Aldric has just derived it at a hearth with a stick, because it is not a theory. It is what the evening actually feels like.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_reeve"
+  },
+  "e2d5a5be5efdc66b7d7693913188ba4fee48f402c44f4575519f9a29765c71e1": {
+    "text": "Away from the hall and the fire. Three episodes at ground level: a bench where a village is written down, a road out of a burned country, and a number that leaves home and comes back a stranger.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_hub"
+  },
+  "a89ad410164f877a383ed6d77362ba272b49f04547816227a2b9cbc8efbfa57d": {
+    "text": "The chronicles are thin down here, so the sources get flagged as they arrive. What the record does hold at this altitude: plough-teams, mills, pannage for swine, and the word vasta, sixty times a page.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_ep_hub"
+  },
+  "7fa23533af7a0779ca007b8c1e3c85367d514b682b68198e56cf591da52b52c3": {
+    "text": "Night. The column reaches the village after dark, as ordered. Fire needs no daylight.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "ddb9780a642b874b5b5a79795b2e79e0ece5272f9620effbdd926da3de9f33c9": {
+    "text": "The granary first. They always know where the granary is.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "42a919efe5d1707186f25660942c4c934ca4ad6c0d1368363df5474da9422b2b": {
+    "text": "Then the byre. The cattle are driven out and killed in the lane — not stolen. Killed. Food is the target.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "7f64255994d4cd870252d7ad536337ae8d9c2a096ca98bc2b99cb42b102ca5f3": {
+    "text": "No one fights. The village walks into the dark with what it can carry, which is winter.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "9061fdcfa2af89050c9ccc90eb5b4dbf6634563e8b0b257983910b9aba39ccab": {
+    "text": "Symeon of Durham: 'Between York and Durham no village was inhabited. To the traveller there was only wasteness.'",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "315644a66d86459f4181b2536561f4820001422abf4571d6af16cfac7fd620f8": {
+    "text": "Then it snows. It falls on the ash as it fell on the thatch, without opinion, and by morning the place is a white page.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_burning"
+  },
+  "33118a3f13f943997c7888db87ae46ded368bdb67db0817f552f8fdb672cdd76": {
+    "text": "The ledger of what you watched. REPRESSION climbs toward its ceiling — the fires are the enforcement arm of the rent.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_burning"
+  },
+  "669945999e74ef4349954a4757de8447140594ca589e5c9d369819eb9b42164c": {
+    "text": "FLARE-UPS climb with it. Burn a shire and every survivor is a future rising; repression manufactures its own demand.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_burning"
+  },
+  "33a99bf982b38800b80131bb7bce00d2053945f512326bc677a52ab692c06ebd": {
+    "text": "And THE MARGIN falls. The margin is the best land a free family can still work without paying a lord. Burn the free North, and there is nowhere left to stand outside the system.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_burning"
+  },
+  "3c5f9522a1613ce89b5a0bc5ba883cfbbc283323dbfee77af730c556fdc07ed6": {
+    "text": "Henry George, eight centuries early: when the margin falls, wages fall with it — everywhere, for everyone. Rent captures the difference. That is what the fire was for.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_burning"
+  },
+  "76323d7c03561875e67659fe72d503df30675d419945406bf076ca7e87534320": {
+    "text": "No fire tonight. Candles, and the sound of quills. This is the other weapon.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "21158747e85a3b3454bc4ea450279f9eadbe46cbb151f8d40ae45bc53f887a8f": {
+    "text": "Every hide, every holder, every ox, every mill, every man. The scratching does not stop for weather, mourning, or memory.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "ff96bd739037e472853acc1af543ac93a8b4117123d87e6b2bcd8df3aa0e5e49": {
+    "text": "A clerk reaches a Yorkshire entry. A village. It had six families, two ploughs, a mill. It had a name; it still has a name — names are free.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "1ee1ba265fbd10a5214bf4cdf16a8e55e28cde8f89c46a2d214e7faeae73e42a": {
+    "text": "Then the value, as the commissioners found it, seventeen years after the fires.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "16c2b677381f11e62bf348a87e81617fe7c83977f92df249ecd6819fd22b4ade": {
+    "text": "Vasta. Waste. One word, sixty times a page, in the neatest hand in Europe.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "52c1cd5a46bd781fcf04bb61551ad5aaaa5d961fb105833dabb0e1c417f0f007": {
+    "text": "The torch did the taking. The Book does the keeping: every field valued, entered, and owed — forever, to the number. This is what forever looks like written down.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_cut_book"
+  },
+  "bfc6e195ea01ae2f8d52fcdd5fed822f1c7035c9596d9bb4832772407e97dbe7": {
+    "text": "The ledger of what you watched. GREED climbs — not appetite, but appetite made permanent: every acre assessed at what it might yield, and taxed to the assessment, drought or no.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_book"
+  },
+  "7cc1aa629ecf25b2796568341099720524d9689b52a38ac60cdd927841f6c671": {
+    "text": "THE MARGIN falls again, and this time on parchment. When the Book says there is no free land, there is no free land — the record outranks the soil.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_book"
+  },
+  "b5657202ac8ce1f2064622bb9ae5fa99af3c2c8f26fed58ab5693567116f6cb5": {
+    "text": "And REPRESSION barely needs to move. That is the pen's discount: a survey collects what a garrison collects, at a fraction of the knights.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_book"
+  },
+  "13b4b7be21a5a9d68201896c9759d15c26c36abb0a9f46e3df779dda64bc7a82": {
+    "text": "George's law holds on vellum as on ash: rent captures the difference between the best land and the margin. Fix the margin in a book, and you fix wages everywhere — downward, forever.",
+    "speaker": "Narrator",
+    "voiceId": "2rLZ6kYWubjDAt3zAF96",
+    "scene": "wm_impact_book"
+  }
+}

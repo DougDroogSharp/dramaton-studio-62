@@ -11,10 +11,30 @@ import { frameFor } from '@/utils/frames';
 // arrives. Watching the picture jump is worse than any information
 // the jump was carrying.
 //
+// LANDSCAPE (the normal case — desktop, laptop, iPad held sideways).
+// Stacking the console UNDER the stage on a wide screen throws away the
+// whole width and squeezes the picture into a strip. So the console
+// stands beside the stage instead, and the stage gets the room:
+//
+//   ┌───────────────────────────┬──────────────┐
+//   │                           │   meters     │
+//   │   stage — 16:9, as big    ├──────────────┤
+//   │   as the window allows    │   abilities  │
+//   │                           ├──────────────┤
+//   │                           │  speaker     │
+//   │                           │  line        │
+//   │                           │  choices     │
+//   └───────────────────────────┴──────────────┘
+//
+// PORTRAIT / narrow (phone, iPad upright) falls back to the stack,
+// where vertical space is the thing there is more of:
+//
 //   ┌──────────────────────────────┐
-//   │   stage — fixed 16:9         │
+//   │   stage — 16:9               │
 //   ├──────────────────────────────┤
-//   │   meters (reserved height)   │
+//   │   meters                     │
+//   ├──────────────────────────────┤
+//   │   abilities                  │
 //   ├──────────────────────────────┤
 //   │   speaker · line · choices   │
 //   └──────────────────────────────┘
@@ -48,6 +68,8 @@ interface StageConsoleProps {
   onCloseDrawer?: () => void;
   /** [FRAME mood]: the cabinet reacting for a beat. */
   frameMood?: { mood: string; seq: number } | null;
+  /** The five mid-scene accessibility switches, mounted on the frame. */
+  abilityBar?: React.ReactNode;
 }
 
 export const StageConsole: React.FC<StageConsoleProps> = ({
@@ -68,6 +90,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   drawerTitle,
   onCloseDrawer,
   frameMood,
+  abilityBar,
 }) => {
   const skin = frameFor(frame);
   const line = narration;
@@ -78,12 +101,36 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   return (
     <div
       key={frameMood?.seq ?? 0}
-      className={`w-full ${skin.shell} ${moodClass}`}
+      className={`w-full h-full flex flex-col lg:flex-row ${skin.shell} ${moodClass}`}
       style={skin.shellStyle}
     >
-      {/* THE STAGE — never changes size for any reason */}
-      <div className="relative overflow-hidden">
-        {children}
+      {/* THE STAGE — never changes size for any reason.
+          It is also the advance target. On a touchscreen there is no
+          space bar and no click-the-sentence: tapping the picture is the
+          obvious gesture, so the whole stage takes it. Guarded twice —
+          never while choices are up (the player is deciding, and a stray
+          tap must not choose for them), and never when the tap landed on
+          something interactive like a BUTTON or the settings drawer. */}
+      <div
+        className="relative overflow-hidden flex-1 min-w-0 flex items-center justify-center"
+        onClick={(e) => {
+          if (!onAdvance || choices?.length) return;
+          if ((e.target as HTMLElement).closest('button,a,input,select,textarea,[role="dialog"]')) return;
+          onAdvance();
+        }}
+      >
+        {/* Stage sizes itself from its WIDTH (w-full + aspectRatio 16/9),
+            which overflows a cell that is height-constrained. This
+            wrapper drives from height instead — fill the available
+            height, derive the width, and cap at 100% so a tall narrow
+            window falls back to width-limited. The picture stays 16:9
+            either way and is as large as the window permits. */}
+        <div
+          className="relative"
+          style={{ height: '100%', aspectRatio: '16 / 9', maxWidth: '100%', maxHeight: '100%' }}
+        >
+          {children}
+        </div>
 
         {/* The drawer rises out of the console and covers the stage.
             The show is still there behind it, and closing it puts
@@ -118,9 +165,14 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
         )}
       </div>
 
+      {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
+          narrow one. Fixed width when it stands beside, so the stage gets
+          every pixel left over and never has to guess. */}
+      <div className="w-full lg:w-[22rem] shrink-0 flex flex-col lg:border-l-2 lg:border-current/20">
+
       {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
       <div
-        className={`${skin.divider} ${skin.shelf} overflow-y-auto`}
+        className={`${skin.divider} lg:border-t-0 ${skin.shelf} overflow-y-auto shrink-0`}
         style={{ height: '132px' }}
       >
         {showMeters ? (
@@ -137,6 +189,22 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
         )}
       </div>
 
+      {/* THE ABILITY RAIL — five switches on the cabinet itself, so the
+          adjustments you make BECAUSE OF what is happening right now do
+          not require stopping the show and opening a drawer. Fixed
+          height, like everything else here. */}
+      {abilityBar && (
+        <div
+          // skin.label is what gives the switches a colour: they draw
+          // themselves in `currentColor` so they suit any cabinet, which
+          // means they are INVISIBLE unless the rail sets one.
+          className={`${skin.divider} ${skin.shelf} ${skin.label} px-3 flex items-center shrink-0`}
+          style={{ height: '36px' }}
+        >
+          {abilityBar}
+        </div>
+      )}
+
       {/* THE SPEAKING PLATE — fixed height; an empty plate is correct.
           Everything said and every choice offered happens here, in one
           place, at one size. No balloons over the stage: the picture is
@@ -144,8 +212,17 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           needs large text or a screen reader gets one predictable region
           instead of text scattered across the art. */}
       <div
-        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto`}
-        style={{ height: '188px' }}
+        // Beside the stage it takes whatever height is left (flex-1);
+        // stacked beneath, it keeps its reserved 188px so nothing on
+        // screen moves when a line or a choice arrives.
+        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto h-[188px] lg:h-auto lg:flex-1 lg:min-h-0`}
+        // The plate advances on tap too, so a reader whose eyes are on
+        // the words does not have to reach back up to the picture.
+        onClick={(e) => {
+          if (!onAdvance || choices?.length) return;
+          if ((e.target as HTMLElement).closest('button')) return;
+          onAdvance();
+        }}
       >
         {/* Who is talking */}
         {speaker && (
@@ -176,7 +253,6 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           <p
             key={narrationKey}
             className={`${skin.plateText} text-sm md:text-base leading-snug animate-fade-in`}
-            onClick={onAdvance}
           >
             {line}
           </p>
@@ -208,6 +284,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

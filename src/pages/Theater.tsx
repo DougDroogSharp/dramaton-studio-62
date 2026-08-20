@@ -19,6 +19,7 @@ import { AbilityOnboarding } from '@/components/theater/AbilityOnboarding';
 import { EndCard } from '@/components/theater/EndCard';
 import { MeterRow } from '@/components/theater/MeterPanel';
 import { StageConsole } from '@/components/theater/StageConsole';
+import { AbilityBar } from '@/components/theater/AbilityBar';
 import { metersFor } from '@/utils/meters';
 import { useSpokenShow } from '@/hooks/useSpokenShow';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
@@ -511,7 +512,14 @@ const Theater: React.FC = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-diesel-black flex flex-col">
+    // h-screen, not min-h-screen. The transport controls are the LAST
+    // child of this column, so if the column is allowed to grow past the
+    // window they slide off the bottom edge and the player has no pause,
+    // no mute, no settings and no way back — which is what happened once
+    // the plate and ability rail made the console taller. Pinning the
+    // column to the viewport makes the stage area (flex-1, min-h-0) take
+    // the squeeze instead, and the controls stay where a thumb expects.
+    <div className="h-screen bg-diesel-black flex flex-col overflow-hidden">
       {/* Screen-reader channel. Everything the player needs to follow
           the show without seeing it lands here: who is speaking and
           what they said, the ambient narration a running simulation
@@ -565,19 +573,24 @@ const Theater: React.FC = () => {
       {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
       {/* overflow-y-auto so a tall console on a short window scrolls
           instead of vanishing off the bottom */}
-      <div className="flex-1 flex items-start justify-center p-2 min-h-0 overflow-y-auto">
+      <div className="flex-1 flex items-stretch justify-center p-2 min-h-0 overflow-hidden">
         <div
-          className="w-full relative"
+          className="w-full h-full relative"
           style={{
             // The stage never resizes. The console below it reserves
             // its height whether or not it has anything to show, so
             // toggling the instruments moves nothing on screen.
             //
-            // The max() floor is load-bearing: the console costs ~206px
-            // of height, and on a short window the subtraction went to
-            // zero or negative, which collapsed the stage to nothing —
-            // a black screen with the whole show still "rendering".
-            maxWidth: 'min(64rem, max(22rem, calc((100vh - 330px) * 16 / 9)))',
+            // On a wide screen the console stands BESIDE the stage, so
+            // the stage is no longer paying for the console's height and
+            // this no longer subtracts it. The old formula reserved
+            // vertical room for a stacked console and, once the plate and
+            // ability rail were added, squeezed the picture to a strip.
+            //
+            // Cap the width so the cabinet does not sprawl across an
+            // ultrawide monitor; 96rem leaves the stage about 74rem after
+            // the 22rem console, which is a generous 16:9.
+            maxWidth: '96rem',
           }}
         >
         <StageConsole
@@ -609,6 +622,7 @@ const Theater: React.FC = () => {
           scanIndex={choiceCount > 1 ? scanIndex : null}
           onAdvance={scriptRunner.advance}
           frameMood={scriptRunner.state.frameMood}
+          abilityBar={<AbilityBar settings={ability} onChange={updateAbility} />}
           drawerTitle="Settings"
           onCloseDrawer={() => setShowSettings(false)}
           drawer={showSettings ? (

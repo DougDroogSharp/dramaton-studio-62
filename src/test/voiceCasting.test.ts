@@ -9,6 +9,9 @@ const VOICES = [
   { name: 'Microsoft Mark - English (United States)', lang: 'en-US' },
   { name: 'Microsoft Hazel - English (Great Britain)', lang: 'en-GB' },
   { name: 'Microsoft Paulina - Spanish (Mexico)', lang: 'es-MX' },
+  // The one Doug heard: 'a whisper mixed with a bubbler'.
+  { name: 'Microsoft Eva Mobile - English (United States)', lang: 'en-US' },
+  { name: 'eSpeak English', lang: 'en-GB' },
 ];
 
 describe('voice casting', () => {
@@ -42,6 +45,19 @@ describe('voice casting', () => {
     // rate/pitch alone cannot separate a cast -- Windows voices ignore
     // pitch -- so the speaker name has to reach speak() to pick a voice.
     expect(styleForSpeaker('William').speakerKey).toBe('William');
+  });
+
+  it('never casts a low-quality synthesizer', () => {
+    // Windows ships legacy mobile-profile voices next to the good ones
+    // and getVoices() gives no quality signal. One got cast into a role.
+    const names = castableVoices().map(v => v.name);
+    expect(names.some(n => /mobile/i.test(n))).toBe(false);
+    expect(names.some(n => /espeak/i.test(n))).toBe(false);
+  });
+
+  it('speaks anyway if a bad voice is the only voice', () => {
+    vi.stubGlobal('speechSynthesis', { getVoices: () => [{ name: 'eSpeak English', lang: 'en-GB' }] });
+    expect(castableVoices()).toHaveLength(1);
   });
 
   it('survives a browser with no voices loaded yet', () => {

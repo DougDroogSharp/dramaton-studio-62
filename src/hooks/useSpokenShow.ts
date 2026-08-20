@@ -33,9 +33,16 @@ export function useSpokenShow({
   narratorVoice,
   active,
 }: SpokenShowOptions) {
-  // Speech is on when the player is relying on audio at all.
-  const wanted = active && !muted &&
-    (ability.presentation === 'sound' || ability.describeAction);
+  // Speech is part of the show, not an accessibility extra.
+  //
+  // This used to require presentation === 'sound' || describeAction — so a
+  // player who chose "Play it as it comes" got silence, even though that
+  // option's own description promises "Balloons, sound, and normal pacing".
+  // Voice was only granted to players who declared they could not see.
+  // That is backwards: the show speaks by default, and the mute button is
+  // how anyone turns it off. Only 'visual' — captions instead of audio,
+  // deliberately chosen — stays silent.
+  const wanted = active && !muted && ability.presentation !== 'visual';
 
   // Track what has already been spoken so a re-render is silent.
   const lastDialogue = useRef<string | null>(null);

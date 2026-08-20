@@ -60,6 +60,18 @@ function hashName(name: string): number {
  * page's language, so an English show is not suddenly read in Polish.
  * Falls back to everything if nothing matches.
  */
+/**
+ * Voices that are not fit to act.
+ *
+ * Windows and Chrome both ship legacy low-bitrate synthesizers next to
+ * the good ones, and getVoices() lists them all with no quality signal.
+ * Casting blindly put one of these in a role and Doug heard it exactly
+ * right: "a whisper mixed with a bubbler". These are the families that
+ * sound like that — the mobile-profile SAPI voices, eSpeak, and the
+ * bare "Android"/"Chrome OS" fallbacks.
+ */
+const UNFIT_VOICE = /\b(mobile|espeak|android|chrome os|compact|novelty|whisper|bells|bubbles|organ|cellos|zarvox|trinoids|boing|deranged|hysterical|bad news|good news|pipe organ|albert|jester|superstar|wobble)\b/i;
+
 export function castableVoices(): SpeechSynthesisVoice[] {
   if (!browserSpeechAvailable()) return [];
   const all = window.speechSynthesis.getVoices();
@@ -67,9 +79,30 @@ export function castableVoices(): SpeechSynthesisVoice[] {
   const lang = (typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en')
     .slice(0, 2).toLowerCase();
   const matching = all.filter(v => v.lang?.slice(0, 2).toLowerCase() === lang);
-  const pool = matching.length > 0 ? matching : all;
+  const inLanguage = matching.length > 0 ? matching : all;
+
+  // Drop the unfit — but never end up with nobody. A machine that only
+  // has a bad voice installed should still speak.
+  const fit = inLanguage.filter(v => !UNFIT_VOICE.test(v.name));
+  const pool = fit.length > 0 ? fit : inLanguage;
+
   // Stable order: getVoices() order is not guaranteed between calls.
   return [...pool].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Who the machine would cast, and who it rejected. For the settings
+ * drawer and for answering "which one sounds wrong?" without guessing.
+ */
+export function describeCast(names: string[]): {
+  cast: { speaker: string; voice: string }[];
+  rejected: string[];
+} {
+  const all = browserSpeechAvailable() ? window.speechSynthesis.getVoices() : [];
+  return {
+    cast: names.map(n => ({ speaker: n, voice: voiceForSpeaker(n)?.name ?? '(browser default)' })),
+    rejected: all.filter(v => UNFIT_VOICE.test(v.name)).map(v => v.name),
+  };
 }
 
 /**
