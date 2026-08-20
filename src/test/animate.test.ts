@@ -126,3 +126,60 @@ describe('ANIMATE execution', () => {
     expect(r.result.current.state.worldState.after).toBe(1);
   });
 });
+
+describe('actor-id targeting (the 44 silent no-ops)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const makeGame = (script: string): GameData => {
+    const game = createDefaultGame();
+    game.actors.push({ id: 'elon_musk', name: 'Elon', status: 'work', graphics: [] });
+    game.scenes.push({
+      id: 's1', name: 'S1',
+      stage: [{
+        id: 'em_feed', assetId: 'elon_musk', type: 'ACTOR', x: 50, y: 50, scale: 1,
+        zIndex: 1, rotation: 0, pose: 'Neutral', expression: 'Neutral', spriteAngle: 0,
+      }],
+      script,
+    });
+    return game;
+  };
+
+  it('POSE naming an ACTOR reaches that actor s stage element', () => {
+    const { result } = renderHook(() => useScriptRunner({
+      game: makeGame('[POSE elon_musk pose=Pointing expression=Smug]'), startSceneId: 's1',
+    }));
+    // the override lands on the ELEMENT, which is what Stage reads
+    expect(result.current.state.elementOverrides.get('em_feed')).toMatchObject({
+      pose: 'Pointing', expression: 'Smug',
+    });
+  });
+
+  it('POSE naming the element still works (element id wins)', () => {
+    const { result } = renderHook(() => useScriptRunner({
+      game: makeGame('[POSE em_feed pose=Sit expression=Sad]'), startSceneId: 's1',
+    }));
+    expect(result.current.state.elementOverrides.get('em_feed')).toMatchObject({ pose: 'Sit' });
+  });
+
+  it('ANIMATE accepts an actor id too', () => {
+    const { result } = renderHook(() => useScriptRunner({
+      game: makeGame('[ANIMATE elon_musk A B every 100ms]'), startSceneId: 's1',
+    }));
+    expect(result.current.state.elementOverrides.get('em_feed')?.pose).toBe('A');
+  });
+
+  it('an unknown name warns and is skipped', () => {
+    const { result } = renderHook(() => useScriptRunner({
+      game: makeGame('[POSE nobody pose=Sit expression=Sad]\n[SET after = 1]'), startSceneId: 's1',
+    }));
+    expect(result.current.state.elementOverrides.get('nobody')).toBeUndefined();
+    expect(result.current.state.worldState.after).toBe(1);
+  });
+});

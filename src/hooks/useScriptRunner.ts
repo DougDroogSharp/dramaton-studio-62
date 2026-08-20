@@ -270,6 +270,25 @@ export function useScriptRunner({
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Resolve a name to a STAGE ELEMENT id. Element ids win; but a
+  // script that names an ACTOR is doing the obvious thing, so fall
+  // back to that actor's element on this stage. Authors write
+  // [POSE elon_musk ...] constantly and the actor id is not an element
+  // id, which used to make the command a silent no-op — 44 of them
+  // across the shipped games. Ambiguity (the same actor twice on
+  // stage) takes the first and warns.
+  const resolveElementId = useCallback((name: string): string | undefined => {
+    const stage = currentSceneRef.current?.stage;
+    if (!stage) return undefined;
+    if (stage.some(e => e.id === name)) return name;
+    const byActor = stage.filter(e => e.type === 'ACTOR' && e.assetId === name);
+    if (byActor.length === 0) return undefined;
+    if (byActor.length > 1) {
+      warnOnce(`"${name}" is an actor on stage ${byActor.length} times; using element "${byActor[0].id}"`);
+    }
+    return byActor[0].id;
+  }, []);
+
   // Resolve a name to a point on the stage: a stage element (live
   // position wins over the authored one) or a named anchor in the
   // current backdrop — BOAT1, RUBBER_TREE. Anchors make painted
@@ -643,16 +662,17 @@ export function useScriptRunner({
         const existing = animationsRef.current.get(elementId);
         if (existing) clearInterval(existing);
 
-        const el = currentSceneRef.current?.stage?.find(e => e.id === elementId);
-        if (!el) {
-          warnOnce(`ANIMATE ${elementId}: no such stage element; skipped`);
+        // Accept an element id OR an actor id, as POSE does
+        const animId = resolveElementId(elementId);
+        if (!animId) {
+          warnOnce(`ANIMATE ${elementId}: not a stage element or an actor on this stage; skipped`);
           return true;
         }
         // Reduced motion: show the first frame and hold it.
         const setFrame = (pose: string) => setState(prev => {
           const overrides = new Map(prev.elementOverrides);
-          const current = overrides.get(elementId) || {};
-          overrides.set(elementId, { ...current, pose });
+          const current = overrides.get(animId) || {};
+          overrides.set(animId, { ...current, pose });
           return { ...prev, elementOverrides: overrides };
         });
         setFrame(poses[0]);
@@ -664,12 +684,12 @@ export function useScriptRunner({
           frame++;
           if (frame >= totalFrames) {
             clearInterval(timer);
-            animationsRef.current.delete(elementId);
+            animationsRef.current.delete(animId);
             return;
           }
           setFrame(poses[frame % poses.length]);
         }, Math.max(50, interval * 1000));
-        animationsRef.current.set(elementId, timer);
+        animationsRef.current.set(animId, timer);
         return true;
       }
 
@@ -766,10 +786,16 @@ export function useScriptRunner({
       }
 
       case 'POSE': {
+        // Accept an element id OR an actor id (see resolveElementId)
+        const targetId = resolveElementId(command.actorId);
+        if (!targetId) {
+          warnOnce(`POSE ${command.actorId}: not a stage element or an actor on this stage; skipped`);
+          return true;
+        }
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
-          const existing = overrides.get(command.actorId) || {};
-          overrides.set(command.actorId, {
+          const existing = overrides.get(targetId) || {};
+          overrides.set(targetId, {
             ...existing,
             pose: command.pose,
             expression: command.expression,

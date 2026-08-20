@@ -11,6 +11,15 @@ export default defineConfig(({ mode }) => ({
   // Vite's dep-optimizer rename fail with EBUSY. Keep the cache outside
   // the synced tree.
   cacheDir: path.join(os.tmpdir(), "vite-cache-dramaton-studio"),
+  build: {
+    // Two builds, one repo — each gets its own folder so neither can
+    // silently overwrite the other:
+    //   npm run build:pod    -> dist-pod/    the editor (the Dramaton pod)
+    //   npm run build:games  -> dist-games/  theater only, for sharing
+    //   npm run build        -> dist/        theater only (safe default)
+    outDir:
+      mode === "pod" ? "dist-pod" : mode === "games" ? "dist-games" : "dist",
+  },
   server: {
     host: "::",
     port: 8080,

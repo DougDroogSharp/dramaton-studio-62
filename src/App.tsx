@@ -15,10 +15,18 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const GameLanding = lazy(() => import("./pages/GameLanding"));
 
-// Production/web builds ship the theater only: "/" is a public games
-// landing page and the editor routes are not registered. The editor
-// exists only in local dev (npm run dev).
-const isDev = import.meta.env.DEV;
+// Two builds, one repo.
+//
+//   npm run dev          — everything, locally
+//   npm run build:pod    — the Dramaton POD: the editor, for Doug's own
+//                          room in the pond
+//   npm run build:games  — theater only: what you hand someone when you
+//                          share a game link. No editor routes exist.
+//
+// A plain `npm run build` stays theater-only, so the cautious default
+// is the one that cannot leak the editor.
+const isEditorBuild =
+  import.meta.env.DEV || import.meta.env.MODE === 'pod';
 
 const queryClient = new QueryClient();
 
@@ -32,9 +40,9 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={isDev ? <Index /> : <GameLanding />} />
-                {isDev && <Route path="/auth" element={<Auth />} />}
-                {isDev && <Route path="/library" element={<Library />} />}
+                <Route path="/" element={isEditorBuild ? <Index /> : <GameLanding />} />
+                {isEditorBuild && <Route path="/auth" element={<Auth />} />}
+                {isEditorBuild && <Route path="/library" element={<Library />} />}
                 <Route path="/theater" element={<Theater />} />
                 <Route path="/play" element={<Theater />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
