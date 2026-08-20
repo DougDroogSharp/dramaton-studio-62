@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Scene, StageElementOverride } from '@/types';
 import { ActiveDialogue, ChoiceState } from '@/hooks/useScriptRunner';
 import { speakerColor } from '@/utils/speakerColor';
@@ -34,6 +34,18 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+
+  // Single-option choices auto-resolve: announce what the player does,
+  // pause long enough to read it, then do it. (A click skips the wait.)
+  const onSelectChoiceRef = useRef(onSelectChoice);
+  onSelectChoiceRef.current = onSelectChoice;
+  const soloText = choices && choices.options.length === 1 ? choices.options[0].text : null;
+  useEffect(() => {
+    if (soloText === null) return;
+    const readingMs = Math.min(4500, 1600 + soloText.length * 35);
+    const id = setTimeout(() => onSelectChoiceRef.current(0), readingMs);
+    return () => clearTimeout(id);
+  }, [soloText]);
 
   const startEdit = (e: React.MouseEvent) => {
     if (!onEditText || !dialogue) return;
@@ -150,8 +162,28 @@ export const StageDialogueLayer: React.FC<StageDialogueLayerProps> = ({
         </div>
       )}
 
-      {/* Choices: the player's own thought balloon */}
-      {choices && (
+      {/* Choices: the player's own thought balloon. A single option is
+          not a decision — announce it and take it (auto-resolves after
+          a reading pause; a click takes it immediately). */}
+      {choices && choices.options.length === 1 && (
+        <div
+          className="absolute pointer-events-auto select-none cursor-pointer"
+          style={{ left: '50%', top: '26%', transform: 'translate(-50%, -50%)', width: '44%', minWidth: '280px', maxWidth: '560px' }}
+          onClick={() => onSelectChoice(0)}
+        >
+          <div className="relative px-4 py-3 bg-diesel-paper/95 rounded-3xl border-2 border-dashed border-diesel-steel shadow-xl">
+            <div className="px-3 py-2 text-diesel-black text-sm font-medium italic">
+              {choices.options[0].text}
+            </div>
+            {/* thought-bubble trail */}
+            <div className="absolute -bottom-7 left-[38%] flex flex-col items-start gap-1">
+              <span className="w-4 h-4 rounded-full bg-diesel-paper/90 border-2 border-dashed border-diesel-steel" />
+              <span className="w-2.5 h-2.5 rounded-full bg-diesel-paper/80 border border-dashed border-diesel-steel ml-3" />
+            </div>
+          </div>
+        </div>
+      )}
+      {choices && choices.options.length > 1 && (
         <div
           className="absolute pointer-events-auto select-none"
           style={{ left: '50%', top: '26%', transform: 'translate(-50%, -50%)', width: '44%', minWidth: '280px', maxWidth: '560px' }}
