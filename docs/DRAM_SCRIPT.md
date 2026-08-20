@@ -127,11 +127,11 @@ Removes an actor from the stage.
 
 #### `MOVE`
 
-Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.
+Animates an actor moving to a new position over the specified duration. The destination may be literal coordinates, another stage element, or a named backdrop anchor — an object identified inside the backdrop art, like BOAT1 or RUBBER_TREE; unresolvable names warn and fall back to coordinates. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.
 
 **Syntax:**
 ```
-[MOVE actor_id to x,y over duration]
+[MOVE actor_id to x,y over duration]  |  [MOVE actor_id to TARGET over duration]
 ```
 
 **Parameters:**
@@ -146,6 +146,7 @@ Animates an actor moving to a new position over the specified duration. Walk cyc
 ```
 [MOVE detective to 50,50 over 1s]
 [MOVE witness to 25,50]
+[MOVE aldric to RUBBER_TREE over 3s]
 ```
 
 #### `POSE`
@@ -212,6 +213,29 @@ Swaps the scene backdrop without changing scenes, crossfading over the given dur
 **Example:**
 ```
 [BACKDROP wm_village_burnt over 2s]
+```
+
+#### `FACE`
+
+Turns an actor to face something and snaps the sprite to the nearest directional graphic it actually has (this is facing, not mirroring — no flipped scars or sword hands). The target may be another stage element, an item on stage, or a named backdrop anchor — objects identified inside the backdrop art, like BOAT1 or RUBBER_TREE. Degrees are compass-style: 0 right, 90 down, 180 left, 270 up. Actors without directional art keep their current look, with a warning.
+
+**Syntax:**
+```
+[FACE element toward target]  |  [FACE element degrees]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `element` | string | The stage element that turns |
+| `target` | string | Element id or backdrop anchor id to face |
+| `degrees` | number | Explicit facing angle instead of a target |
+
+**Example:**
+```
+[FACE aldric toward h_william]
+[FACE hereward toward BOAT1]
+[FACE crowd 270]
 ```
 
 #### `CAMERA`
@@ -994,7 +1018,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **38 commands documented**
+✅ **39 commands documented**
 
 ---
 

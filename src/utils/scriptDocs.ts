@@ -69,15 +69,15 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'MOVE',
     category: 'actor',
-    syntax: '[MOVE actor_id to x,y over duration]',
-    description: 'Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor\'s graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.',
+    syntax: '[MOVE actor_id to x,y over duration]  |  [MOVE actor_id to TARGET over duration]',
+    description: 'Animates an actor moving to a new position over the specified duration. The destination may be literal coordinates, another stage element, or a named backdrop anchor — an object identified inside the backdrop art, like BOAT1 or RUBBER_TREE; unresolvable names warn and fall back to coordinates. Walk cycle: if the actor\'s graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.',
     parameters: [
       { name: 'actor_id', type: 'string', description: 'The unique identifier of the actor' },
       { name: 'x', type: 'number', description: 'Target horizontal position (0-100)' },
       { name: 'y', type: 'number', description: 'Target vertical position (0-100)' },
       { name: 'duration', type: 'string', description: 'Animation duration (e.g., "2s", "500ms")', optional: true },
     ],
-    example: '[MOVE detective to 50,50 over 1s]\n[MOVE witness to 25,50]',
+    example: '[MOVE detective to 50,50 over 1s]\n[MOVE witness to 25,50]\n[MOVE aldric to RUBBER_TREE over 3s]',
     implemented: true,
   },
   {
@@ -424,6 +424,19 @@ Narrator: "Rent flows to the landlord."
     implemented: true,
   },
   {
+    type: 'FACE',
+    category: 'actor',
+    syntax: '[FACE element toward target]  |  [FACE element degrees]',
+    description: 'Turns an actor to face something and snaps the sprite to the nearest directional graphic it actually has (this is facing, not mirroring — no flipped scars or sword hands). The target may be another stage element, an item on stage, or a named backdrop anchor — objects identified inside the backdrop art, like BOAT1 or RUBBER_TREE. Degrees are compass-style: 0 right, 90 down, 180 left, 270 up. Actors without directional art keep their current look, with a warning.',
+    parameters: [
+      { name: 'element', type: 'string', description: 'The stage element that turns' },
+      { name: 'target', type: 'string', description: 'Element id or backdrop anchor id to face' },
+      { name: 'degrees', type: 'number', description: 'Explicit facing angle instead of a target' },
+    ],
+    example: '[FACE aldric toward h_william]\n[FACE hereward toward BOAT1]\n[FACE crowd 270]',
+    implemented: true,
+  },
+  {
     type: 'CAMERA',
     category: 'actor',
     syntax: '[CAMERA shot wide|closeup|two [on element] [over duration]]  |  [CAMERA zoom 1.5 [at x,y] [over duration]]  |  [CAMERA follow element]  |  [CAMERA reset]',
@@ -631,6 +644,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'RANDOM', label: 'RANDOM', insertText: 'RANDOM]\n\n[OR]\n\n[/RANDOM', description: 'Play one branch at random' },
   { type: 'TWEEN', label: 'TWEEN', insertText: 'TWEEN ', description: 'Animate scale/rotation/opacity/position' },
   { type: 'BACKDROP', label: 'BACKDROP', insertText: 'BACKDROP ', description: 'Crossfade the backdrop mid-scene' },
+  { type: 'FACE', label: 'FACE', insertText: 'FACE ', description: 'Turn an actor to face a target' },
   { type: 'CAMERA', label: 'CAMERA', insertText: 'CAMERA ', description: 'Shots, zoom, pan, follow' },
   { type: 'LABEL', label: 'LABEL', insertText: 'LABEL ', description: 'Named jump target' },
   { type: 'GOTO', label: 'GOTO', insertText: 'GOTO ', description: 'Jump to a label in this scene' },
@@ -650,7 +664,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
 // Validation helper: check if all command types are documented
 export function validateDocumentation(): { missing: string[]; documented: string[] } {
   const allTypes: ScriptCommandType[] = [
-    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'CAMERA',
+    'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE', 'TWEEN', 'BACKDROP', 'FACE', 'CAMERA',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',

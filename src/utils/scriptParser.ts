@@ -28,6 +28,7 @@ export type ScriptCommandType =
   | 'GOTO'
   | 'TWEEN'
   | 'BACKDROP'
+  | 'FACE'
   | 'CAMERA'
   | 'TICK'
   | 'BIND'
@@ -74,6 +75,9 @@ export interface MoveCommand {
   x: number;
   y: number;
   duration: number;
+  // Named destination: a stage element or backdrop anchor, resolved at
+  // execution time. When set, x/y are the fallback if it can't resolve.
+  targetId?: string;
 }
 
 export interface PoseCommand {
@@ -198,6 +202,17 @@ export interface BackdropCommand {
   type: 'BACKDROP';
   dropId: string;
   duration: number; // seconds (0 = instant)
+}
+
+// Turn an actor to face something: another stage element, a named
+// backdrop anchor (BOAT1, RUBBER_TREE), or an explicit compass angle.
+// Sets the sprite's facing angle, which selects the nearest directional
+// graphic — it does NOT mirror the sprite.
+export interface FaceCommand {
+  type: 'FACE';
+  elementId: string;
+  targetId?: string;   // element id or backdrop anchor id
+  degrees?: number;    // explicit angle (0=right, 90=down, 180=left, 270=up)
 }
 
 // Camera: named shot presets (the 1986 SHOT0/1/2) or free zoom/pan.
@@ -350,6 +365,7 @@ export type ScriptCommand =
   | GotoCommand
   | TweenCommand
   | BackdropCommand
+  | FaceCommand
   | CameraCommand
   | TickCommand
   | BindCommand
@@ -467,7 +483,21 @@ function parseLine(line: string): ScriptCommand | null {
         duration: moveMatch[4] ? parseDuration(moveMatch[4]) : 0.5,
       };
     }
-    
+
+    // MOVE actor_id to NAMED_TARGET over 1s — a stage element or a
+    // backdrop anchor (BOAT1, RUBBER_TREE), resolved at execution time
+    const moveNamedMatch = content.match(/^MOVE\s+(\w+)\s+to\s+([A-Za-z_]\w*)\s*(?:over\s+(.+))?$/i);
+    if (moveNamedMatch) {
+      return {
+        type: 'MOVE',
+        actorId: moveNamedMatch[1],
+        targetId: moveNamedMatch[2],
+        x: 50,
+        y: 50,
+        duration: moveNamedMatch[3] ? parseDuration(moveNamedMatch[3]) : 0.5,
+      };
+    }
+
     // POSE actor_id pose=Happy expression=Smile
     const poseMatch = content.match(/^POSE\s+(\w+)(.*)$/i);
     if (poseMatch) {
@@ -625,6 +655,16 @@ function parseLine(line: string): ScriptCommand | null {
         dropId: backdropMatch[1],
         duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
       };
+    }
+
+    // FACE element toward TARGET  |  FACE element <degrees>
+    const faceMatch = content.match(/^FACE\s+(\w+)\s+(?:toward\s+|at\s+)?(-?[\w.]+)$/i);
+    if (faceMatch) {
+      const arg = faceMatch[2];
+      if (/^-?\d+(\.\d+)?$/.test(arg)) {
+        return { type: 'FACE', elementId: faceMatch[1], degrees: ((Number(arg) % 360) + 360) % 360 };
+      }
+      return { type: 'FACE', elementId: faceMatch[1], targetId: arg };
     }
 
     // CAMERA: presets, free zoom/pan, follow, reset
@@ -1044,7 +1084,8 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[EXIT ${cmd.actorId}]`;
     case 'MOVE': {
       const dur = cmd.duration !== 0.5 ? ` over ${cmd.duration}s` : '';
-      return `[MOVE ${cmd.actorId} to ${cmd.x},${cmd.y}${dur}]`;
+      const dest = cmd.targetId ?? `${cmd.x},${cmd.y}`;
+      return `[MOVE ${cmd.actorId} to ${dest}${dur}]`;
     }
     case 'POSE': {
       const parts: string[] = [];
@@ -1134,6 +1175,10 @@ export function commandToString(cmd: ScriptCommand): string {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       return `[BACKDROP ${cmd.dropId} over ${dur}]`;
     }
+    case 'FACE':
+      return cmd.degrees !== undefined
+        ? `[FACE ${cmd.elementId} ${cmd.degrees}]`
+        : `[FACE ${cmd.elementId} toward ${cmd.targetId}]`;
     case 'CAMERA': {
       const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
       let body: string;

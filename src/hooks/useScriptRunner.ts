@@ -246,6 +246,28 @@ export function useScriptRunner({
   const narratonHistoryRef = useRef(createNarratonHistory());
   const currentSceneRef = useRef<Scene | undefined>(undefined);
   currentSceneRef.current = currentScene;
+  // Live mirror of state for helpers that run inside command execution
+  // (position resolution needs the latest overrides, not a closure).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Resolve a name to a point on the stage: a stage element (live
+  // position wins over the authored one) or a named anchor in the
+  // current backdrop — BOAT1, RUBBER_TREE. Anchors make painted
+  // scenery addressable by FACE, MOVE and CAMERA.
+  const resolvePointRef = useRef<(name: string) => { x: number; y: number } | undefined>(() => undefined);
+  const resolvePoint = useCallback((name: string): { x: number; y: number } | undefined => {
+    const el = currentSceneRef.current?.stage?.find(e => e.id === name);
+    if (el) {
+      const live = stateRef.current.elementOverrides.get(name);
+      return { x: live?.x ?? el.x, y: live?.y ?? el.y };
+    }
+    const activeDropId = stateRef.current.backdrop?.dropId ?? currentSceneRef.current?.dropId;
+    const drop = activeDropId ? game.drops?.find(d => d.id === activeDropId) : undefined;
+    const anchor = drop?.anchors?.find(a => a.id === name);
+    return anchor ? { x: anchor.x, y: anchor.y } : undefined;
+  }, [game.drops]);
+  resolvePointRef.current = resolvePoint;
 
   // Evaluate every active binding and write the results into
   // elementOverrides. Runs after each SET and each BIND.
@@ -428,14 +450,24 @@ export function useScriptRunner({
       }
       
       case 'MOVE': {
+        // A named destination (stage element or backdrop anchor) wins
+        // over literal coordinates; unresolvable names warn and fall
+        // back to the literals.
+        let destX = command.x;
+        let destY = command.y;
+        if (command.targetId) {
+          const point = resolvePoint(command.targetId);
+          if (point) { destX = point.x; destY = point.y; }
+          else warnOnce(`MOVE ${command.actorId} to ${command.targetId}: no such element or backdrop anchor; using ${command.x},${command.y}`);
+        }
         // Animate movement at the scripted speed
         const applyMoveTarget = () => setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(command.actorId) || {};
           overrides.set(command.actorId, {
             ...existing,
-            x: command.x,
-            y: command.y,
+            x: destX,
+            y: destY,
             transitionDuration: command.duration,
           });
           return { ...prev, elementOverrides: overrides };
@@ -492,7 +524,7 @@ export function useScriptRunner({
                 snapshot.spriteAngle = existing.spriteAngle;
                 const startX = existing.x ?? movingEl.x;
                 const startY = existing.y ?? movingEl.y;
-                const dir = (Math.atan2(command.y - startY, command.x - startX) * 180 / Math.PI + 360) % 360;
+                const dir = (Math.atan2(destY - startY, destX - startX) * 180 / Math.PI + 360) % 360;
                 walk1 = pickFrame(walk1s, dir);
                 walk2 = pickFrame(walk2s, dir);
               }
@@ -563,6 +595,47 @@ export function useScriptRunner({
         return true;
       }
 
+      case 'FACE': {
+        // Resolve the facing angle, then snap the sprite to the
+        // nearest directional graphic the actor actually has.
+        const el = currentSceneRef.current?.stage?.find(e => e.id === command.elementId);
+        if (!el) {
+          warnOnce(`FACE ${command.elementId}: no such stage element`);
+          return true;
+        }
+        let degrees = command.degrees;
+        if (degrees === undefined && command.targetId) {
+          const target = resolvePoint(command.targetId);
+          if (!target) {
+            warnOnce(`FACE ${command.elementId} toward ${command.targetId}: no such element or backdrop anchor; keeping current facing`);
+            return true;
+          }
+          const live = state.elementOverrides.get(command.elementId);
+          const fromX = live?.x ?? el.x;
+          const fromY = live?.y ?? el.y;
+          degrees = ((Math.atan2(target.y - fromY, target.x - fromX) * 180 / Math.PI) + 360) % 360;
+        }
+        if (degrees === undefined) return true;
+
+        // Pick the actor's nearest available sprite angle for the
+        // current pose (fail-soft: no directional art, no change).
+        const actor = el.type === 'ACTOR' ? game.actors.find(a => a.id === el.assetId) : undefined;
+        const livePose = state.elementOverrides.get(command.elementId)?.pose ?? el.pose;
+        const candidates = actor?.graphics.filter(g => g.pose === livePose) ?? [];
+        const angularDist = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+        const best = candidates.length > 0
+          ? candidates.reduce((b, g) => angularDist(g.angle, degrees!) < angularDist(b.angle, degrees!) ? g : b)
+          : undefined;
+        const faceAngle = best ? best.angle : degrees;
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(command.elementId) || {};
+          overrides.set(command.elementId, { ...existing, spriteAngle: faceAngle });
+          return { ...prev, elementOverrides: overrides };
+        });
+        return true;
+      }
+
       case 'BACKDROP': {
         if (!game.drops?.some(d => d.id === command.dropId)) {
           warnOnce(`BACKDROP ${command.dropId}: no such drop; keeping the current backdrop`);
@@ -584,11 +657,13 @@ export function useScriptRunner({
         else if (command.shot === 'closeup') zoom = 2.2;
         else if (command.shot === 'two') zoom = 1.5;
         else if (command.shot === 'wide') zoom = 1;
-        const target = command.targetId
-          ? (state.elementOverrides.get(command.targetId)
-            ?? currentSceneRef.current?.stage?.find(e => e.id === command.targetId))
-          : undefined;
-        if (target && (target.x !== undefined)) { x = target.x; y = target.y; }
+        // "on <target>" centers the shot: a stage element or a named
+        // backdrop anchor (CAMERA shot closeup on RUBBER_TREE).
+        const target = command.targetId ? resolvePoint(command.targetId) : undefined;
+        if (command.targetId && !target) {
+          warnOnce(`CAMERA on ${command.targetId}: no such element or backdrop anchor; keeping the current center`);
+        }
+        if (target) { x = target.x; y = target.y; }
         setState(prev => ({
           ...prev,
           camera: {

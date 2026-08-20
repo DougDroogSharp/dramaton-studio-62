@@ -126,10 +126,23 @@ export interface Scene {
   status?: AssetStatus;
 }
 
+// A named thing visible IN a backdrop image — BOAT1, BAR_STOOL,
+// RUBBER_TREE — with its center in stage percent coordinates. Anchors
+// make the painted scenery addressable: actors can FACE them, MOVE to
+// them, and the CAMERA can frame them, without the object being a
+// separate sprite.
+export interface DropAnchor {
+  id: string;      // BOAT1, RUBBER_TREE — unique within the drop
+  label?: string;  // human description ("the near fishing boat")
+  x: number;       // 0-100, stage percent
+  y: number;       // 0-100
+}
+
 export interface Drop {
   id: string;
   name: string;
   prompt: string;
+  anchors?: DropAnchor[];
   image?: string;
   referenceImage?: string;      // Reference image for composition/layout
   editHistory?: string[];       // Track previous versions
