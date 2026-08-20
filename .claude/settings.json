@@ -1,8 +1,40 @@
 {
   "permissions": {
     "allow": [
+      "Bash(npm run verify)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run test)",
+      "Bash(npm run lint:hooks)",
+      "Bash(npm run docs:all)",
+      "Bash(npm run docs:dram)",
+      "Bash(npm run docs:dram:html)",
+      "Bash(npm run docs:sync)",
+      "Bash(npm run build:pod)",
+      "Bash(npm run build:games)",
       "Bash(npm test)",
-      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest run *)",
+      "Bash(npx vitest run)",
+      "Bash(npx tsc -b *)",
+      "Bash(npx tsc -b)",
+      "Bash(npx eslint *)",
+      "Bash(node scripts/chapters/build-william.mjs)",
+      "Bash(node scripts/chapters/build-leopold.mjs)",
+      "Bash(node scripts/chapters/build-capone.mjs)",
+      "Bash(node scripts/chapters/build-elon.mjs)",
+      "Bash(node scripts/build-machine-toy.mjs)",
+      "Bash(node scripts/build-campaign.mjs)",
+      "Bash(node scripts/build-art-demo.mjs)",
+      "Bash(node scripts/prep-gauge-art.mjs *)",
+      "Bash(node scripts/prep-gauge-art.mjs)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push origin main)",
+      "Bash(git stash *)",
+      "Bash(git fetch origin *)",
+      "Bash(git check-ignore *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-list *)",
+      "Bash(git archive *)",
       "mcp__Claude_Browser__read_page",
       "mcp__Claude_Browser__get_page_text",
       "mcp__Claude_Browser__read_console_messages",
@@ -10,6 +42,14 @@
       "mcp__Claude_Browser__find",
       "mcp__f3981e82-7269-46ce-ad6b-4b46f934a3e5__netlify-project-services-reader",
       "mcp__f3981e82-7269-46ce-ad6b-4b46f934a3e5__netlify-deploy-services-reader"
+    ],
+    "ask": [
+      "Bash(node scripts/bake-voice.mjs *)",
+      "Bash(node scripts/generate-art.mjs *)",
+      "Bash(npm run gen:art *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)"
     ]
   }
 }
