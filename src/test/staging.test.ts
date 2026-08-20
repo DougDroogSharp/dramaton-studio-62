@@ -107,6 +107,24 @@ describe('staging commands: execution', () => {
     expect(result.current.state.camera).toMatchObject({ follow: 'king', x: 80, y: 30 });
   });
 
+  it('a scene change cancels a pending TWEEN write', () => {
+    // TWEEN defers its value write by 30ms so the transition duration
+    // lands in the DOM first. That timer used to be a bare setTimeout
+    // that clearTimeouts() knew nothing about, so a scene change inside
+    // the 30ms window tore down the scene and then let the callback
+    // write an override for an element belonging to the scene we left.
+    const game = run('[TWEEN king.scale to 3 over 2s]\n[SCENE s2]');
+    game.scenes.push({ id: 's2', name: 'S2', script: '[SET arrived = 1]' });
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    expect(result.current.state.currentSceneId).toBe('s2');
+    act(() => { vi.advanceTimersByTime(100); });
+
+    // The stray write would reappear as a scale override on the new scene.
+    expect(result.current.state.elementOverrides.get('king')?.scale).toBeUndefined();
+    expect(result.current.state.worldState.arrived).toBe(1);
+  });
+
   it('a scene change clears backdrop and camera', () => {
     const game = run('[BACKDROP night]\n[CAMERA shot closeup on king]\n[SCENE s2]');
     game.scenes.push({ id: 's2', name: 'S2', script: '[SET arrived = 1]' });

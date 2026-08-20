@@ -208,6 +208,7 @@ export function useScriptRunner({
   // Deferred MOVE target write (see the MOVE case): only one can be
   // pending at a time because a timed MOVE yields the script.
   const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tweenStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Timed CHOICE: fires the fallback jump if the player hesitates.
   const choiceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // NARRATE: expiry timer and a monotonic id so each line re-announces.
@@ -359,6 +360,8 @@ export function useScriptRunner({
     walkRestoreRef.current = null;
     if (moveStartTimeoutRef.current) clearTimeout(moveStartTimeoutRef.current);
     moveStartTimeoutRef.current = null;
+    if (tweenStartTimeoutRef.current) clearTimeout(tweenStartTimeoutRef.current);
+    tweenStartTimeoutRef.current = null;
     if (choiceTimeoutRef.current) clearTimeout(choiceTimeoutRef.current);
     choiceTimeoutRef.current = null;
     if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
@@ -667,8 +670,20 @@ export function useScriptRunner({
           overrides.set(elementId, { ...existing, [property]: value, transitionDuration: duration });
           return { ...prev, elementOverrides: overrides };
         });
-        if (duration > 0) setTimeout(applyTween, 30);
-        else applyTween();
+        // The same deferred write MOVE uses, and it must be tracked the
+        // same way. Left bare, this timer outlived clearTimeouts(): a
+        // SCENE change within 30ms of a TWEEN would tear down the scene
+        // and then this callback would still fire, writing an override
+        // for an element belonging to the scene we just left.
+        if (duration > 0) {
+          if (tweenStartTimeoutRef.current) clearTimeout(tweenStartTimeoutRef.current);
+          tweenStartTimeoutRef.current = setTimeout(() => {
+            tweenStartTimeoutRef.current = null;
+            applyTween();
+          }, 30);
+        } else {
+          applyTween();
+        }
         return true;
       }
 

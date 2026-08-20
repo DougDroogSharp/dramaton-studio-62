@@ -22,7 +22,8 @@
     "docs:sync": "node scripts/sync-docs.mjs",
     "docs:all": "npm run docs:dram && npm run docs:dram:html && npm run docs:sync",
     "typecheck": "tsc -b --force",
-    "verify": "tsc -b --force && vitest run"
+    "verify": "tsc -b --force && eslint . -c eslint.hooks.config.js && vitest run",
+    "lint:hooks": "eslint . -c eslint.hooks.config.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

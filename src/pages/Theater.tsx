@@ -111,25 +111,68 @@ const Theater: React.FC = () => {
     loadGame();
   }, [searchParams]);
 
-  // Handle audio commands from script runner
+  // Every sound the show starts has an owner. Before this, each command
+  // did `new Audio(url).play()` and dropped the handle on the floor:
+  // nothing could stop it, so music from a previous scene played under
+  // the next one, a repeated [BGM] stacked a second copy on top of the
+  // first, and hitting mute silenced only sounds that had not started yet.
+  //
+  // BGM and AMBIENCE are channels: one clip each, and a new clip on a
+  // channel replaces the one playing. SFX are one-shots, held only long
+  // enough to stop them on the way out.
+  const channelsRef = useRef<{ bgm: HTMLAudioElement | null; ambience: HTMLAudioElement | null }>({
+    bgm: null, ambience: null,
+  });
+  const sfxRef = useRef<Set<HTMLAudioElement>>(new Set());
+
+  const stopAudio = useCallback((what: 'all' | 'sfx' = 'all') => {
+    for (const a of sfxRef.current) { a.pause(); a.src = ''; }
+    sfxRef.current.clear();
+    if (what === 'sfx') return;
+    for (const key of ['bgm', 'ambience'] as const) {
+      const a = channelsRef.current[key];
+      if (a) { a.pause(); a.src = ''; }
+      channelsRef.current[key] = null;
+    }
+  }, []);
+
   const handleAudioCommand = useCallback((
     type: 'bgm' | 'ambience' | 'sfx',
     name: string,
     options: { loop?: boolean; volume?: number }
   ) => {
     if (isMuted) return;
-    
+
     // Find audio track in current scene
     const scene = game?.scenes.find(s => s.audioTracks?.some(t => t.name === name));
     const track = scene?.audioTracks?.find(t => t.name === name);
-    
-    if (track) {
-      const audio = new Audio(track.url);
-      audio.loop = options.loop ?? track.loop;
-      audio.volume = (options.volume ?? track.volume) * (isMuted ? 0 : 1);
-      audio.play();
+    if (!track) return;
+
+    const audio = new Audio(track.url);
+    audio.loop = options.loop ?? track.loop;
+    audio.volume = options.volume ?? track.volume;
+
+    if (type === 'sfx') {
+      sfxRef.current.add(audio);
+      audio.addEventListener('ended', () => sfxRef.current.delete(audio), { once: true });
+    } else {
+      const previous = channelsRef.current[type];
+      if (previous) { previous.pause(); previous.src = ''; }
+      channelsRef.current[type] = audio;
     }
+
+    // Browsers reject play() when the tab has no user gesture yet. That
+    // is not an error worth crashing or logging on every scene.
+    void audio.play().catch(() => {});
   }, [game, isMuted]);
+
+  // Mute stops what is already sounding, not just what has yet to start.
+  useEffect(() => {
+    if (isMuted) stopAudio('all');
+  }, [isMuted, stopAudio]);
+
+  // Leaving the theater takes the sound with it.
+  useEffect(() => () => stopAudio('all'), [stopAudio]);
 
   // Get starting scene
   const startSceneId = game?.info.titleSceneId || game?.scenes[0]?.id || '';
@@ -152,6 +195,13 @@ const Theater: React.FC = () => {
     narratorVoice: ability.narratorVoice,
     active: hasStarted,
   });
+
+  // A scene's one-shot sounds belong to that scene. Music and ambience
+  // deliberately carry across the cut — that is what a score is for, and
+  // the only way to change either is to play a new clip on its channel.
+  useEffect(() => {
+    stopAudio('sfx');
+  }, [scriptRunner.state.currentSceneId, stopAudio]);
 
   // Quote pop-ups: worldState threshold crossings fire tagged quotes
   const { activeQuote, dismiss: dismissQuote } = useQuoteTriggers(
@@ -192,7 +242,9 @@ const Theater: React.FC = () => {
       if (sfx?.params?.audioUrl && !isMuted) {
         const audio = new Audio(sfx.params.audioUrl);
         audio.volume = 0.7;
-        audio.play().catch(e => console.log('Failed to play button SFX:', e));
+        sfxRef.current.add(audio);
+        audio.addEventListener('ended', () => sfxRef.current.delete(audio), { once: true });
+        void audio.play().catch(() => {});
       } else {
         playDefaultClickSound();
       }
