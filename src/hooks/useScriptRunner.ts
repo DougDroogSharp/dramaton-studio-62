@@ -209,6 +209,7 @@ export function useScriptRunner({
   // pending at a time because a timed MOVE yields the script.
   const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tweenStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // Timed CHOICE: fires the fallback jump if the player hesitates.
   const choiceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // NARRATE: expiry timer and a monotonic id so each line re-announces.
@@ -362,6 +363,8 @@ export function useScriptRunner({
     moveStartTimeoutRef.current = null;
     if (tweenStartTimeoutRef.current) clearTimeout(tweenStartTimeoutRef.current);
     tweenStartTimeoutRef.current = null;
+    if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+    tickIntervalRef.current = null;
     if (choiceTimeoutRef.current) clearTimeout(choiceTimeoutRef.current);
     choiceTimeoutRef.current = null;
     if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
@@ -1171,6 +1174,10 @@ export function useScriptRunner({
       case 'UNKNOWN':
         return true; // Skip
     }
+    // Unreachable while the switch stays exhaustive over ScriptCommand,
+    // but strict mode wants it stated. Continue rather than yield: an
+    // unhandled command must never stop the show.
+    return true;
   }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts, applyBindings]);
 
   // Execute a TICK body: non-blocking commands only, run against the
@@ -1185,22 +1192,45 @@ export function useScriptRunner({
         case 'GOTO':
           warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
           continue;
+
+        // A running simulation reaching a terminal state and carrying the
+        // player there is the whole point of the campaign: [SCENE
+        // ending_collapse] fires from inside a TICK sixteen times across
+        // hvb-campaign. So this stays legal — but it must END THE BODY.
+        //
+        // It used to fall through to the default arm, where executeCommand
+        // tore the scene down and returned false to mean "stop". Nothing
+        // read that return value, so the loop ran the REST OF THE OLD TICK
+        // BODY against the scene that had just replaced it, and the next
+        // interval could fire once more before the effect re-keyed.
+        //
+        // Now it aborts: stop the interval, unwind through any enclosing
+        // IF/RANDOM, and run nothing further this pass.
+        case 'SCENE':
+        case 'NARRATON':
+          executeCommand(cmd);
+          if (tickIntervalRef.current) {
+            clearInterval(tickIntervalRef.current);
+            tickIntervalRef.current = null;
+          }
+          return true; // aborted: the scene beneath us has changed
+
         case 'RANDOM': {
           if (cmd.branches.length > 0) {
-            executeTickBody(cmd.branches[Math.floor(Math.random() * cmd.branches.length)]);
+            if (executeTickBody(cmd.branches[Math.floor(Math.random() * cmd.branches.length)])) return true;
           }
           continue;
         }
         case 'IF': {
           if (evaluateIfCondition(cmd, worldStateRef.current)) {
-            executeTickBody(cmd.commands);
+            if (executeTickBody(cmd.commands)) return true;
           } else {
             const arm = (cmd.elifs ?? []).find(e => evaluateIfCondition(
               { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as IfCommand,
               worldStateRef.current,
             ));
-            if (arm) executeTickBody(arm.commands);
-            else if (cmd.elseCommands) executeTickBody(cmd.elseCommands);
+            if (arm) { if (executeTickBody(arm.commands)) return true; }
+            else if (cmd.elseCommands) { if (executeTickBody(cmd.elseCommands)) return true; }
           }
           continue;
         }
@@ -1216,11 +1246,12 @@ export function useScriptRunner({
           continue;
         default:
           // SET, ENTER, EXIT, POSE, EFFECT, CLEAR_EFFECT, BUTTON,
-          // HIDE_BUTTON, BGM, AMBIENCE, SFX, SCENE, COMMENT, UNKNOWN
+          // HIDE_BUTTON, BGM, AMBIENCE, SFX, COMMENT, UNKNOWN
           // are all non-blocking in executeCommand.
           executeCommand(cmd);
       }
     }
+    return false; // ran to the end without a scene change
   }, [executeCommand]);
 
   // CAMERA follow: keep the camera centered on a tracked element as
@@ -1260,7 +1291,16 @@ export function useScriptRunner({
     const id = setInterval(() => {
       executeTickBodyRef.current(tickBodyRef.current);
     }, Math.max(50, intervalSeconds * 1000)); // floor: don't let a typo spin the CPU
-    return () => clearInterval(id);
+    // Also hand the handle to the central clearer. The effect's own
+    // cleanup only runs on the next render, so between a scene change
+    // and that render the old interval could fire once more against the
+    // new scene. clearTimeouts() runs synchronously on that path and
+    // closes the window. Clearing an interval twice is harmless.
+    tickIntervalRef.current = id;
+    return () => {
+      clearInterval(id);
+      if (tickIntervalRef.current === id) tickIntervalRef.current = null;
+    };
   }, [tickKey]);
 
   // Execute the flattened command list from an index until something

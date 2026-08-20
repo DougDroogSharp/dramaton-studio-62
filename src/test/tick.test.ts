@@ -78,6 +78,45 @@ describe('TICK runtime', () => {
     expect(result.current.state.worldState.n).toBe(3);
   });
 
+  it('SCENE inside a tick body ends the body instead of running on', () => {
+    // A simulation reaching a terminal state and carrying the player
+    // there is intentional -- hvb-campaign fires [SCENE ending_collapse]
+    // from inside a TICK sixteen times, and those are its endings. So
+    // SCENE stays legal here. What was broken is what came AFTER it:
+    // executeCommand returned false to mean "stop", nothing read that,
+    // and the loop ran the rest of the old body against the new scene.
+    const game = makeGame(
+      '[TICK 500ms]\n[SET from_tick = 1]\n[SCENE s2]\n[SET after_scene = 1]\n[/TICK]'
+    );
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    act(() => { vi.advanceTimersByTime(500); });
+
+    expect(result.current.state.worldState.from_tick).toBe(1);
+    // The scene change happens: this is the campaign's ending mechanic.
+    expect(result.current.state.currentSceneId).toBe('s2');
+    // But nothing after it runs -- no residue from the scene we left.
+    expect(result.current.state.worldState.after_scene).toBeUndefined();
+
+    // And the interval is dead, so it cannot fire again into the new scene.
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(result.current.state.worldState.from_tick).toBe(1);
+  });
+
+  it('a SCENE deep inside an IF still ends the whole body', () => {
+    // The abort has to unwind through enclosing blocks, not just the
+    // top level -- the campaign's endings all sit inside an IF.
+    const game = makeGame(
+      '[TICK 500ms]\n[SET n = n + 1]\n[IF n >= 1]\n[SCENE s2]\n[ENDIF]\n[SET after_scene = 1]\n[/TICK]'
+    );
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    act(() => { vi.advanceTimersByTime(500); });
+
+    expect(result.current.state.currentSceneId).toBe('s2');
+    expect(result.current.state.worldState.after_scene).toBeUndefined();
+  });
+
   it('sees its own writes within one tick pass (SET then IF)', () => {
     const game = makeGame('[TICK 500ms]\n[SET n = n + 1]\n[IF n >= 2]\n[SET hit = true]\n[ENDIF]\n[/TICK]');
     const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));

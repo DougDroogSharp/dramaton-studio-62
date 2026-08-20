@@ -39,8 +39,9 @@ function tint(src: string): string {
 }
 
 function commandCard(doc: CommandDoc): string {
-  const params = doc.parameters.length
-    ? `<dl class="params">${doc.parameters.map(p => `
+  const docParams = doc.parameters ?? [];
+  const params = docParams.length
+    ? `<dl class="params">${docParams.map(p => `
         <div class="param">
           <dt><code>${esc(p.name)}</code><span class="ptype">${esc(p.type)}${p.optional ? ' · optional' : ''}</span></dt>
           <dd>${esc(p.description)}</dd>

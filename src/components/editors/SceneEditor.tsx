@@ -84,7 +84,8 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
       id: `scene_${Date.now()}`,
       name: 'New Scene',
       sceneType: 'AGENCY',
-      dropId,
+      // Scene.dropId is optional, not nullable; null means "none chosen".
+      dropId: dropId ?? undefined,
       stage: [],
       script: '',
       status: 'new',
@@ -799,7 +800,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
         <Stage
           scene={selectedScene}
           game={game}
-          background={backgroundDrop}
+          background={backgroundDrop ?? undefined}
           editable={true}
           selectedElementId={selectedElementId}
           draggingId={dragging}
@@ -1026,7 +1027,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '__none__') {
-                        updateScene(selectedScene.id, { dropId: null });
+                        updateScene(selectedScene.id, { dropId: undefined });
                       } else if (value === '') {
                         // Not selected yet
                       } else {
