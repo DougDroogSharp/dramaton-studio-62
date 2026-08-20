@@ -96,6 +96,12 @@ const drops = [
   mkDrop('wm_scriptorium', 'The Scriptorium', art('william', 'scriptorium.png')),
   mkDrop('wm_rouen', 'The Chamber at Rouen', art('william', 'rouen_chamber.png')),
   mkDrop('wm_motte_drop', 'The Motte Rises', art('william', 'motte_castle.png')),
+  // The map. Used by the conquest opening to show where the thing
+  // happened, and available to any later scene that needs to show the
+  // shape of the country — the castle sites, the harried shires.
+  // mkDrop returns null until the art exists, and dropId() then falls
+  // back, so this is safe to reference before it is drawn.
+  mkDrop('wm_map', 'The Map of England', art('william', 'map_england.png')),
 ].filter(Boolean);
 
 const dropId = (id, fallback = null) =>
@@ -184,6 +190,145 @@ const fanChain = ({ base, name, drop, stageEls, framing, moreFraming, moreLabel,
 };
 
 const scenes = [];
+
+// ==========================================================================
+// THE CONQUEST — the opening.
+//
+// The chapter used to begin at wm_court, winter 1069, and ask the player
+// to rule on the Harrying of the North within a minute of pressing START.
+// It named Odo, Edgar Aetheling, the Danes in the Humber and the burned
+// garrisons as though everyone already knew them. Doug: "don't assume
+// players know what's up in the game's current opening scenes."
+//
+// So: four scenes first. The claim, the crossing, the crown, the castles.
+// They are short, they are skippable, and the last one is the one that
+// matters — because the castle is where a conquest stops being an event
+// and becomes a machine for collecting rent, which is the whole argument
+// of the game.
+// ==========================================================================
+
+// 0a. The claim, Normandy, early 1066.
+scenes.push({
+  id: 'wm_claim',
+  name: 'The Claim',
+  sceneType: 'CUTSCENE',
+  dropId: dropId('wm_rouen', 'wm_hall'),
+  stage: [
+    ...el('cl_william', 'william_king', 38, 62),
+    ...balloon('cl_sign', 'NORMANDY, EARLY 1066', 50, 10, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "HUMANS VS BILLIONAIRES — Chapter One."',
+    'Narrator: "Before any of it: a man in Normandy believes England belongs to him."',
+    'Narrator: "He is Duke William. He is not English. He has never governed England, and he does not speak its language."',
+    'Narrator: "His claim rests on a promise he says the old English king made him, and an oath he says Harold Godwinson swore him — over relics, under duress, according to William. Harold denied it. There is no witness who is not Norman."',
+    '[EFFECT gold_glow on cl_william]',
+    'William: "The kingdom was promised. The oath was sworn. What remains is collection."',
+    'Narrator: "The word is worth keeping. Not conquest. COLLECTION."',
+    'Narrator: "In January 1066 the old king dies and the English crown Harold instead. William begins building ships."',
+    '[CHOICE]',
+    '- "Cross the Channel" -> wm_crossing',
+    '- "Skip the history — take me to the throne room" -> wm_court',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 0b. The crossing and the battle. The map earns its keep here: this is
+// the one beat where WHERE matters more than WHO.
+scenes.push({
+  id: 'wm_crossing',
+  name: 'The Crossing',
+  sceneType: 'CUTSCENE',
+  dropId: dropId('wm_map', 'wm_salisbury'),
+  stage: [
+    ...balloon('cr_sign', 'THE CHANNEL, SEPTEMBER 1066', 50, 10, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "September 1066. Harold marches north and destroys a Norwegian army at Stamford Bridge. It is a real victory and it costs him everything he will need three weeks later."',
+    'Narrator: "William lands at Pevensey while Harold is still walking back."',
+    'Narrator: "October the fourteenth, on a ridge near Hastings. The English hold the high ground all day behind a shield wall. It works until it does not."',
+    'Narrator: "Harold dies on the field. So do most of the men who could have raised another army."',
+    'Narrator: "One battle. One afternoon. That is the whole of the fighting that decides who owns England."',
+    'Narrator: "What follows takes twenty years, and it is not fighting. It is administration."',
+    '[CHOICE]',
+    '- "Take the crown" -> wm_crown',
+    '- "Skip ahead to the throne room" -> wm_court',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 0c. The coronation. The fire is Orderic's, and stays flagged as his.
+scenes.push({
+  id: 'wm_crown',
+  name: 'The Crown',
+  sceneType: 'CUTSCENE',
+  dropId: dropId('wm_hall'),
+  stage: [
+    ...el('cw_william', 'william_king', 34, 62),
+    ...el('cw_odo', 'william_odo', 68, 63),
+    ...balloon('cw_sign', 'WESTMINSTER, CHRISTMAS DAY 1066', 50, 10, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "Christmas Day, 1066. Westminster."',
+    'Narrator: "The crowd is asked to acclaim him — in English by one archbishop, in French by another. Nobody in the building can follow both."',
+    'Narrator: "The guards outside hear the roar, take it for a rising, and set fire to the surrounding houses. That is Orderic Vitalis reporting, half a century later. He says the congregation fled, and the king was left trembling among the flames."',
+    'Odo: "A coronation the neighbours had to be burned out of. It sets a tone, brother."',
+    'William: "It sets a precedent. They will learn what the noise costs them."',
+    'Narrator: "And here is the man you are about to play. Not a warlord. A landlord who arrived with an army."',
+    'Narrator: "Every acre of England is now, in law, his. Everyone else holds land FROM him, and pays for the privilege. That is not a metaphor. That is the legal fact he installs, and it has never been repealed."',
+    '[CHOICE]',
+    '- "How do eight thousand Normans hold two million English?" -> wm_castles',
+    '- "Skip ahead to the throne room" -> wm_court',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 0d. THE CASTLES. The scene the opening exists for.
+//
+// Doug: "point out how vital the novel French castles were for oppression."
+//
+// The historical spine, all of it from the dossier and from Domesday:
+// castles were essentially unknown in England before 1066; Orderic says
+// so explicitly and blames the English defeat on their absence. The
+// motte-and-bailey was fast, cheap, and built with forced local labour.
+// Crucially they were planted INSIDE towns, and Domesday records the
+// houses cleared to make room. A castle is not a wall against invaders.
+// It is a garrison pointed at its own neighbourhood — which is exactly
+// the Georgist point, arriving as architecture.
+scenes.push({
+  id: 'wm_castles',
+  name: 'The Novel Engine',
+  sceneType: 'CUTSCENE',
+  dropId: dropId('wm_motte_drop', 'wm_hall'),
+  stage: [
+    ...el('ct_william', 'william_king', 24, 64, { scale: 2.0 }),
+    ...balloon('ct_sign', 'ENGLAND, 1067 ONWARD', 50, 10, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "Eight thousand Normans. Perhaps two million English. The arithmetic does not work, and William knows it does not work."',
+    'Narrator: "What closes the gap is a piece of French technology that England has essentially never seen: the castle."',
+    'Narrator: "Orderic Vitalis, writing later, is blunt about it — the fortifications the Normans called castles were scarcely known in the English provinces, and so the English, for all their courage and their love of a fight, could put up only a weak resistance."',
+    'William: "A castle is not a wall to hide behind. It is a hand on a throat, and it never tires."',
+    'Narrator: "Understand what it is. A mound of earth — the motte — thrown up in weeks by local men who are not asked. A timber tower on top. A yard below for the horses."',
+    'Narrator: "No stone. No masons. No years. A knight with a spade and a hundred pressed labourers can raise one before harvest."',
+    '[NARRATE Castles: essentially none in 1066. Over five hundred by 1100.]',
+    'Narrator: "And they do not go where an invasion would come from. They go where the PEOPLE are — planted inside the towns they hold down."',
+    'Narrator: "Domesday counts the cost in houses. At Lincoln, a hundred and sixty-six dwellings cleared to make room for the castle. At Norwich, ninety-eight. At York, whole neighbourhoods."',
+    'Narrator: "Somebody lived in each of those. Nobody wrote their names. The clerk wrote the number, because the number was the part that mattered to the man being paid to count."',
+    'William: "Let every shire see one from its fields. A man who can see the tower does not need to be told who the land belongs to."',
+    'Narrator: "That is the machine. Not the sword — the sword was one afternoon in October."',
+    'Narrator: "The castle is what turns a battle into rent. It is how a small number of armed foreigners convert a country into a stream of payments, and keep converting it after everyone who fought is dead."',
+    'Narrator: "Nine hundred years later, some of those payments are still arriving. You will see who collects them, at the end."',
+    'Narrator: "Now. Winter, 1069. Three years in, and the North will not lie down."',
+    '[CHOICE]',
+    '- "Go to the throne room" -> wm_court',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
 
 // 1. The court, winter 1069 — news of the northern rising.
 scenes.push({
@@ -4154,7 +4299,9 @@ const game = {
       waste: 66,
     },
     gameMode: 'INTERACTIVE',
-    titleSceneId: 'wm_court',
+    // The conquest opening. wm_court is still reachable from every
+    // scene of it, so a returning player can skip straight to the hall.
+    titleSceneId: 'wm_claim',
     enableAutosave: true,
   },
   // Core machine actors (billionaire/human/witness/narrator/lieutenant,

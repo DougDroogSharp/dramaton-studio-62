@@ -11,7 +11,11 @@ import { frameFor } from '@/utils/frames';
 // arrives. Watching the picture jump is worse than any information
 // the jump was carrying.
 //
-// LANDSCAPE (the normal case — desktop, laptop, iPad held sideways).
+// LANDSCAPE — switched on ORIENTATION, not width. A phone held sideways
+// is 800px wide and 390px tall: wide enough to pass a width breakpoint,
+// far too short to stack a 356px console under a stage. It got no stage
+// at all. An iPad upright is 768px wide and must stack. Width cannot
+// tell those two apart; aspect ratio can.
 // Stacking the console UNDER the stage on a wide screen throws away the
 // whole width and squeezes the picture into a strip. So the console
 // stands beside the stage instead, and the stage gets the room:
@@ -26,8 +30,8 @@ import { frameFor } from '@/utils/frames';
 //   │                           │  choices     │
 //   └───────────────────────────┴──────────────┘
 //
-// PORTRAIT / narrow (phone, iPad upright) falls back to the stack,
-// where vertical space is the thing there is more of:
+// PORTRAIT (phone or iPad upright) falls back to the stack, where
+// vertical space is the thing there is more of:
 //
 //   ┌──────────────────────────────┐
 //   │   stage — 16:9               │
@@ -101,7 +105,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   return (
     <div
       key={frameMood?.seq ?? 0}
-      className={`w-full h-full flex flex-col lg:flex-row ${skin.shell} ${moodClass}`}
+      className={`w-full h-full flex flex-col [@media(min-aspect-ratio:1/1)]:flex-row ${skin.shell} ${moodClass}`}
       style={skin.shellStyle}
     >
       {/* THE STAGE — never changes size for any reason.
@@ -168,11 +172,11 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
       {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
           narrow one. Fixed width when it stands beside, so the stage gets
           every pixel left over and never has to guess. */}
-      <div className="w-full lg:w-[22rem] shrink-0 flex flex-col lg:border-l-2 lg:border-current/20">
+      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20">
 
       {/* THE INSTRUMENT SHELF — fixed height, empty when nothing moved */}
       <div
-        className={`${skin.divider} lg:border-t-0 ${skin.shelf} overflow-y-auto shrink-0`}
+        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} overflow-y-auto shrink-0`}
         style={{ height: '132px' }}
       >
         {showMeters ? (
@@ -215,7 +219,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
         // Beside the stage it takes whatever height is left (flex-1);
         // stacked beneath, it keeps its reserved 188px so nothing on
         // screen moves when a line or a choice arrives.
-        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto h-[188px] lg:h-auto lg:flex-1 lg:min-h-0`}
+        className={`${skin.divider} ${skin.plate} px-4 py-2 flex flex-col justify-center gap-1.5 overflow-y-auto h-[188px] [@media(min-aspect-ratio:1/1)]:h-auto [@media(min-aspect-ratio:1/1)]:flex-1 [@media(min-aspect-ratio:1/1)]:min-h-0`}
         // The plate advances on tap too, so a reader whose eyes are on
         // the words does not have to reach back up to the picture.
         onClick={(e) => {

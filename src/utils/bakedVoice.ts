@@ -22,6 +22,12 @@ interface ManifestEntry {
   scene?: string;
 }
 
+// OFF for now. Doug, 20 Aug: "no more droog voice. will think about full
+// voicing later." The 274 recordings and the whole read path stay exactly
+// where they are; flip this to true and the show speaks in his voice
+// again. Nothing else needs changing.
+const BAKED_VOICE_ENABLED = false;
+
 let index: Map<string, string> | null = null;
 let loading: Promise<Map<string, string>> | null = null;
 
@@ -36,6 +42,7 @@ function key(speaker: string, text: string): string {
  * missing manifest is a normal state, not an error.
  */
 export function loadBakedVoices(): Promise<Map<string, string>> {
+  if (!BAKED_VOICE_ENABLED) { index = new Map(); return Promise.resolve(index); }
   if (index) return Promise.resolve(index);
   if (loading) return loading;
 
@@ -59,6 +66,7 @@ export function loadBakedVoices(): Promise<Map<string, string>> {
 
 /** The recorded file for a line, or null if this line was never baked. */
 export function bakedUrlFor(speaker: string, text: string): string | null {
+  if (!BAKED_VOICE_ENABLED) return null;
   if (!index) return null; // not loaded yet; caller falls back this once
   const hash = index.get(key(speaker, text));
   return hash ? `/voice/${hash}.mp3` : null;
