@@ -472,14 +472,21 @@ const Theater: React.FC = () => {
       </div>
 
       {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
-      <div className="flex-1 flex items-start justify-center p-2 min-h-0">
+      {/* overflow-y-auto so a tall console on a short window scrolls
+          instead of vanishing off the bottom */}
+      <div className="flex-1 flex items-start justify-center p-2 min-h-0 overflow-y-auto">
         <div
           className="w-full relative"
           style={{
             // The stage never resizes. The console below it reserves
             // its height whether or not it has anything to show, so
             // toggling the instruments moves nothing on screen.
-            maxWidth: 'min(64rem, calc((100vh - 330px) * 16 / 9))',
+            //
+            // The max() floor is load-bearing: the console costs ~206px
+            // of height, and on a short window the subtraction went to
+            // zero or negative, which collapsed the stage to nothing —
+            // a black screen with the whole show still "rendering".
+            maxWidth: 'min(64rem, max(22rem, calc((100vh - 330px) * 16 / 9)))',
           }}
         >
         <StageConsole

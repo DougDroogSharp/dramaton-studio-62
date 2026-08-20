@@ -43,8 +43,8 @@ const App = () => (
                 <Route path="/" element={isEditorBuild ? <Index /> : <GameLanding />} />
                 {isEditorBuild && <Route path="/auth" element={<Auth />} />}
                 {isEditorBuild && <Route path="/library" element={<Library />} />}
-                <Route path="/theater" element={<Theater />} />
-                <Route path="/play" element={<Theater />} />
+                <Route path="/theater" element={<ErrorBoundary where="The theater"><Theater /></ErrorBoundary>} />
+                <Route path="/play" element={<ErrorBoundary where="The theater"><Theater /></ErrorBoundary>} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
