@@ -34,7 +34,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   diesel: {
     id: 'diesel',
     name: 'Dieselpunk console',
-    shell: 'border-2 border-diesel-border bg-diesel-panel/40 shadow-2xl',
+    shell: 'border-[14px] border-diesel-border bg-diesel-panel/40 shadow-2xl ring-1 ring-inset ring-diesel-steel/25',
     divider: 'border-t-2 border-diesel-border',
     shelf: 'bg-diesel-black/40',
     plate: 'bg-diesel-black/60',
@@ -48,7 +48,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   linen: {
     id: 'linen',
     name: 'Bayeux linen',
-    shell: 'border-[6px] shadow-2xl',
+    shell: 'border-[16px] shadow-2xl ring-1 ring-inset ring-[#a08c64]/40',
     divider: 'border-t-2',
     shelf: '',
     plate: '',
@@ -66,7 +66,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   brass: {
     id: 'brass',
     name: 'Colonial brass',
-    shell: 'border-[5px] shadow-2xl',
+    shell: 'border-[15px] shadow-2xl ring-1 ring-inset ring-[#8a6a3a]/50',
     divider: 'border-t border-[#8a6a3a]',
     shelf: 'bg-[#171009]/90',
     plate: 'bg-[#0f0a06]/95',
@@ -84,7 +84,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   amiga: {
     id: 'amiga',
     name: 'Amiga bezel',
-    shell: 'border-[6px] shadow-2xl',
+    shell: 'border-[14px] shadow-2xl ring-1 ring-inset ring-[#5b5b7a]/50',
     divider: 'border-t-2 border-[#5b5b7a]',
     shelf: 'bg-[#0b0b16]',
     plate: 'bg-[#12121f]',
@@ -103,7 +103,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   flat: {
     id: 'flat',
     name: 'Product surface',
-    shell: 'border shadow-xl',
+    shell: 'border-[12px] shadow-xl ring-1 ring-inset ring-black/10',
     divider: 'border-t',
     shelf: 'bg-[#f2f3f5]',
     plate: 'bg-white',

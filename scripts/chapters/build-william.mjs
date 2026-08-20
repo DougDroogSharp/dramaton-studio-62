@@ -278,6 +278,12 @@ scenes.push({
     'William: "It sets a precedent. They will learn what the noise costs them."',
     'Narrator: "And here is the man you are about to play. Not a warlord. A landlord who arrived with an army."',
     'Narrator: "Every acre of England is now, in law, his. Everyone else holds land FROM him, and pays for the privilege. That is not a metaphor. That is the legal fact he installs, and it has never been repealed."',
+    // The model starts turning HERE, in front of the player. Rent is
+    // not a thing that existed and grew; it is a thing this day
+    // invented, so the gauge should move off zero on this line.
+    '[SET rent = rent + 14]',
+    '[SET hoard = hoard + 14]',
+    '[NARRATE Rent begins. There was no rent on this land yesterday.]',
     '[CHOICE]',
     '- "How do eight thousand Normans hold two million English?" -> wm_castles',
     '- "Skip ahead to the throne room" -> wm_court',
@@ -314,12 +320,24 @@ scenes.push({
     'William: "A castle is not a wall to hide behind. It is a hand on a throat, and it never tires."',
     'Narrator: "Understand what it is. A mound of earth — the motte — thrown up in weeks by local men who are not asked. A timber tower on top. A yard below for the horses."',
     'Narrator: "No stone. No masons. No years. A knight with a spade and a hundred pressed labourers can raise one before harvest."',
-    '[NARRATE Castles: essentially none in 1066. Over five hundred by 1100.]',
+    '[SET hoard = hoard + 10]',
+    '[SET rent = rent + 12]',
+    '[NARRATE Castles: essentially none in 1066. Over five hundred by 1100. Watch what they do to the model.]',
     'Narrator: "And they do not go where an invasion would come from. They go where the PEOPLE are — planted inside the towns they hold down."',
     'Narrator: "Domesday counts the cost in houses. At Lincoln, a hundred and sixty-six dwellings cleared to make room for the castle. At Norwich, ninety-eight. At York, whole neighbourhoods."',
     'Narrator: "Somebody lived in each of those. Nobody wrote their names. The clerk wrote the number, because the number was the part that mattered to the man being paid to count."',
+    // Houses cleared is wages falling: the people who lost them still
+    // work the same land and keep less of it.
+    '[SET wages = wages - 8]',
+    '[SET shared = shared - 8]',
+    '[NARRATE Wages fall. The work did not change; the share did.]',
     'William: "Let every shire see one from its fields. A man who can see the tower does not need to be told who the land belongs to."',
     'Narrator: "That is the machine. Not the sword — the sword was one afternoon in October."',
+    // The loop, driven where the narrator names it: hoard buys land,
+    // rent climbs, hoard grows. Both ends move, so the H-to-R arrow
+    // lights and the why box says the sentence.
+    '[SET rent = rent + 16]',
+    '[SET hoard = hoard + 22]',
     'Narrator: "The castle is what turns a battle into rent. It is how a small number of armed foreigners convert a country into a stream of payments, and keep converting it after everyone who fought is dead."',
     'Narrator: "Nine hundred years later, some of those payments are still arriving. You will see who collects them, at the end."',
     'Narrator: "Now. Winter, 1069. Three years in, and the North will not lie down."',

@@ -117,7 +117,12 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           tap must not choose for them), and never when the tap landed on
           something interactive like a BUTTON or the settings drawer. */}
       <div
-        className="relative overflow-hidden flex-1 min-w-0 flex items-center justify-center"
+        // In PORTRAIT the console stacks underneath and its regions add
+        // up to ~500px — on a phone that left the picture a sliver. The
+        // stage is guaranteed 40% of the viewport there, and the console
+        // takes what is left and scrolls inside itself if it needs more.
+        // The show is the point; the instruments are the margin.
+        className="relative overflow-hidden flex-1 min-w-0 flex items-center justify-center [@media(max-aspect-ratio:1/1)]:min-h-[40vh]"
         onClick={(e) => {
           if (!onAdvance || choices?.length) return;
           if ((e.target as HTMLElement).closest('button,a,input,select,textarea,[role="dialog"]')) return;
@@ -173,7 +178,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
       {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
           narrow one. Fixed width when it stands beside, so the stage gets
           every pixel left over and never has to guess. */}
-      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20">
+      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[22rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20 [@media(max-aspect-ratio:1/1)]:flex-1 [@media(max-aspect-ratio:1/1)]:min-h-0 [@media(max-aspect-ratio:1/1)]:overflow-y-auto">
 
       {/* THE MACHINE, RUNNING — the mechanism under the scene. The
           gauges say a number moved; this says what it feeds. Fixed
@@ -216,8 +221,8 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           // skin.label is what gives the switches a colour: they draw
           // themselves in `currentColor` so they suit any cabinet, which
           // means they are INVISIBLE unless the rail sets one.
-          className={`${skin.divider} ${skin.shelf} ${skin.label} px-3 flex items-center shrink-0`}
-          style={{ height: '36px' }}
+          className={`${skin.divider} ${skin.shelf} ${skin.label} px-3 py-1 flex items-center shrink-0 overflow-hidden`}
+          style={{ height: '62px' }}
         >
           {abilityBar}
         </div>
