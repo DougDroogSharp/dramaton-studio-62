@@ -45,9 +45,12 @@ const MANIFEST = [
     prompt: 'A Saxon peasant farmer, 1069: gaunt middle-aged man in a rough wool tunic and hood, winter-worn, clutching an empty grain sack, weathered anxious face, standing, full body, facing slightly left.',
   },
   {
+    // Identity-locked to the base king sprite: without the reference
+    // the angry variant reads as a different man entirely.
     file: 'william_angry.png', isCharacter: true,
-    prompt: 'William the Conqueror in a fury: stern bearded Norman king, gold crown, chain mail hauberk under a long red cloak, face twisted in rage, teeth bared, fist clenched on his sword hilt, standing, full body, facing slightly left.',
-    retry: 'William the Conqueror, Norman king, enraged expression: bearded face scowling fiercely, gold crown, chain mail and long red cloak, gripping his sword hilt, standing, full body, facing slightly left.',
+    ref: ['..', 'william_king.png'],
+    prompt: 'The same Norman king William the Conqueror in a fury: face twisted in rage, teeth bared, fist clenched on his sword hilt, standing, full body, facing slightly left. Same face, beard, gold crown, chain mail and long red cloak as the reference — only the expression changes.',
+    retry: 'The same bearded Norman king as the reference, now with an enraged scowling expression, gripping his sword hilt, standing, full body, facing slightly left. Same face and costume as the reference.',
   },
   {
     file: 'orderic.png', isCharacter: true,
@@ -82,20 +85,6 @@ const MANIFEST = [
     prompt: 'Hereward the Wake mid-attack: the same long-haired bearded Saxon warrior in a mud-spattered leather jerkin and wool cloak, round shield raised on his left arm, short axe swung high overhead in his right hand, lunging forward, fierce determined face, full body, facing slightly right. Same face and costume as the reference.',
     retry: 'Hereward the Wake, Saxon warrior of the fens, axe raised high, shield up, charging stance, determined expression, leather jerkin and wool cloak, full body, facing slightly right. Same face and costume as the reference.',
   },
-  // Walk-cycle frames (two-frame flip-book; the runner alternates
-  // Walk1/Walk2 while a MOVE is in flight).
-  {
-    file: 'peasant_walk1.png', isCharacter: true,
-    ref: ['peasant.png'],
-    prompt: 'The same Saxon peasant farmer mid-stride walking: left leg forward, right leg back, arms swinging, side profile facing slightly left, full body. Same face, tunic, hood and grain sack as the reference.',
-    retry: 'A gaunt Saxon peasant in a rough wool tunic and hood walking, left leg forward mid-stride, full body, facing slightly left. Same face and costume as the reference.',
-  },
-  {
-    file: 'peasant_walk2.png', isCharacter: true,
-    ref: ['peasant.png'],
-    prompt: 'The same Saxon peasant farmer mid-stride walking: right leg forward, left leg back, arms swinging opposite, side profile facing slightly left, full body. Same face, tunic, hood and grain sack as the reference.',
-    retry: 'A gaunt Saxon peasant in a rough wool tunic and hood walking, right leg forward mid-stride, full body, facing slightly left. Same face and costume as the reference.',
-  },
   // Crowd sprites (reaction-layer pass) — the village en masse.
   {
     file: 'crowd_calm.png', isCharacter: true,
@@ -114,6 +103,41 @@ const MANIFEST = [
     prompt: 'Bishop Odo of Bayeux pointing with a self-satisfied smirk: the same tonsured Norman bishop in his vestments, one arm extended pointing forward, the other hand resting on his belt, smug knowing smile, standing, full body, facing slightly right. Same face and costume as the reference.',
   },
 ];
+
+// 8-direction walk sets for the MAJOR actors only (William, Aldric).
+// Two strides per direction; the engine flips the pair whose sprite
+// angle is nearest the travel direction (e=0, se=45, s=90, sw=135,
+// w=180, nw=225, n=270, ne=315).
+const DIRS = [
+  ['e',  'side profile facing right, walking to the right'],
+  ['se', 'three-quarter front view facing right, walking diagonally toward the viewer and to the right'],
+  ['s',  'front view facing the viewer, walking straight toward the viewer'],
+  ['sw', 'three-quarter front view facing left, walking diagonally toward the viewer and to the left'],
+  ['w',  'side profile facing left, walking to the left'],
+  ['nw', 'three-quarter back view facing left, walking diagonally away from the viewer and to the left'],
+  ['n',  'back view, walking straight away from the viewer'],
+  ['ne', 'three-quarter back view facing right, walking diagonally away from the viewer and to the right'],
+];
+const STRIDES = [
+  ['1', 'left leg forward, right leg back, arms mid-swing'],
+  ['2', 'right leg forward, left leg back, arms in the opposite swing'],
+];
+for (const [dir, view] of DIRS) {
+  for (const [n, stride] of STRIDES) {
+    MANIFEST.push({
+      file: `peasant_walk_${dir}${n}.png`, isCharacter: true,
+      ref: ['peasant.png'],
+      prompt: `The same Saxon peasant farmer walking: ${view}, mid-stride with ${stride}, full body. Same face, rough wool tunic, hood and costume as the reference.`,
+      retry: `A gaunt Saxon peasant in a rough wool tunic and hood walking, ${view}, ${stride}, full body. Same face and costume as the reference.`,
+    });
+    MANIFEST.push({
+      file: `william_walk_${dir}${n}.png`, isCharacter: true,
+      ref: ['..', 'william_king.png'],
+      prompt: `The same Norman king William the Conqueror walking: ${view}, mid-stride with ${stride}, full body. Same face, beard, gold crown, chain mail hauberk and long red cloak as the reference.`,
+      retry: `A stern bearded Norman king with a gold crown, chain mail and long red cloak walking, ${view}, ${stride}, full body. Same face and costume as the reference.`,
+    });
+  }
+}
 
 // Remove the green screen: fully green pixels go transparent, edge
 // pixels get partial alpha + despill so sprites sit clean on any bg.

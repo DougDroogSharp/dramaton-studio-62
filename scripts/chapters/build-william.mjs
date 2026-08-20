@@ -37,8 +37,17 @@ const art = (...rel) => {
   return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 };
 
-const graphic = (id, pose, expression, image) =>
-  image ? [{ id, pose, expression, angle: 0, image }] : [];
+const graphic = (id, pose, expression, image, angle = 0) =>
+  image ? [{ id, pose, expression, angle, image }] : [];
+
+// 8-direction walk set (majors only): Walk1/Walk2 at each compass
+// angle; the engine flips the pair nearest the travel direction.
+const WALK_ANGLES = { e: 0, se: 45, s: 90, sw: 135, w: 180, nw: 225, n: 270, ne: 315 };
+const walkSet = (prefix) =>
+  Object.entries(WALK_ANGLES).flatMap(([dir, angle]) => [
+    ...graphic(`${prefix}_walk_${dir}1_g`, 'Walk1', 'Neutral', art('william', `${prefix}_walk_${dir}1.png`), angle),
+    ...graphic(`${prefix}_walk_${dir}2_g`, 'Walk2', 'Neutral', art('william', `${prefix}_walk_${dir}2.png`), angle),
+  ]);
 
 const mkActor = (id, name, graphics) =>
   graphics.length ? { id, name, graphics, status: 'work' } : null;
@@ -54,6 +63,7 @@ const actors = [
     ...graphic('william_angry_g', 'Neutral', 'Angry', art('william', 'william_angry.png')),
     ...graphic('william_point_g', 'Pointing', 'Angry', art('william', 'william_pointing_angry.png')),
     ...graphic('william_sit_g', 'Sit', 'Sad', art('william', 'william_sit_sad.png')),
+    ...walkSet('william'),
   ]),
   mkActor('william_odo', 'Odo', [
     ...graphic('odo_g', 'Neutral', 'Neutral', art('william_odo.png')),
@@ -65,9 +75,7 @@ const actors = [
   ]),
   mkActor('peasant', 'Aldric', [
     ...graphic('peasant_g', 'Neutral', 'Neutral', art('william', 'peasant.png')),
-    // Two-frame walk cycle: the runner flips Walk1/Walk2 during MOVE
-    ...graphic('peasant_walk1_g', 'Walk1', 'Neutral', art('william', 'peasant_walk1.png')),
-    ...graphic('peasant_walk2_g', 'Walk2', 'Neutral', art('william', 'peasant_walk2.png')),
+    ...walkSet('peasant'),
   ]),
   mkActor('orderic', 'Orderic', graphic('orderic_g', 'Neutral', 'Neutral', art('william', 'orderic.png'))),
   mkActor('crowd', 'The Village', [
@@ -251,6 +259,9 @@ scenes.push({
     'Narrator: "Norman columns move village to village. Crops, stores, and livestock burn so that nothing can feed a rebel — or anyone else."',
     'Aldric: "The seed corn too, lord? If the seed corn burns, there is no harvest next year. There is no year after that at all."',
     'William: "The North rebelled twice. It will not have the strength to rebel a third time."',
+    // The king advances on the village — a south-east walk (the engine
+    // picks his SE-facing walk pair from the 8-direction set)
+    '[MOVE h_william to 44,72 over 3s]',
     'Aldric: "We did not rise, lord. We only lived here."',
     '[IF ruthless >= 2]',
     'William: "I gave this order with my own mouth, and I would give it again. Write that down, if any of you can write."',
