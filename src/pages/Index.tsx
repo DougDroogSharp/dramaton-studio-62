@@ -61,10 +61,10 @@ import {
 // The shipped Humans vs Billionaires games, openable straight from
 // public/ for a tweak-and-see pass in the editor.
 const SHIPPED_GAMES = [
-  { file: 'hvb-william.json', title: 'William the Conqueror', scenes: '240 scenes' },
-  { file: 'hvb-leopold.json', title: 'King Leopold', scenes: '220 scenes' },
-  { file: 'hvb-capone.json', title: 'King of Chicago', scenes: '218 scenes' },
-  { file: 'hvb-elon.json', title: 'Elon Musk', scenes: '216 scenes' },
+  { file: 'hvb-william.json', title: 'William the Conqueror', scenes: '326 scenes' },
+  { file: 'hvb-leopold.json', title: 'King Leopold', scenes: '310 scenes' },
+  { file: 'hvb-capone.json', title: 'King of Chicago', scenes: '284 scenes' },
+  { file: 'hvb-elon.json', title: 'Elon Musk (moving to USA vs MAGA)', scenes: '290 scenes' },
   { file: 'hvb-machine.json', title: 'The Machine', scenes: '17 scenes' },
   { file: 'hvb-campaign.json', title: 'The Campaign', scenes: '107 scenes' },
 ];
