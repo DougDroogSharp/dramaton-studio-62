@@ -20,6 +20,7 @@ import { EndCard } from '@/components/theater/EndCard';
 import { MeterRow } from '@/components/theater/MeterPanel';
 import { StageConsole } from '@/components/theater/StageConsole';
 import { metersFor } from '@/utils/meters';
+import { useSpokenShow } from '@/hooks/useSpokenShow';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
 const Theater: React.FC = () => {
@@ -38,6 +39,9 @@ const Theater: React.FC = () => {
   const updateAbility = useCallback((next: AbilitySettings) => {
     setAbility(next);
     saveAbilitySettings(next);
+    // If the player is relying on audio, sound must be ON — otherwise
+    // choosing "I cannot see the screen" hands them silence.
+    if (next.presentation === 'sound' || next.describeAction) setIsMuted(false);
   }, []);
   const [hasStarted, setHasStarted] = useState(false);
   // The model showing its work: the console shelf reads out the
@@ -136,6 +140,17 @@ const Theater: React.FC = () => {
     startSceneId,
     onAudioCommand: handleAudioCommand,
     ability,
+  });
+
+  // Read the show aloud when the player is relying on audio.
+  useSpokenShow({
+    dialogue: scriptRunner.state.activeDialogue,
+    ambient: scriptRunner.state.ambientNarration,
+    choices: scriptRunner.state.choices?.options ?? null,
+    ability,
+    muted: isMuted,
+    narratorVoice: ability.narratorVoice,
+    active: hasStarted,
   });
 
   // Quote pop-ups: worldState threshold crossings fire tagged quotes

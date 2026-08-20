@@ -103,6 +103,25 @@ const MANIFEST = [
     prompt: 'A factory worker in a high-visibility orange safety vest and hard hat, pointing accusingly with a fully outstretched arm, angry shouting expression, mouth open mid-yell, work gloves, standing, full body, facing slightly left.',
     alt: 'An industrial worker in hi-vis vest and hard hat pointing an accusing finger, furious shouting face, work gloves, standing, full body, facing slightly left.',
   },
+
+  // Instrument-shelf gauges (theater console). All isCharacter: true so
+  // they green-screen and chroma-key onto any panel. Short prompts,
+  // essential constraint first — see the technique note in gen-william.mjs.
+  {
+    file: 'gauge_frame.png', isCharacter: true,
+    prompt: 'An empty round telemetry dial, flat modern comic linework, bold black outlines: sleek dark instrument housing, blank glass face, nothing inside — no needle, no numbers. Centered, straight on.',
+    alt: 'A sleek dark telemetry dial housing, flat comic linework, blank glass face, empty inside, no needle, no numbers, centered, straight on.',
+  },
+  {
+    file: 'gauge_needle.png', isCharacter: true,
+    prompt: 'A single telemetry needle alone, flat modern comic linework, bold black outlines: one thin tapering pointer, pivoting from a small dot at the bottom center, pointing straight up. Only the needle — nothing else.',
+    alt: 'One thin tapering pointer needle, flat comic linework, small pivot dot at the bottom, pointing straight up, nothing else in the picture.',
+  },
+  {
+    file: 'gauge_bar.png', isCharacter: true, aspectRatio: '16:9',
+    prompt: 'An empty horizontal telemetry bar housing, flat modern comic linework, bold black outlines: sleek dark bar-meter case with a blank glass window, empty inside, no fill, no numbers. Centered, straight on.',
+    alt: 'A sleek dark bar-meter housing, flat comic linework, blank glass window, empty inside, no fill, no numbers, centered.',
+  },
 ];
 
 // ---------------------------------------------------------------- chroma key
@@ -135,12 +154,12 @@ function refDataUrl(relPath) {
   return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 }
 
-async function generate(prompt, isCharacter, ref) {
+async function generate(prompt, isCharacter, ref, aspectRatio) {
   const body = {
     prompt,
     isCharacter,
     stylePack: 'Elon',
-    aspectRatio: isCharacter ? '2:3' : '16:9',
+    aspectRatio: aspectRatio || (isCharacter ? '2:3' : '16:9'),
   };
   if (ref) {
     const dataUrl = refDataUrl(ref);
@@ -170,11 +189,11 @@ for (const item of MANIFEST) {
   try {
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter, item.ref);
+      buf = await generate(item.prompt, item.isCharacter, item.ref, item.aspectRatio);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.alt) {
         process.stdout.write(`policy hit, rephrasing... `);
-        buf = await generate(item.alt, item.isCharacter, item.ref);
+        buf = await generate(item.alt, item.isCharacter, item.ref, item.aspectRatio);
       } else {
         throw err;
       }

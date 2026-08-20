@@ -32,6 +32,8 @@ export interface AbilitySettings {
   scanChoices: boolean;
   /** Seconds each option is held during scanning. */
   scanSeconds: number;
+  /** Browser voice name for the narrator; empty = the system default. */
+  narratorVoice?: string;
 }
 
 export const DEFAULT_ABILITY_SETTINGS: AbilitySettings = {
@@ -74,6 +76,7 @@ export function loadAbilitySettings(): AbilitySettings {
       describeAction: saved.describeAction ?? base.describeAction,
       scanChoices: saved.scanChoices ?? base.scanChoices,
       scanSeconds: typeof saved.scanSeconds === 'number' ? saved.scanSeconds : base.scanSeconds,
+      narratorVoice: typeof saved.narratorVoice === 'string' ? saved.narratorVoice : base.narratorVoice,
     };
   } catch {
     return base;

@@ -118,6 +118,25 @@ const MANIFEST = [
     prompt: 'Johnny Torrio, 1928, same man as the reference image: slight older strategist in a gray three-piece suit and homburg, leaning wearily against a door frame with one shoulder, arms folded, tired heavy-lidded eyes, counseling caution, full body, facing slightly right.',
     fallback: 'A slight older 1928 businessman matching the reference image: gray three-piece suit, homburg, leaning wearily against a door frame, arms folded, tired eyes, full body, facing slightly right.',
   },
+
+  // Instrument-shelf gauges (theater console). All isCharacter: true so
+  // they green-screen and chroma-key onto any panel. Short prompts,
+  // essential constraint first — see the technique note in gen-william.mjs.
+  {
+    file: 'gauge_frame.png', isCharacter: true,
+    prompt: 'An empty round pressure-gauge dial, chunky 1980s Amiga pixel art, limited palette: riveted metal housing, blank glass face, nothing inside — no needle, no numbers. Centered, straight on.',
+    fallback: 'A riveted metal pressure-gauge housing, Amiga pixel art, blank glass face, empty inside, no needle, no numbers, centered, straight on.',
+  },
+  {
+    file: 'gauge_needle.png', isCharacter: true,
+    prompt: 'A single pressure-gauge needle alone, chunky 1980s Amiga pixel art, limited palette: one thin tapering red pointer, pivoting from a small pixel rivet at the bottom center, pointing straight up. Only the needle — nothing else.',
+    fallback: 'One thin red pointer needle, Amiga pixel art, tapering to a point, small rivet pivot at the bottom, pointing straight up, nothing else in the picture.',
+  },
+  {
+    file: 'gauge_bar.png', isCharacter: true, aspectRatio: '16:9',
+    prompt: 'An empty horizontal pressure-bar housing, chunky 1980s Amiga pixel art, limited palette: riveted metal bar-meter case with a blank glass window, empty inside, no fill, no numbers. Centered, straight on.',
+    fallback: 'A riveted metal bar-meter housing, Amiga pixel art, blank glass window, empty inside, no fill, no numbers, centered.',
+  },
 ];
 
 // Remove the green screen: fully green pixels go transparent, edge
@@ -138,12 +157,12 @@ function chromaKey(pngBuffer) {
   return PNG.sync.write(png);
 }
 
-async function generate(prompt, isCharacter, referenceImageFullBody) {
+async function generate(prompt, isCharacter, referenceImageFullBody, aspectRatio) {
   const body = {
     prompt,
     isCharacter,
     stylePack: STYLE,
-    aspectRatio: isCharacter ? '2:3' : '16:9',
+    aspectRatio: aspectRatio || (isCharacter ? '2:3' : '16:9'),
   };
   if (referenceImageFullBody) body.referenceImageFullBody = referenceImageFullBody;
   const resp = await fetch(BRIDGE, {
@@ -172,11 +191,11 @@ for (const item of MANIFEST) {
     if (item.ref && !ref) process.stdout.write(`(reference missing, generating unreferenced) `);
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter, ref);
+      buf = await generate(item.prompt, item.isCharacter, ref, item.aspectRatio);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.fallback) {
         process.stdout.write(`policy block, rephrasing... `);
-        buf = await generate(item.fallback, item.isCharacter, ref);
+        buf = await generate(item.fallback, item.isCharacter, ref, item.aspectRatio);
       } else {
         throw err;
       }

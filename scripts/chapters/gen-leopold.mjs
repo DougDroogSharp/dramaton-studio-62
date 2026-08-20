@@ -81,6 +81,25 @@ const MANIFEST = [
     prompt: 'A darkened British lecture hall, 1906: rows of audience silhouettes seen from behind, a magic lantern projector on a stand casting a bright beam, and on the far wall a large projected rectangle of white light, empty. Dust motes in the beam. No faces visible.',
     fallback: 'A darkened Edwardian lecture hall: audience silhouettes from behind, a magic lantern projector beam, a blank bright projected frame on the wall. No faces.',
   },
+
+  // Instrument-shelf gauges (theater console). All isCharacter: true so
+  // they green-screen and chroma-key onto any panel. Short prompts,
+  // essential constraint first — see the technique note in gen-william.mjs.
+  {
+    file: 'gauge_frame.png', isCharacter: true,
+    prompt: 'An empty round brass instrument dial, photographed circa 1900 documentary style: polished brass gauge housing, blank glass face, nothing inside — no needle, no numbers. Centered, straight on.',
+    fallback: 'A brass instrument dial housing, circa 1900 photograph, blank glass face, empty inside, no needle, no numbers, centered, straight on.',
+  },
+  {
+    file: 'gauge_needle.png', isCharacter: true,
+    prompt: 'A single brass instrument needle alone, circa 1900 documentary photograph: one thin tapering brass pointer, pivoting from a small brass rivet at the bottom center, pointing straight up. Only the needle — nothing else.',
+    fallback: 'One thin brass pointer needle, circa 1900 photograph, tapering to a point, small rivet pivot at the bottom, pointing straight up, nothing else in the picture.',
+  },
+  {
+    file: 'gauge_bar.png', isCharacter: true, aspectRatio: '16:9',
+    prompt: 'An empty brass bar-gauge housing, circa 1900 documentary photograph: a long horizontal brass tube case with a blank glass window, empty inside, no fill, no numbers. Centered, straight on.',
+    fallback: 'A long brass bar-gauge case, circa 1900 photograph, blank glass window, empty inside, no fill, no numbers, centered.',
+  },
 ];
 
 // Mid-scene pose variants. Each uses the existing keyed sprite as a
@@ -130,7 +149,7 @@ function chromaKey(pngBuffer) {
   return PNG.sync.write(png);
 }
 
-async function generate(prompt, isCharacter, referenceImageFullBody = null) {
+async function generate(prompt, isCharacter, referenceImageFullBody = null, aspectRatio = null) {
   const resp = await fetch(BRIDGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -138,7 +157,7 @@ async function generate(prompt, isCharacter, referenceImageFullBody = null) {
       prompt,
       isCharacter,
       stylePack: STYLE,
-      aspectRatio: isCharacter ? '2:3' : '16:9',
+      aspectRatio: aspectRatio || (isCharacter ? '2:3' : '16:9'),
       ...(referenceImageFullBody ? { referenceImageFullBody } : {}),
     }),
   });
@@ -160,12 +179,12 @@ for (const item of MANIFEST) {
   process.stdout.write(`* ${item.file} generating... `);
   let buf = null;
   try {
-    buf = await generate(item.prompt, item.isCharacter);
+    buf = await generate(item.prompt, item.isCharacter, null, item.aspectRatio);
   } catch (err) {
     if (/content_policy/i.test(err.message) && item.fallback) {
       process.stdout.write(`policy hit, retrying restrained... `);
       try {
-        buf = await generate(item.fallback, item.isCharacter);
+        buf = await generate(item.fallback, item.isCharacter, null, item.aspectRatio);
       } catch (err2) {
         console.log(`FAILED: ${err2.message}`);
         failed++;

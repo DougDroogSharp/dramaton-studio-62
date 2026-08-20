@@ -132,8 +132,12 @@ const MANIFEST = [
   {
     file: 'flame_2.png', isCharacter: true,
     ref: ['flame_1.png'], refMode: 'edit',
-    prompt: 'Lean the fire to the LEFT: the top of the flame is displaced well to the left of its base and every pointed tip curls to the left. Same colours, same stitching, same size. Change nothing else.',
-    retry: 'Tilt the flame to the left so its top sits left of its base and the tips curl left. Same colours and stitching. Change nothing else.',
+    // Abstract "left/right" language proved unreliable — two rounds
+    // both drifted toward a rightward lean regardless of which word was
+    // used. Anchoring to a picture corner the tip must point at, plus
+    // pinning the base in place, gave a reliable, unambiguous target.
+    prompt: 'Bend the flame over so its topmost tip now points into the TOP-LEFT corner of the picture. The base stays exactly where it is at the bottom-centre. Same colours, same stitching, same size.',
+    retry: 'Bend the flame so its tip points at the top-left corner of the picture, base unmoved at the bottom-centre. Same colours and stitching.',
   },
   {
     file: 'flame_3.png', isCharacter: true,
@@ -143,8 +147,8 @@ const MANIFEST = [
     // different shape. Both lean frames are edits of the same upright
     // fire, so the loop swings symmetrically: upright, left, right.
     ref: ['flame_1.png'], refMode: 'edit',
-    prompt: 'Lean the fire to the RIGHT: the top of the flame is displaced well to the right of its base and every pointed tip curls to the right. Same colours, same stitching, same size. Change nothing else.',
-    retry: 'Tilt the flame to the right so its top sits right of its base and the tips curl right. Same colours and stitching. Change nothing else.',
+    prompt: 'Bend the flame over so its topmost tip now points into the TOP-RIGHT corner of the picture. The base stays exactly where it is at the bottom-centre. Same colours, same stitching, same size.',
+    retry: 'Bend the flame so its tip points at the top-right corner of the picture, base unmoved at the bottom-centre. Same colours and stitching.',
   },
 
   // Birds — the register of the tapestry's border creatures: simple
@@ -157,8 +161,11 @@ const MANIFEST = [
   {
     file: 'bird_2.png', isCharacter: true,
     ref: ['bird_1.png'], refMode: 'edit',
-    prompt: 'Sweep the wings down: both wings now point steeply downward beneath the body, wingtips below the belly, at the bottom of a wingbeat. Keep everything else exactly as it is.',
-    retry: 'Move both wings down below the body, wingtips beneath the belly. Change nothing else.',
+    // "Sweep down" alone left the wings ambiguously mid-position.
+    // Naming a concrete downward shape (a V pointing at the ground)
+    // forces a real displacement instead of a partial one.
+    prompt: 'Fold both wings sharply DOWNWARD into a tight V-shape below the body, like an open pair of scissors pointing at the ground, wingtips lower than the feet. Same bird, same colours, same size.',
+    retry: 'Fold both wings down into a V below the body, wingtips pointing toward the ground. Same colours and size.',
   },
 
   // Smoke — the companion to the burning village: the pale scrolled
@@ -171,8 +178,34 @@ const MANIFEST = [
   {
     file: 'smoke_2.png', isCharacter: true,
     ref: ['smoke_1.png'], refMode: 'edit',
-    prompt: 'Lean the whole plume of smoke over to the left, its curls trailing sideways as if blown by a wind from the right. Keep everything else exactly as it is.',
-    retry: 'Tip the plume of smoke over to the left, curls trailing sideways. Change nothing else.',
+    // Four rounds asking for a lean/slide/stretch all came back as a
+    // near-exact copy of the reference (measured centroid shift under
+    // 5px each time) — this particular swirl silhouette is being
+    // reproduced almost verbatim regardless of the instruction. A
+    // mirror flip is a precisely-defined operation edit models execute
+    // reliably, and it still reads as the same plume caught by wind
+    // from the other side, so it survives as a legitimate second frame.
+    prompt: 'Mirror this image left-to-right, like a reflection — the whole plume of smoke flips to face the opposite way. Same colours, same stitching, same size.',
+    retry: 'Flip the image horizontally, left-to-right, like a mirror. Same colours and stitching.',
+  },
+
+  // Instrument-shelf gauges (theater console). All isCharacter: true so
+  // they green-screen and chroma-key onto any panel. Short prompts,
+  // essential constraint first — see the note above the DIRS loop.
+  {
+    file: 'gauge_frame.png', isCharacter: true,
+    prompt: 'An empty round dial face stitched in Bayeux tapestry embroidery: a plain stem-stitch circle outline on bare linen, one thin decorative ring inside the rim, nothing else — no needle, no numbers. Centered, straight on.',
+    retry: 'A plain stitched circle on bare linen, Bayeux tapestry embroidery, empty dial rim only, no needle, no numbers, centered, straight on.',
+  },
+  {
+    file: 'gauge_needle.png', isCharacter: true,
+    prompt: 'A single stitched needle pointer in Bayeux tapestry embroidery: one thin stem-stitch line tapering to a point, pivoting from a small stitched dot at the bottom center, pointing straight up. Only the needle — no dial, no circle, no numbers.',
+    retry: 'One thin stitched pointer needle, Bayeux tapestry embroidery, tapering to a point, small pivot dot at the bottom, pointing straight up, nothing else in the picture.',
+  },
+  {
+    file: 'gauge_bar.png', isCharacter: true, aspectRatio: '16:9',
+    prompt: 'An empty horizontal bar-meter housing stitched in Bayeux tapestry embroidery: a long stem-stitch rectangle outline on bare linen, empty inside, no fill, no numbers. Centered, straight on.',
+    retry: 'A long empty stitched rectangle outline on bare linen, Bayeux tapestry embroidery, bar-meter housing, no fill, no numbers, centered.',
   },
 ];
 
@@ -265,12 +298,12 @@ const refDataUrl = (ref) => {
   return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 };
 
-async function generate(prompt, isCharacter, ref, refMode) {
+async function generate(prompt, isCharacter, ref, refMode, aspectRatio) {
   const body = {
     prompt,
     isCharacter,
     stylePack: STYLE,
-    aspectRatio: isCharacter ? '2:3' : '16:9',
+    aspectRatio: aspectRatio || (isCharacter ? '2:3' : '16:9'),
   };
   if (ref) {
     const dataUrl = refDataUrl(ref);
@@ -332,11 +365,11 @@ for (const item of MANIFEST) {
   try {
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter, item.ref, item.refMode);
+      buf = await generate(item.prompt, item.isCharacter, item.ref, item.refMode, item.aspectRatio);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.retry) {
         process.stdout.write(`policy hit, rephrasing... `);
-        buf = await generate(item.retry, item.isCharacter, item.ref, item.refMode);
+        buf = await generate(item.retry, item.isCharacter, item.ref, item.refMode, item.aspectRatio);
       } else throw err;
     }
     if (item.isCharacter) buf = chromaKey(buf);
