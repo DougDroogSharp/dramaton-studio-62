@@ -28,3 +28,7 @@ dist-pod
 dist-games
 
 voice-cache
+
+# Baked voice audio: regenerable from scripts/bake-voice.mjs, and
+# ~50MB of mp3 that the repo does not need to carry.
+public/voice/

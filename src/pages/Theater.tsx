@@ -498,6 +498,18 @@ const Theater: React.FC = () => {
     ? game.actors.find(a => a.id === scriptRunner.state.activeDialogue?.actorId)
     : undefined;
 
+  // The face on the plate. Prefer the graphic this line is actually
+  // being acted with, so the icon matches what the sprite is doing;
+  // fall back to the actor's first graphic, then to their initial.
+  const speakerPortrait = (() => {
+    if (!dialogueActor?.graphics?.length) return undefined;
+    const d = scriptRunner.state.activeDialogue;
+    const match = dialogueActor.graphics.find(g =>
+      (!d?.expression || g.expression === d.expression) &&
+      (!d?.pose || g.pose === d.pose));
+    return (match ?? dialogueActor.graphics[0])?.image;
+  })();
+
   return (
     <div className="min-h-screen bg-diesel-black flex flex-col">
       {/* Screen-reader channel. Everything the player needs to follow
@@ -574,15 +586,28 @@ const Theater: React.FC = () => {
           moneyFormat={game.info.moneyFormat}
           showMeters={showMeters && ability.presentation !== 'sound'}
           frame={game.info.frame}
+          // Everything spoken lands on the plate now — narration and
+          // character dialogue alike. No balloons over the stage.
           narration={
             ability.presentation === 'sound' ? null :
+            scriptRunner.state.activeDialogue?.displayedText ??
             scriptRunner.state.ambientNarration?.text ??
-            (scriptRunner.state.activeDialogue &&
-             scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator'
-              ? scriptRunner.state.activeDialogue.displayedText
-              : null)
+            null
           }
           narrationKey={scriptRunner.state.ambientNarration?.id ?? scriptRunner.state.currentCommandIndex}
+          speaker={
+            ability.presentation === 'sound' || !scriptRunner.state.activeDialogue ||
+            scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator'
+              ? null
+              : {
+                  name: scriptRunner.state.activeDialogue.actorName,
+                  imageUrl: speakerPortrait,
+                }
+          }
+          choices={ability.presentation === 'sound' ? null : scriptRunner.state.choices?.options ?? null}
+          onSelectChoice={scriptRunner.selectChoice}
+          scanIndex={choiceCount > 1 ? scanIndex : null}
+          onAdvance={scriptRunner.advance}
           frameMood={scriptRunner.state.frameMood}
           drawerTitle="Settings"
           onCloseDrawer={() => setShowSettings(false)}
@@ -645,23 +670,10 @@ const Theater: React.FC = () => {
               onSliderChange={scriptRunner.setVariable}
             />
           )}
-          {ability.presentation !== 'sound' && <StageDialogueLayer
-            scene={currentScene}
-            dialogue={
-              scriptRunner.state.activeDialogue &&
-              scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() !== 'narrator'
-                ? scriptRunner.state.activeDialogue
-                : null
-            }
-            choices={scriptRunner.state.choices}
-            elementOverrides={scriptRunner.state.elementOverrides}
-            onAdvance={scriptRunner.advance}
-            onSelectChoice={scriptRunner.selectChoice}
-            scanIndex={choiceCount > 1 ? scanIndex : null}
-          />}
-          {/* Narration no longer overlays the stage: it lives on the
-              console's narration plate below, which reserves its height
-              so nothing on screen moves when a line arrives. */}
+          {/* Nothing overlays the stage any more. Dialogue, narration and
+              choices all live on the console's plate below, which reserves
+              its height so nothing moves when a line arrives — and the art
+              is never covered by a balloon. */}
           {/* Quote pop-up card */}
           {activeQuote && <QuoteCard quote={activeQuote} onDismiss={dismissQuote} />}
         </StageConsole>
