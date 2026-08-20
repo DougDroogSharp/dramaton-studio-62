@@ -127,7 +127,7 @@ Removes an actor from the stage.
 
 #### `MOVE`
 
-Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Actors without walk frames glide unchanged.
+Animates an actor moving to a new position over the specified duration. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.
 
 **Syntax:**
 ```

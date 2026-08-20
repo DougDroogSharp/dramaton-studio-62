@@ -75,6 +75,61 @@ describe('two-frame walk cycle', () => {
     expect(after).toMatchObject({ pose: 'Run', expression: 'Angry' });
   });
 
+  it('directional sets: picks the walk pair nearest the travel direction', () => {
+    const game = createDefaultGame();
+    game.actors.push({
+      id: 'aldric', name: 'Aldric', status: 'work',
+      graphics: [
+        { id: 'g0', pose: 'Neutral', expression: 'Neutral', angle: 0, image: 'n.png' },
+        { id: 'e1', pose: 'Walk1', expression: 'Neutral', angle: 0, image: 'e1.png' },
+        { id: 'e2', pose: 'Walk2', expression: 'Neutral', angle: 0, image: 'e2.png' },
+        { id: 'w1', pose: 'Walk1', expression: 'Neutral', angle: 180, image: 'w1.png' },
+        { id: 'w2', pose: 'Walk2', expression: 'Neutral', angle: 180, image: 'w2.png' },
+        { id: 's1', pose: 'Walk1', expression: 'Neutral', angle: 90, image: 's1.png' },
+        { id: 's2', pose: 'Walk2', expression: 'Neutral', angle: 90, image: 's2.png' },
+      ],
+    });
+    game.scenes.push({
+      id: 's1', name: 'S1', stage: [stageEl('hero', 'aldric')],
+      // ENTER at 98, walk left to 20: travel direction is west (180°)
+      script: '[ENTER hero at 98,50]\n[MOVE hero to 20,50 over 1s]',
+    });
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    expect(result.current.state.elementOverrides.get('hero')).toMatchObject({
+      pose: 'Walk1', spriteAngle: 180,
+    });
+
+    act(() => { vi.advanceTimersByTime(250); });
+    expect(result.current.state.elementOverrides.get('hero')).toMatchObject({
+      pose: 'Walk2', spriteAngle: 180,
+    });
+  });
+
+  it('directional sets: a mostly-downward move picks the south pair', () => {
+    const game = createDefaultGame();
+    game.actors.push({
+      id: 'aldric', name: 'Aldric', status: 'work',
+      graphics: [
+        { id: 'e1', pose: 'Walk1', expression: 'Neutral', angle: 0, image: 'e1.png' },
+        { id: 'e2', pose: 'Walk2', expression: 'Neutral', angle: 0, image: 'e2.png' },
+        { id: 's1', pose: 'Walk1', expression: 'Neutral', angle: 90, image: 's1.png' },
+        { id: 's2', pose: 'Walk2', expression: 'Neutral', angle: 90, image: 's2.png' },
+      ],
+    });
+    game.scenes.push({
+      id: 's1', name: 'S1', stage: [stageEl('hero', 'aldric')],
+      // From the editor-authored 10,50 down-right to 20,90: steep
+      // descent, closer to south (90°) than east (0°)
+      script: '[MOVE hero to 20,90 over 1s]',
+    });
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));
+
+    expect(result.current.state.elementOverrides.get('hero')).toMatchObject({
+      pose: 'Walk1', spriteAngle: 90,
+    });
+  });
+
   it('actors without walk frames glide unchanged (fail-soft)', () => {
     const game = makeGame('[MOVE hero to 80,60 over 1s]\n[SET done = true]', false);
     const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 's1' }));

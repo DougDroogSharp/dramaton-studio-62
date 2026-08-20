@@ -385,23 +385,38 @@ export function useScriptRunner({
           moveStartTimeoutRef.current = setTimeout(applyMoveTarget, 30);
           // Two-frame walk cycle: if the moving actor's graphics
           // include Walk1 + Walk2 poses, flip between them while the
-          // move is in flight, then restore the prior look. Fail-soft:
-          // no walk frames means the sprite just glides as before.
+          // move is in flight, then restore the prior look. When walk
+          // frames exist at several sprite angles (8-direction sets:
+          // 0=right, 90=down, 180=left, 270=up, plus diagonals), the
+          // pair whose angle is nearest the travel direction is used.
+          // Fail-soft: no walk frames means the sprite just glides.
           const movingEl = currentSceneRef.current?.stage?.find(e => e.id === command.actorId);
           const movingActor = movingEl?.type === 'ACTOR'
             ? game.actors.find(a => a.id === movingEl.assetId)
             : undefined;
-          const walk1 = movingActor?.graphics.find(g => g.pose.toLowerCase() === 'walk1');
-          const walk2 = movingActor?.graphics.find(g => g.pose.toLowerCase() === 'walk2');
-          if (movingEl && walk1 && walk2) {
+          const walk1s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk1') ?? [];
+          const walk2s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk2') ?? [];
+          if (movingEl && walk1s.length > 0 && walk2s.length > 0) {
             const elId = movingEl.id;
+            // Nearest-angle pick (screen coords, y down; clockwise from
+            // "facing right"). Actors with only angle-0 frames always
+            // get those — the pre-directional behavior.
+            const angularDist = (a: number, b: number) =>
+              Math.abs(((a - b + 540) % 360) - 180);
+            const pickFrame = (frames: ActorGraphic[], dir: number) =>
+              frames.reduce((best, g) =>
+                angularDist(g.angle, dir) < angularDist(best.angle, dir) ? g : best);
+            // Chosen inside the first updater (start position must be
+            // read from live state; travel direction depends on it).
+            let walk1 = walk1s[0];
+            let walk2 = walk2s[0];
             // Snapshot the pre-walk look (captured inside the first
             // frame's updater so batched same-pass POSE writes are
             // seen) and restore it exactly when the move ends —
             // absent keys stay absent so the editor-authored pose wins.
             const snapshot: Partial<StageElementOverride> = {};
             let snapped = false;
-            const setWalkFrame = (g: ActorGraphic) => setState(prev => {
+            const setWalkFrame = (pick: (g1: ActorGraphic, g2: ActorGraphic) => ActorGraphic) => setState(prev => {
               const overrides = new Map(prev.elementOverrides);
               const existing = overrides.get(elId) || {};
               if (!snapped) {
@@ -409,7 +424,13 @@ export function useScriptRunner({
                 snapshot.pose = existing.pose;
                 snapshot.expression = existing.expression;
                 snapshot.spriteAngle = existing.spriteAngle;
+                const startX = existing.x ?? movingEl.x;
+                const startY = existing.y ?? movingEl.y;
+                const dir = (Math.atan2(command.y - startY, command.x - startX) * 180 / Math.PI + 360) % 360;
+                walk1 = pickFrame(walk1s, dir);
+                walk2 = pickFrame(walk2s, dir);
               }
+              const g = pick(walk1, walk2);
               overrides.set(elId, {
                 ...existing,
                 pose: g.pose,
@@ -429,10 +450,10 @@ export function useScriptRunner({
               return { ...prev, elementOverrides: overrides };
             });
             let frame = 0;
-            setWalkFrame(walk1);
+            setWalkFrame((g1) => g1);
             walkIntervalRef.current = setInterval(() => {
               frame++;
-              setWalkFrame(frame % 2 === 0 ? walk1 : walk2);
+              setWalkFrame(frame % 2 === 0 ? (g1) => g1 : (_g1, g2) => g2);
             }, 250);
           }
 
