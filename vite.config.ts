@@ -33,6 +33,9 @@ export default defineConfig(({ mode }) => ({
     // Server-side Flux image bridge; reads BFL_API_KEY / FLUX_MODEL
     // from .env.local without exposing them to the client
     fluxPlugin(loadEnv(mode, process.cwd(), "")),
+    // Server-side ElevenLabs bridge; caches generated audio to disk so
+    // a line is paid for once, however often a scene replays.
+    voicePlugin(loadEnv(mode, process.cwd(), "")),
   ],
   resolve: {
     alias: {
