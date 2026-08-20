@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { GameData, createDefaultGame, Button } from '@/types';
+import { GameData, createDefaultGame, Button, migrateGameData } from '@/types';
 import { resolveValueString } from '@/utils/expression';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
@@ -42,7 +42,7 @@ const Theater: React.FC = () => {
         try {
           const published = await loadPublishedGame(slug);
           if (published) {
-            setGame(published);
+            setGame(migrateGameData(published));
           } else {
             console.error('Game not found for slug:', slug);
           }
@@ -55,7 +55,7 @@ const Theater: React.FC = () => {
           // no-store: game files change constantly during development
           const response = await fetch(gameUrl, { cache: 'no-store' });
           const data = await response.json();
-          setGame(data);
+          setGame(migrateGameData(data));
         } catch (e) {
           console.error('Failed to load game from URL:', e);
         }
@@ -63,7 +63,7 @@ const Theater: React.FC = () => {
         // Load from base64-encoded data in URL
         try {
           const decoded = JSON.parse(atob(gameData));
-          setGame(decoded);
+          setGame(migrateGameData(decoded));
         } catch (e) {
           console.error('Failed to decode game data:', e);
         }
@@ -71,7 +71,7 @@ const Theater: React.FC = () => {
         // Try to load from IndexedDB (editor autosave)
         const saved = await loadGameFromDB();
         if (saved) {
-          setGame(saved);
+          setGame(migrateGameData(saved));
         }
       }
       

@@ -1,0 +1,232 @@
+{
+  "william_hall.png": [
+    { "id": "THRONE", "label": "the king's wooden throne on its dais", "x": 49, "y": 43 },
+    { "id": "DAIS_STEPS", "label": "the stone steps up to the throne", "x": 49, "y": 61 },
+    { "id": "BANNER_GREEN", "label": "the green Saxon banner on the left wall", "x": 17, "y": 34 },
+    { "id": "BANNER_RED", "label": "the red Norman banner on the right wall", "x": 83, "y": 35 },
+    { "id": "TORCH_LEFT", "label": "burning torch in the left sconce", "x": 6, "y": 21 },
+    { "id": "TORCH_RIGHT", "label": "burning torch in the right sconce", "x": 93, "y": 21 },
+    { "id": "RUSH_FLOOR", "label": "the rush-strewn hall floor", "x": 49, "y": 82 }
+  ],
+  "leopold_station.png": [
+    { "id": "RUBBER_BASKETS", "label": "woven baskets heaped with coils of wild rubber", "x": 29, "y": 76 },
+    { "id": "TRADING_POST", "label": "the wooden colonial trading post building", "x": 36, "y": 40 },
+    { "id": "POST_VERANDA", "label": "the veranda and bench along the post front", "x": 44, "y": 47 },
+    { "id": "STEAMBOAT", "label": "the river steamboat moored at the bank", "x": 78, "y": 49 },
+    { "id": "RIVER", "label": "the wide brown river beyond the station", "x": 66, "y": 52 },
+    { "id": "PALM_TREE", "label": "the tall palm above the station roof", "x": 42, "y": 12 },
+    { "id": "FLAGPOLE", "label": "the bare station flagpole", "x": 60, "y": 30 }
+  ],
+  "capone_garage.png": [
+    { "id": "SEDAN", "label": "the parked black 1920s sedan", "x": 51, "y": 54 },
+    { "id": "BRICK_WALL", "label": "the bare brick back wall", "x": 49, "y": 24 },
+    { "id": "WORK_LAMP_LEFT", "label": "hanging work lamp over the left bay", "x": 26, "y": 15 },
+    { "id": "WORK_LAMP_RIGHT", "label": "hanging work lamp over the right bay", "x": 76, "y": 15 },
+    { "id": "TOOL_CABINET", "label": "the red tool cabinet against the left wall", "x": 7, "y": 57 },
+    { "id": "TOOL_RACK", "label": "tools hung on the wall above the cabinet", "x": 12, "y": 21 },
+    { "id": "OIL_STAIN", "label": "the dark stains pooled on the concrete floor", "x": 46, "y": 89 }
+  ],
+  "elon_hq.png": [
+    { "id": "ROCKET", "label": "the rocket lifting off beyond the window", "x": 50, "y": 14 },
+    { "id": "LAUNCH_TOWER", "label": "the launch pad gantry tower", "x": 56, "y": 23 },
+    { "id": "EXHAUST_PLUME", "label": "the billowing exhaust cloud at the pad", "x": 47, "y": 38 },
+    { "id": "CENTER_SCREEN", "label": "the centre monitor with its rising chart", "x": 50, "y": 57 },
+    { "id": "LEFT_SCREEN", "label": "the left monitor with its rising chart", "x": 20, "y": 54 },
+    { "id": "RIGHT_SCREEN", "label": "the right monitor with its rising chart", "x": 80, "y": 55 },
+    { "id": "DESK", "label": "the wide executive desk", "x": 50, "y": 88 },
+    { "id": "PAPERS", "label": "loose printed papers on the desk", "x": 47, "y": 83 },
+    { "id": "ENERGY_CANS", "label": "cluster of energy drink cans on the left", "x": 9, "y": 78 },
+    { "id": "TOPPLED_CAN", "label": "a can knocked over on the right of the desk", "x": 94, "y": 80 }
+  ],
+  "william/burning_village.png": [
+    { "id": "BURNING_COTTAGE", "label": "the leftmost cottage roaring with flame", "x": 11, "y": 40 },
+    { "id": "THATCHED_HOUSE", "label": "the thatched cottages in the burning row", "x": 39, "y": 42 },
+    { "id": "GRANARY", "label": "the big grain barn thrown open at the row's end", "x": 86, "y": 41 },
+    { "id": "LADDER", "label": "a ladder leaning against a burning wall", "x": 20, "y": 52 },
+    { "id": "FENCE", "label": "the broken wattle fence between the houses", "x": 50, "y": 52 },
+    { "id": "BROKEN_CART", "label": "the overturned farm cart in the snow", "x": 74, "y": 76 },
+    { "id": "SMOKE_PLUME", "label": "smoke rising into the black winter sky", "x": 59, "y": 12 },
+    { "id": "SNOW_FIELD", "label": "the empty snow-covered field", "x": 24, "y": 78 }
+  ],
+  "william/salisbury_field.png": [
+    { "id": "EMPTY_THRONE", "label": "the empty throne on the wooden dais", "x": 50, "y": 43 },
+    { "id": "DAIS", "label": "the timber dais under the throne", "x": 50, "y": 53 },
+    { "id": "TENTS_LEFT", "label": "the Norman tent lines on the left", "x": 22, "y": 43 },
+    { "id": "TENTS_RIGHT", "label": "the Norman tent lines on the right", "x": 77, "y": 43 },
+    { "id": "BANNERS_LEFT", "label": "heraldic banners above the left camp", "x": 20, "y": 29 },
+    { "id": "BANNERS_RIGHT", "label": "heraldic banners above the right camp", "x": 77, "y": 29 },
+    { "id": "SPEAR_STACK_LEFT", "label": "stacked spears on the left of the field", "x": 18, "y": 73 },
+    { "id": "SPEAR_STACK_CENTER", "label": "stacked spears before the dais", "x": 49, "y": 73 },
+    { "id": "SPEAR_STACK_RIGHT", "label": "stacked spears on the right of the field", "x": 78, "y": 73 },
+    { "id": "CHALK_DOWNS", "label": "the chalk downs on the horizon", "x": 50, "y": 13 }
+  ],
+  "william/ely_fens.png": [
+    { "id": "ABBEY", "label": "the abbey silhouetted on its island", "x": 49, "y": 23 },
+    { "id": "CAUSEWAY", "label": "the narrow wooden causeway", "x": 50, "y": 69 },
+    { "id": "CAUSEWAY_HEAD", "label": "the far end of the causeway at the water", "x": 50, "y": 52 },
+    { "id": "REED_BEDS_LEFT", "label": "tall reed beds to the left", "x": 20, "y": 50 },
+    { "id": "REED_BEDS_RIGHT", "label": "tall reed beds to the right", "x": 80, "y": 50 },
+    { "id": "OPEN_WATER", "label": "the still open water before the abbey", "x": 50, "y": 35 },
+    { "id": "MARSH_POOL", "label": "dark marsh water in the foreground", "x": 15, "y": 80 }
+  ],
+  "william/scriptorium.png": [
+    { "id": "LECTERN", "label": "the central lectern holding the chronicle", "x": 50, "y": 63 },
+    { "id": "CHRONICLE", "label": "the great bound chronicle on the lectern", "x": 49, "y": 53 },
+    { "id": "DESK_LEFT", "label": "the left copying desk", "x": 14, "y": 74 },
+    { "id": "OPEN_BOOK_LEFT", "label": "an open manuscript on the left desk", "x": 19, "y": 64 },
+    { "id": "DESK_RIGHT", "label": "the right copying desk", "x": 81, "y": 74 },
+    { "id": "OPEN_BOOK_RIGHT", "label": "a ruled survey page on the right desk", "x": 80, "y": 66 },
+    { "id": "WINDOW", "label": "the small arched window in the stone wall", "x": 50, "y": 16 },
+    { "id": "CANDLE_LEFT", "label": "a lit candle at the far left", "x": 6, "y": 43 },
+    { "id": "CANDLE_RIGHT", "label": "a lit candle at the far right", "x": 95, "y": 43 }
+  ],
+  "william/rouen_chamber.png": [
+    { "id": "BED", "label": "the wooden bed with rumpled linens", "x": 39, "y": 68 },
+    { "id": "PILLOW", "label": "the pillow at the head of the bed", "x": 28, "y": 56 },
+    { "id": "CANDLE", "label": "the single guttering candle", "x": 15, "y": 50 },
+    { "id": "SIDE_TABLE", "label": "the little round table by the bed", "x": 15, "y": 69 },
+    { "id": "WINDOW", "label": "the arched window with grey dawn light", "x": 71, "y": 31 },
+    { "id": "COFFER", "label": "the overturned coffer, lid open and emptied", "x": 73, "y": 71 },
+    { "id": "STONE_FLOOR", "label": "the bare stone floor", "x": 49, "y": 85 }
+  ],
+  "william/motte_castle.png": [
+    { "id": "KEEP", "label": "the timber keep on top of the motte", "x": 53, "y": 13 },
+    { "id": "MOTTE", "label": "the raw earth mound of the motte", "x": 48, "y": 45 },
+    { "id": "PALISADE", "label": "the sharpened timber palisade", "x": 49, "y": 57 },
+    { "id": "LADDER_LEFT", "label": "a builder's ladder against the left palisade", "x": 16, "y": 65 },
+    { "id": "LADDER_RIGHT", "label": "a builder's ladder against the right palisade", "x": 57, "y": 65 },
+    { "id": "TIMBER_PILE", "label": "a heap of felled black timbers", "x": 66, "y": 69 },
+    { "id": "BUCKETS", "label": "wooden buckets set out on the churned ground", "x": 79, "y": 76 },
+    { "id": "RAZED_COTTAGE", "label": "a surviving cottage beyond the castle works", "x": 81, "y": 47 },
+    { "id": "MUD_POOL", "label": "standing water in the churned mud", "x": 15, "y": 82 }
+  ],
+  "leopold/leopold_palace.png": [
+    { "id": "MAP_OF_AFRICA", "label": "the huge framed map of Africa", "x": 29, "y": 16 },
+    { "id": "DESK", "label": "the king's great working desk", "x": 38, "y": 63 },
+    { "id": "KINGS_CHAIR", "label": "the tall carved chair behind the desk", "x": 33, "y": 50 },
+    { "id": "DISPATCH_BOXES", "label": "stacked dispatch boxes on the desk", "x": 53, "y": 47 },
+    { "id": "LEDGERS", "label": "piled papers and ledgers on the desk", "x": 22, "y": 49 },
+    { "id": "GLOBE", "label": "the standing globe on its frame", "x": 84, "y": 46 },
+    { "id": "DRAPES", "label": "the heavy drapes over the tall window", "x": 68, "y": 30 },
+    { "id": "CLOCK", "label": "the wall clock on the left panelling", "x": 5, "y": 17 },
+    { "id": "SIDE_CHAIR", "label": "a visitor's chair against the left wall", "x": 8, "y": 53 }
+  ],
+  "leopold/leopold_village.png": [
+    { "id": "EMPTY_HUT", "label": "the big thatched hut standing empty", "x": 15, "y": 44 },
+    { "id": "WHITE_HUT", "label": "the pale-walled hut at the far end", "x": 52, "y": 43 },
+    { "id": "VINE_HUT", "label": "the right-hand hut swallowed by vines", "x": 86, "y": 42 },
+    { "id": "OPEN_DOORWAY", "label": "the doorway left standing open", "x": 83, "y": 56 },
+    { "id": "COOKING_POTS", "label": "cooking pots left beside the hearth", "x": 85, "y": 73 },
+    { "id": "COLD_HEARTH", "label": "the ring of stones around a cold fire", "x": 79, "y": 80 },
+    { "id": "PATH", "label": "the village path grassing over", "x": 31, "y": 82 },
+    { "id": "OVERGROWN_PLOT", "label": "a garden plot lost to weeds", "x": 16, "y": 76 },
+    { "id": "JUNGLE_CANOPY", "label": "the forest canopy pressing over the clearing", "x": 49, "y": 14 }
+  ],
+  "leopold/leopold_docks.png": [
+    { "id": "CARGO_CRATES", "label": "the stacked cargo crates on the left", "x": 14, "y": 54 },
+    { "id": "CRATES_RIGHT", "label": "crates stacked beside the office", "x": 67, "y": 56 },
+    { "id": "LEDGER_OFFICE", "label": "the little shipping ledger office", "x": 82, "y": 60 },
+    { "id": "OFFICE_WINDOW", "label": "the lit office window with papers inside", "x": 86, "y": 55 },
+    { "id": "CRANE_LEFT", "label": "the left dockside crane", "x": 31, "y": 28 },
+    { "id": "CRANE_RIGHT", "label": "the right dockside crane", "x": 82, "y": 19 },
+    { "id": "STEAMSHIP", "label": "the moored steamship with its tall funnels", "x": 50, "y": 45 },
+    { "id": "HARBOUR_WATER", "label": "the dark harbour water at the quay edge", "x": 48, "y": 55 },
+    { "id": "QUAYSIDE", "label": "the wet stone quayside", "x": 47, "y": 82 }
+  ],
+  "leopold/leopold_lecture.png": [
+    { "id": "LANTERN_SCREEN", "label": "the big white projection screen", "x": 37, "y": 34 },
+    { "id": "MAGIC_LANTERN", "label": "the magic lantern projector on its tripod", "x": 67, "y": 46 },
+    { "id": "LIGHT_BEAM", "label": "the beam of light crossing the hall", "x": 58, "y": 50 },
+    { "id": "AUDIENCE", "label": "the silhouetted rows of listeners", "x": 27, "y": 68 },
+    { "id": "BENCHES", "label": "the hall benches in the foreground", "x": 29, "y": 84 },
+    { "id": "BALCONY", "label": "the upper gallery balcony", "x": 82, "y": 19 },
+    { "id": "CHANDELIER_LEFT", "label": "the chandelier over the left of the hall", "x": 13, "y": 8 },
+    { "id": "CHANDELIER_RIGHT", "label": "the chandelier over the right of the hall", "x": 80, "y": 8 }
+  ],
+  "capone/capone_soupkitchen.png": [
+    { "id": "SOUP_SIGN", "label": "the FREE SOUP COFFEE AND DOUGHNUTS sign", "x": 49, "y": 25 },
+    { "id": "KITCHEN_DOOR", "label": "the soup kitchen doorway", "x": 49, "y": 49 },
+    { "id": "WINDOW_LEFT", "label": "the dark storefront window on the left", "x": 28, "y": 46 },
+    { "id": "WINDOW_RIGHT", "label": "the dark storefront window on the right", "x": 71, "y": 46 },
+    { "id": "STREET_LAMP", "label": "the lantern beside the door", "x": 61, "y": 44 },
+    { "id": "BREADLINE", "label": "the queue of men waiting along the wall", "x": 49, "y": 69 },
+    { "id": "IRON_FENCE", "label": "the iron railings at the end of the block", "x": 7, "y": 56 },
+    { "id": "CITY_SKYLINE", "label": "the grey Chicago skyline behind", "x": 93, "y": 33 },
+    { "id": "SNOWY_STREET", "label": "the slushy street in front of the kitchen", "x": 49, "y": 90 }
+  ],
+  "capone/capone_lexington.png": [
+    { "id": "DESK", "label": "the broad mahogany desk", "x": 49, "y": 69 },
+    { "id": "TELEPHONE", "label": "the candlestick telephone on the desk", "x": 36, "y": 52 },
+    { "id": "CIGAR_BOX", "label": "the open cigar box on the desk", "x": 65, "y": 51 },
+    { "id": "CANDELABRA", "label": "the lit candelabra behind the desk", "x": 60, "y": 44 },
+    { "id": "ARMCHAIR_LEFT", "label": "the velvet armchair on the left", "x": 17, "y": 75 },
+    { "id": "ARMCHAIR_RIGHT", "label": "the velvet armchair on the right", "x": 85, "y": 75 },
+    { "id": "LAMP_LEFT", "label": "the floor lamp on the left", "x": 26, "y": 36 },
+    { "id": "LAMP_RIGHT", "label": "the floor lamp on the right", "x": 73, "y": 36 },
+    { "id": "CITY_WINDOW", "label": "the tall windows over the city skyline", "x": 49, "y": 26 },
+    { "id": "DRAPES", "label": "the heavy red drapes at the left window", "x": 8, "y": 23 }
+  ],
+  "capone/capone_courtroom.png": [
+    { "id": "JUDGES_BENCH", "label": "the high judge's bench", "x": 33, "y": 64 },
+    { "id": "JUDGES_CHAIR", "label": "the judge's empty chair", "x": 31, "y": 48 },
+    { "id": "AMERICAN_FLAG", "label": "the American flag beside the bench", "x": 23, "y": 42 },
+    { "id": "COURT_SEAL", "label": "the federal seal carved on the wall", "x": 31, "y": 28 },
+    { "id": "DEFENSE_TABLE", "label": "the defence table strewn with papers", "x": 58, "y": 76 },
+    { "id": "WITNESS_CHAIR", "label": "the witness chair beside the bench", "x": 47, "y": 52 },
+    { "id": "COURT_DOOR", "label": "the panelled door at the back of the court", "x": 53, "y": 45 },
+    { "id": "TALL_WINDOWS", "label": "the tall windows with pale morning light", "x": 88, "y": 38 },
+    { "id": "CHANDELIER", "label": "the hanging globe lamp over the room", "x": 55, "y": 16 }
+  ],
+  "capone/capone_cicero.png": [
+    { "id": "POLLING_SIGN", "label": "the POLLING PLACE - VOTE HERE banner", "x": 49, "y": 30 },
+    { "id": "BUNTING", "label": "the red-white-and-blue bunting over the door", "x": 49, "y": 38 },
+    { "id": "POLLING_DOOR", "label": "the polling place door", "x": 49, "y": 59 },
+    { "id": "WINDOW_LEFT", "label": "the storefront window left of the door", "x": 33, "y": 51 },
+    { "id": "WINDOW_RIGHT", "label": "the storefront window right of the door", "x": 65, "y": 50 },
+    { "id": "BLACK_SEDAN", "label": "the black sedan parked at the curb", "x": 68, "y": 70 },
+    { "id": "STREET_LAMP", "label": "the cast-iron street lamp", "x": 87, "y": 49 },
+    { "id": "HANDBILLS", "label": "election handbills blown across the road", "x": 32, "y": 85 },
+    { "id": "SIDEWALK", "label": "the sidewalk in front of the polling place", "x": 24, "y": 73 }
+  ],
+  "elon/factory.png": [
+    { "id": "ROCKET_ENGINE", "label": "the giant rocket engine", "x": 50, "y": 35 },
+    { "id": "TEST_STAND", "label": "the steel test stand holding the engine", "x": 49, "y": 57 },
+    { "id": "WARNING_SIGN_LEFT", "label": "yellow warning sign left of the stand", "x": 29, "y": 48 },
+    { "id": "WARNING_SIGN_RIGHT", "label": "yellow warning sign right of the stand", "x": 71, "y": 48 },
+    { "id": "TOOL_CART_LEFT", "label": "the tool cart on the left of the floor", "x": 7, "y": 68 },
+    { "id": "TOOL_CART_RIGHT", "label": "the tool cart on the right of the floor", "x": 84, "y": 61 },
+    { "id": "CABLE_COIL", "label": "a coil of heavy cable in the foreground", "x": 11, "y": 93 },
+    { "id": "CABLE_SPOOL_RIGHT", "label": "cables snaking across the right of the floor", "x": 93, "y": 82 },
+    { "id": "FACTORY_FLOOR", "label": "the open concrete factory floor", "x": 49, "y": 80 }
+  ],
+  "elon/feedroom.png": [
+    { "id": "SCREEN_WALL", "label": "the towering curved wall of screens", "x": 49, "y": 33 },
+    { "id": "TRENDING_PANEL", "label": "the screen reading TRENDING", "x": 14, "y": 35 },
+    { "id": "STAR_SCREEN", "label": "the screen showing a bright star burst", "x": 37, "y": 37 },
+    { "id": "CHART_SCREEN", "label": "the screen with the rising engagement chart", "x": 61, "y": 53 },
+    { "id": "CONSOLE_LEFT", "label": "the control desk on the left", "x": 15, "y": 76 },
+    { "id": "CONSOLE_RIGHT", "label": "the control desk on the right", "x": 85, "y": 76 },
+    { "id": "CONTROL_FLOOR", "label": "the empty lit floor between the consoles", "x": 49, "y": 80 }
+  ],
+  "elon/courtroom.png": [
+    { "id": "JUDGES_BENCH", "label": "the raised judge's bench", "x": 41, "y": 52 },
+    { "id": "JUDGES_CHAIR", "label": "the judge's chair and microphone", "x": 36, "y": 36 },
+    { "id": "COURT_SEAL", "label": "the carved federal seal on the panelling", "x": 33, "y": 16 },
+    { "id": "AMERICAN_FLAG", "label": "the American flag on its stand", "x": 8, "y": 35 },
+    { "id": "CLERK_RAIL", "label": "the low panelled rail left of the bench", "x": 21, "y": 52 },
+    { "id": "JURY_BOX", "label": "the jury box along the window wall", "x": 77, "y": 58 },
+    { "id": "JURY_CHAIRS", "label": "the empty jury chairs", "x": 86, "y": 48 },
+    { "id": "TALL_WINDOWS", "label": "the tall windows with cold daylight", "x": 80, "y": 26 },
+    { "id": "COURT_FLOOR", "label": "the open floor before the bench", "x": 49, "y": 82 }
+  ],
+  "elon/bedroom3am.png": [
+    { "id": "BED", "label": "the enormous rumpled bed", "x": 39, "y": 75 },
+    { "id": "PHONE", "label": "the smartphone glowing cold blue on the sheets", "x": 59, "y": 74 },
+    { "id": "THOUGHT_CLOUD", "label": "the empty white thought cloud over the bed", "x": 47, "y": 21 },
+    { "id": "PILLOWS", "label": "the heaped pillows", "x": 14, "y": 56 },
+    { "id": "NIGHTSTAND", "label": "the nightstand with its little clock", "x": 30, "y": 56 },
+    { "id": "HEADBOARD", "label": "the dark headboard", "x": 11, "y": 42 },
+    { "id": "CITY_WINDOW", "label": "the huge window over the faint city lights", "x": 78, "y": 24 },
+    { "id": "BEDROOM_FLOOR", "label": "the bare wooden floor beside the bed", "x": 88, "y": 83 }
+  ]
+}

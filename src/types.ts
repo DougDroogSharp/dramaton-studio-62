@@ -32,6 +32,10 @@ export interface ActorGraphic {
   expression: string;
   angle: number;
   image: string;
+  // Share one sprite across several pose/expression triples: instead of
+  // a duplicate base64 copy, name another graphic in the same actor and
+  // the load path (migrateGameData) fills `image` in.
+  imageRef?: string;
   generatedPrompt?: string;  // Full prompt used to generate this graphic
 }
 
@@ -317,7 +321,39 @@ export const createDefaultLibrary = (): AssetLibrary => ({
 // Migrate old game data to current format
 export const migrateGameData = (data: any): GameData => {
   const migrated = { ...data };
-  
+
+  // Hydrate shared sprites. A pose matrix usually reuses one image
+  // across several pose/expression triples (the same worker sprite for
+  // Neutral, Tired and Angry). Storing a full base64 copy per triple
+  // wasted 11 MB in one game alone, so builders may instead emit
+  // `imageRef: "<graphic id>"` and let the load path fill in the
+  // image. Everything downstream keeps reading `.image` as before.
+  if (Array.isArray(migrated.actors)) {
+    migrated.actors = migrated.actors.map((actor: any) => {
+      if (!Array.isArray(actor?.graphics)) return actor;
+      if (!actor.graphics.some((g: any) => g?.imageRef)) return actor;
+      const byId = new Map<string, any>(actor.graphics.map((g: any) => [g.id, g]));
+      const resolve = (g: any, seen = new Set<string>()): string | undefined => {
+        if (g?.image) return g.image;
+        if (!g?.imageRef || seen.has(g.id)) return undefined; // missing or cyclic
+        seen.add(g.id);
+        return resolve(byId.get(g.imageRef), seen);
+      };
+      return {
+        ...actor,
+        graphics: actor.graphics.map((g: any) => {
+          if (g?.image || !g?.imageRef) return g;
+          const image = resolve(g);
+          if (!image) {
+            console.warn(`actor "${actor.id}" graphic "${g.id}": imageRef "${g.imageRef}" does not resolve`);
+            return g;
+          }
+          return { ...g, image };
+        }),
+      };
+    });
+  }
+
   // Ensure buttons array exists
   if (!migrated.buttons) {
     migrated.buttons = [];

@@ -93,6 +93,25 @@ if (has.military) {
 if (has.rifle) actors.push({ id: 'rifle_asset', name: 'Rifle', graphics: [g('Neutral', 'Neutral', art('rifle.png'))], status: 'work' });
 if (has.shell) actors.push({ id: 'shell_asset', name: 'Shell', graphics: [g('Neutral', 'Neutral', art('shell.png'))], status: 'work' });
 
+// A pose matrix reuses one sprite across several pose/expression
+// triples (the same worker art for Neutral, Tired and Angry). Keep the
+// first copy of each distinct image and point the rest at it with
+// imageRef; the load path (migrateGameData) hydrates them back. This
+// alone cut this game from 18.2 MB to ~7 MB.
+for (const actor of actors) {
+  const firstIdFor = new Map();
+  for (const gr of actor.graphics) {
+    if (!gr.image) continue;
+    const owner = firstIdFor.get(gr.image);
+    if (owner === undefined) {
+      firstIdFor.set(gr.image, gr.id);
+    } else {
+      gr.imageRef = owner;
+      gr.image = '';
+    }
+  }
+}
+
 // stage element: real sprite if art exists, labeled balloon rectangle if not
 const castEl = (ok, id, assetId, label, x, y, scale = 2.2, zIndex = 3, pose = 'Neutral') =>
   ok
