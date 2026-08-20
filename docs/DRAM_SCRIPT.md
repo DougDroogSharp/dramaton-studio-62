@@ -294,6 +294,31 @@ Narrator: "The rain continued to fall."
 Alice (thinking): "What should I do next?"
 ```
 
+#### `NARRATE`
+
+Says something WITHOUT waiting for a click — the one speech form allowed inside a TICK body, so a running simulation can describe itself. The line appears at the foot of the stage, is announced to screen readers, and clears itself after the duration (default 4s). Supports {variable} interpolation. Consecutive identical lines are suppressed, so a 1s tick can narrate a standing condition without flooding. Use it to explain what a change MEANS as the model propagates it, and as the audio-description channel for blind players.
+
+**Syntax:**
+```
+[NARRATE "text" [for duration]]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `text` | string | The line to narrate; {variables} interpolate |
+| `duration` | string | How long it stays up (default 4s) *(optional)* |
+
+**Example:**
+```
+[TICK 3s]
+[SET hoard = hoard + squeeze * 0.4]
+[IF hoard > 70]
+[NARRATE "The hoard swells to {hoard}. Upstairs, nothing is spent; downstairs, the rent still comes due." for 6s]
+[ENDIF]
+[/TICK]
+```
+
 ---
 
 ### Audio Commands
@@ -1018,7 +1043,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **39 commands documented**
+✅ **40 commands documented**
 
 ---
 

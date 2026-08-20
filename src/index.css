@@ -223,6 +223,20 @@
   animation: fade-in 0.3s ease-out;
 }
 
+/* Visually hidden but available to screen readers — the audio
+   description / live-region channel. Standard clip pattern. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 /* [BACKDROP]: a script-driven drop swap fades in over the scene's own
    backdrop; duration comes from --backdrop-dur (0s = instant). */
 @keyframes backdrop-in {

@@ -522,6 +522,23 @@ Boss: "Can't we do any better?"
   },
 
   {
+    type: 'NARRATE',
+    category: 'dialogue',
+    syntax: '[NARRATE "text" [for duration]]',
+    description: 'Says something WITHOUT waiting for a click — the one speech form allowed inside a TICK body, so a running simulation can describe itself. The line appears at the foot of the stage, is announced to screen readers, and clears itself after the duration (default 4s). Supports {variable} interpolation. Consecutive identical lines are suppressed, so a 1s tick can narrate a standing condition without flooding. Use it to explain what a change MEANS as the model propagates it, and as the audio-description channel for blind players.',
+    parameters: [
+      { name: 'text', type: 'string', description: 'The line to narrate; {variables} interpolate' },
+      { name: 'duration', type: 'string', description: 'How long it stays up (default 4s)', optional: true },
+    ],
+    example: `[TICK 3s]
+[SET hoard = hoard + squeeze * 0.4]
+[IF hoard > 70]
+[NARRATE "The hoard swells to {hoard}. Upstairs, nothing is spent; downstairs, the rent still comes due." for 6s]
+[ENDIF]
+[/TICK]`,
+    implemented: true,
+  },
+  {
     type: 'SET_TEXT',
     category: 'effect',
     syntax: '[SET_TEXT element_id "text"]',
@@ -656,6 +673,7 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'HIDE_SLIDER', label: 'HIDE_SLIDER', insertText: 'HIDE_SLIDER ', description: 'Hide a slider' },
   { type: 'HIDE_GAUGE', label: 'HIDE_GAUGE', insertText: 'HIDE_GAUGE ', description: 'Hide a gauge' },
   { type: 'NARRATON', label: 'NARRATON', insertText: 'NARRATON pool=main]', description: 'Let the storyteller pick the next scene' },
+  { type: 'NARRATE', label: 'NARRATE', insertText: 'NARRATE ""', description: 'Non-blocking narration (works in TICK)' },
   { type: 'SET_TEXT', label: 'SET_TEXT', insertText: 'SET_TEXT ', description: 'Set element text ({var} interpolates)' },
   { type: 'AUTOPLAY', label: 'AUTOPLAY', insertText: 'AUTOPLAY on]', description: 'Toggle dialogue auto-advance' },
   { type: 'CHOICE', label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', description: 'Present choices (gates, effects, timeout)' },
@@ -669,7 +687,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
     'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'RANDOM', 'LABEL', 'GOTO', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
-    'NARRATON', 'SET_TEXT', 'AUTOPLAY',
+    'NARRATON', 'SET_TEXT', 'NARRATE', 'AUTOPLAY',
     'BUTTON', 'HIDE_BUTTON', 'COMMENT', 'UNKNOWN'
   ];
   

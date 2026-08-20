@@ -131,6 +131,10 @@ export interface ScriptRunnerState {
   isWaiting: boolean;
   isComplete: boolean;
   isAutoPlay: boolean;
+  // NARRATE: non-blocking narration — the simulation describing itself
+  // while it runs. Also the audio-description channel for blind play,
+  // so it carries a monotonic id for screen-reader live regions.
+  ambientNarration: { text: string; id: number } | null;
   // BACKDROP: mid-scene backdrop swap (null = the scene's own drop)
   backdrop: { dropId: string; duration: number } | null;
   // CAMERA: zoom/pan over the stage; follow tracks an element
@@ -166,6 +170,7 @@ export function useScriptRunner({
     activeButtons: new Set(),
     activeSliders: new Map(),
       activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
     isWaiting: false,
@@ -186,6 +191,9 @@ export function useScriptRunner({
   const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Timed CHOICE: fires the fallback jump if the player hesitates.
   const choiceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // NARRATE: expiry timer and a monotonic id so each line re-announces.
+  const narrateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const narrateSeqRef = useRef(0);
 
   // The live world state. A ref (not state) so that a run of commands
   // executed in one synchronous pass — [SET a = ...] followed by
@@ -306,6 +314,8 @@ export function useScriptRunner({
     moveStartTimeoutRef.current = null;
     if (choiceTimeoutRef.current) clearTimeout(choiceTimeoutRef.current);
     choiceTimeoutRef.current = null;
+    if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
+    narrateTimeoutRef.current = null;
   }, []);
 
   // Cleanup on unmount
@@ -753,6 +763,7 @@ export function useScriptRunner({
           activeButtons: new Set(),
           activeSliders: new Map(),
       activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
           isWaiting: false,
@@ -799,6 +810,7 @@ export function useScriptRunner({
               activeButtons: [],
               activeSliders: new Map(),
               activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
               isWaiting: false,
@@ -846,6 +858,26 @@ export function useScriptRunner({
       case 'TICK':
         // Declaration only: the interval effect below picks it up.
         return true;
+
+      case 'NARRATE': {
+        // Non-blocking narration. Consecutive duplicates are dropped so
+        // a 1s TICK can narrate a condition without flooding; each new
+        // line gets a fresh id so screen readers re-announce it.
+        const text = interpolateText(command.text, worldStateRef.current);
+        if (!text.trim()) return true;
+        if (stateRef.current.ambientNarration?.text === text) return true;
+        narrateSeqRef.current += 1;
+        const id = narrateSeqRef.current;
+        setState(prev => ({ ...prev, ambientNarration: { text, id } }));
+        if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
+        narrateTimeoutRef.current = setTimeout(() => {
+          narrateTimeoutRef.current = null;
+          setState(prev => (prev.ambientNarration?.id === id
+            ? { ...prev, ambientNarration: null }
+            : prev));
+        }, Math.max(500, (command.seconds ?? 4) * 1000));
+        return true;
+      }
 
       case 'SET_TEXT': {
         const text = interpolateText(command.text, worldStateRef.current);
@@ -960,6 +992,7 @@ export function useScriptRunner({
           activeButtons: new Set(),
           activeSliders: new Map(),
           activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
           isWaiting: false,
@@ -1198,6 +1231,7 @@ export function useScriptRunner({
       activeButtons: new Set(),
       activeSliders: new Map(),
       activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
       isWaiting: false,
@@ -1244,6 +1278,7 @@ export function useScriptRunner({
       activeButtons: new Set(),
       activeSliders: new Map(),
       activeGauges: new Map(),
+      ambientNarration: null,
       backdrop: null,
       camera: null,
       isWaiting: false,

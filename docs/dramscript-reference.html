@@ -208,7 +208,7 @@ footer.colophon {
 </style>
 
 <header class="masthead">
-  <div class="slug">Dramaton Engine · Language Reference · 39 commands</div>
+  <div class="slug">Dramaton Engine · Language Reference · 40 commands</div>
   <h1>Dram<em>Script</em></h1>
   <p class="lede">
     A line-based language for directing actors, backdrops, cameras and an economy at
@@ -216,7 +216,7 @@ footer.colophon {
     speaking — the whole grammar fits on a page, and a scene reads like a script.
   </p>
   <div class="stats">
-    <span><b>39</b> commands</span>
+    <span><b>40</b> commands</span>
     <span><b>9</b> categories</span>
     <span>Lineage: <b>1986</b> King of Chicago → GODinabox → Dramaton</span>
   </div>
@@ -227,7 +227,7 @@ footer.colophon {
     <ul>
     <li class="nav-group">
       <span class="nav-cat">Dialogue Commands</span>
-      <ul><li><a href="#cmd-dialogue">DIALOGUE</a></li></ul>
+      <ul><li><a href="#cmd-dialogue">DIALOGUE</a></li><li><a href="#cmd-narrate">NARRATE</a></li></ul>
     </li>
     <li class="nav-group">
       <span class="nav-cat">Scene Commands</span>
@@ -308,6 +308,31 @@ footer.colophon {
 <span class="s-actor">Detective </span><span class="s-tag">(Pointing/Angry)</span>: <span class="s-str">"It was YOU."</span>
 <span class="s-actor">Narrator</span>: <span class="s-str">"The rain continued to fall."</span>
 <span class="s-actor">Alice </span><span class="s-tag">(thinking)</span>: <span class="s-str">"What should I do next?"</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-narrate">
+      <header class="cmd-head">
+        <h3>NARRATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">NARRATE</span><span class="s-arg"> "text" [for duration</span><span class="s-brk">]</span>]</code></pre>
+      </header>
+      <p class="desc">Says something WITHOUT waiting for a click — the one speech form allowed inside a TICK body, so a running simulation can describe itself. The line appears at the foot of the stage, is announced to screen readers, and clears itself after the duration (default 4s). Supports {variable} interpolation. Consecutive identical lines are suppressed, so a 1s tick can narrate a standing condition without flooding. Use it to explain what a change MEANS as the model propagates it, and as the audio-description channel for blind players.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>text</code><span class="ptype">string</span></dt>
+          <dd>The line to narrate; {variables} interpolate</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string · optional</span></dt>
+          <dd>How long it stays up (default 4s)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">TICK</span><span class="s-arg"> 3s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> hoard = hoard + squeeze * 0.4</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> hoard &gt; 70</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">NARRATE</span><span class="s-arg"> "The hoard swells to {hoard}. Upstairs, nothing is spent; downstairs, the rent still comes due." for 6s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">/TICK</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
       </div>
     </article>
     </section>

@@ -304,6 +304,33 @@ const Theater: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-diesel-black flex flex-col">
+      {/* Screen-reader channel. Everything the player needs to follow
+          the show without seeing it lands here: who is speaking and
+          what they said, the ambient narration a running simulation
+          emits, and the current choice list. Visually hidden, polite
+          so it never interrupts itself mid-sentence. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {scriptRunner.state.activeDialogue && (
+          <p>
+            {scriptRunner.state.activeDialogue.actorName}: {scriptRunner.state.activeDialogue.text}
+          </p>
+        )}
+        {scriptRunner.state.ambientNarration && (
+          <p key={scriptRunner.state.ambientNarration.id}>
+            {scriptRunner.state.ambientNarration.text}
+          </p>
+        )}
+        {scriptRunner.state.choices && (
+          <p>
+            {scriptRunner.state.choices.options.length === 1
+              ? scriptRunner.state.choices.options[0].text
+              : `Choose: ${scriptRunner.state.choices.options
+                  .map((o, i) => `${i + 1}. ${o.text}`)
+                  .join('. ')}`}
+          </p>
+        )}
+      </div>
+
       {/* End-of-game area (narration overlays the stage as a caption,
           so the stage never jumps when it appears/disappears) */}
       <div className="px-4 pt-1 pb-1">
@@ -375,6 +402,20 @@ const Theater: React.FC = () => {
                 actor={dialogueActor}
                 onAdvance={scriptRunner.advance}
               />
+            </div>
+          )}
+          {/* Ambient narration ([NARRATE]) — the simulation describing
+              itself while it runs. Sits at the stage foot so it never
+              collides with the narrator caption at the top. */}
+          {scriptRunner.state.ambientNarration && (
+            <div
+              key={scriptRunner.state.ambientNarration.id}
+              className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[88%] animate-fade-in pointer-events-none"
+              style={{ zIndex: 318 }}
+            >
+              <p className="text-center text-diesel-paper text-sm md:text-base italic leading-snug px-4 py-2 rounded bg-diesel-black/70 backdrop-blur-[2px] border border-diesel-border/60">
+                {scriptRunner.state.ambientNarration.text}
+              </p>
             </div>
           )}
           {/* Quote pop-up card */}

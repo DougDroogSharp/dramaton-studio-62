@@ -39,6 +39,7 @@ export type ScriptCommandType =
   | 'HIDE_GAUGE'
   | 'NARRATON'
   | 'SET_TEXT'
+  | 'NARRATE'
   | 'AUTOPLAY'
   | 'BUTTON'
   | 'HIDE_BUTTON'
@@ -318,6 +319,16 @@ export interface SetTextCommand {
   text: string;
 }
 
+// A non-blocking narration line: says something without waiting for a
+// click, so a running simulation can describe itself. This is the one
+// speech form allowed inside TICK bodies, and it is the backbone of
+// audio description for blind players.
+export interface NarrateCommand {
+  type: 'NARRATE';
+  text: string;
+  seconds?: number; // how long it stays up (default 4)
+}
+
 // Toggle dialogue auto-advance from script (autopilot modes).
 export interface AutoplayCommand {
   type: 'AUTOPLAY';
@@ -376,6 +387,7 @@ export type ScriptCommand =
   | HideGaugeCommand
   | NarratonCommand
   | SetTextCommand
+  | NarrateCommand
   | AutoplayCommand
   | CommentCommand
   | ButtonCommand
@@ -775,6 +787,16 @@ function parseLine(line: string): ScriptCommand | null {
     const narratonMatch = content.match(/^NARRATON(?:\s+pool=(\w+))?$/i);
     if (narratonMatch) {
       return { type: 'NARRATON', pool: narratonMatch[1] || 'main' };
+    }
+
+    // NARRATE "text" [for 6s] — non-blocking narration
+    const narrateMatch = content.match(/^NARRATE\s+"([^"]*)"(?:\s+for\s+(.+))?$/i);
+    if (narrateMatch) {
+      return {
+        type: 'NARRATE',
+        text: narrateMatch[1],
+        ...(narrateMatch[2] ? { seconds: parseDuration(narrateMatch[2]) } : {}),
+      };
     }
 
     // SET_TEXT element_id "text with {variable} interpolation"
@@ -1222,6 +1244,10 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[HIDE_GAUGE ${cmd.variable}]`;
     case 'NARRATON':
       return `[NARRATON pool=${cmd.pool}]`;
+    case 'NARRATE':
+      return cmd.seconds !== undefined
+        ? `[NARRATE "${cmd.text}" for ${cmd.seconds}s]`
+        : `[NARRATE "${cmd.text}"]`;
     case 'SET_TEXT':
       return `[SET_TEXT ${cmd.elementId} "${cmd.text}"]`;
     case 'AUTOPLAY':
