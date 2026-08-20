@@ -351,10 +351,42 @@ Narrator: "The humans are starving."
     implemented: true,
   },
   {
+    type: 'ELSEIF',
+    category: 'flow',
+    syntax: '[ELSEIF condition]',
+    description: 'Adds another conditional arm to an IF block: tried in order after the IF (and any earlier ELSEIFs) fail. Same condition grammar as IF. Must appear between [IF] and [ENDIF].',
+    parameters: [
+      { name: 'lhs', type: 'string', description: 'The variable to check, or an arithmetic expression' },
+      { name: 'operator', type: 'string', description: 'Comparison operator: ==, !=, >, <, >=, <=' },
+      { name: 'rhs', type: 'any', description: 'A literal, variable, or arithmetic expression to compare against' },
+    ],
+    example: `[IF heat > 80]
+Narrator: "The city is burning."
+[ELSEIF heat > 50]
+Narrator: "The streets simmer."
+[ELSE]
+Narrator: "An uneasy calm."
+[ENDIF]`,
+    implemented: true,
+  },
+  {
+    type: 'ELSE',
+    category: 'flow',
+    syntax: '[ELSE]',
+    description: 'The fallback arm of an IF block: runs when the IF condition and every ELSEIF fail. Must appear between [IF] and [ENDIF], after any ELSEIFs.',
+    parameters: [],
+    example: `[IF singleTax == 1]
+Narrator: "Rent flows to everyone."
+[ELSE]
+Narrator: "Rent flows to the landlord."
+[ENDIF]`,
+    implemented: true,
+  },
+  {
     type: 'ENDIF',
     category: 'flow',
     syntax: '[ENDIF]',
-    description: 'Marks the end of an IF conditional block.',
+    description: 'Marks the end of an IF conditional block (including any ELSEIF/ELSE arms).',
     parameters: [],
     example: '[ENDIF]',
     implemented: true,
@@ -511,6 +543,8 @@ export const COMMAND_AUTOCOMPLETE: CommandAutocompleteEntry[] = [
   { type: 'HIDE_BUTTON', label: 'HIDE_BUTTON', insertText: 'HIDE_BUTTON ', description: 'Hide button' },
   { type: 'SET', label: 'SET', insertText: 'SET ', description: 'Set variable (literal or expression)' },
   { type: 'IF', label: 'IF', insertText: 'IF ', description: 'Conditional block' },
+  { type: 'ELSEIF', label: 'ELSEIF', insertText: 'ELSEIF ', description: 'Additional conditional arm' },
+  { type: 'ELSE', label: 'ELSE', insertText: 'ELSE]', description: 'Fallback arm of an IF' },
   { type: 'TICK', label: 'TICK', insertText: 'TICK 1s]\n\n[/TICK', description: 'Repeating simulation block' },
   { type: 'BIND', label: 'BIND', insertText: 'BIND ', description: 'Drive element property from expression' },
   { type: 'UNBIND', label: 'UNBIND', insertText: 'UNBIND ', description: 'Release a bound property' },
@@ -529,7 +563,7 @@ export function validateDocumentation(): { missing: string[]; documented: string
   const allTypes: ScriptCommandType[] = [
     'DIALOGUE', 'ENTER', 'EXIT', 'MOVE', 'POSE',
     'BGM', 'AMBIENCE', 'SFX', 'EFFECT', 'CLEAR_EFFECT',
-    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ENDIF', 'TICK',
+    'WAIT', 'SCENE', 'CHOICE', 'SET', 'IF', 'ELSEIF', 'ELSE', 'ENDIF', 'TICK',
     'BIND', 'UNBIND',
     'SLIDER', 'GAUGE', 'HIDE_SLIDER', 'HIDE_GAUGE',
     'NARRATON', 'SET_TEXT', 'AUTOPLAY',

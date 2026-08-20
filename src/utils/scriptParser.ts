@@ -20,6 +20,8 @@ export type ScriptCommandType =
   | 'CHOICE'
   | 'SET'
   | 'IF'
+  | 'ELSEIF'
+  | 'ELSE'
   | 'ENDIF'
   | 'TICK'
   | 'BIND'
@@ -135,6 +137,15 @@ export interface SetCommand {
   isExpression?: boolean;
 }
 
+// One [ELSEIF ...] arm of an IF chain: same condition shape as IF.
+export interface IfBranch {
+  variable: string;
+  operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  value: string | number | boolean;
+  isExpression?: boolean;
+  commands: ScriptCommand[];
+}
+
 export interface IfCommand {
   type: 'IF';
   // Variable name, or raw LHS expression source when isExpression is set.
@@ -145,6 +156,10 @@ export interface IfCommand {
   // When true, both sides are expressions and compare numerically.
   isExpression?: boolean;
   commands: ScriptCommand[];
+  // Optional chain: [ELSEIF cond] arms tried in order after the main
+  // condition fails, then an optional [ELSE] fallback.
+  elifs?: IfBranch[];
+  elseCommands?: ScriptCommand[];
 }
 
 // A repeating block: the body runs every `interval` seconds while the
@@ -458,10 +473,14 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
 
-    // IF variable == value  (either side may be an expression)
-    const ifMatch = content.match(/^IF\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
+    // IF / ELSEIF variable == value  (either side may be an expression).
+    // Both keywords share the same two condition grammars; ELSEIF
+    // returns a transient marker that parseScript folds into the
+    // enclosing IF's chain.
+    const ifMatch = content.match(/^(IF|ELSEIF)\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
     if (ifMatch) {
-      const raw = ifMatch[3].trim();
+      const keyword = ifMatch[1].toUpperCase() as 'IF' | 'ELSEIF';
+      const raw = ifMatch[4].trim();
       let value: string | number | boolean = raw;
       let isExpression = false;
       if (raw === 'true') value = true;
@@ -478,32 +497,39 @@ function parseLine(line: string): ScriptCommand | null {
       }
 
       return {
-        type: 'IF',
-        variable: ifMatch[1],
-        operator: ifMatch[2] as '==' | '!=' | '>' | '<' | '>=' | '<=',
+        type: keyword,
+        variable: ifMatch[2],
+        operator: ifMatch[3] as '==' | '!=' | '>' | '<' | '>=' | '<=',
         value,
         ...(isExpression ? { isExpression } : {}),
         commands: [], // Will be populated by parseScript
-      };
+      } as unknown as ScriptCommand;
     }
 
-    // IF with an expression on the left side: [IF wages + 5 > rent * 2]
+    // IF / ELSEIF with an expression on the left side:
+    // [IF wages + 5 > rent * 2]
     // (the simple-form regex above requires a bare variable on the left)
-    const ifExprMatch = content.match(/^IF\s+(.+)$/i);
+    const ifExprMatch = content.match(/^(IF|ELSEIF)\s+(.+)$/i);
     if (ifExprMatch) {
-      const split = splitComparison(ifExprMatch[1]);
+      const keyword = ifExprMatch[1].toUpperCase() as 'IF' | 'ELSEIF';
+      const split = splitComparison(ifExprMatch[2]);
       if (split && split.lhs && split.rhs && parseExpression(split.lhs) && parseExpression(split.rhs)) {
         return {
-          type: 'IF',
+          type: keyword,
           variable: split.lhs,
           operator: split.op as '==' | '!=' | '>' | '<' | '>=' | '<=',
           value: split.rhs,
           isExpression: true,
           commands: [], // Will be populated by parseScript
-        };
+        } as unknown as ScriptCommand;
       }
     }
-    
+
+    // ELSE
+    if (/^ELSE$/i.test(content)) {
+      return { type: 'ELSE' } as unknown as ScriptCommand;
+    }
+
     // ENDIF or /IF
     if (/^(ENDIF|\/IF)$/i.test(content)) {
       return { type: 'ENDIF' } as unknown as ScriptCommand;
@@ -688,8 +714,14 @@ function parseChoiceBlock(lines: string[], startIndex: number): { command: Choic
 export function parseScript(script: string): ScriptCommand[] {
   const lines = script.split('\n');
   const commands: ScriptCommand[] = [];
-  const ifStack: IfCommand[] = [];
-  
+  // Each open IF tracks where new commands currently land: its own
+  // body, an ELSEIF arm's body, or the ELSE body.
+  const ifStack: { cmd: IfCommand; target: ScriptCommand[] }[] = [];
+  const push = (c: ScriptCommand) => {
+    if (ifStack.length > 0) ifStack[ifStack.length - 1].target.push(c);
+    else commands.push(c);
+  };
+
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
@@ -698,11 +730,7 @@ export function parseScript(script: string): ScriptCommand[] {
     if (line === '[CHOICE]') {
       const result = parseChoiceBlock(lines, i);
       if (result) {
-        if (ifStack.length > 0) {
-          ifStack[ifStack.length - 1].commands.push(result.command);
-        } else {
-          commands.push(result.command);
-        }
+        push(result.command);
         i = result.endIndex + 1;
         continue;
       }
@@ -723,48 +751,63 @@ export function parseScript(script: string): ScriptCommand[] {
           interval: parseDuration(tickOpen[1]),
           commands: parseScript(body),
         };
-        if (ifStack.length > 0) {
-          ifStack[ifStack.length - 1].commands.push(tickCmd);
-        } else {
-          commands.push(tickCmd);
-        }
+        push(tickCmd);
         i = closeIndex + 1;
         continue;
       }
     }
-    
+
     const command = parseLine(line);
-    
+
     if (command) {
-      // Handle IF/ENDIF structure
+      // Handle IF/ELSEIF/ELSE/ENDIF structure
       if (command.type === 'IF') {
-        ifStack.push(command as IfCommand);
-      } else if ((command as any).type === 'ENDIF') {
-        const ifCmd = ifStack.pop();
-        if (ifCmd) {
+        const ifCmd = command as IfCommand;
+        ifStack.push({ cmd: ifCmd, target: ifCmd.commands });
+      } else if ((command as { type: string }).type === 'ELSEIF') {
+        const top = ifStack[ifStack.length - 1];
+        if (top) {
+          const marker = command as unknown as IfBranch & { type: string };
+          const branch: IfBranch = {
+            variable: marker.variable,
+            operator: marker.operator,
+            value: marker.value,
+            ...(marker.isExpression ? { isExpression: true } : {}),
+            commands: [],
+          };
+          top.cmd.elifs = [...(top.cmd.elifs ?? []), branch];
+          top.target = branch.commands;
+        }
+        // ELSEIF outside any IF: dropped (fail-soft, like unclosed IF)
+      } else if ((command as { type: string }).type === 'ELSE') {
+        const top = ifStack[ifStack.length - 1];
+        if (top) {
+          top.cmd.elseCommands = top.cmd.elseCommands ?? [];
+          top.target = top.cmd.elseCommands;
+        }
+      } else if ((command as { type: string }).type === 'ENDIF') {
+        const closed = ifStack.pop();
+        if (closed) {
           if (ifStack.length > 0) {
-            ifStack[ifStack.length - 1].commands.push(ifCmd);
+            ifStack[ifStack.length - 1].target.push(closed.cmd);
           } else {
-            commands.push(ifCmd);
+            commands.push(closed.cmd);
           }
         }
-      } else if (ifStack.length > 0) {
-        // Add to current IF block
-        ifStack[ifStack.length - 1].commands.push(command);
       } else {
-        commands.push(command);
+        push(command);
       }
     }
-    
+
     i++;
   }
-  
+
   // Close any unclosed IF blocks
   while (ifStack.length > 0) {
-    const ifCmd = ifStack.pop();
-    if (ifCmd) commands.push(ifCmd);
+    const closed = ifStack.pop();
+    if (closed) commands.push(closed.cmd);
   }
-  
+
   return commands;
 }
 
@@ -835,12 +878,22 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[SET ${cmd.variable} = ${valStr}]`;
     }
     case 'IF': {
-      let valStr: string;
-      if (cmd.isExpression) valStr = String(cmd.value); // raw expression source, unquoted
-      else if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
-      else valStr = String(cmd.value);
-      const inner = cmd.commands.map(c => commandToString(c)).join('\n');
-      return `[IF ${cmd.variable} ${cmd.operator} ${valStr}]\n${inner}\n[ENDIF]`;
+      const condStr = (c: { variable: string; operator: string; value: string | number | boolean; isExpression?: boolean }) => {
+        let valStr: string;
+        if (c.isExpression) valStr = String(c.value); // raw expression source, unquoted
+        else if (typeof c.value === 'string') valStr = `"${c.value}"`;
+        else valStr = String(c.value);
+        return `${c.variable} ${c.operator} ${valStr}`;
+      };
+      const parts = [`[IF ${condStr(cmd)}]`, ...cmd.commands.map(c => commandToString(c))];
+      for (const e of cmd.elifs ?? []) {
+        parts.push(`[ELSEIF ${condStr(e)}]`, ...e.commands.map(c => commandToString(c)));
+      }
+      if (cmd.elseCommands) {
+        parts.push('[ELSE]', ...cmd.elseCommands.map(c => commandToString(c)));
+      }
+      parts.push('[ENDIF]');
+      return parts.join('\n');
     }
     case 'CHOICE': {
       const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');

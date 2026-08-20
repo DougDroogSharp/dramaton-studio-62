@@ -639,9 +639,54 @@ Narrator: "The humans are starving."
 [ENDIF]
 ```
 
+#### `ELSEIF`
+
+Adds another conditional arm to an IF block: tried in order after the IF (and any earlier ELSEIFs) fail. Same condition grammar as IF. Must appear between [IF] and [ENDIF].
+
+**Syntax:**
+```
+[ELSEIF condition]
+```
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `lhs` | string | The variable to check, or an arithmetic expression |
+| `operator` | string | Comparison operator: ==, !=, >, <, >=, <= |
+| `rhs` | any | A literal, variable, or arithmetic expression to compare against |
+
+**Example:**
+```
+[IF heat > 80]
+Narrator: "The city is burning."
+[ELSEIF heat > 50]
+Narrator: "The streets simmer."
+[ELSE]
+Narrator: "An uneasy calm."
+[ENDIF]
+```
+
+#### `ELSE`
+
+The fallback arm of an IF block: runs when the IF condition and every ELSEIF fail. Must appear between [IF] and [ENDIF], after any ELSEIFs.
+
+**Syntax:**
+```
+[ELSE]
+```
+
+**Example:**
+```
+[IF singleTax == 1]
+Narrator: "Rent flows to everyone."
+[ELSE]
+Narrator: "Rent flows to the landlord."
+[ENDIF]
+```
+
 #### `ENDIF`
 
-Marks the end of an IF conditional block.
+Marks the end of an IF conditional block (including any ELSEIF/ELSE arms).
 
 **Syntax:**
 ```
@@ -807,7 +852,7 @@ Shopkeeper: "Back again? I remember you."
 
 ## Implementation Status
 
-✅ **30 commands documented**
+✅ **32 commands documented**
 
 ---
 

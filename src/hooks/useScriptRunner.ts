@@ -39,6 +39,9 @@ function interpolateText(text: string, vars: WorldVars): string {
 interface FlatNode {
   cmd: ScriptCommand;
   jumpTo?: number;
+  // 'jump': unconditional jump to jumpTo (emitted after each taken
+  // branch body of an IF/ELSEIF/ELSE chain, skipping the rest).
+  kind?: 'jump';
 }
 
 function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
@@ -46,10 +49,32 @@ function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
   const walk = (list: ScriptCommand[]) => {
     for (const c of list) {
       if (c.type === 'IF') {
-        const node: FlatNode = { cmd: c };
-        out.push(node);
-        walk(c.commands);
-        node.jumpTo = out.length;
+        // Compile the chain: each conditional branch gets a test node
+        // (false -> jump past its body to the next branch) and, when a
+        // chain exists, a jump-to-end after its body (so a taken branch
+        // skips the rest). Chainless IFs flatten exactly as before.
+        const hasChain = (c.elifs?.length ?? 0) > 0 || !!c.elseCommands;
+        const branches: Array<{ cond: ScriptCommand; body: ScriptCommand[] }> = [
+          { cond: c, body: c.commands },
+          ...(c.elifs ?? []).map(e => ({
+            cond: { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as ScriptCommand,
+            body: e.commands,
+          })),
+        ];
+        const endJumps: FlatNode[] = [];
+        for (const b of branches) {
+          const test: FlatNode = { cmd: b.cond };
+          out.push(test);
+          walk(b.body);
+          if (hasChain) {
+            const j: FlatNode = { cmd: c, kind: 'jump' };
+            out.push(j);
+            endJumps.push(j);
+          }
+          test.jumpTo = out.length;
+        }
+        if (c.elseCommands) walk(c.elseCommands);
+        for (const j of endJumps) j.jumpTo = out.length;
       } else {
         out.push({ cmd: c });
       }
@@ -742,11 +767,19 @@ export function useScriptRunner({
         case 'TICK':
           warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
           continue;
-        case 'IF':
+        case 'IF': {
           if (evaluateIfCondition(cmd, worldStateRef.current)) {
             executeTickBody(cmd.commands);
+          } else {
+            const arm = (cmd.elifs ?? []).find(e => evaluateIfCondition(
+              { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as IfCommand,
+              worldStateRef.current,
+            ));
+            if (arm) executeTickBody(arm.commands);
+            else if (cmd.elseCommands) executeTickBody(cmd.elseCommands);
           }
           continue;
+        }
         case 'MOVE':
           // Animate at the scripted speed but never set isWaiting —
           // a tick body must not block
@@ -794,6 +827,12 @@ export function useScriptRunner({
     let i = startIndex;
     while (i < flatCommands.length) {
       const node = flatCommands[i];
+
+      // Unconditional jump (end of a taken IF/ELSEIF/ELSE branch body)
+      if (node.kind === 'jump') {
+        i = node.jumpTo ?? i + 1;
+        continue;
+      }
 
       // IF test node: on false, jump past the flattened body
       if (node.cmd.type === 'IF') {
