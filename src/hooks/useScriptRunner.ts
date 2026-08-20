@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } from '@/types';
-import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, findActorByName } from '@/utils/scriptParser';
+import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, ChoiceOption, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
 import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
 import { AbilitySettings, DEFAULT_ABILITY_SETTINGS } from '@/utils/accessibility';
@@ -114,7 +114,10 @@ export interface ActiveDialogue {
 }
 
 export interface ChoiceState {
-  options: { text: string; target: string }[];
+  // The FULL option shape, not a narrowed {text,target}: gates and
+  // [SET] side-effects have to survive as far as selectChoice, which
+  // is where they are applied.
+  options: ChoiceOption[];
 }
 
 export interface ScriptRunnerState {
@@ -934,7 +937,7 @@ export function useScriptRunner({
               elementOverrides: new Map(),
               activeEffects: new Map(),
               hiddenElements: new Set(),
-              activeButtons: [],
+              activeButtons: new Set<string>(),
               activeSliders: new Map(),
               activeGauges: new Map(),
       ambientNarration: null,

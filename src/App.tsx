@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ConfirmDialogProvider } from "@/hooks/useConfirmDialog";
 import { AuthProvider } from "@/hooks/useAuth";
 import PageLoader from "@/components/PageLoader";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
 
 const Index = lazy(() => import("./pages/Index"));
 const Library = lazy(() => import("./pages/Library"));

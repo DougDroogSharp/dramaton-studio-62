@@ -4,6 +4,7 @@ import path from "path";
 import os from "os";
 import { dramDocsPlugin } from "./vite-plugin-dram-docs";
 import { fluxPlugin } from "./vite-plugin-flux";
+import { voicePlugin } from "./vite-plugin-voice";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({

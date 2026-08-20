@@ -11,6 +11,9 @@ interface TheaterControlsProps {
   onGoHome: () => void;
   onBackToMenu: () => void;
   onSkip?: () => void;
+  // The model, showing its work: the console shelf readout
+  showMeters?: boolean;
+  onToggleMeters?: () => void;
 }
 
 export const TheaterControls: React.FC<TheaterControlsProps> = ({

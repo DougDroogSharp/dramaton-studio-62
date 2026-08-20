@@ -60,8 +60,8 @@ describe('staging commands: execution', () => {
   const run = (script: string): GameData => {
     const game = createDefaultGame();
     game.drops = [
-      { id: 'day', name: 'Day', image: 'day.png' },
-      { id: 'night', name: 'Night', image: 'night.png' },
+      { id: 'day', name: 'Day', prompt: '', image: 'day.png' },
+      { id: 'night', name: 'Night', prompt: '', image: 'night.png' },
     ];
     game.scenes.push({ id: 's1', name: 'S1', dropId: 'day', stage: [stageEl('king')], script });
     return game;
