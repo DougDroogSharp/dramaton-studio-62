@@ -94,6 +94,23 @@ const KEY_OF = {
 
 const stage = (...els) => els.filter(Boolean);
 
+// ---- the three-door rule -------------------------------------------------
+// House rule: no [CHOICE] shows more than three doors. Long menus fan out
+// into small grouping scenes — each a beat of framing, then its own three.
+// Nothing is removed; the long lists simply live one door deeper.
+const MENU_MAX = 3;
+const choice = (opts) => ['[CHOICE]', ...opts.filter(Boolean), '[/CHOICE]'];
+const fanScene = (id, name, dropKey, stageEls, framing, doors) => {
+  if (doors.length > MENU_MAX) throw new Error(`${id}: ${doors.length} doors (max ${MENU_MAX})`);
+  return {
+    id, name, sceneType: 'WITNESS',
+    dropId: dropFor(dropKey),
+    stage: stageEls,
+    script: lines(...framing, ...choice(doors)),
+    status: 'work',
+  };
+};
+
 // ------------------------------------------------- Voices of the Congo
 // A data-driven reaction layer: ten documented moments x the people who
 // ran, endured, exposed, and ended the system — ~100 short documentary
@@ -610,15 +627,31 @@ const VOICES = {
 const voiceVignettes = [];
 const voiceChoosers = [];
 
+// Ten or eleven witnesses to a single moment will not fit through three
+// doors. The chooser asks WHICH BENCH first — the Crown and its men, the
+// people who went and looked, the river and the campaign — and each bench
+// opens on its own short list. Where a bench runs long, it continues into
+// a second page rather than dropping anyone.
+const VGROUPS = [
+  { key: 'crown', label: 'The Crown and its men', who: ['leopold', 'officer'],
+    framing: ['Narrator: "First the men who owned it and the men who worked it. Neither has ever once been asked to see the other\'s ledger."'] },
+  { key: 'witness', label: 'Those who went and looked', who: ['casement', 'harris', 'sheppard'],
+    framing: ['Narrator: "A consul, a missionary with a box camera, a preacher from Virginia. Three people who went up the river and came back unable to be quiet."'] },
+  { key: 'river', label: 'The river, and the campaign', who: ['community', 'morel', 'movement'],
+    framing: ['Narrator: "The people it was done to, the clerk who read the manifests, and the movement that grew out of both. The record, from underneath."'] },
+];
+
 for (const ev of EVENTS) {
   const entries = VOICES[ev.id] || [];
   const seen = {};
-  const choiceLines = [];
+  const doorsFor = {};
   for (const v of entries) {
     seen[v.r] = (seen[v.r] || 0) + 1;
     const id = `vgl_${ev.id}_${v.r}${seen[v.r] > 1 ? seen[v.r] : ''}`;
     const label = `${RESP[v.r].label}${v.s ? ` — ${v.s}` : ''}`;
-    choiceLines.push(`- "${label}" -> ${id}`);
+    const g = VGROUPS.find((x) => x.who.includes(v.r));
+    if (!g) throw new Error(`no voice group for responder ${v.r}`);
+    (doorsFor[g.key] ||= []).push(`- "${label}" -> ${id}`);
     voiceVignettes.push({
       id,
       name: `${ev.title}: ${label}`,
@@ -644,14 +677,43 @@ for (const ev of EVENTS) {
     stage: [],
     script: lines(
       `Narrator: "${ev.blurb}"`,
-      'Narrator: "Who speaks to this?"',
-      '[CHOICE]',
-      ...choiceLines,
-      '- "Back to the moments" -> lp_voices',
-      '[/CHOICE]',
+      'Narrator: "Who speaks to this? Three benches. Everyone on all three still gets their say."',
+      ...choice(VGROUPS.map((g) => `- "${g.label}" -> evcg_${ev.id}_${g.key}`)),
     ),
     status: 'work',
   });
+
+  // One scene per bench — continued onto a second page when a bench runs
+  // longer than the three-door rule allows.
+  for (const g of VGROUPS) {
+    const doors = doorsFor[g.key] || [];
+    const tail = `- "Back to the moments" -> lp_voices`;
+    const all = [...doors, tail];
+    let i = 0;
+    let page = 0;
+    while (i < all.length) {
+      const last = all.length - i <= MENU_MAX;
+      const take = last ? all.length - i : MENU_MAX - 1;
+      const id = page === 0 ? `evcg_${ev.id}_${g.key}` : `evcg_${ev.id}_${g.key}_${page + 1}`;
+      voiceChoosers.push({
+        id,
+        name: `${ev.title} — ${g.label}${page ? ` (${page + 1})` : ''}`,
+        sceneType: 'WITNESS',
+        dropId: dropFor(ev.drop),
+        stage: [],
+        script: lines(
+          ...(page === 0 ? g.framing : ['Narrator: "The bench is not finished."']),
+          ...choice([
+            ...all.slice(i, i + take),
+            ...(last ? [] : [`- "Still more from this bench" -> evcg_${ev.id}_${g.key}_${page + 2}`]),
+          ]),
+        ),
+        status: 'work',
+      });
+      i += take;
+      page += 1;
+    }
+  }
 }
 
 const voicesHub = {
@@ -661,16 +723,46 @@ const voicesHub = {
   dropId: dropFor('lecture'),
   stage: stage(el('lp_vo_comm', 'community', 26, 60), el('lp_vo_move', 'movement', 74, 60)),
   script: lines(
-    'Narrator: "The record of the Congo Free State, 1885-1908, moment by moment. Choose an event, then choose who answers it — drawn from the testimony, ledgers, and campaign literature of the period."',
+    'Narrator: "The record of the Congo Free State, 1885-1908, moment by moment. It runs in three movements: the taking, the system, the proof. Choose one, then choose who answers it — drawn from the testimony, ledgers, and campaign literature of the period."',
     '[CHOICE]',
-    ...EVENTS.map((ev) => `- "${ev.title}" -> evc_${ev.id}`),
-    '- "Return to Brussels" -> lp_palace',
+    '- "The taking — 1879 to 1885" -> lpg_taking',
+    '- "The system — quota, cartridge, hostage" -> lpg_system',
+    '- "The proof — 1900 to 1908" -> lpg_proof',
     '[/CHOICE]',
   ),
   status: 'work',
 };
 
-const VOICES_SCENES = [voicesHub, ...voiceChoosers, ...voiceVignettes];
+// The three movements. Every one of the ten moments is still in here.
+const evDoor = (id) => {
+  const ev = EVENTS.find((e) => e.id === id);
+  if (!ev) throw new Error(`unknown event ${id}`);
+  return `- "${ev.title}" -> evc_${id}`;
+};
+
+const voiceGroups = [
+  fanScene('lpg_taking', 'Voices — The Taking', 'palace',
+    stage(el('lpg_taking_a', 'leopold', 50, 60)),
+    ['Narrator: "Before there is rubber there is paper. Four hundred marks on documents nobody could read, and a conference table in Berlin with no Congolese seat at it."'],
+    [evDoor('treaties'), evDoor('berlin'), '- "Return to Brussels" -> lp_palace']),
+
+  fanScene('lpg_system', 'Voices — The System', 'station',
+    stage(el('lpg_system_a', 'officer', 50, 60)),
+    ['Narrator: "Then the machinery: a weight of rubber per man per fortnight, a cartridge that must be accounted for, and a shed to hold a man\'s family in while he goes and finds the vines."'],
+    [evDoor('quotas'), evDoor('bullets'), evDoor('hostages')]),
+
+  fanScene('lpg_proof', 'Voices — The Proof', 'docks',
+    stage(el('lpg_proof_a', 'morel', 50, 60)),
+    ['Narrator: "And then somebody checks the manifests. Rubber and ivory in; guns and chains out; nothing going the other way that could possibly be called a wage."'],
+    [evDoor('docks'), evDoor('photographs'), '- "The reckoning — 1904 to 1908" -> lpg_reckoning']),
+
+  fanScene('lpg_reckoning', 'Voices — The Reckoning', 'palace',
+    stage(el('lpg_reckoning_a', 'casement', 50, 60)),
+    ['Narrator: "Forty pages of findings, a satire that outsold both, and a kingdom taken off a king by his own parliament. The extraction did not stop. Only the ownership changed."'],
+    [evDoor('report'), evDoor('pamphlet'), evDoor('annexation')]),
+];
+
+const VOICES_SCENES = [voicesHub, ...voiceGroups, ...voiceChoosers, ...voiceVignettes];
 
 // ---------------------------------------------------------------- Duets
 // Seven two-voice conversation chains — the record staged as dialogue.
@@ -950,16 +1042,40 @@ const duetsHub = {
   dropId: dropFor('lecture'),
   stage: stage(el('lp_du_cas', 'casement', 28, 60), el('lp_du_mor', 'morel', 72, 61)),
   script: lines(
-    'Narrator: "Seven conversations across the record, 1879-1909. Where an exchange is reconstructed or is a writer\'s device, the staging says so."',
+    'Narrator: "Seven conversations across the record, 1879-1909, sorted by which room they happen in. Where an exchange is reconstructed or is a writer\'s device, the staging says so."',
     '[CHOICE]',
-    ...DUETS.map((d) => `- "${d.title}" -> du_${d.id}_1`),
-    '- "Return to Brussels" -> lp_palace',
+    '- "The King and the paper" -> lpg_du_king',
+    '- "The proof, and the camera" -> lpg_du_proof',
+    '- "The river and the station" -> lpg_du_river',
     '[/CHOICE]',
   ),
   status: 'work',
 };
 
-const DUET_SCENES = [duetsHub, ...duetScenes];
+const duDoor = (id) => {
+  const d = DUETS.find((x) => x.id === id);
+  if (!d) throw new Error(`unknown duet ${id}`);
+  return `- "${d.title}" -> du_${d.id}_1`;
+};
+
+const duetGroups = [
+  fanScene('lpg_du_king', 'Duets — The King and the Paper', 'palace',
+    stage(el('lpg_du_king_a', 'leopold', 50, 60)),
+    ['Narrator: "Three conversations in Brussels. In all three the King is talking, and in exactly none of them is he telling the truth to the person in front of him."'],
+    [duDoor('treaties'), duDoor('mirror'), duDoor('soliloquy')]),
+
+  fanScene('lpg_du_proof', 'Duets — The Proof and the Camera', 'docks',
+    stage(el('lpg_du_proof_a', 'casement', 28, 60), el('lpg_du_proof_b', 'harris', 72, 61)),
+    ['Narrator: "Two conversations about what counts as evidence. One at a London table with sworn testimony on it, one in a village with a box Kodak on a stump."'],
+    [duDoor('evidence'), duDoor('camera'), '- "Return to Brussels" -> lp_palace']),
+
+  fanScene('lpg_du_river', 'Duets — The River and the Station', 'village',
+    stage(el('lpg_du_river_a', 'community', 28, 60), el('lpg_du_river_b', 'officer', 72, 61)),
+    ['Narrator: "Two conversations upriver. One where the record is finally taken down. One where a man in uniform declines, very politely, to say anything at all."'],
+    [duDoor('testimony'), duDoor('interview'), '- "Back to the duets" -> lp_duets']),
+];
+
+const DUET_SCENES = [duetsHub, ...duetGroups, ...duetScenes];
 
 // ------------------------------------------------------------ Aftermaths
 // Four documented turns of the system, each followed down two lines of
@@ -1185,17 +1301,53 @@ const aftermathsHub = {
   dropId: dropFor('village'),
   stage: stage(el('lp_af_comm', 'community', 50, 60)),
   script: lines(
-    'Narrator: "Four turns of the system, each followed down two lines of sight — the week it happened, a year on, a generation on. Nothing here is depicted; everything here is documented or honestly framed."',
+    'Narrator: "Four turns of the system, each followed down two lines of sight — the week it happened, a year on, a generation on. Nothing here is depicted; everything here is documented or honestly framed. Choose the turn; then choose where you stand."',
     '[CHOICE]',
-    ...AFTERMATHS.flatMap((ev) =>
-      ev.tracks.map((tr) => `- "${ev.title} — ${tr.label}" -> af_${ev.id}_${tr.id}_1`)),
-    '- "Return to Brussels" -> lp_palace',
+    '- "The quota system" -> lpg_af_quota',
+    '- "The hostage policy" -> lpg_af_hostages',
+    '- "The report, and the annexation" -> lpg_af_end',
     '[/CHOICE]',
   ),
   status: 'work',
 };
 
-const AFTERMATH_SCENES = [aftermathsHub, ...aftermathScenes];
+const afEv = (id) => {
+  const ev = AFTERMATHS.find((x) => x.id === id);
+  if (!ev) throw new Error(`unknown aftermath ${id}`);
+  return ev;
+};
+const afDoors = (id) =>
+  afEv(id).tracks.map((tr) => `- "${tr.label}" -> af_${id}_${tr.id}_1`);
+
+const aftermathGroups = [
+  fanScene('lpg_af_quota', 'Aftermaths — The Quota System', 'station',
+    stage(el('lpg_af_quota_a', 'community', 50, 60)),
+    ['Narrator: "A weight of dried rubber per man per fortnight, verified by basket. Two lines of sight run out from that basket, and neither one ever comes back."'],
+    [...afDoors('quota'), '- "Return to Brussels" -> lp_palace']),
+
+  fanScene('lpg_af_hostages', 'Aftermaths — The Hostage Policy', 'station',
+    stage(el('lpg_af_hostages_a', 'community', 50, 60)),
+    ['Narrator: "Hold the women and the children until the men bring rubber. Later, hold the chiefs. It is in the company ledgers, which is exactly how it was proved."'],
+    [...afDoors('hostages'), '- "Return to Brussels" -> lp_palace']),
+
+  fanScene('lpg_af_end', 'Aftermaths — The Report and the Annexation', 'palace',
+    stage(el('lpg_af_end_a', 'casement', 50, 60)),
+    ['Narrator: "The two turns that ended his ownership and changed nothing about the extraction. Follow either one out to a generation on and see for yourself."'],
+    ['- "The Casement Report" -> lpg_af_report', '- "The Annexation, 1908" -> lpg_af_annex',
+      '- "Return to Brussels" -> lp_palace']),
+
+  fanScene('lpg_af_report', 'Aftermaths — The Casement Report', 'palace',
+    stage(el('lpg_af_report_a', 'casement', 50, 60)),
+    ['Narrator: "Forty pages of findings, twenty of sworn testimony, names cut down to initials so the sentries could not work backwards. Two lines of sight."'],
+    [...afDoors('report'), '- "Back to the aftermaths" -> lp_aftermaths']),
+
+  fanScene('lpg_af_annex', 'Aftermaths — The Annexation', 'palace',
+    stage(el('lpg_af_annex_a', 'leopold', 50, 60)),
+    ['Narrator: "Belgium takes the Congo off its King. He is booed at his own funeral. The rubber keeps moving. Two lines of sight."'],
+    [...afDoors('annexation'), '- "Back to the aftermaths" -> lp_aftermaths']),
+];
+
+const AFTERMATH_SCENES = [aftermathsHub, ...aftermathGroups, ...aftermathScenes];
 
 // ------------------------------------------------------------ The Record
 // Single-scene entries of uncovered research — episodes the main spine
@@ -1521,15 +1673,155 @@ const recordHub = {
   stage: stage(el('lp_rc_shep', 'sheppard', 28, 61), el('lp_rc_move', 'movement', 72, 60)),
   script: lines(
     `Narrator: "${RECORD.length} entries the main story passes over — mutinies, hearings, trials, invoices, the quota and margin arithmetic, the named perpetrators in their own words, the verbatim testimony, and the monuments the rubber paid for. Each is documented; where a figure is disputed or a quote is secondhand, the entry says so."`,
+    'Narrator: "Thirty at once is not a shelf, it is an avalanche. They are filed in three: what the Congo did back, what the campaign did about it, and where the money went."',
     '[CHOICE]',
-    ...RECORD.map((r) => `- "${r.title}" -> rc_${r.id}`),
-    '- "Return to Brussels" -> lp_palace',
+    '- "The Congo answering" -> lpg_rc_congo',
+    '- "The campaign, and the men who fought it" -> lpg_rc_campaign',
+    '- "The money, the men, the monuments" -> lpg_rc_money',
     '[/CHOICE]',
   ),
   status: 'work',
 };
 
-const RECORD_SCENES = [recordHub, ...recordScenes];
+// ---- the record, filed in threes ----------------------------------------
+// Thirty entries reached through a shelf of small grouping scenes. Every
+// one of the thirty is still on the shelf; none was cut to make room.
+const rcDoor = (id) => {
+  const r = RECORD.find((x) => x.id === id);
+  if (!r) throw new Error(`unknown record entry ${id}`);
+  return `- "${r.title}" -> rc_${r.id}`;
+};
+const RC_BACK = '- "Back to the record" -> lp_record';
+
+const recordGroups = [
+  fanScene('lpg_rc_congo', 'The Record — The Congo Answering', 'station',
+    stage(el('lpg_rc_congo_a', 'community', 50, 60)),
+    ['Narrator: "The Free State\'s own histories call this the disorder. It is the part of the record where the country says no, in arms, in courtrooms, and across a table with a consul writing it down."'],
+    ['- "The mutinies" -> lpg_rc_mutiny', '- "The King\'s Commission" -> lpg_rc_commission',
+      '- "The testimony taken down" -> lpg_rc_testimony']),
+
+  fanScene('lpg_rc_mutiny', 'The Record — The Mutinies', 'station',
+    stage(el('lpg_rc_mutiny_a', 'community', 50, 60)),
+    ['Narrator: "The first army the State feared was the one it had armed itself."'],
+    [rcDoor('batetela1'), rcDoor('batetela2'), RC_BACK]),
+
+  fanScene('lpg_rc_commission', 'The Record — The King\'s Commission', 'palace',
+    stage(el('lpg_rc_commission_a', 'leopold', 50, 60)),
+    ['Narrator: "He sent his own inquiry up the river to put the thing to rest. It came back and agreed with Casement. He published a summary instead."'],
+    [rcDoor('commission1'), rcDoor('commission2'), RC_BACK]),
+
+  fanScene('lpg_rc_testimony', 'The Record — The Testimony', 'village',
+    stage(el('lpg_rc_testimony_a', 'casement', 50, 60)),
+    ['Narrator: "Chiefs held in sheds, witnesses cut down to initials, and a length of knotted string keeping a count no ledger in Brussels would keep."'],
+    [rcDoor('chiefs'), rcDoor('uu'), rcDoor('string')]),
+
+  fanScene('lpg_rc_campaign', 'The Record — The Campaign', 'lecture',
+    stage(el('lpg_rc_campaign_a', 'movement', 50, 60)),
+    ['Narrator: "The first modern human-rights campaign, assembled out of lantern slides, pamphlets, a shipping clerk\'s arithmetic, and one preacher who would not shut up about the Kasai."'],
+    ['- "The lantern tours" -> lpg_rc_lantern', '- "The King\'s press, and its exposure" -> lpg_rc_press',
+      '- "Sheppard, and the trial" -> lpg_rc_sheppard']),
+
+  fanScene('lpg_rc_lantern', 'The Record — The Lantern Tours', 'lecture',
+    stage(el('lpg_rc_lantern_a', 'movement', 50, 60)),
+    ['Narrator: "A magic lantern, a bedsheet, and Alice Harris\'s photographs at four feet across. It crossed the Atlantic and picked up allies nobody in Brussels had budgeted for."'],
+    [rcDoor('lantern_us1'), rcDoor('lantern_us2'), rcDoor('doyle')]),
+
+  fanScene('lpg_rc_press', 'The Record — The King\'s Press', 'palace',
+    stage(el('lpg_rc_press_a', 'leopold', 50, 60)),
+    ['Narrator: "He bought newspapers the way he bought rubber: wholesale, quietly, and with somebody else\'s money. Then somebody printed the invoices."'],
+    [rcDoor('press1'), rcDoor('press2'), rcDoor('kodak')]),
+
+  fanScene('lpg_rc_sheppard', 'The Record — Sheppard', 'village',
+    stage(el('lpg_rc_sheppard_a', 'sheppard', 50, 60)),
+    ['Narrator: "A Black American preacher walks into the Kasai, counts what the company left, and gets sued for saying so. Then wins."'],
+    [rcDoor('sheppard1'), rcDoor('sheppard2'), RC_BACK]),
+
+  fanScene('lpg_rc_money', 'The Record — The Money', 'docks',
+    stage(el('lpg_rc_money_a', 'morel', 50, 60)),
+    ['Narrator: "Here is where the chapter stops being about a wicked king and starts being about rent. Follow the number."'],
+    ['- "The arithmetic, staged" -> lpg_rc_arith', '- "Where the money went" -> lpg_rc_purse',
+      '- "The men, the instruments, the monuments" -> lpg_rc_men']),
+
+  fanScene('lpg_rc_arith', 'The Record — The Arithmetic', 'lecture',
+    stage(el('lpg_rc_arith_a', 'movement', 50, 60)),
+    ['Narrator: "Fifteen shillings and tenpence. Three entries on what that number is, and what it is doing standing where a wage should be."'],
+    [rcDoor('arith1'), rcDoor('arith2'), rcDoor('bongandanga')]),
+
+  fanScene('lpg_rc_purse', 'The Record — Where the Money Went', 'docks',
+    stage(el('lpg_rc_purse_a', 'morel', 50, 60)),
+    ['Narrator: "The margin, the share register, and seventy million francs that never once passed through a Congolese hand on the way to Brussels."'],
+    [rcDoor('margin'), rcDoor('shares'), rcDoor('fortune')]),
+
+  fanScene('lpg_rc_men', 'The Record — The Men', 'station',
+    stage(el('lpg_rc_men_a', 'officer', 50, 60)),
+    ['Narrator: "The rate was not collected by an abstraction. It was collected by men with names, using an instrument with a name."'],
+    ['- "The instrument, and the men who used it" -> lpg_rc_instr',
+      rcDoor('rom'),
+      '- "The monuments the rubber paid for" -> lpg_rc_monuments']),
+
+  fanScene('lpg_rc_instr', 'The Record — The Instrument', 'station',
+    stage(el('lpg_rc_instr_a', 'officer', 50, 60)),
+    ['Narrator: "A whip of dried hippopotamus hide, and two commissioners who wrote down what they did with it, in their own hands, for their own files."'],
+    [rcDoor('chicotte'), rcDoor('fievez'), rcDoor('lemaire')]),
+
+  fanScene('lpg_rc_monuments', 'The Record — The Monuments', 'palace',
+    stage(el('lpg_rc_monuments_a', 'leopold', 50, 60)),
+    ['Narrator: "He spent it on stone. Arches, galleries, a seaside, a museum — and in 1897 he put two hundred and sixty-seven people in a park and charged admission."'],
+    [rcDoor('tervuren1'), rcDoor('tervuren2'), '- "The arch, the seaside, the conference" -> lpg_rc_stone']),
+
+  fanScene('lpg_rc_stone', 'The Record — The Stone', 'palace',
+    stage(el('lpg_rc_stone_a', 'leopold', 50, 60)),
+    ['Narrator: "Three more monuments, all of them still standing, all of them paid for out of the Congo. Read the plaques. The plaques do not say so."'],
+    [rcDoor('arch'), rcDoor('ostend'), rcDoor('antislavery')]),
+];
+
+const RECORD_SCENES = [recordHub, ...recordGroups, ...recordScenes];
+
+// ---- the desk, in three doors -------------------------------------------
+// The palace used to open on nine. Now: the order, the archive, the engine.
+const PALACE_FAN = [
+  fanScene('lp_order', 'The Order', 'palace',
+    stage(el('lp_order_king', 'leopold', 32, 60)),
+    [
+      'Leopold: "The concession reports are not encouraging. Returns down, villages resisting, agents making excuses in three languages."',
+      'Narrator: "He will never see the country he is about to change. He will write one sentence and a forest will empty. Which sentence?"',
+    ],
+    [
+      '- "Double the rubber quota — the returns must not fall" -> lp_quota',
+      '- "Order hostages taken until the villages comply" -> lp_hostages',
+      '- "Not yet — back to the desk" -> lp_palace',
+    ]),
+
+  fanScene('lp_archive', 'The Archive', 'lecture',
+    stage(el('lp_archive_move', 'movement', 50, 60)),
+    [
+      'Narrator: "Set the pen down. Everything the King managed was written down by somebody — by consuls, by shipping clerks, by the company itself in its own ledgers, and by the people it was done to, who have been saying so since the first day."',
+      'Narrator: "This is that archive. It does not need you to hold the pen."',
+    ],
+    [
+      '- "Voices of the Congo — the record, moment by moment" -> lp_voices',
+      '- "The shelves — duets, aftermaths, the record" -> lp_shelves',
+      '- "Two witness reels" -> lp_reels',
+    ]),
+
+  fanScene('lp_shelves', 'The Shelves', 'lecture',
+    stage(el('lp_shelves_shep', 'sheppard', 28, 61), el('lp_shelves_move', 'movement', 72, 60)),
+    ['Narrator: "Three shelves. Duets are the conversations the record allows. Aftermaths are what the same event looks like a generation later. The Record is everything the main story walks past."'],
+    [
+      '- "Duets — two voices, one record" -> lp_duets',
+      '- "Aftermaths — that week, a year on, a generation on" -> lp_aftermaths',
+      '- "The Record — uncovered research" -> lp_record',
+    ]),
+
+  fanScene('lp_reels', 'Two Reels', 'village',
+    stage(el('lp_reels_comm', 'community', 50, 60)),
+    ['Narrator: "Two reels, and no choices inside either one. A village, and a lecture hall in England where the village is four feet across on a bedsheet."'],
+    [
+      '- "Witness: The Village" -> lp_cut_village',
+      '- "Witness: The Lantern Lecture" -> lp_cut_lantern',
+      '- "Return to Brussels" -> lp_palace',
+    ]),
+];
 
 // ------------------------------------------- Cutscenes + the Georgist ledger
 // Two non-interactive documentary cutscenes ([AUTOPLAY on] .. [AUTOPLAY off]),
@@ -1816,16 +2108,10 @@ const game = {
         'Leopold: "My International African Association exists to suppress the slave trade. The powers have said so. The maps on this wall say so."',
         'Narrator: "He governs the rubber country from this chair. He will die without ever having seen it. The concession reports are on the desk: returns falling, villages resisting, quotas unmet."',
         'Leopold: "If there are these abuses in the Congo, we must stop them. If they continue, it will be the end of the state. (attributed, 1896)"',
-        'Narrator: "He does not stop them. He manages them. You hold the pen. What does the King order?"',
+        'Narrator: "He does not stop them. He manages them. You hold the pen."',
         '[CHOICE]',
-        '- "Double the rubber quota — the returns must not fall" -> lp_quota',
-        '- "Order hostages taken until the villages comply" -> lp_hostages',
-        '- "Voices of the Congo — the record, moment by moment" -> lp_voices',
-        '- "Duets — two voices, one record" -> lp_duets',
-        '- "Aftermaths — that week, a year on, a generation on" -> lp_aftermaths',
-        '- "The Record — uncovered research" -> lp_record',
-        '- "Witness: The Village" -> lp_cut_village',
-        '- "Witness: The Lantern Lecture" -> lp_cut_lantern',
+        '- "Give the order — the returns must not fall" -> lp_order',
+        '- "Open the archive instead" -> lp_archive',
         '- "Enter the Machine" -> lp_machine',
         '[/CHOICE]',
       ),
@@ -2214,6 +2500,9 @@ const game = {
       status: 'work',
     },
 
+    // ------------------------------------------------ The desk's three doors
+    ...PALACE_FAN,
+
     // ------------------------------------------------ Voices of the Congo (reaction layer)
     ...VOICES_SCENES,
 
@@ -2236,7 +2525,8 @@ const game = {
       name: 'The Kodak and the King',
       description: 'King Leopold II and the Congo Free State, 1885-1908: the propaganda machine, the quota system, and the first modern human-rights campaign.',
       sceneIds: [
-        'lp_palace', 'lp_quota', 'lp_hostages', 'lp_station',
+        'lp_palace', ...PALACE_FAN.map((s) => s.id),
+        'lp_quota', 'lp_hostages', 'lp_station',
         'lp_docks', 'lp_publish', 'lp_gather', 'lp_village',
         'lp_casement', 'lp_allies', 'lp_parliament', 'lp_response',
         'lp_press', 'lp_commission', 'lp_lecture', 'lp_funeral', 'lp_holdout',

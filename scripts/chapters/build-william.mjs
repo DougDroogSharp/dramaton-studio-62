@@ -139,6 +139,50 @@ const sfx = [
 
 // ---- scenes --------------------------------------------------------------
 
+// ---- the three-door rule -------------------------------------------------
+// House rule: no [CHOICE] shows more than three doors. Longer menus fan out
+// into small grouping scenes — each one a beat with its own framing, then
+// its own three. Nothing is cut; the long lists live one door deeper.
+const MENU_MAX = 3;
+const choice = (opts) => ['[CHOICE]', ...opts.filter(Boolean), '[/CHOICE]'];
+
+const fanScene = (id, name, drop, stageEls, framing, doors) => {
+  if (doors.length > MENU_MAX) throw new Error(`${id}: ${doors.length} doors (max ${MENU_MAX})`);
+  return {
+    id, name, sceneType: 'AGENCY',
+    dropId: dropId(drop[0], drop[1] ?? null),
+    stage: stageEls,
+    script: lines(...framing, ...choice(doors)),
+    status: 'work',
+  };
+};
+
+// Where a list has no natural thematic split (a pair's own argument list),
+// it runs on as a chain of pages: two doors and a "more", two doors and a
+// "more", until the tail closes it out. Nobody falls off the end.
+const fanChain = ({ base, name, drop, stageEls, framing, moreFraming, moreLabel, doors, tail }) => {
+  const all = [...doors, ...(tail ? [tail] : [])];
+  const out = [];
+  let i = 0;
+  let page = 0;
+  while (i < all.length) {
+    const last = all.length - i <= MENU_MAX;
+    const take = last ? all.length - i : MENU_MAX - 1;
+    const id = page === 0 ? base : `${base}_p${page + 1}`;
+    out.push(fanScene(
+      id, page === 0 ? name : `${name} (${page + 1})`, drop, stageEls,
+      page === 0 ? framing : moreFraming,
+      [
+        ...all.slice(i, i + take),
+        ...(last ? [] : [`- "${moreLabel}" -> ${base}_p${page + 2}`]),
+      ],
+    ));
+    i += take;
+    page += 1;
+  }
+  return out;
+};
+
 const scenes = [];
 
 // 1. The court, winter 1069 — news of the northern rising.
@@ -182,17 +226,35 @@ scenes.push({
     'Narrator: "Watch the RUTHLESSNESS gauge. It is not a score. It is the total this king gets buried with."',
     '[/RANDOM]',
     '[CHOICE]',
-    '- "Give the order — harry the North into famine" -> wm_order',
-    '- "Refuse the order — hold the knights back" -> wm_refuse',
+    '- "Answer Odo — the order stands or falls now" -> wm_answer',
     '- "Voices of the Conquest — hear the witnesses" -> wm_hub',
-    '- "The Assize and the Road — new episodes" -> wm_ep_hub',
-    '- "Witness: The Burning of the North" -> wm_cut_burning',
-    '- "Witness: The Book" -> wm_cut_book',
     '- "Enter the Machine" -> wm_machine',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// The hall used to offer seven doors at once. Three now: the order, the
+// record, the engine. Everything that was on the old list still opens off
+// one of them.
+scenes.push(fanScene(
+  'wm_answer', 'The Answer in the Hall', ['wm_hall'],
+  [
+    ...el('ans_william', 'william_king', 32, 62),
+    ...el('ans_odo', 'william_odo', 70, 63),
+    ...balloon('ans_sign', 'THE KING\'S CAMP, WINTER 1069', 50, 10, { scale: 0.9 }),
+  ],
+  [
+    'Odo (Pointing/Smug): "The hall is waiting, sire. Two words either way and every knight in it knows which king he serves before the fire burns down."',
+    'William: "Two words. And a hundred and fifty years of empty fields in the Book behind them."',
+    'Narrator: "Whatever he says next, a chronicler will write it down wrong, and the shires will feel it correctly."',
+  ],
+  [
+    '- "Give the order — harry the North into famine" -> wm_order',
+    '- "Refuse the order — hold the knights back" -> wm_refuse',
+    '- "Say nothing yet — hold the hall" -> wm_court',
+  ],
+));
 
 // 1b. The order branch — given gladly. +2 ruthless.
 scenes.push({
@@ -1265,11 +1327,25 @@ const vignetteScene = (ev, resp, stance) => {
 // greets you with the same sentence twice (the 1986 RNDSWITCH rule:
 // every repeated reply gets variants or the world goes dead).
 const CHOOSER_PROMPTS = [
-  'Narrator: "Who speaks?"',
-  'Narrator: "Six mouths were within earshot of that. Pick one."',
-  'Narrator: "Same event, six vantage points. Whose account do you want on the record?"',
-  'Narrator: "Every one of them was there, and every one of them tells it differently. That is not a flaw in the sources. That IS the sources."',
+  'Narrator: "Who speaks? Three benches in this hall, and none of them will look at the other two."',
+  'Narrator: "Six mouths were within earshot of that, and they do not sit together. Pick a bench."',
+  'Narrator: "Same event, six vantage points, three benches. Whose account do you want on the record?"',
+  'Narrator: "Every one of them was there, and every one of them tells it differently. That is not a flaw in the sources. That IS the sources. Start with a bench."',
 ];
+
+// Six witnesses will not go through three doors, so the chooser asks which
+// bench first: the Normans, the English, the monk and the moot. All six
+// still speak — nobody was cut to make the list short.
+const WGROUPS = [
+  { key: 'normans', label: 'The Normans — the king and his bishop', who: ['william', 'odo'],
+    framing: ['Narrator: "The two men who signed it. Half-brothers, whole accomplices, and each of them certain the other is the reckless one."'] },
+  { key: 'english', label: 'The English who fought it', who: ['hereward', 'aldric'],
+    framing: ['Narrator: "The outlaw in the fen and the ploughman in the furrow. One of them is remembered. The other one fed him."'] },
+  { key: 'page', label: 'The monk and the moot', who: ['orderic', 'crowd'],
+    framing: ['Narrator: "The man who writes it down eats at the abbey the conquest paid for. The village does not, and says so at volume."'] },
+];
+
+const respByKey = Object.fromEntries(RESPONDERS.map((r) => [r.key, r]));
 
 const chooserScene = (ev) => ({
   id: `wmch_${ev.id}`,
@@ -1282,16 +1358,25 @@ const chooserScene = (ev) => ({
     '[RANDOM]',
     CHOOSER_PROMPTS.join('\n[OR]\n'),
     '[/RANDOM]',
-    '[CHOICE]',
-    ...RESPONDERS.map((r) => `- "${r.label}" -> ${vignetteId(ev, r, null)}`),
-    '- "Back to the events" -> wm_hub',
-    '[/CHOICE]',
+    ...choice(WGROUPS.map((g) => `- "${g.label}" -> wmchg_${ev.id}_${g.key}`)),
   ),
   status: 'work',
 });
 
+const chooserBenches = (ev) =>
+  WGROUPS.map((g) => fanScene(
+    `wmchg_${ev.id}_${g.key}`, `Voices: ${ev.name} — ${g.label}`, ev.drop,
+    [...balloon(`wmchg_${ev.id}_${g.key}_sign`, ev.sign, 50, 10, { scale: 0.9 })],
+    g.framing,
+    [
+      ...g.who.map((k) => `- "${respByKey[k].label}" -> ${vignetteId(ev, respByKey[k], null)}`),
+      '- "Back to the events" -> wm_hub',
+    ],
+  ));
+
 for (const ev of EVENTS) {
   scenes.push(chooserScene(ev));
+  scenes.push(...chooserBenches(ev));
   for (const resp of RESPONDERS) {
     scenes.push(vignetteScene(ev, resp, null));
     if (HARSH.has(ev.id) && resp.key !== 'crowd') {
@@ -1660,18 +1745,19 @@ const duetScene = (d) => {
   };
 };
 
-// Pair sub-hubs, then the duets hub.
+// Pair sub-hubs, then the duets hub. A pair with five or six arguments to
+// its name runs on as a chain of pages rather than a wall of doors.
 for (const pair of DUET_PAIRS) {
-  scenes.push({
-    id: `wm_duets_${pair.id}`,
+  const stageEls = [
+    ...el(`dp_${pair.id}_l`, pair.left, 30, 62, pair.leftOpts || {}),
+    ...el(`dp_${pair.id}_r`, pair.right, 70, 63, pair.rightOpts || {}),
+  ];
+  scenes.push(...fanChain({
+    base: `wm_duets_${pair.id}`,
     name: `Duets: ${pair.name}`,
-    sceneType: 'AGENCY',
-    dropId: dropId('wm_hall'),
-    stage: [
-      ...el(`dp_${pair.id}_l`, pair.left, 30, 62, pair.leftOpts || {}),
-      ...el(`dp_${pair.id}_r`, pair.right, 70, 63, pair.rightOpts || {}),
-    ],
-    script: lines(
+    drop: ['wm_hall'],
+    stageEls,
+    framing: [
       `Narrator: "${pair.desc}"`,
       '[RANDOM]',
       'Narrator: "Close the door and pick the argument."',
@@ -1680,13 +1766,18 @@ for (const pair of DUET_PAIRS) {
       '[OR]',
       'Narrator: "Set them at each other. The record is thinnest exactly where these two talked, which is why the stage is here at all."',
       '[/RANDOM]',
-      '[CHOICE]',
-      ...DUETS.filter((d) => d.pair === pair.id).map((d) => `- "${d.name}" -> ${d.id}`),
-      '- "Back to the duets" -> wm_duets_hub',
-      '[/CHOICE]',
-    ),
-    status: 'work',
-  });
+    ],
+    moreFraming: [
+      '[RANDOM]',
+      'Narrator: "These two are not finished with each other."',
+      '[OR]',
+      'Narrator: "There is more between them than one evening holds."',
+      '[/RANDOM]',
+    ],
+    moreLabel: 'More between these two',
+    doors: DUETS.filter((d) => d.pair === pair.id).map((d) => `- "${d.name}" -> ${d.id}`),
+    tail: '- "Back to the duets" -> wm_duets_hub',
+  }));
 }
 for (const d of DUETS) scenes.push(duetScene(d));
 
@@ -1705,12 +1796,40 @@ scenes.push({
     'Narrator: "Six pairings. Some of these meetings are documented, some are counterfactual, and every counterfactual one flags itself before it opens its mouth. That is the house rule."',
     '[/RANDOM]',
     '[CHOICE]',
-    ...DUET_PAIRS.map((p) => `- "${p.name}" -> wm_duets_${p.id}`),
-    '- "Back to the voices" -> wm_hub',
+    '- "The Normans among themselves" -> wm_duets_g_norman',
+    '- "The king and the page" -> wm_duets_g_page',
+    '- "The English among themselves" -> wm_duets_g_english',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+const pairDoor = (id) => {
+  const p = DUET_PAIRS.find((x) => x.id === id);
+  if (!p) throw new Error(`unknown duet pair ${id}`);
+  return `- "${p.name}" -> wm_duets_${id}`;
+};
+
+scenes.push(fanScene(
+  'wm_duets_g_norman', 'Duets: The Normans', ['wm_hall'],
+  [...balloon('wm_duets_g_norman_sign', 'THE NORMANS AMONG THEMSELVES', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Two rooms where the conquerors argue with the conquerors. Nobody in either room speaks English, and nobody in either room thinks that is a problem."'],
+  [pairDoor('wo'), pairDoor('oo'), '- "Back to the duets" -> wm_duets_hub'],
+));
+
+scenes.push(fanScene(
+  'wm_duets_g_page', 'Duets: The King and the Page', ['wm_scriptorium', 'wm_hall'],
+  [...balloon('wm_duets_g_page_sign', 'THE KING AND THE PAGE', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Two rooms that never existed. One puts the king in front of the monk who will damn him; one puts him in front of the outlaw he never caught. Both flag themselves in the first line."'],
+  [pairDoor('worc'), pairDoor('wh'), '- "Back to the duets" -> wm_duets_hub'],
+));
+
+scenes.push(fanScene(
+  'wm_duets_g_english', 'Duets: The English', ['wm_village', 'wm_hall'],
+  [...balloon('wm_duets_g_english_sign', 'THE ENGLISH AMONG THEMSELVES', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Two rooms with no Normans in them at all. This is where the conquest gets argued about by the people it actually happened to."'],
+  [pairDoor('ha'), pairDoor('ac'), '- "Back to the duets" -> wm_duets_hub'],
+));
 
 // ---- 2. AFTERMATH CHAINS ---------------------------------------------------
 // For each of the four biggest events: two perspectives, three scenes each —
@@ -1915,14 +2034,57 @@ scenes.push({
     'Narrator: "The chronicles give you the evening the order was signed. They almost never give you the spring. Here are the springs."',
     '[/RANDOM]',
     '[CHOICE]',
-    ...CHAINS.flatMap((c) =>
-      c.persps.map((p) => `- "${c.name} — ${p.label}" -> wm_after_${c.ev}_${p.key}_0`),
-    ),
-    '- "Back to the voices" -> wm_hub',
+    '- "The Harrying, 1069" -> wma_harrying',
+    '- "The Book, 1086" -> wma_domesday',
+    '- "The law and the oath" -> wma_late',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// One scene per policy; inside it, the two vantage points. All eight
+// chains that used to sit in one nine-item list are still here.
+const chainDoors = (ev) => {
+  const c = CHAINS.find((x) => x.ev === ev);
+  if (!c) throw new Error(`unknown aftermath chain ${ev}`);
+  return c.persps.map((p) => `- "${c.name} — ${p.label}" -> wm_after_${c.ev}_${p.key}_0`);
+};
+
+scenes.push(fanScene(
+  'wma_harrying', 'Aftermaths: The Harrying', ['wm_village', 'wm_hall'],
+  [...balloon('wma_harrying_sign', 'THE HARRYING — THE LONG TAIL', 50, 10, { scale: 0.9 })],
+  ['Narrator: "One winter\'s order. Follow it from the man whose barn went up, or from the man who added the column afterward and found the arithmetic acceptable."'],
+  [...chainDoors('harrying'), '- "Back to the voices" -> wm_hub'],
+));
+
+scenes.push(fanScene(
+  'wma_domesday', 'Aftermaths: The Book', ['wm_scriptorium', 'wm_hall'],
+  [...balloon('wma_domesday_sign', 'DOMESDAY — THE LONG TAIL', 50, 10, { scale: 0.9 })],
+  ['Narrator: "A survey is an evening\'s work for the clerk and a permanent condition for the vill. Two vantage points: the assessed, and the record."'],
+  [...chainDoors('domesday'), '- "Back to the voices" -> wm_hub'],
+));
+
+scenes.push(fanScene(
+  'wma_late', 'Aftermaths: The Law and the Oath', ['wm_ely', 'wm_hall'],
+  [...balloon('wma_late_sign', 'THE LAW AND THE OATH', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Two more orders with very long tails: a forest fenced against the people living in it, and a field full of men swearing to one man forever."'],
+  ['- "The Forest Law" -> wma_forest', '- "The Salisbury Oath" -> wma_salisbury',
+    '- "Back to the aftermaths" -> wm_after_hub'],
+));
+
+scenes.push(fanScene(
+  'wma_forest', 'Aftermaths: The Forest Law', ['wm_ely', 'wm_hall'],
+  [...balloon('wma_forest_sign', 'THE FOREST LAW — THE LONG TAIL', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Deer become the king\'s deer, and a man who has hunted that wood his whole life becomes a poacher without moving. Two vantage points."'],
+  [...chainDoors('forest'), '- "Back to the aftermaths" -> wm_after_hub'],
+));
+
+scenes.push(fanScene(
+  'wma_salisbury', 'Aftermaths: The Salisbury Oath', ['wm_salisbury', 'wm_hall'],
+  [...balloon('wma_salisbury_sign', 'THE OATH — THE LONG TAIL', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Every landholder in England, in one field, swearing past his own lord straight to the king. Two vantage points: the crown, and the ground it is standing on."'],
+  [...chainDoors('salisbury'), '- "Back to the aftermaths" -> wm_after_hub'],
+));
 
 // ---- 3. CHRONICLE — uncovered research, staged ------------------------------
 
@@ -2257,11 +2419,446 @@ scenes.push({
     'Orderic: "The index, then. I warn you as I warn every reader: some of these entries flatter my patrons, and I have marked which. The rest are simply what happened, as near as a fed witness can get to it."',
     '[/RANDOM]',
     '[CHOICE]',
-    ...RESEARCH.filter((rx) => !['wm_x_earls2', 'wm_x_ely_fall2', 'wm_x_funeral2', 'wm_x_chronicle2', 'wm_x_lillebonne', 'wm_x_shiplist', 'wm_x_prestige'].includes(rx.id))
-      .map((rx) => `- "${rx.name}" -> ${rx.id}`),
-    '- "Back to the voices" -> wm_hub',
+    '- "Before the crossing — 1064 to 1066" -> wmc_before',
+    '- "Holding it — revolt, ledger, and law" -> wmc_holding',
+    '- "After him — the grave and the rent" -> wmc_after',
     '[/CHOICE]',
   ),
+  status: 'work',
+});
+
+// ---- the index, filed in threes -----------------------------------------
+// Orderic's index used to be twenty doors deep on one page. Now it is a
+// shelf: three headings, each opening on three, all the way down. The
+// assertion below fails the build if an entry ever falls off the shelf.
+const CHRONICLE_HIDDEN = new Set([
+  'wm_x_earls2', 'wm_x_ely_fall2', 'wm_x_funeral2', 'wm_x_chronicle2',
+  'wm_x_lillebonne', 'wm_x_shiplist', 'wm_x_prestige',
+]);
+const rxDoor = (id) => {
+  const rx = RESEARCH.find((x) => x.id === id);
+  if (!rx) throw new Error(`unknown research entry ${id}`);
+  return `- "${rx.name}" -> ${id}`;
+};
+
+const CHRONICLE_SHELF = [
+  ['wmc_before', 'The Chronicle: Before the Crossing', ['wm_rouen', 'wm_hall'],
+    'Orderic: "Begin before the beach. An oath sworn in Normandy that England never heard of, and a banner fetched from Rome to make the taking lawful in advance."',
+    ['wm_x_bayeux', 'wm_x_banner'], '- "The coronation, and the cloth" -> wmc_crown'],
+
+  ['wmc_crown', 'The Chronicle: The Coronation and the Cloth', ['wm_hall'],
+    'Orderic: "Christmas Day, and the guard outside mistook the shouting for a rising and set fire to the neighbourhood. The cloth that tells the story hangs in my patron\'s cathedral, which you should hold in mind while reading it."',
+    ['wm_x_crownfire', 'wm_x_ealdred'], '- "The Bayeux Tapestry — the cloth itself" -> wm_tapestry'],
+
+  ['wmc_holding', 'The Chronicle: Holding It', ['wm_hall'],
+    'Orderic: "Twenty years of keeping what one afternoon at Hastings took. It is not swords, mostly. It is rebellion, money, and law, in that order of loudness."',
+    [], null, [
+      '- "The risings, and the Danes" -> wmc_risings',
+      '- "The ledger, and the audit" -> wmc_ledger',
+      '- "The law, and the men who wrote it" -> wmc_law',
+    ]],
+
+  ['wmc_risings', 'The Chronicle: The Risings', ['wm_ely', 'wm_hall'],
+    'Orderic: "Two risings the stage passes over. One hatched by his own earls at a wedding; one that ended when the monks of Ely decided their stores mattered more than their guests."',
+    ['wm_x_earls1', 'wm_x_ely_fall1'], '- "The Danes, twice" -> wmc_danes'],
+
+  ['wmc_danes', 'The Chronicle: The Danes', ['wm_hall'],
+    'Orderic: "Twice a Danish fleet came for England, and twice the cheapest weapon in the kingdom answered it: money."',
+    ['wm_x_danes1', 'wm_x_danes2'], '- "Back to the index" -> wm_chronicle_hub'],
+
+  ['wmc_ledger', 'The Chronicle: The Ledger', ['wm_scriptorium', 'wm_hall'],
+    'Orderic: "Three entries on money. What the shires paid, what the barons kept, and the one time a commissioner of the king was audited like everybody else."',
+    ['wm_x_geld', 'wm_x_barons', 'wm_x_odo_trial'], null],
+
+  ['wmc_law', 'The Chronicle: The Law', ['wm_hall'],
+    'Orderic: "Three entries on law. A tariff of penance for the killing at Hastings, the lawyer who rebuilt the English church, and a field of men swearing to one man."',
+    ['wm_x_penance', 'wm_x_lanfranc', 'wm_x_oath'], null],
+
+  ['wmc_after', 'The Chronicle: After Him', ['wm_rouen', 'wm_hall'],
+    'Orderic: "He dies at Rouen and the room is stripped before the body is cold. What comes after is a grave that had to be bought, an English verdict in verse, and a rent still being collected this morning."',
+    [], null, [
+      '- "The grave" -> wmc_grave',
+      '- "What the English wrote afterward" -> wmc_english',
+      '- "The Rent Is Still Collected" -> wm_x_grosvenor',
+    ]],
+
+  ['wmc_grave', 'The Chronicle: The Grave', ['wm_rouen', 'wm_hall'],
+    'Orderic: "A knight stopped the funeral to say the ground was stolen, and he was paid on the spot. Thirteen years later his son took an arrow in the forest his father had fenced."',
+    ['wm_x_funeral1', 'wm_x_rufus'], '- "Back to the index" -> wm_chronicle_hub'],
+
+  ['wmc_english', 'The Chronicle: What the English Wrote', ['wm_scriptorium', 'wm_hall'],
+    'Orderic: "The English kept their own book, and it is not kind. And there was a claimant left alive the whole time, pensioned and harmless, which tells you what the reign thought a rival was worth."',
+    ['wm_x_chronicle1', 'wm_x_edgar'], '- "Back to the voices" -> wm_hub'],
+];
+
+const chronicleShelfIds = new Set();
+for (const [id, name, drop, framing, entries, tailDoor, rawDoors] of CHRONICLE_SHELF) {
+  for (const e of entries) chronicleShelfIds.add(e);
+  const doors = rawDoors ?? [...entries.map(rxDoor), tailDoor].filter(Boolean);
+  scenes.push(fanScene(
+    id, name, drop,
+    [...el(`${id}_orderic`, 'orderic', 30, 62),
+      ...balloon(`${id}_sign`, 'THE CHRONICLE', 50, 10, { scale: 0.9 })],
+    [framing], doors,
+  ));
+}
+chronicleShelfIds.add('wm_x_grosvenor');
+
+// Nothing may fall off the shelf: every entry the flat index used to list
+// must still be reachable from one of the headings above.
+{
+  const wanted = RESEARCH.filter((rx) => !CHRONICLE_HIDDEN.has(rx.id)).map((rx) => rx.id);
+  const missing = wanted.filter((id) => !chronicleShelfIds.has(id));
+  if (missing.length) throw new Error(`chronicle shelf drops entries: ${missing.join(', ')}`);
+}
+
+// ==========================================================================
+// THE BAYEUX TAPESTRY — one hub and eight clips.
+//
+// The chapter's own art imitates the cloth, so the cloth gets a room: what
+// it is (embroidery, not tapestry), how it was made (bare linen, stem
+// stitch, laid-and-couched wool, eight colours out of three dye plants),
+// eight famous clips read one at a time, and nine centuries of people
+// trying to own what it means.
+//
+// Honesty discipline, same as the rest of the chapter: the patron, the
+// workshop, Aelfgyva, the arrow in the eye and the fable borders are all
+// DISPUTED, and every one of them is flagged as disputed in the line that
+// states it. No visual art is generated — the clips are balloon panels
+// carrying the Latin tituli, pushed by SET_TEXT and pushed in on by
+// CAMERA, which is what a magnifying glass looks like in this engine.
+//
+// Navigation: wm_tapestry -> wm_tap_what -> wm_tap_stitch -> the six
+// clips in order -> wm_tap_after -> back out to the Chronicle. Every
+// scene also offers the way back to the cloth, so no chain is a trap.
+// ==========================================================================
+
+// The hub. The needleworkers stand at the frame; the cloth is a panel.
+scenes.push({
+  id: 'wm_tapestry',
+  name: 'The Bayeux Tapestry',
+  sceneType: 'AGENCY',
+  dropId: dropId('wm_hall'),
+  stage: [
+    ...el('tap_hub_crowd', 'crowd', 50, 64, { scale: 2.6 }),
+    ...balloon('tap_hub_sign', 'THE BAYEUX TAPESTRY', 50, 9, { scale: 0.95 }),
+    ...balloon('tap_hub_cloth', 'SEVENTY METRES OF WOOL ON LINEN', 50, 32, { scale: 0.9 }),
+  ],
+  script: lines(
+    '[RANDOM]',
+    'Narrator: "The art in this chapter is a forgery of something real. Here is the real thing: seventy metres of embroidered linen, made by English hands within living memory of the conquest, telling the conquerors\' side of it."',
+    '[OR]',
+    'The Village: "You have been looking at our stitches all game. Come and look at the cloth."',
+    '[OR]',
+    'Narrator: "One object survives the whole of Chapter One: a strip of linen half a metre tall and seventy long, with the invasion sewn onto it in coloured wool. It is the closest thing 1066 has to a camera."',
+    '[/RANDOM]',
+    'Narrator: "Read it as this game reads everything else — as a document with an owner. Somebody paid for it, somebody stitched it, and those were not the same people."',
+    '[CHOICE]',
+    '- "What it is, and who paid for it" -> wm_tap_what',
+    '- "Go straight to the clips" -> wm_tap_comet',
+    '- "Back to the Chronicle" -> wm_chronicle_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+// 1. What it is: object, patron, workshop, date. Every attribution flagged.
+scenes.push({
+  id: 'wm_tap_what',
+  name: 'Tapestry: What It Actually Is',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_hall'),
+  stage: [
+    ...el('tw_odo', 'william_odo', 28, 62),
+    ...el('tw_orderic', 'orderic', 70, 63),
+    ...balloon('tw_sign', 'THE OBJECT, c.1070s', 50, 9, { scale: 0.85 }),
+    ...balloon('tw_panel', 'NINE STRIPS OF LINEN, SEWN END TO END', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "Start with the thing itself, because almost everything people say about it is wrong at the first word. It is not a tapestry. A tapestry is woven — the picture IS the cloth. This is embroidery: wool worked with a needle onto linen that was already there."',
+    '[SET_TEXT tw_panel "NEARLY 70 METRES LONG. ABOUT HALF A METRE TALL."]',
+    'Narrator: "Nine strips of bleached linen, seamed together so cleanly the joins hide inside the pictures. Near seventy metres end to end, about fifty centimetres tall. The usual count gives some six hundred people, two hundred horses, forty-one ships, and about fifty-eight lines of Latin — and the counts differ depending on who is counting."',
+    'Odo (Pointing/Smug): "Mine. Say it plainly, monk. Bishop of Bayeux, earl of Kent, second landholder in England — and this hung in MY cathedral."',
+    'Orderic: "Your grace, that is the leading guess, and I will give the reader the reason for it: you are all over the cloth, and three obscure men who held land of you — Wadard, Vital, Turold — are named on it by name. No other patron explains why a Kentish tenant gets a caption."',
+    'Orderic: "But it is a guess. It is nowhere signed, nowhere dated, and nowhere documented until an inventory of Bayeux cathedral in 1476, four hundred years on. Other scholars have argued for Count Eustace of Boulogne, or for Edith, King Edward\'s widow. The honest entry reads: probably Odo, not certainly."',
+    '[RANDOM]',
+    'The Village: "And the hands, your grace? Say whose hands."',
+    '[OR]',
+    'The Village: "Name the needle, bishop. Everybody names the purse."',
+    '[/RANDOM]',
+    'Orderic: "English hands, near everyone agrees — English needlework was the finest in Europe, and men sent to Rome for it. Most scholars put the workshop at Canterbury, from the shape of the Latin and the look of the drawing beside manuscripts made there; Winchester has its backers too. That, again, is argument and not record."',
+    'Narrator: "Hold what that means. Within a decade or two of Hastings, English women — the conquered, in a conquered county, working for the conqueror\'s half-brother — sewed the conquest of England, in the conquerors\' Latin, at their own speed, with their own fingers."',
+    'Aldric: "We built the motte over my father\'s hearth as well. There is nothing in this century they did to us that they did not also make us do."',
+    '[CHOICE]',
+    '- "How it was made — the stitch this game copies" -> wm_tap_stitch',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { greed: { target: 70, scale: 45 }, repression: { target: 55, scale: 60 } }, repeatable: true },
+  status: 'work',
+});
+
+// 2. The technique the chapter's own art imitates.
+scenes.push({
+  id: 'wm_tap_stitch',
+  name: 'Tapestry: The Stitch',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_scriptorium', 'wm_hall'),
+  stage: [
+    ...el('ts_crowd', 'crowd', 32, 64, { scale: 2.6 }),
+    ...el('ts_orderic', 'orderic', 74, 63),
+    ...balloon('ts_sign', 'THE WORKSHOP', 50, 9, { scale: 0.85 }),
+    ...balloon('ts_panel', 'BARE LINEN — THE GROUND IS NOT FILLED IN', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "This is the part the chapter\'s own pictures are stealing from, so it is worth a minute."',
+    'The Village: "First rule: we do not fill the background. There is no sky. There is no ground. There is linen, and the linen is left alone, and everything you think you see standing in air is standing on nothing at all."',
+    '[CAMERA shot closeup on ts_panel over 1500ms]',
+    '[SET_TEXT ts_panel "STEM STITCH: EVERY OUTLINE, EVERY LETTER"]',
+    'The Village: "Second: outlines in stem stitch. A line of it is a rope of tiny slanted stitches, each one biting back into the last. That is what draws a horse\'s leg, a man\'s eye, and every letter of their Latin."',
+    '[SET_TEXT ts_panel "LAID AND COUCHED: THE FILL, THE FAST WAY"]',
+    'The Village: "Third, and this is the trick of it: the fills are laid and couched. Lay your wool flat across the shape. Lay a second set of threads over it crosswise. Then tack the whole raft down with little stitches. It covers ground fast and it spares wool, which matters when the wool is the expensive part."',
+    '[CAMERA reset over 1s]',
+    'Orderic: "And the colours? I count more shades than I can name."',
+    '[SET_TEXT ts_panel "EIGHT COLOURS OUT OF THREE PLANTS"]',
+    'The Village: "Eight or so, out of three dye plants. Madder for the reds and the rusts, woad for the blues, weld for the yellows — and woad over weld gives you the greens. That is the whole palette. Every colour on seventy metres of England came out of three roots and a vat."',
+    'Orderic: "Then a blue horse is not a lie about horses."',
+    'The Village: "A blue horse is how you tell it apart from the horse in front of it. Colour there is not description. It is BOOKKEEPING."',
+    '[RANDOM]',
+    'The Village: "Ask the other question, monk. Ask how long."',
+    '[OR]',
+    'The Village (Attack/Angry): "Nobody ever asks how long! They ask who PAID!"',
+    '[/RANDOM]',
+    'Orderic: "How long?"',
+    'The Village: "Nobody wrote it down, so nobody knows — but look at the surface and reckon: a workshop of women, frames the length of a room, years of daylight. Somebody spent a good part of a working life sewing the day her country lost."',
+    'Narrator: "One flag before the clips. Sections of the cloth were repaired and restitched in the nineteenth century, and at least one famous detail may have been changed in the repairing. That matters shortly."',
+    '[CHOICE]',
+    '- "First clip: the star" -> wm_tap_comet',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { greed: { target: 60, scale: 55 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true },
+  status: 'work',
+});
+
+// 3. Clip: Halley's Comet.
+scenes.push({
+  id: 'wm_tap_comet',
+  name: 'Clip: ISTI MIRANT STELLA',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_salisbury', 'wm_hall'),
+  stage: [
+    ...el('tc_aldric', 'peasant', 30, 64),
+    ...el('tc_orderic', 'orderic', 72, 63),
+    ...balloon('tc_sign', 'CLIP ONE — SPRING 1066', 50, 9, { scale: 0.85 }),
+    ...balloon('tc_panel', 'ISTI MIRANT STELLA', 50, 30, { scale: 0.95 }),
+  ],
+  script: lines(
+    '[CAMERA shot closeup on tc_panel over 1500ms]',
+    '[EFFECT gold_glow on tc_panel]',
+    'Narrator: "Clip one. Six men on the cloth, shoulder to shoulder, every one of them pointing up at the same thing, and four words stitched over their heads: ISTI MIRANT STELLA. These men wonder at the star."',
+    'Orderic: "Note the Latin, reader, since it is evidence. That is not the Latin of Rome — a Roman would write MIRANTUR, and stellam. It is Latin as an English needleworker in an English house wrote it, and it is one of the reasons scholars put the workshop in England."',
+    '[CAMERA reset over 1s]',
+    'Aldric: "We saw it. Everybody saw it. It stood in the sky for weeks after Easter and it did not move like anything is supposed to move."',
+    'Narrator: "Halley\'s Comet, spring 1066 — the same comet, on the same orbit, that came back in 1910 and 1986 and will come back in 2061. On the cloth it hangs over the new king like a thrown stone that has not landed yet."',
+    'Orderic: "And below the star, in the border, look what they sewed: ships. Empty ships, ghost-outlines, riding along under the throne. No caption. None needed."',
+    'Aldric: "A comet is a light. It is not an argument."',
+    'Narrator: "It became one. That is the whole use of an omen: it moves the conquest out of the column marked THEFT and into the column marked SCHEDULE. Heaven signed off in April; the invoice arrives in October."',
+    '[CLEAR_EFFECT gold_glow from tc_panel]',
+    '[CHOICE]',
+    '- "Next clip: the shipyard and the dinner" -> wm_tap_ships',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { greed: { target: 65, scale: 50 }, flareUps: { target: 1, scale: 5 } }, repeatable: true },
+  status: 'work',
+});
+
+// 4. Clip: the shipbuilding sequence and the feast.
+scenes.push({
+  id: 'wm_tap_ships',
+  name: 'Clip: The Shipyard and the Dinner',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_salisbury', 'wm_hall'),
+  stage: [
+    ...el('tsh_odo', 'william_odo', 28, 62),
+    ...el('tsh_aldric', 'peasant', 72, 64),
+    ...balloon('tsh_sign', 'CLIP TWO — THE LOGISTICS PANELS', 50, 9, { scale: 0.85 }),
+    ...balloon('tsh_panel', 'HIC WILLELM DUX IUSSIT NAVES EDIFICARE', 50, 30, { scale: 0.85 }),
+  ],
+  script: lines(
+    '[CAMERA shot closeup on tsh_panel over 1500ms]',
+    'Narrator: "Clip two, and it is the least famous and the most useful stretch on the whole cloth: HERE DUKE WILLIAM ORDERED SHIPS TO BE BUILT."',
+    'Narrator: "Then the sequence, in order, as any shipwright would tell it: men fell the trees with axes. Men shape the trunks with adzes. Hulls take shape on trestles. Ropes drag them to the water. Then the loading — mail-shirts slung on poles between two men, helmets, spear-bundles, a cask of wine, and horses walked up the planks."',
+    '[SET_TEXT tsh_panel "AXE, ADZE, ROPE, PLANK, CASK, HORSE"]',
+    'Aldric: "That is a work record. Whoever drew that had watched men do it, and whoever stitched it knew what an adze looks like in a hand."',
+    '[CAMERA reset over 1s]',
+    '[SET_TEXT tsh_panel "HIC FECERUNT PRANDIUM"]',
+    'Odo (Pointing/Smug): "And then the good part, farmer. HERE THEY MADE A MEAL. Fowl on spits, bread from a portable oven, the meat handed round on shields for want of tables — and at the head of the board, blessing the food and the wine, a bishop. Guess which."',
+    'Orderic: "That is the argument for your patronage in one panel, your grace: you are seated at the centre of the invasion\'s dinner, holding the cup, with your name written over you."',
+    'Aldric: "Read the panel just before the dinner, bishop, since you are so fond of reading. Men driving off a sheep. Men carrying off an ox. A man with a name — Wadard, your own tenant — riding over the top of it, seeing the job done."',
+    'Odo: "Requisition, farmer. An army eats."',
+    'Aldric: "Aye. It eats Sussex. Your cloth shows the granary being emptied and then shows you saying grace over it, and it does not think the two pictures are in any way connected. That is the most honest thing on seventy metres of linen."',
+    'Narrator: "The Tapestry is the conquest\'s own advertisement, and it advertises the supply chain: fell, build, load, land, forage, feast. The fighting is the last quarter. The first three-quarters are LOGISTICS — which is where every conquest in this game actually happens."',
+    '[CHOICE]',
+    '- "Next clip: the borders" -> wm_tap_borders',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, repression: { target: 50, scale: 60 } }, repeatable: true },
+  status: 'work',
+});
+
+// 5. Clip: the borders — fables, beasts, and the naked figures.
+scenes.push({
+  id: 'wm_tap_borders',
+  name: 'Clip: The Margins',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_scriptorium', 'wm_hall'),
+  stage: [
+    ...el('tb_crowd', 'crowd', 32, 64, { scale: 2.6 }),
+    ...el('tb_orderic', 'orderic', 74, 63),
+    ...balloon('tb_sign', 'CLIP THREE — TOP AND BOTTOM', 50, 9, { scale: 0.85 }),
+    ...balloon('tb_panel', 'THE BORDERS: OVER FIVE HUNDRED BEASTS', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    '[CAMERA shot closeup on tb_panel over 1500ms]',
+    'Narrator: "Clip three. Run a strip above the story and a strip below it, and fill both with animals: lions, griffins, camels, peacocks, dogs, birds without number. Over five hundred creatures, and most of them are decoration."',
+    'Orderic: "Most of them. Then there are the ones that are not."',
+    '[SET_TEXT tb_panel "THE FOX. THE CROW. THE CHEESE."]',
+    'Orderic: "In the early borders sit Aesop\'s fables, stitched small and stitched plain: the fox flattering the crow out of her cheese. The wolf and the lamb arguing about who muddied the water. The crane with her head down the wolf\'s throat, working for a wage she never gets paid."',
+    '[CAMERA reset over 1s]',
+    'The Village: "Fables about flattery, and broken bargains, and doing a great lord a service and getting nothing for it. Sitting directly underneath the scenes about oaths."',
+    'Orderic: "And here I must slow you down, reader. That reading is an ARGUMENT. Serious scholars have made it and serious scholars have refused it: the same beasts turn up in the margins of manuscripts where nobody is swearing anything, and a fable can be a doodle. The cloth does not sign its jokes."',
+    '[RANDOM]',
+    'The Village: "It would not, would it. We were paid by the panel and watched by the yard."',
+    '[OR]',
+    'The Village (Attack/Angry): "A joke that has to explain itself gets its stitcher hanged!"',
+    '[/RANDOM]',
+    '[SET_TEXT tb_panel "AND THE NAKED FIGURES, WHICH NOBODY EXPLAINS"]',
+    'Orderic: "Then there are the naked men. A handful of them, down in the lower border, several of them aroused, one of them squatting under a scene we will come to. Nobody has a settled explanation. Coarse comedy, fertility, mockery of the figures above, or a workshop amusing itself — take your pick and mark it a guess."',
+    'Narrator: "And note where the borders end up. As the battle comes on, the fables stop. The lower border fills with severed heads, dropped shields, and men stripping mail off corpses — the salvage crew of history, working the margins while the story above stays heroic."',
+    'The Village: "The margin is where the people who carry things live. On the cloth as everywhere else."',
+    '[CHOICE]',
+    '- "Next clip: the scandal nobody can read" -> wm_tap_elfgyva',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { marginHeight: { target: 45, scale: 40 }, greed: { target: 65, scale: 50 } }, repeatable: true },
+  status: 'work',
+});
+
+// 6. Clip: AELFGYVA — the lost scandal. The honesty set-piece.
+scenes.push({
+  id: 'wm_tap_elfgyva',
+  name: 'Clip: Where a Certain Cleric',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_scriptorium', 'wm_hall'),
+  stage: [
+    ...el('te_orderic', 'orderic', 30, 63),
+    ...el('te_odo', 'william_odo', 72, 62),
+    ...balloon('te_sign', 'CLIP FOUR — THE PANEL NOBODY CAN READ', 50, 9, { scale: 0.85 }),
+    ...balloon('te_panel', 'UBI UNUS CLERICUS ET AELFGYVA', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    '[CAMERA shot closeup on te_panel over 1500ms]',
+    '[EFFECT gold_glow on te_panel]',
+    'Narrator: "Clip four is the strangest object in the room. A woman stands in a doorway between two carved pillars. A tonsured churchman reaches in and touches — or strikes — her face. The caption reads: WHERE A CERTAIN CLERIC AND AELFGYVA. And then the cloth moves on and never mentions either of them again."',
+    'Orderic: "Aelfgyva is the only woman named on the whole seventy metres besides the old queen. Named — and not explained. No verb. No outcome. WHERE A CERTAIN CLERIC AND AELFGYVA."',
+    '[SET_TEXT te_panel "NO VERB. NO OUTCOME. NO EXPLANATION."]',
+    'Odo (Pointing/Smug): "Because everyone in the hall knew, monk. You do not caption a thing the room is already laughing at."',
+    'Orderic: "That is the most probable reading, your grace, and it is also the cruelty of it. Whatever this was, it was so notorious in the 1070s that four words carried it — and it is now so lost that four hundred years of scholarship cannot get it back."',
+    '[CAMERA reset over 1s]',
+    'Narrator: "The honest list of candidates, all of them proposed, none of them established: Aelfgifu of Northampton, King Cnut\'s first wife, whose sons\' paternity was gossip for a generation. Emma of Normandy, who took the name Aelfgifu in England. A sister of Harold, spoken of in a marriage bargain with a Norman. An abbess of Leominster and a Godwinson. Some scholars think the scene is scandal; some think it is a legal dispute over a woman\'s property; some think it is a joke about a churchman."',
+    'Orderic: "And beneath her, in the border, a naked man crouches and copies the cleric\'s gesture exactly. Which tells you the tone, and nothing else."',
+    'Narrator: "This game will not tell you what happened to Aelfgyva, because nobody knows. What it will tell you is what the panel proves: an entire scandal, obvious enough to be sewn into a state document, can vanish so completely that only a woman\'s name survives it."',
+    'Orderic: "Everything we have from that century is like this, reader. We are not reading the past. We are reading the four words the past thought were enough."',
+    '[CLEAR_EFFECT gold_glow from te_panel]',
+    '[CHOICE]',
+    '- "Next clip: the death of Harold" -> wm_tap_harold',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { repression: { target: 55, scale: 60 }, greed: { target: 55, scale: 55 } }, repeatable: true },
+  status: 'work',
+});
+
+// 7. Clip: Harold's death and the arrow that may have been added later.
+scenes.push({
+  id: 'wm_tap_harold',
+  name: 'Clip: HAROLD REX INTERFECTUS EST',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_salisbury', 'wm_hall'),
+  stage: [
+    ...el('th_orderic', 'orderic', 30, 63),
+    ...el('th_crowd', 'crowd', 72, 64, { scale: 2.6 }),
+    ...balloon('th_sign', 'CLIP FIVE — 14 OCTOBER 1066, LATE', 50, 9, { scale: 0.85 }),
+    ...balloon('th_panel', 'HIC HAROLD REX INTERFECTUS EST', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    '[CAMERA shot closeup on th_panel over 1500ms]',
+    'Narrator: "Clip five. The most reproduced image of the eleventh century, and the one people are surest about, and the one they should be least sure about."',
+    'Narrator: "HERE KING HAROLD WAS KILLED. The caption runs across TWO figures. One stands under the word HAROLD with a shaft at his helmet, hand up at his face. The next is being cut down by a mounted knight, a sword to the thigh."',
+    '[SET_TEXT th_panel "WHICH ONE IS HAROLD? THE CAPTION COVERS BOTH."]',
+    'Orderic: "Scholars have argued all three ways for two centuries: the standing man, the falling man, or both — the same king shown twice, struck and then finished, which is a thing the cloth does elsewhere."',
+    '[CAMERA reset over 1s]',
+    'The Village: "And the arrow in the eye? Everyone knows the arrow in the eye."',
+    'Orderic: "Then hear how the arrow got there. The cloth was restored in the nineteenth century. Drawings made of it in the 1720s, before that work, do not all show what we see now, and there are old needle-holes in the linen running where no thread runs today. A number of historians argue the standing figure once held a SPEAR, cocked to throw, and that the restorers read the holes as an arrow and sewed one in. Others hold the arrow is original. It is not settled, and anyone who tells you it is settled is selling something."',
+    'Narrator: "The written sources split the same way. The Norman writer closest to the battle says nothing about an eye. A chronicler some fifteen years later has the eye; another, thirty-odd years on, has the arrow. And blinding was the standard punishment for a perjurer — which makes an arrow in the oath-breaker\'s eye the tidiest ending the Norman case could possibly have."',
+    'The Village: "Too tidy to trust."',
+    'Orderic: "Too tidy to trust. Which does not make it false. It makes it unproven, and those are different words, and this chapter uses both carefully."',
+    'Narrator: "One more thing about this end of the cloth: it does not have an end. The linen stops mid-rout, with English foot running into the border. The final panel is lost — most reckon it showed the coronation. The last word of the conquest\'s own account of itself has gone missing, and everybody has been filling it in ever since."',
+    '[CHOICE]',
+    '- "What happened to the cloth afterwards" -> wm_tap_after',
+    '- "Back to the cloth" -> wm_tapestry',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { repression: { target: 70, scale: 45 }, flareUps: { target: 3, scale: 5 } }, repeatable: true },
+  status: 'work',
+});
+
+// 8. Nine centuries of owners: 1476, Napoleon, the Leek replica, Himmler.
+scenes.push({
+  id: 'wm_tap_after',
+  name: 'Tapestry: Nine Centuries of Owners',
+  sceneType: 'WITNESS',
+  dropId: dropId('wm_scriptorium', 'wm_hall'),
+  stage: [
+    ...el('ta_orderic', 'orderic', 30, 63),
+    ...el('ta_aldric', 'peasant', 72, 64),
+    ...balloon('ta_sign', 'BAYEUX, 1476 TO NOW', 50, 9, { scale: 0.85 }),
+    ...balloon('ta_panel', 'THE CLOTH OUTLIVES ITS OWNERS', 50, 30, { scale: 0.9 }),
+  ],
+  script: lines(
+    'Narrator: "Last clip, and it is not on the cloth. It is what happened TO the cloth — which is the same story the rest of this chapter tells, run at the speed of centuries."',
+    '[SET_TEXT ta_panel "1476: FIRST WRITTEN RECORD"]',
+    'Orderic: "Four hundred years of silence, then an inventory at Bayeux cathedral in 1476 lists it, and notes the custom: hung round the nave of the church once a year, for the feast of relics, and rolled up again. Not treasure. Furniture."',
+    '[SET_TEXT ta_panel "1729: THE SCHOLARS FIND IT"]',
+    'Orderic: "In 1729 a French antiquary sends a draughtsman to copy it, and Europe\'s learned world discovers there is a picture of the conquest lying in a Norman cupboard. Those drawings matter — they are our best look at the cloth before the restorers reached it."',
+    '[SET_TEXT ta_panel "1792: NEARLY A WAGON COVER"]',
+    'Aldric: "And then it nearly ended the way everything ends: usefully."',
+    'Orderic: "1792. Revolutionary requisition, and the cloth is taken to cover a military wagon. A local official pulls it off the cart and swaps in something else — the story is well attested, and the whole of it hung on one man deciding a cloth was worth more than a tarpaulin."',
+    '[SET_TEXT ta_panel "1803: NAPOLEON PUTS IT ON SHOW IN PARIS"]',
+    'Narrator: "Eleven years later it is in Paris, on public display, while Napoleon assembles an army to invade England from the same coast. The star gets pointed at: a comet appeared in 1066, a comet had appeared again, and the exhibition is an argument with a queue. When the invasion is shelved, the cloth goes home."',
+    '[SET_TEXT ta_panel "1885: THIRTY-FIVE WOMEN IN LEEK COPY IT"]',
+    'The Village: "Say the next one slowly. I want it heard."',
+    'Narrator: "1885 and 1886. In Leek, in Staffordshire, Elizabeth Wardle and some thirty-five needlewomen embroider a full-size replica from hand-coloured photographs — the whole seventy metres, again, by hand. It hangs in Reading to this day. They made one alteration: the naked figures were given drawers. The Victorians could copy a conquest and not a penis."',
+    'Aldric: "English women stitched it the first time and English women stitched it the second time. Nine hundred years and the labour is still the same labour."',
+    '[SET_TEXT ta_panel "1944: THE SS COMES FOR IT"]',
+    'Orderic: "And then the worst suitor of all. Himmler\'s Ahnenerbe — the SS institute for proving Germanic ancestry — took the Tapestry for a Germanic monument, and had it studied and photographed during the occupation. In 1944 it was moved for safety, and in the August, with Paris falling, it was in the Louvre. Accounts report an order from Himmler to bring it to Berlin, and SS men going to the Louvre to collect it — and arriving too late, the building already out of German hands. It is a very good story and it is told by people who were there; treat it as report, not as record."',
+    '[SET_TEXT ta_panel "AND SO: BAYEUX, WHERE IT STARTED"]',
+    'Narrator: "Back to Bayeux after the war; in its own museum since 1983; on the UNESCO Memory of the World register since 2007. France announced in 2025 that it would lend the cloth to the British Museum while Bayeux rebuilds the gallery — which would put it back in the country that probably made it, for the first time in nine centuries."',
+    'Orderic: "Count the owners, reader. A bishop who wanted a monument. A cathedral that wanted a relic. A revolution that wanted a tarpaulin. An emperor who wanted an omen. An SS institute that wanted an ancestor. A museum that wants a queue."',
+    'Aldric: "And not one of them made it."',
+    'Orderic: "Not one of them made it. That is the last line of the Chronicle and you may have it for nothing: the thing outlasts everybody who claims it, and the hands that made it are never the hands that own it. Which is what this entire chapter has been about, from the first fire in Yorkshire to the rents collected this morning."',
+    '[EFFECT gold_glow on ta_panel]',
+    '[CHOICE]',
+    '- "Back to the cloth" -> wm_tapestry',
+    '- "Back to the Chronicle" -> wm_chronicle_hub',
+    '- "Return to the court" -> wm_court',
+    '[/CHOICE]',
+  ),
+  narraton: { pool: RPOOL, keys: { greed: { target: 80, scale: 40 }, repression: { target: 45, scale: 70 } }, repeatable: true },
   status: 'work',
 });
 
@@ -2286,19 +2883,102 @@ scenes.push({
     'The Village (Attack/Angry): "Twenty-one years! Ask about ANY of them — we were under every single one!"',
     '[/RANDOM]',
     '[CHOICE]',
-    ...EVENTS.map((ev) => `- "${ev.name}" -> wmch_${ev.id}`),
-    '- "Duets — two voices, one machine" -> wm_duets_hub',
-    '- "Aftermaths — the long tail of policy" -> wm_after_hub',
-    '- "The Chronicle — what else the record holds" -> wm_chronicle_hub',
-    '- "The Assize and the Road — the village episodes" -> wm_ep_hub',
-    '- "Witness: The Burning of the North (cutscene)" -> wm_cut_burning',
-    '- "Witness: The Book (cutscene)" -> wm_cut_book',
-    '- "Enter the Machine" -> wm_machine',
+    '- "The ten turnings of the screw" -> wmg_events',
+    '- "The rest of the record" -> wm_records',
     '- "Return to the court" -> wm_court',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// The Voices hub used to list eighteen doors. It lists three. Underneath
+// them, in threes, is every single one of the eighteen.
+const evDoor = (id) => {
+  const ev = EVENTS.find((e) => e.id === id);
+  if (!ev) throw new Error(`unknown event ${id}`);
+  return `- "${ev.name}" -> wmch_${id}`;
+};
+
+scenes.push(fanScene(
+  'wmg_events', 'The Ten Turnings', ['wm_hall'],
+  [...balloon('wmg_events_sign', 'TEN TURNINGS, TWENTY-ONE YEARS', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Twenty-one years in three movements: taking the country, burning it quiet, and writing it down so it can never argue again."'],
+  [
+    '- "The taking — 1066" -> wmg_taking',
+    '- "The harrying — 1069 to 1070" -> wmg_harrying',
+    '- "The keeping — 1067 to 1086" -> wmg_keeping',
+  ],
+));
+
+scenes.push(fanScene(
+  'wmg_taking', 'Voices: The Taking', ['wm_hall'],
+  [...balloon('wmg_taking_sign', 'THE TAKING — 1066', 50, 10, { scale: 0.9 })],
+  ['Narrator: "One autumn. A beach, a ridge, and a coronation that caught fire while the choir was still singing."'],
+  [evDoor('pevensey'), evDoor('hastings'), evDoor('coronation')],
+));
+
+scenes.push(fanScene(
+  'wmg_harrying', 'Voices: The Harrying', ['wm_village', 'wm_hall'],
+  [...balloon('wmg_harrying_sign', 'THE HARRYING — 1069 TO 1070', 50, 10, { scale: 0.9 })],
+  ['Narrator: "An order, a winter, and a spring where nothing came up. Three turnings, and the third one is only arithmetic — how many did not eat."'],
+  [evDoor('harrying'), evDoor('burning'), evDoor('famine')],
+));
+
+scenes.push(fanScene(
+  'wmg_keeping', 'Voices: The Keeping', ['wm_motte_drop', 'wm_hall'],
+  [...balloon('wmg_keeping_sign', 'THE KEEPING — 1067 TO 1086', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Then the slow part. Stone on the high ground, a forest fenced against the men who lived in it, and a book that turns a country into a column of figures."'],
+  [evDoor('castles'), evDoor('forest'), '- "The Book and the Oath — 1086" -> wmg_book'],
+));
+
+scenes.push(fanScene(
+  'wmg_book', 'Voices: The Book and the Oath', ['wm_salisbury', 'wm_hall'],
+  [...balloon('wmg_book_sign', 'THE BOOK AND THE OATH — 1086', 50, 10, { scale: 0.9 })],
+  ['Narrator: "In one year he counts every plough in England and then makes every landholder in it swear to him personally. The two acts are the same act."'],
+  [evDoor('domesday'), evDoor('salisbury'), '- "Back to the voices" -> wm_hub'],
+));
+
+scenes.push(fanScene(
+  'wm_records', 'The Rest of the Record', ['wm_scriptorium', 'wm_hall'],
+  [
+    ...el('wmr_orderic', 'orderic', 30, 62),
+    ...balloon('wmr_sign', 'THE REST OF THE RECORD', 50, 10, { scale: 0.9 }),
+  ],
+  [
+    'Orderic: "The events are the loud part. Underneath them there are conversations, consequences, and a great deal of paper that no stage has room for at once."',
+    'Narrator: "So it is sorted. Two-handed arguments here, the long tail of policy there, and everything else in the index."',
+  ],
+  [
+    '- "Duets — two voices, one machine" -> wm_duets_hub',
+    '- "Aftermaths — the long tail of policy" -> wm_after_hub',
+    '- "The Chronicle, the village, and the reels" -> wm_records2',
+  ],
+));
+
+scenes.push(fanScene(
+  'wm_records2', 'The Index and the Ground', ['wm_village', 'wm_hall'],
+  [
+    ...el('wmr2_aldric', 'peasant', 50, 64),
+    ...balloon('wmr2_sign', 'THE INDEX AND THE GROUND', 50, 10, { scale: 0.9 }),
+  ],
+  ['Aldric: "The monk keeps his index. The village keeps its own — a bench, a road, and a number that would not stay in the book. And there are two reels a man can just sit and watch, if he has the stomach."'],
+  [
+    '- "The Chronicle — what else the record holds" -> wm_chronicle_hub',
+    '- "The Assize and the Road — the village episodes" -> wm_ep_hub',
+    '- "Two witness reels" -> wm_reels',
+  ],
+));
+
+scenes.push(fanScene(
+  'wm_reels', 'Two Reels', ['wm_village', 'wm_hall'],
+  [...balloon('wm_reels_sign', 'TWO REELS — NO CHOICES IN THEM', 50, 10, { scale: 0.9 })],
+  ['Narrator: "Two reels with no choices in them. A winter, and a book. Watch. That is the whole instruction."'],
+  [
+    '- "Witness: The Burning of the North" -> wm_cut_burning',
+    '- "Witness: The Book" -> wm_cut_book',
+    '- "Return to the court" -> wm_court',
+  ],
+));
 
 // ==========================================================================
 // VILLAGE EPISODES — the machinery layer. Nineteen scenes built to
@@ -2370,26 +3050,78 @@ scenes.push({
     'Aldric: "You have the teams, the mill, and the wood, your grace. That is the whole of us, written down in a hand I cannot read."',
     'Odo: "Then the return is fit to sign — or to be signed over your objection, which is administratively identical and personally much worse. Choose."',
     '[CHOICE]',
-    '- "The plough-teams" -> wm_ep_assize_ploughs',
-    '- "The mill" -> wm_ep_assize_mill',
-    '- "The woodland" -> wm_ep_assize_wood',
-    '- "The widow\'s hide" -> wm_ep_assize_widow',
-    '- "Sign the return" -> wm_ep_assize_sign',
-    '- "Refuse the figure" -> wm_ep_assize_resist',
+    '- "Another head for the book" -> wm_ep_assize_heads',
+    '- "Close the return" -> wm_ep_assize_close',
     '- "Leave the court" -> wm_ep_hub',
     '[/CHOICE]',
     '[ELSE]',
     '[CHOICE]',
-    '- "The plough-teams" -> wm_ep_assize_ploughs',
-    '- "The mill" -> wm_ep_assize_mill',
-    '- "The woodland" -> wm_ep_assize_wood',
-    '- "The widow\'s hide" -> wm_ep_assize_widow',
+    '- "Another head for the book" -> wm_ep_assize_heads',
     '- "Leave the court" -> wm_ep_hub',
     '[/CHOICE]',
     '[ENDIF]',
   ),
   status: 'work',
 });
+
+// The bench's own fan-out. Four heads and two ways to end the return will
+// not fit through three doors, so the bench asks "which kind of head" and
+// keeps the signing on its own page, where it belongs.
+const azStage = (prefix, sign) => [
+  ...el(`${prefix}_odo`, 'william_odo', 28, 62),
+  ...el(`${prefix}_aldric`, 'peasant', 72, 64),
+  ...balloon(`${prefix}_sign`, sign, 50, 10, { scale: 0.8 }),
+];
+
+scenes.push(fanScene(
+  'wm_ep_assize_heads', 'Assize: The Heads', ['wm_hall'],
+  azStage('azh', 'THE RETURN OF TORP — THE HEADS'),
+  [
+    'Odo: "The book takes a vill in pieces, farmer. What the land yields, and what stands on it. Which pieces do you want on the record first?"',
+    'Aldric: "You will have them all before dark either way. But I will choose the order, since it is the only thing here I am being offered."',
+  ],
+  [
+    '- "The land — teams and woodland" -> wm_ep_assize_land',
+    '- "What stands on it — the mill, and the widow\'s hide" -> wm_ep_assize_house',
+    '- "Back to the bench" -> wm_ep_assize',
+  ],
+));
+
+scenes.push(fanScene(
+  'wm_ep_assize_land', 'Assize: The Land', ['wm_hall'],
+  azStage('azl', 'THE LAND — TEAMS AND WOODLAND'),
+  ['Odo: "Ploughs and wood. Capacity and pannage. The two heads that tell me what this place can be made to produce whether or not it feels like it."'],
+  [
+    '- "The plough-teams" -> wm_ep_assize_ploughs',
+    '- "The woodland" -> wm_ep_assize_wood',
+    '- "Back to the bench" -> wm_ep_assize',
+  ],
+));
+
+scenes.push(fanScene(
+  'wm_ep_assize_house', 'Assize: What Stands On It', ['wm_hall'],
+  azStage('azo', 'THE MILL AND THE WIDOW\'S HIDE'),
+  ['Aldric: "The mill and the widow. One of them grinds for the whole vill and one of them has nobody left to argue for her. Ask carefully, your grace."'],
+  [
+    '- "The mill" -> wm_ep_assize_mill',
+    '- "The widow\'s hide" -> wm_ep_assize_widow',
+    '- "Back to the bench" -> wm_ep_assize',
+  ],
+));
+
+scenes.push(fanScene(
+  'wm_ep_assize_close', 'Assize: Closing the Return', ['wm_hall'],
+  azStage('azc', 'THE RETURN — SIGNED OR DISPUTED'),
+  [
+    'Odo: "The return is fit to close. Signed, or signed over your objection — administratively identical, personally much worse."',
+    'Aldric: "Then it is not a choice, your grace. It is a choice of what my grandson reads about me."',
+  ],
+  [
+    '- "Sign the return" -> wm_ep_assize_sign',
+    '- "Refuse the figure" -> wm_ep_assize_resist',
+    '- "Back to the bench" -> wm_ep_assize',
+  ],
+));
 
 // The plough-teams: the haggle loop. A backward [GOTO haggle] broken by
 // an IF on the round counter, RANDOM pressure from the bench, and an
@@ -3158,15 +3890,28 @@ scenes.push({
     '[ENDIF]',
     '[CHOICE]',
     '- "The Assize of Torp — the commissioners\' bench" -> wm_ep_assize',
-    '- "The Road North — six days on foot" -> wm_road_start',
-    '- "The Market Cross — say the number" -> wm_rumor_cross',
-    '- "The Night Arithmetic — a man, a stick, a floor" -> wm_ep_reeve',
+    '- "The road, the cross, and the night arithmetic" -> wm_ep_more',
     '- "Back to the voices" -> wm_hub',
-    '- "Return to the court" -> wm_court',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+scenes.push(fanScene(
+  'wm_ep_more', 'The Road, the Cross, and the Arithmetic', ['wm_village'],
+  [
+    ...el('epm_aldric', 'peasant', 50, 64),
+    ...balloon('epm_sign', 'THE VILLAGE EPISODES', 50, 10, { scale: 0.9 }),
+  ],
+  [
+    'Aldric: "Three of them away from the bench. Six days walking out of a burned country. A market morning where a number gets said out loud until it stops being true. And one night with a stick and a dirt floor, working out what the book actually took."',
+  ],
+  [
+    '- "The Road North — six days on foot" -> wm_road_start',
+    '- "The Market Cross — say the number" -> wm_rumor_cross',
+    '- "The Night Arithmetic — a man, a stick, a floor" -> wm_ep_reeve',
+  ],
+));
 
 // ==========================================================================
 // CUTSCENES + THE GEORGIST MACHINE LAYER

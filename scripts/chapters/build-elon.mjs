@@ -115,6 +115,23 @@ const SFX = [
   { id: 'shake_all', name: 'Crisis Shake', type: 'shake', category: 'DO', params: { intensity: 70 }, status: 'work' },
 ];
 
+// ---- the three-door rule -------------------------------------------------
+// House rule: no [CHOICE] shows more than three doors. Longer menus fan out
+// into small grouping scenes, each a beat of framing and then its own three.
+// Nothing is cut — the long lists just live one door deeper.
+const MENU_MAX = 3;
+const choice = (opts) => ['[CHOICE]', ...opts.filter(Boolean), '[/CHOICE]'];
+const fanScene = (id, name, drop, stage, framing, doors) => {
+  if (doors.length > MENU_MAX) throw new Error(`${id}: ${doors.length} doors (max ${MENU_MAX})`);
+  return {
+    id, name, sceneType: 'AGENCY',
+    dropId: dropId(drop),
+    stage,
+    script: lines(...framing, ...choice(doors)),
+    status: 'work',
+  };
+};
+
 // ---------------------------------------------------------------- scenes
 
 const scenes = [];
@@ -145,21 +162,78 @@ scenes.push({
     'Lieutenant: "The board accepted, boss. Forty-four billion dollars and the town square is yours. What\'s the move?"',
     '[POSE elon_musk pose=Pointing expression=Smug]',
     'Elon: "It\'s not a company. It\'s a mission to save humanity. Nobody audits a mission."',
+    // Introducing the man: the smallest documented version of the whole
+    // chapter, up front, plus the button out to Doug's comic.
+    '[BUTTON el_comic_godgamer]',
+    'Narrator: "Before he does anything else in this chapter, know the smallest true thing about him. Two years after this scene he will go on the internet and claim to be one of the best video-game players alive — and the people who actually play that game will take about two days to show that large parts of the run were not his."',
+    'Elon (Pointing/Smug): "Top twenty hardcore. Globally. While running five companies."',
+    'Lieutenant: "Boss, the guys who play it for a living have watched the tape. They have... questions. About your build. Which is yours. Obviously."',
+    'Narrator: "Doug Sharp already drew this one: ELON MUSK, GOD GAMER. The button up top opens the comic in a new tab. Everything else in this chapter is that same move with heavier machinery and real bodies."',
     '[CHOICE]',
-    '- "Buy the platform — and cut the workforce" -> elon_bird',
-    '- "Gut the moderation — disband Trust & Safety" -> elon_gut',
-    '- "Just post through it" -> elon_gut',
-    '- "Voices of the Feed" -> elon_voices',
-    '- "Duets" -> elon_duets',
-    '- "Aftermaths" -> elon_aftermaths',
-    '- "The Record" -> elon_record',
-    '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
-    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
+    '- "Take the town square — make the move" -> elon_move',
+    '- "Open the archive — ten years of receipts" -> elon_archive',
     '- "Enter the Machine" -> el_machine',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// The feed room used to hand you eleven doors at once. Three now — and
+// everything that was on that list is still behind one of them.
+scenes.push(fanScene(
+  'elon_move', 'The Move', 'elon_feedroom_drop',
+  [el('mv_elon', 'elon_musk', 30, 62), el('mv_lt', 'elon_hypebro', 70, 63)],
+  [
+    'Lieutenant: "Boss. Forty-four billion is sitting in escrow and the whole planet is refreshing. Give me a verb."',
+    'Elon (Pointing/Smug): "A verb. I have several. All of them are load-bearing."',
+    'Narrator: "Three verbs, then. Each one costs somebody a paycheck, a moderator, or a night\'s sleep — and none of those costs will show up on the dashboard."',
+  ],
+  [
+    '- "Buy the platform — and cut the workforce" -> elon_bird',
+    '- "Gut the moderation — disband Trust & Safety" -> elon_gut',
+    '- "Just post through it" -> elon_gut',
+  ],
+));
+
+scenes.push(fanScene(
+  'elon_archive', 'The Archive', 'elon_hq',
+  [el('ar_rep', 'elon_reporter', 26, 62, 2.2), el('ar_work', 'elon_workers', 74, 63, 2.2)],
+  [
+    'Narrator: "Set the phone down. Every move in this chapter got written up by somebody — by OSHA, by Reuters, by a Delaware chancellor, by a man with a fractured skull and a lawyer."',
+    'Narrator: "This is that pile. Nothing in it is alleged. All of it is filed."',
+  ],
+  [
+    '- "Voices of the Feed" -> elon_voices',
+    '- "The shelves — duets, aftermaths, the record" -> elon_shelves',
+    '- "The reels, and the God Gamer" -> elon_reels',
+  ],
+));
+
+scenes.push(fanScene(
+  'elon_shelves', 'The Shelves', 'elon_court_drop',
+  [el('sh_law', 'elon_lawyer', 26, 62, 2.2), el('sh_rep', 'elon_reporter', 74, 62, 2.2)],
+  [
+    'Narrator: "Three shelves. Duets are two people in a room. Aftermaths are what the same day looks like ten years out. The Record is the paperwork nobody live-tweeted."',
+  ],
+  [
+    '- "Duets" -> elon_duets',
+    '- "Aftermaths" -> elon_aftermaths',
+    '- "The Record" -> elon_record',
+  ],
+));
+
+scenes.push(fanScene(
+  'elon_reels', 'The Reels', 'elon_factory_drop',
+  [el('rl_work', 'elon_workers', 50, 63, 2.2)],
+  [
+    'Narrator: "Two reels with no choices in them, and one very small true thing about a man who says he is one of the best players alive."',
+  ],
+  [
+    '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
+    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
+    '- "The God Gamer — Path of Exile, and the x-ray" -> el_poe_hub',
+  ],
+));
 
 // 2 — THE BIRD IS FREED (buy consequence)
 scenes.push({
@@ -1256,22 +1330,73 @@ scenes.push({
     el('vox_workers', 'elon_workers', 74, 63, 2.2),
   ],
   script: lines(
-    'Narrator: "Ten moments in the record. Pick one, and hear who\'s talking."',
+    'Narrator: "Ten moments in the record, filed by the room they happened in: the floor, the courthouse, the feed. Pick a room, then hear who\'s talking."',
     '[CHOICE]',
-    ...EVENTS.map((ev) => `- "${ev.name}" -> vox_${ev.id}`),
-    '- "Duets" -> elon_duets',
-    '- "Aftermaths" -> elon_aftermaths',
-    '- "The Record" -> elon_record',
-    '- "Witness: McGregor, June 2014" -> el_cut_mcgregor',
-    '- "Witness: The Dashboard Is Green" -> el_cut_dashboard',
-    '- "See the Machine itself" -> el_machine',
-    '- "Back to the story" -> elon_feed',
+    '- "The floor — Fremont and McGregor" -> vxg_floor',
+    '- "The courthouse and the newsroom" -> vxg_court',
+    '- "The feed — October 2022 onward" -> vxg_feed',
     '[/CHOICE]',
   ),
   status: 'work',
 });
 
+const evDoor = (id) => {
+  const ev = EVENTS.find((e) => e.id === id);
+  if (!ev) throw new Error(`unknown event ${id}`);
+  return `- "${ev.name}" -> vox_${id}`;
+};
+
+scenes.push(fanScene(
+  'vxg_floor', 'Voices: The Floor', 'elon_factory_drop',
+  [el('vxg_floor_a', 'elon_workers', 50, 63, 2.2)],
+  ['Narrator: "Three moments on a factory floor. A speedup, a man crushed under a load of metal, and a skull. None of the three made the feed."'],
+  [evDoor('fremont'), evDoor('leblanc'), evDoor('cabada')],
+));
+
+scenes.push(fanScene(
+  'vxg_court', 'Voices: The Courthouse and the Newsroom', 'elon_court_drop',
+  [el('vxg_court_a', 'elon_lawyer', 26, 62, 2.2), el('vxg_court_b', 'elon_reporter', 74, 62, 2.2)],
+  ['Narrator: "Three moments where somebody wrote it down and made it stick — a jury, an investigation, and the prize the investigation won."'],
+  [evDoor('diaz'), evDoor('reuters'), evDoor('pulitzer')],
+));
+
+scenes.push(fanScene(
+  'vxg_feed', 'Voices: The Feed', 'elon_feedroom_drop',
+  [el('vxg_feed_a', 'elon_fans', 26, 63, 2.2), el('vxg_feed_b', 'elon_hypebro', 74, 63, 2.2)],
+  ['Narrator: "Forty-four billion dollars for a town square, and then the fastest demolition of a workforce anybody had ever livestreamed."'],
+  [evDoor('buyout'), evDoor('layoffs'), '- "Trust & Safety, and the trillion" -> vxg_feed2'],
+));
+
+scenes.push(fanScene(
+  'vxg_feed2', 'Voices: The Feed, Continued', 'elon_feedroom_drop',
+  [el('vxg_feed2_a', 'elon_musk', 50, 62)],
+  ['Narrator: "Then the moderators go, and three years later the number on the screen says one trillion. Both of those are the same sentence."'],
+  [evDoor('trustsafety'), evDoor('trillion'), '- "Back to the story" -> elon_feed'],
+));
+
 // --- per-event responder choosers + vignettes -----------------------------
+// Ten responders do not fit through three doors, so the chooser asks which
+// table first. Every one of the ten still speaks; none was cut.
+const VGROUPS = [
+  { key: 'man', label: 'The man, and the man who agrees with him',
+    who: ['elon_pub', 'elon_3am', 'lt'],
+    drop: 'elon_feedroom_drop', face: 'elon_musk',
+    framing: ['Narrator: "Him at the podium, him at three in the morning, and the lieutenant whose entire job is to hear the first one and never the second."'] },
+  { key: 'floor', label: 'The floor',
+    who: ['worker', 'workers_g', 'workers_o'],
+    drop: 'elon_factory_drop', face: 'elon_workers',
+    framing: ['Narrator: "The people who make the thing. One alone, one crew grieving, one crew organizing — and the third is the one that costs him money."'] },
+  { key: 'record', label: 'The people who write it down',
+    who: ['reporter', 'lawyer'],
+    drop: 'elon_hq', face: 'elon_reporter',
+    framing: ['Narrator: "A reporter with a records request and a lawyer with a docket number. Between them they are the only part of this chapter he cannot post his way out of."'],
+    more: { key: 'replies', label: 'And the replies' } },
+  { key: 'replies', label: 'The replies', nested: true,
+    who: ['fans_d', 'fans_q'],
+    drop: 'elon_feedroom_drop', face: 'elon_fans',
+    framing: ['Narrator: "Down in the replies, the same account defends him and doubts him, sometimes in the same thread, usually within an hour."'] },
+];
+
 for (const ev of EVENTS) {
   // responder chooser
   scenes.push({
@@ -1285,13 +1410,31 @@ for (const ev of EVENTS) {
     ],
     script: lines(
       `Narrator: "${ev.setup}"`,
-      '[CHOICE]',
-      ...RESPONDERS.map((r) => `- "${r.label}" -> vg_${ev.id}_${r.id}`),
-      '- "Back to the events" -> elon_voices',
-      '[/CHOICE]',
+      'Narrator: "Ten people have something to say about this. They do not all sit at the same table."',
+      ...choice(VGROUPS.filter((g) => !g.nested)
+        .map((g) => `- "${g.label}" -> vxr_${ev.id}_${g.key}`)),
     ),
     status: 'work',
   });
+
+  // One scene per table — the ten responders, three at a time. A table
+  // that already fills its three doors keeps all three for witnesses; the
+  // way back rides on whichever table has a slot to spare.
+  for (const g of VGROUPS) {
+    const doors = g.who.map((rid) => {
+      const r = RESPONDERS.find((x) => x.id === rid);
+      if (!r) throw new Error(`unknown responder ${rid}`);
+      return `- "${r.label}" -> vg_${ev.id}_${r.id}`;
+    });
+    if (g.more) doors.push(`- "${g.more.label}" -> vxr_${ev.id}_${g.more.key}`);
+    else if (doors.length < MENU_MAX) doors.push('- "Back to the events" -> elon_voices');
+    scenes.push(fanScene(
+      `vxr_${ev.id}_${g.key}`, `Voices: ${ev.name} — ${g.label}`, g.drop,
+      [el(`vxr_${ev.id}_${g.key}_a`, g.face, 50, 62, 2.2)],
+      g.framing,
+      doors,
+    ));
+  }
 
   // vignettes
   for (const r of RESPONDERS) {
@@ -1520,20 +1663,48 @@ scenes.push({
     el('du_hub_r', 'elon_reporter', 76, 62, 2.0),
   ],
   script: lines(
-    'Narrator: "Two people in a room. Seven rooms. Pick one."',
+    'Narrator: "Two people in a room. Seven rooms, sorted by who is doing the talking — him, the lawyers, or the people who actually work here."',
     '[CHOICE]',
-    '- "The Interviews — Elon and the Reporter" -> duet_press_1',
-    '- "The Metrics Meeting — Elon and the Lieutenant" -> duet_metrics_1',
-    '- "The NDA — the Worker and the Lawyer" -> duet_nda_1',
-    '- "On the Record — the Reporter and the Lawyer" -> duet_record_1',
-    '- "Elon and the Feed" -> duet_feed_1',
-    '- "The Organizing Conversation — the Worker and the Workers" -> duet_org_1',
-    '- "The Ratio — the Fans and the Reporter" -> duet_ratio_1',
-    '- "Back to the story" -> elon_feed',
+    '- "Rooms with Elon in them" -> dug_elon',
+    '- "Rooms with lawyers in them" -> dug_law',
+    '- "Rooms with the floor in them" -> dug_floor',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+scenes.push(fanScene(
+  'dug_elon', 'Duets — Rooms With Elon In Them', 'elon_feedroom_drop',
+  [el('dug_elon_a', 'elon_musk', 30, 62), el('dug_elon_b', 'elon_hypebro', 70, 63)],
+  ['Narrator: "Three rooms where he is the loudest thing present. In one he is talking to a reporter, in one to an employee, and in one to nobody at all, which is the one he is best at."'],
+  [
+    '- "The Interviews — Elon and the Reporter" -> duet_press_1',
+    '- "The Metrics Meeting — Elon and the Lieutenant" -> duet_metrics_1',
+    '- "Elon and the Feed" -> duet_feed_1',
+  ],
+));
+
+scenes.push(fanScene(
+  'dug_law', 'Duets — Rooms With Lawyers In Them', 'elon_court_drop',
+  [el('dug_law_a', 'elon_lawyer', 30, 62), el('dug_law_b', 'elon_reporter', 70, 62)],
+  ['Narrator: "Two rooms with a lawyer in them. One where the lawyer is buying somebody\'s silence, and one where the lawyer is the reason a number got out."'],
+  [
+    '- "The NDA — the Worker and the Lawyer" -> duet_nda_1',
+    '- "On the Record — the Reporter and the Lawyer" -> duet_record_1',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
+
+scenes.push(fanScene(
+  'dug_floor', 'Duets — Rooms With the Floor In Them', 'elon_factory_drop',
+  [el('dug_floor_a', 'elon_worker', 30, 62), el('dug_floor_b', 'elon_workers', 70, 63, 2.2)],
+  ['Narrator: "Two rooms he is not in. One is a break area at shift change. One is the replies at two in the morning. He would find both of them extremely boring, which is how you know they matter."'],
+  [
+    '- "The Organizing Conversation — the Worker and the Workers" -> duet_org_1',
+    '- "The Ratio — the Fans and the Reporter" -> duet_ratio_1',
+    '- "Back to the duets" -> elon_duets',
+  ],
+));
 
 // --- A. The Interviews (Elon × Reporter, three escalating + a coda) -------
 scenes.push({
@@ -2244,21 +2415,70 @@ scenes.push({
     el('af_hub_r', 'elon_reporter', 74, 62, 2.2),
   ],
   script: lines(
-    'Narrator: "An event is a day. An aftermath is everyone\'s calendar afterward. Four events, followed through time."',
+    'Narrator: "An event is a day. An aftermath is everyone\'s calendar afterward. Four events, two calendars apiece. Pick the day; then pick whose calendar."',
     '[CHOICE]',
-    '- "LeBlanc\'s death — the family" -> aft_leblanc_family_week',
-    '- "LeBlanc\'s death — the crew" -> aft_leblanc_crew_week',
-    '- "The platform purchase — the staff" -> aft_buyout_staff_week',
-    '- "The platform purchase — the fans" -> aft_buyout_fans_week',
-    '- "The Reuters investigation — the reporter" -> aft_reuters_rep_week',
-    '- "The Reuters investigation — Elon" -> aft_reuters_elon_week',
-    '- "The Diaz verdict — Owen Diaz" -> aft_diaz_owen_week',
-    '- "The Diaz verdict — the floor" -> aft_diaz_floor_week',
-    '- "Back to the story" -> elon_feed',
+    '- "Lonnie LeBlanc, June 2014" -> afg_leblanc',
+    '- "The platform purchase, October 2022" -> afg_buyout',
+    '- "The record, and the verdict" -> afg_late',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+scenes.push(fanScene(
+  'afg_leblanc', 'Aftermaths — Lonnie LeBlanc', 'elon_factory_drop',
+  [el('afg_leblanc_a', 'elon_workers', 50, 63, 2.2)],
+  ['Narrator: "A load of insulation, an unsecured trailer, a man dead at thirty-eight. The company priced it at seven thousand dollars. Two calendars ran on from that afternoon."'],
+  [
+    '- "LeBlanc\'s death — the family" -> aft_leblanc_family_week',
+    '- "LeBlanc\'s death — the crew" -> aft_leblanc_crew_week',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
+
+scenes.push(fanScene(
+  'afg_buyout', 'Aftermaths — The Platform Purchase', 'elon_feedroom_drop',
+  [el('afg_buyout_a', 'elon_fans', 26, 63, 2.2), el('afg_buyout_b', 'elon_hypebro', 74, 63, 2.2)],
+  ['Narrator: "One weekend, half a workforce. The people who lost the job and the people who cheered from the timeline both woke up Monday. Follow either."'],
+  [
+    '- "The platform purchase — the staff" -> aft_buyout_staff_week',
+    '- "The platform purchase — the fans" -> aft_buyout_fans_week',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
+
+scenes.push(fanScene(
+  'afg_late', 'Aftermaths — The Record and the Verdict', 'elon_hq',
+  [el('afg_late_a', 'elon_reporter', 26, 62, 2.2), el('afg_late_b', 'elon_lawyer', 74, 62, 2.2)],
+  ['Narrator: "Two times somebody made it stick — an investigation and a jury. Both of them cost a person years. Pick which one to follow out."'],
+  [
+    '- "The Reuters investigation" -> afg_reuters',
+    '- "The Diaz verdict" -> afg_diaz',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
+
+scenes.push(fanScene(
+  'afg_reuters', 'Aftermaths — The Reuters Investigation', 'elon_hq',
+  [el('afg_reuters_a', 'elon_reporter', 50, 62, 2.2)],
+  ['Narrator: "Six hundred injuries, requested and checked and printed. Two calendars afterward: hers, and his."'],
+  [
+    '- "The Reuters investigation — the reporter" -> aft_reuters_rep_week',
+    '- "The Reuters investigation — Elon" -> aft_reuters_elon_week',
+    '- "Back to the aftermaths" -> elon_aftermaths',
+  ],
+));
+
+scenes.push(fanScene(
+  'afg_diaz', 'Aftermaths — The Diaz Verdict', 'elon_court_drop',
+  [el('afg_diaz_a', 'elon_lawyer', 50, 62, 2.2)],
+  ['Narrator: "A jury put a number on what a year of it was worth. Then the courts spent years arguing the number down. Two calendars."'],
+  [
+    '- "The Diaz verdict — Owen Diaz" -> aft_diaz_owen_week',
+    '- "The Diaz verdict — the floor" -> aft_diaz_floor_week',
+    '- "Back to the aftermaths" -> elon_aftermaths',
+  ],
+));
 
 // --- LeBlanc: the family ----------------------------------------------------
 scenes.push({
@@ -2725,26 +2945,82 @@ scenes.push({
     el('rec_hub_r', 'elon_reporter', 74, 62, 2.2),
   ],
   script: lines(
-    'Narrator: "The record, drawer one: twelve items the story hasn\'t staged. Studies, suits, meetings, memes, votes. A second drawer holds the deep-dive files. Pick."',
+    'Narrator: "The record, drawer one: twelve items the story hasn\'t staged. Studies, suits, meetings, memes, votes. A second drawer holds the deep-dive files. Filed in three, because fourteen at once is not a drawer."',
     '[CHOICE]',
-    '- "Open the second drawer — the deep-dive files" -> elon_record_2',
-    '- "2017: The Worksafe study" -> rec_worksafe',
-    '- "2018: The Reveal exposé" -> rec_reveal',
-    '- "2018: Tesla\'s denial" -> rec_reveal_denial',
-    '- "2022: The CRD suit, filing day" -> rec_crd',
-    '- "2023: The EEOC suit" -> rec_eeoc',
-    '- "2022: Trust & Safety\'s final meeting" -> rec_tsc',
-    '- "2022: The sink walk-in" -> rec_sink',
-    '- "2018: The pay package vote" -> rec_pay_2018',
-    '- "2024: The package, voided" -> rec_pay_voided',
-    '- "2024: The re-vote" -> rec_pay_revote',
-    '- "Starbase: shift change, 4.8 per 100" -> rec_starbase',
-    '- "The testimony: Moline and Carson" -> rec_testimony',
-    '- "Back to the story" -> elon_feed',
+    '- "The floor — studies, suits, testimony" -> recg_floor',
+    '- "The platform, October 2022" -> recg_platform',
+    '- "The money" -> recg_pay',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// Drawer one, filed in threes. All twelve files are still in here.
+scenes.push(fanScene(
+  'recg_floor', 'The Record — The Floor', 'elon_factory_drop',
+  [el('recg_floor_a', 'elon_workers', 50, 63, 2.2)],
+  ['Narrator: "Everything filed about the places where the work happens. Somebody counted, somebody sued, and two people got up under oath and said what they saw."'],
+  [
+    '- "The studies" -> recg_studies',
+    '- "The suits" -> recg_suits',
+    '- "Starbase: shift change, 4.8 per 100" -> rec_starbase',
+  ],
+));
+
+scenes.push(fanScene(
+  'recg_studies', 'The Record — The Studies', 'elon_factory_drop',
+  [el('recg_studies_a', 'elon_reporter', 50, 62, 2.2)],
+  ['Narrator: "Three files on counting. A state study, an exposé built from the state study, and the company\'s answer, which was that everybody else is counting wrong."'],
+  [
+    '- "2017: The Worksafe study" -> rec_worksafe',
+    '- "2018: The Reveal exposé" -> rec_reveal',
+    '- "2018: Tesla\'s denial" -> rec_reveal_denial',
+  ],
+));
+
+scenes.push(fanScene(
+  'recg_suits', 'The Record — The Suits', 'elon_court_drop',
+  [el('recg_suits_a', 'elon_lawyer', 50, 62, 2.2)],
+  ['Narrator: "Two agencies of the government and two people with names. All four say the same thing about the same factory, in four different filing systems."'],
+  [
+    '- "2022: The CRD suit, filing day" -> rec_crd',
+    '- "2023: The EEOC suit" -> rec_eeoc',
+    '- "The testimony: Moline and Carson" -> rec_testimony',
+  ],
+));
+
+scenes.push(fanScene(
+  'recg_platform', 'The Record — The Platform', 'elon_feedroom_drop',
+  [el('recg_platform_a', 'elon_hypebro', 50, 63, 2.2)],
+  ['Narrator: "October 2022, two files. A last meeting nobody wanted to be in, and a man carrying a sink through a lobby so that the photograph would exist."'],
+  [
+    '- "2022: Trust & Safety\'s final meeting" -> rec_tsc',
+    '- "2022: The sink walk-in" -> rec_sink',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
+
+scenes.push(fanScene(
+  'recg_pay', 'The Record — The Money', 'elon_hq',
+  [el('recg_pay_a', 'elon_musk', 50, 62)],
+  ['Narrator: "The largest compensation package in the history of corporations, awarded, voided, and voted on again. Read it next to the fine for a fractured skull. Both numbers are real."'],
+  [
+    '- "2018: The pay package vote" -> rec_pay_2018',
+    '- "2024: The package, voided" -> rec_pay_voided',
+    '- "The re-vote, and the second drawer" -> recg_pay2',
+  ],
+));
+
+scenes.push(fanScene(
+  'recg_pay2', 'The Record — The Re-Vote', 'elon_hq',
+  [el('recg_pay2_a', 'elon_musk', 30, 62), el('recg_pay2_b', 'elon_hypebro', 70, 63)],
+  ['Narrator: "They voted for it a second time and the chancellor voided it a second time. Under this drawer there is another one, and it is worse."'],
+  [
+    '- "2024: The re-vote" -> rec_pay_revote',
+    '- "Open the second drawer — the deep-dive files" -> elon_record_2',
+    '- "Back to the story" -> elon_feed',
+  ],
+));
 
 scenes.push({
   id: 'rec_worksafe',
@@ -2992,13 +3268,23 @@ scenes.push({
     'Narrator: "Meanwhile, for scale: the fine for Francisco Cabada\'s fractured skull was still being contested toward $475. Both numbers are true at once. That is the chapter."',
     '[CHOICE]',
     '- "Next file: the Delaware escape" -> rec_delaware',
-    '- "Next file: the shareholder with nine shares" -> rec_tornetta',
+    '- "Other files on this desk" -> rec_pay_more',
     '- "Back to the Record" -> elon_record',
-    '- "Next file: Starbase, shift change" -> rec_starbase',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+scenes.push(fanScene(
+  'rec_pay_more', 'The Pay Package: The Rest of the Desk', 'elon_court_drop',
+  [el('rpm_l', 'elon_lawyer', 50, 62, 2.2)],
+  ['Narrator: "Two more from the same stack. One is the man with nine shares who started all of it. One is a shift change in Texas where the injury rate runs 4.8 per hundred."'],
+  [
+    '- "The shareholder with nine shares" -> rec_tornetta',
+    '- "Starbase, shift change" -> rec_starbase',
+    '- "Back to the Record" -> elon_record',
+  ],
+));
 
 scenes.push({
   id: 'rec_starbase',
@@ -3069,26 +3355,71 @@ scenes.push({
     el('rec2_hub_r', 'elon_reporter', 74, 62, 2.2),
   ],
   script: lines(
-    'Narrator: "The second drawer: twelve deep-dive files. Settlements, text troves, a chancellor, a foundation, a flag on the newest one. Pick."',
+    'Narrator: "The second drawer: twelve deep-dive files. Settlements, text troves, a chancellor, a foundation, a flag on the newest one. Filed in three."',
     '[CHOICE]',
-    '- "2018: Funding secured" -> rec_sec',
-    '- "2022: The Agrawal texts" -> rec_texts_agrawal',
-    '- "2022: The believers\' texts" -> rec_texts_believers',
-    '- "2023: DealBook — \'Go. Fuck. Yourself.\'" -> rec_dealbook',
-    '- "The plaintiff with nine shares" -> rec_tornetta',
-    '- "The Delaware escape" -> rec_delaware',
-    '- "The Foundation math" -> rec_foundation',
-    '- "The prestige machine" -> rec_prestige',
-    '- "The taxonomy of the 600" -> rec_six_hundred',
-    '- "The insulating layer" -> rec_insulation',
-    '- "Cabada v. SpaceX" -> rec_cabada_suit',
-    '- "2025: The flagged file" -> rec_doge',
-    '- "Back to drawer one" -> elon_record',
-    '- "Back to the story" -> elon_feed',
+    '- "The texts, and the tweet" -> rec2g_texts',
+    '- "The courtroom, and the escape" -> rec2g_court',
+    '- "The machine around the man" -> rec2g_machine',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// Drawer two, filed in threes. All twelve deep-dive files are still here.
+scenes.push(fanScene(
+  'rec2g_texts', 'The Second Drawer — The Texts', 'elon_feedroom_drop',
+  [el('rec2g_texts_a', 'elon_musk', 50, 62)],
+  ['Narrator: "Three files where he is typing. A tweet that cost forty million dollars, a text thread with the man he was about to fire, and a text thread with the men lining up to fund him."'],
+  [
+    '- "2018: Funding secured" -> rec_sec',
+    '- "2022: The Agrawal texts" -> rec_texts_agrawal',
+    '- "2022: The believers\' texts" -> rec_texts_believers',
+  ],
+));
+
+scenes.push(fanScene(
+  'rec2g_court', 'The Second Drawer — The Courtroom', 'elon_court_drop',
+  [el('rec2g_court_a', 'elon_lawyer', 50, 62, 2.2)],
+  ['Narrator: "Three files with a docket number. A shareholder with nine shares, a state he moved a company out of rather than lose in, and a man suing over his own skull."'],
+  [
+    '- "The plaintiff with nine shares" -> rec_tornetta',
+    '- "The Delaware escape" -> rec_delaware',
+    '- "Cabada v. SpaceX" -> rec_cabada_suit',
+  ],
+));
+
+scenes.push(fanScene(
+  'rec2g_machine', 'The Second Drawer — The Machine Around the Man', 'elon_hq',
+  [el('rec2g_machine_a', 'elon_hypebro', 50, 63, 2.2)],
+  ['Narrator: "Nobody is a billionaire by themselves. There is a layer of people whose whole job is that the sentence above never gets said out loud."'],
+  [
+    '- "The prestige machine, and the money" -> rec2g_prestige',
+    '- "The people around him" -> rec2g_people',
+    '- "Back to drawer one" -> elon_record',
+  ],
+));
+
+scenes.push(fanScene(
+  'rec2g_prestige', 'The Second Drawer — Prestige and Money', 'elon_hq',
+  [el('rec2g_prestige_a', 'elon_musk', 50, 62)],
+  ['Narrator: "The charitable foundation that mostly holds, the shell of admiration around the fortune, and the evening he told an advertiser to go do something anatomically specific on a conference stage."'],
+  [
+    '- "The Foundation math" -> rec_foundation',
+    '- "The prestige machine" -> rec_prestige',
+    '- "2023: DealBook — \'Go. Fuck. Yourself.\'" -> rec_dealbook',
+  ],
+));
+
+scenes.push(fanScene(
+  'rec2g_people', 'The Second Drawer — The People', 'elon_factory_drop',
+  [el('rec2g_people_a', 'elon_workers', 50, 63, 2.2)],
+  ['Narrator: "Six hundred injuries, sorted by what part of a person got broken. The layer of managers that keeps those six hundred from reaching him. And the newest file, which carries a flag."'],
+  [
+    '- "The taxonomy of the 600" -> rec_six_hundred',
+    '- "The insulating layer" -> rec_insulation',
+    '- "2025: The flagged file" -> rec_doge',
+  ],
+));
 
 scenes.push({
   id: 'rec_sec',
@@ -3429,6 +3760,201 @@ scenes.push({
 
 const recordEnd = scenes.length;
 
+// ============================================================== GOD GAMER
+// The Path of Exile 2 affair, and the x-ray it gives you.
+//
+// Six scenes: the hub, the brag, the stream, what the players worked out,
+// the question the biggest podcast on Earth never asked, and the psyche.
+//
+// Sourcing discipline, same as the Record: what he CLAIMED is labelled a
+// claim, what players ALLEGED is labelled an allegation, and the one
+// concession he made is given as reported. No verdict is asserted that the
+// documents don't carry. The register is the Dialoguicon's optimistic
+// rage — this is a small, sad, entirely human thing, and the game pities
+// it while refusing to let it go. Doug's comic is a live BUTTON here and
+// at the point where Musk is introduced (elon_feed).
+
+scenes.push({
+  id: 'el_poe_hub',
+  name: 'The God Gamer',
+  sceneType: 'AGENCY',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('poe_hub_e', 'elon_musk', 30, 62),
+    el('poe_hub_f', 'elon_fans', 72, 63, 2.6),
+    balloon('poe_hub_card', 'PATH OF EXILE 2 — JANUARY 2025', 50, 20, { zIndex: 2 }),
+  ],
+  script: lines(
+    '[BUTTON el_comic_godgamer]',
+    'Narrator: "Set the rockets down for ten minutes. Nobody died in this one. That is exactly why it is useful — it is the same machine running with the safety on, where you can see all the moving parts."',
+    'Narrator: "A man with more money than any human has ever had wanted the internet to believe he was one of the best in the world at a video game. Watch what he did to get that, and then watch what it costs to want it."',
+    '[CHOICE]',
+    '- "The brag" -> el_poe_brag',
+    '- "Straight to the x-ray" -> el_poe_psyche',
+    '- "Back to the story" -> elon_feed',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'el_poe_brag',
+  name: 'God Gamer: The Brag',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('poeb_e', 'elon_musk', 32, 62),
+    el('poeb_l', 'elon_hypebro', 72, 63),
+    balloon('poeb_card', 'THE CLAIM: TOP-TIER, GLOBALLY', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(20, 92),
+  script: lines(
+    'Narrator: "December 2024. Path of Exile 2 goes into early access — a brutal, fiddly action-RPG with a skill tree like a wiring diagram and a Hardcore mode where death is permanent. It is a game that eats months. That is the entire appeal."',
+    'Narrator: "January 2025. He starts posting about his character, and then streaming it, on the platform he owns. The claim, made publicly and repeated: that he is among the very best players in the world — reported as a claim of top-twenty Hardcore standing."',
+    '[POSE poeb_e pose=Pointing expression=Smug]',
+    'Elon: "Top twenty. In the WORLD. And I run five companies."',
+    'Lieutenant: "Incredible, boss. When do you sleep?"',
+    'Elon: "I don\'t. That\'s the whole point of me."',
+    'Narrator: "Hold those two sentences together, because the players did. The claim is not just that he is good. The claim is that he is doing hundreds of hours of the most time-hungry grind in gaming WHILE running SpaceX, Tesla, the platform, and a political operation."',
+    'Narrator: "Nobody in this scene has done anything wrong yet. He has said a thing about himself. The chapter\'s whole method is what happens next: somebody checks."',
+    '[CHOICE]',
+    '- "Watch the stream" -> el_poe_stream',
+    '- "Back to the God Gamer" -> el_poe_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'el_poe_stream',
+  name: 'God Gamer: The Stream',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('poes_e', 'elon_musk', 34, 62),
+    el('poes_f', 'elon_fans', 74, 63, 2.6),
+    balloon('poes_chat', 'CHAT', 45, 95),
+  ],
+  narraton: rn(35, 80),
+  script: lines(
+    'Narrator: "He streams it. Live, on his own platform, at a level of character that takes most people a month of evenings to reach."',
+    '[SET_TEXT poes_chat "CHAT: what does that gem even do"]',
+    'Narrator: "And the thing that undoes him is not an accusation. It is the footage. Watching him play, viewers reported him unable to explain his own build — hesitating over his skills, misreading his gear, unfamiliar with basic mechanics of a character that was allegedly one of the twenty best on Earth."',
+    'Elon (Neutral/Panicked): "This one is the... the big one. It does the damage. Obviously it does the damage."',
+    '[SET_TEXT poes_chat "CHAT: that is your own passive tree my guy"]',
+    'Fans: "He\'s multitasking. He\'s on a call. He\'s literally saving humanity between packs."',
+    '[SET_TEXT poes_chat "CHAT: nobody who ground that character talks like that"]',
+    'Narrator: "This is a real category of evidence and it is worth naming, because it recurs everywhere in this game: TACIT KNOWLEDGE. You cannot fake the small talk of work you have actually done. Ask a machinist about a finish. Ask a nurse about a shift. Ask a player about their own build."',
+    'Fans: "...okay, but why doesn\'t he know what his own gems do."',
+    'Narrator: "That is a community starting to check. It took about forty-eight hours."',
+    '[CHOICE]',
+    '- "What the players worked out" -> el_poe_ladder',
+    '- "Back to the God Gamer" -> el_poe_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'el_poe_ladder',
+  name: 'God Gamer: The Ladder, Audited',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_feedroom_drop'),
+  stage: [
+    el('poel_f', 'elon_fans', 28, 63, 2.6),
+    el('poel_r', 'elon_reporter', 72, 62),
+    balloon('poel_card', 'ALLEGED: BOOSTING AND ACCOUNT-SHARING', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(55, 65),
+  script: lines(
+    'Narrator: "What follows is an allegation made by players and reported by games press. Label it that way in your head and it stays useful."',
+    'Fans: "The claim is boosting. Account-sharing. That the character was levelled and geared by other people, and he logged in on top of the finished work."',
+    'Reporter: "The evidence they assembled is the ordinary evidence of any timesheet fraud, and it is not exotic. One: play sessions logged while he was documented elsewhere — posting, travelling, on a stage. Two: hours that do not fit in a day that also contains five companies. Three: the tell from the stream — not knowing his own build."',
+    'Reporter (Closeup/Determined): "None of that is a confession. Any single item has an answer. All of it together is why the community stopped arguing about whether and started arguing about who."',
+    'Narrator: "And then the part that actually settles the shape of it. Confronted, he did not deny that other people had played his accounts. In his own posts he acknowledged account-sharing — that others, including players in other timezones, had been on his characters — framing it as normal at the top of the ladder."',
+    // Elon is off-stage here — the acting tag on the line does the work.
+    'Elon (Pointing/Smug): "Everybody at the top shares accounts. It\'s a known thing. Anyway I\'m still better than you."',
+    'Reporter: "Sir, \'someone else did the hours and I kept the ranking\' is not a defence. It is the allegation, agreed to."',
+    'Narrator: "Note the shape, because you have seen it four times already in this chapter and you will see it again: dispute the count, attack the counter, then concede the thing quietly and keep the title. The ladder is a ledger. He was collecting rent on somebody else\'s grinding."',
+    '[CHOICE]',
+    '- "The question nobody asked him" -> el_poe_rogan',
+    '- "Back to the God Gamer" -> el_poe_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'el_poe_rogan',
+  name: 'God Gamer: The Question Not Asked',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_hq'),
+  stage: [
+    el('poer_e', 'elon_musk', 32, 62),
+    el('poer_r', 'elon_reporter', 74, 62),
+    balloon('poer_card', 'THREE HOURS. NO FOLLOW-UP.', 50, 20, { zIndex: 2 }),
+  ],
+  narraton: rn(45, 75),
+  script: lines(
+    'Narrator: "He is a repeat guest on the biggest podcast on Earth. Hours at a stretch, in a soft chair, in a room built for long answers — the format that could have got a real one."',
+    'Elon: "I\'m a gamer. Genuinely one of the best in the world. People don\'t believe it."',
+    'Narrator: "That is the moment. Right there, in the pause, is the easiest follow-up question in the history of interviewing: WHICH PART OF IT DID YOU PLAY?"',
+    'Reporter: "Six words. No hostility required. He would have answered — he answers everything."',
+    'Narrator: "It has not been put to him. Not on that show. As of this writing, the biggest interview real estate available to any human being has never once been used to ask the man about the smallest, most checkable lie he tells."',
+    'Reporter (Closeup/Determined): "And that is not a failure of nerve. That is the product. Access journalism is a trade: you get the hours, he gets the absence of the question. Nobody signs anything. Everybody knows the terms."',
+    'Elon: "Great conversation. Really substantive."',
+    'Narrator: "Understand what the missing question funds. If you cannot ask him about a video game, you are never going to ask him about McGregor in June 2014, or the fine that got appealed toward four hundred and seventy-five dollars. The little unasked question is the audition for the big one."',
+    '[CHOICE]',
+    '- "X-ray the psyche" -> el_poe_psyche',
+    '- "Back to the God Gamer" -> el_poe_hub',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+scenes.push({
+  id: 'el_poe_psyche',
+  name: 'God Gamer: The X-Ray',
+  sceneType: 'WITNESS',
+  dropId: dropId('elon_bedroom_drop'),
+  stage: [
+    el('poep_e', 'elon_musk', 44, 62, 2.6),
+    balloon('poep_card', 'X-RAY: WHY THIS ONE MATTERED TO HIM', 50, 18, { zIndex: 2 }),
+    balloon('poep_screen', 'RANK: 20', 50, 92),
+  ],
+  narraton: rn(60, 55),
+  script: lines(
+    '[POSE poep_e pose=Sit expression=Angry]',
+    'Narrator: "3am. Take the money out of the frame for a second and look at what is actually standing there."',
+    'Narrator: "A man who can buy a rocket company, a car company, a social network and a slice of a government, and who cannot buy the one thing a game is FOR — the private knowledge that you did it yourself."',
+    'Elon: "I could have done it. If I had the time, I\'d have done it easily."',
+    'Narrator: "That is probably true, and it is the saddest sentence in the chapter. He didn\'t want to play. He wanted to have played. The hours are the whole product and the hours are the one thing that cannot be delegated, and he delegates everything, because delegating everything is how he got here."',
+    '[SET_TEXT poep_screen "RANK: 20 — SOMEBODY ELSE\'S HOURS"]',
+    'Elon (Neutral/Panicked): "It counts. It\'s my account. It\'s my name on the ladder."',
+    'Narrator: "It is his name on the ladder. It is also his name on the rocket, and the car, and the tunnel, and the chatbot — none of which he personally welded, wrote, dug or trained. He has spent thirty years learning that the name on the thing IS the doing of the thing. The game is the one place that arithmetic breaks in public."',
+    '[RANDOM]',
+    'Narrator: "And he streamed it. That is the tell. A man who genuinely did the work does not need you watching him do it. He needed witnesses, at the top of the ladder, at three in the morning, with the richest bank balance in human history sitting there doing nothing for him at all."',
+    '[OR]',
+    'Narrator: "And he streamed it. Think about that. Not a private pleasure — a broadcast, an audience, a scoreboard. He was not playing a game. He was standing in a doorway holding up a report card, waiting for a room to say good job."',
+    '[/RANDOM]',
+    'Elon: "You people have no idea how hard I work."',
+    'Narrator: "He does work. That is what makes it pitiable rather than funny. He works constantly, and it never once fills the hole, because the hole is not shaped like work. It is shaped like a specific person, a long time ago, saying you did well."',
+    'Narrator: "No cheap laugh here. There is a boy in this somewhere who was told he was not enough, and there is nothing in a rocket, a ladder or a leaderboard that can go back and fix it. Money bought him every possible substitute and not one of them took."',
+    'Narrator: "Which is the diagnosis, and here is the prescription this game actually believes in: the players caught it in two days. Not lawyers. Not regulators. Not the podcast. PLAYERS — unpaid, unimpressed, and expert, because they had done the hours he skipped."',
+    'Narrator: "That is the good news the whole chapter runs on. Wealth can buy the claim. It cannot buy the tacit knowledge of the people who did the work — and those people are numerous, they are watching, and they compare notes for free."',
+    '[BUTTON el_comic_godgamer]',
+    'Narrator: "Doug Sharp drew this before the game did: ELON MUSK, GOD GAMER. Button, top of the stage, new tab."',
+    '[CHOICE]',
+    '- "Back to the God Gamer" -> el_poe_hub',
+    '- "Back to the story" -> elon_feed',
+    '- "Enter the Machine" -> el_machine',
+    '[/CHOICE]',
+  ),
+  status: 'work',
+});
+
+const poeEnd = scenes.length;
+
 // ---------------------------------------------------------------- game
 
 const game = {
@@ -3468,7 +3994,22 @@ const game = {
   drops,
   items: [],
   sfx: [...SFX, ...CORE_SFX.filter((s) => !SFX.some((x) => x.id === s.id))],
-  buttons: [],
+  // The comic link. Shown with [BUTTON el_comic_godgamer] where Musk is
+  // introduced (elon_feed) and at the end of the x-ray (el_poe_psyche);
+  // pageUrl opens it in a new tab, targetSceneId deliberately omitted so
+  // clicking it never moves the player off the scene they are reading.
+  buttons: [
+    {
+      id: 'el_comic_godgamer',
+      name: 'God Gamer comic',
+      label: 'COMIC: GOD GAMER',
+      x: 62, y: 3, width: 24, height: 8,
+      pageUrl: 'https://dougsharpcomics.com/comic/elon-musk-god-gamer/',
+      style: 'primary',
+      note: 'Doug Sharp, dougsharpcomics.com — the Path of Exile cheating comic.',
+      status: 'work',
+    },
+  ],
   episodes: [
     {
       id: 'ep_elon',
@@ -3510,6 +4051,13 @@ const game = {
       name: 'The Record',
       description: 'Two drawers of uncovered files. Drawer one: the Worksafe study, the Reveal exposé and Tesla\'s denial, the CRD and EEOC suits, Trust & Safety\'s final meeting, the sink walk-in, the pay-package votes, Starbase at shift change, and the named testimony. Drawer two (the deep dive): the SEC settlement, the Agrawal and believers\' texts, DealBook, Tornetta and the Delaware escape, the Foundation math, the prestige machine, the taxonomy of the 600, the insulating layer, Cabada v. SpaceX, and the flagged 2025 file. Narraton pool: elon_reactions.',
       sceneIds: scenes.slice(aftermathsEnd, recordEnd).map((s) => s.id),
+      status: 'work',
+    },
+    {
+      id: 'ep_elon_godgamer',
+      name: 'The God Gamer',
+      description: 'The Path of Exile 2 affair: the claim of top-tier standing, the stream that did not survive contact with people who play, the boosting and account-sharing alleged by the community, the follow-up question the biggest podcast on Earth has never asked, and the x-ray — why a man with that much money needed to be seen as the best at a video game. Claims labelled claims; allegations labelled allegations. Narraton pool: elon_reactions.',
+      sceneIds: scenes.slice(recordEnd, poeEnd).map((s) => s.id),
       status: 'work',
     },
   ],

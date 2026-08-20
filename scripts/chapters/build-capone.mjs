@@ -69,6 +69,22 @@ const spr = (id, assetId, x, y, scale = 2.4) => ({
   pose: 'Neutral', expression: 'Neutral', spriteAngle: 0,
 });
 
+// ---- the three-door rule -------------------------------------------------
+// House rule: no [CHOICE] ever offers more than three doors. Longer menus
+// fan out into grouping scenes — each one a short beat with its own line
+// of framing, then its own three doors. Nothing is cut; every outcome that
+// used to sit in a ten-item list is still down there, one door deeper.
+const MENU_MAX = 3;
+const choice = (opts) => ['[CHOICE]', ...opts.filter(Boolean), '[/CHOICE]'];
+const fanScene = (id, name, dropId, stage, framing, opts) => {
+  if (opts.length > MENU_MAX) throw new Error(`${id}: ${opts.length} doors (max ${MENU_MAX})`);
+  return {
+    id, name, sceneType: 'AGENCY', dropId, stage,
+    script: lines(...framing, ...choice(opts)),
+    status: 'work',
+  };
+};
+
 // ---------------------------------------------------------------- assets
 
 const actors = [
@@ -141,15 +157,8 @@ const scenes = [
       'Capone: "This town IS the operation, Johnny. The breweries, the Hawthorne, the wire rooms. Cicero votes wrong, we\'re commuters."',
       'Torrio: "Then choose. And remember the one thing I keep telling you — violence is overhead."',
       '[CHOICE]',
-      '- "Flood the polls with muscle" -> cap_cic_muscle',
-      '- "Buy the precinct captains, quiet" -> cap_cic_money',
-      '- "Let Cicero vote — just this once" -> cap_cic_stayout',
-      '- "Voices of Chicago — hear the witnesses" -> cap_voices',
-      '- "Duets — two voices at a table" -> cap_duets',
-      '- "Aftermaths — what it cost later" -> cap_aftermaths',
-      '- "The Record — the uncovered files" -> cap_record',
-      '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
-      '- "Witness: The Rate Goes Up" -> cap_cut_rate',
+      '- "Price Cicero — the polls open at six" -> cap_cic_price',
+      '- "Step into the back room — the whole record" -> cap_backroom',
       '- "Enter the Machine" -> cap_machine',
       '[/CHOICE]',
     ),
@@ -729,6 +738,65 @@ const scenes = [
   },
 ];
 
+// ---- Cicero's three doors ------------------------------------------------
+// The opening used to hand you ten. Now it hands you three: price the
+// election, open the back room, or go stand inside the engine.
+
+scenes.push(fanScene(
+  'cap_cic_price', 'Cicero — Name the Price', dropCicero,
+  [spr('cic_pr_capone', 'capone', 32, 62), spr('cic_pr_torrio', 'torrio', 70, 62)],
+  [
+    'Torrio: "Three tags, Al. Loud, quiet, or nothing. The loud one you pay twice — once at the polls and once in the papers, and the papers charge interest."',
+    'Capone: "Frank says the boys can be on the street by six."',
+    'Torrio: "Frank says. Frank\'s twenty-eight years old and he thinks a shotgun is an argument."',
+  ],
+  [
+    '- "Flood the polls with muscle" -> cap_cic_muscle',
+    '- "Buy the precinct captains, quiet" -> cap_cic_money',
+    '- "Let Cicero vote — just this once" -> cap_cic_stayout',
+  ],
+));
+
+scenes.push(fanScene(
+  'cap_backroom', 'The Back Room', dropLexington,
+  [balloon('cap_backroom_sign', 'THE BACK ROOM — LEXINGTON HOTEL', 50, 10, { zIndex: 4 })],
+  [
+    'Narrator: "Fourth floor of the Lexington. A card table, two chairs nobody sits in, and eleven years of Chicago stacked up in folders that never made the trial."',
+    'Narrator: "Everything the main story walked past is in this room. Take your time. The election waits — elections always wait."',
+  ],
+  [
+    '- "Voices of Chicago — hear the witnesses" -> cap_voices',
+    '- "The files — duets, aftermaths, the record" -> cap_files',
+    '- "Two reels, and the door back to 1924" -> cap_reels',
+  ],
+));
+
+scenes.push(fanScene(
+  'cap_reels', 'Two Reels', dropGarage,
+  [balloon('cap_reels_sign', 'TWO REELS — NO CHOICES IN THEM', 50, 10, { zIndex: 4 })],
+  [
+    'Narrator: "Two reels, cut from what people swore they saw. No choices in either one. That is the point of them — some mornings the city didn\'t get a vote."',
+  ],
+  [
+    '- "Clark Street, 10:30 AM" -> cap_cut_clark',
+    '- "The Rate Goes Up" -> cap_cut_rate',
+    '- "Return to Cicero, 1924" -> cap_cicero',
+  ],
+));
+
+scenes.push(fanScene(
+  'cap_files', 'The Files', dropLexington,
+  [balloon('cap_files_sign', 'THE FILES — THREE FOLDERS', 50, 10, { zIndex: 4 })],
+  [
+    'Narrator: "Three folders on the table. Duets are the conversations. Aftermaths are the bills that came due later. The Record is what nobody entered in evidence."',
+  ],
+  [
+    '- "Duets — two voices at a table" -> cap_duets',
+    '- "Aftermaths — what it cost later" -> cap_aftermaths',
+    '- "The Record — the uncovered files" -> cap_record',
+  ],
+));
+
 // ==========================================================================
 // REACTION LAYER — "Voices of Chicago": ~100 episode vignettes.
 // Data-driven: REVENTS x RESPONDERS, plus stance variants on the biggest
@@ -1288,7 +1356,24 @@ const vignetteScene = (ev, resp, stance) => {
   };
 };
 
-// Per-event responder chooser.
+// Per-event responder chooser. Eight witnesses will not fit through three
+// doors, so the chooser asks WHICH SIDE OF THE STREET first — the men who
+// ran it, the men who came for it, the city that paid for it — and each
+// side opens onto its own short list. Every witness still speaks.
+const RGROUPS = [
+  { key: 'outfit', label: 'The men who ran it', who: ['capone', 'torrio'],
+    framing: ['Narrator: "Two men owned this one. The one who did it, and the old man who taught him how."'] },
+  { key: 'law', label: 'The men who came for it', who: ['wilson', 'ness'],
+    framing: ['Narrator: "The government sent Chicago two kinds of men. One brought an axe. One brought a pencil. Guess which one landed him."'] },
+  { key: 'street', label: 'The city underneath', who: ['workman', 'newsboy'],
+    framing: ['Narrator: "Under every dollar of it, somebody standing on a sidewalk at the wrong hour. Ask one of them."'],
+    more: { key: 'crowd', label: 'The crowd and the papers' } },
+  { key: 'crowd', label: 'The crowd and the papers', who: ['breadline', 'press'], nested: true,
+    framing: ['Narrator: "Nobody speaks for a crowd. A crowd speaks anyway — in the line, and on page one, and the two of them rarely agree."'] },
+];
+
+const respByKey = Object.fromEntries(RESPONDERS.map((r) => [r.key, r]));
+
 const chooserScene = (ev) => ({
   id: `capch_${ev.id}`,
   name: `Voices: ${ev.name}`,
@@ -1297,17 +1382,28 @@ const chooserScene = (ev) => ({
   stage: [balloon(`capch_${ev.id}_sign`, ev.sign, 50, 10, { zIndex: 4 })],
   script: lines(
     `Narrator: "${ev.intro}"`,
-    '[CHOICE]',
-    ...RESPONDERS.map((r) => `- "${r.label}" -> ${vignetteId(ev, r, null)}`),
-    '- "Back to the events" -> cap_voices',
-    '[/CHOICE]',
+    ...choice(RGROUPS.filter((g) => !g.nested).map((g) => `- "${g.label}" -> capchg_${ev.id}_${g.key}`)),
   ),
   status: 'work',
 });
 
+const chooserGroupScenes = (ev) =>
+  RGROUPS.map((g) => fanScene(
+    `capchg_${ev.id}_${g.key}`, `Voices: ${ev.name} — ${g.label}`, ev.dropId,
+    [balloon(`capchg_${ev.id}_${g.key}_sign`, ev.sign, 50, 10, { zIndex: 4 })],
+    g.framing,
+    [
+      ...g.who.map((k) => `- "${respByKey[k].label}" -> ${vignetteId(ev, respByKey[k], null)}`),
+      g.more
+        ? `- "${g.more.label}" -> capchg_${ev.id}_${g.more.key}`
+        : '- "Back to the events" -> cap_voices',
+    ],
+  ));
+
 let vignetteCount = 0;
 for (const ev of REVENTS) {
   scenes.push(chooserScene(ev));
+  scenes.push(...chooserGroupScenes(ev));
   for (const resp of RESPONDERS) {
     scenes.push(vignetteScene(ev, resp, null));
     vignetteCount++;
@@ -1329,19 +1425,48 @@ scenes.push({
     balloon('cap_voices_sign', 'VOICES OF CHICAGO, 1924-1931', 50, 10, { zIndex: 4 }),
   ],
   script: lines(
-    'Narrator: "Eleven years, ten turns of the screw. Pick an event and hear where it landed — on the boss, on the old man who taught him, on the lawmen, on the newsboy, on the breadline, on the press."',
+    'Narrator: "Eleven years, ten turns of the screw. Chicago tells it in three acts and never once agrees with itself. Pick an act and hear where it landed — on the boss, on the old man who taught him, on the lawmen, on the newsboy, on the breadline, on the press."',
     '[CHOICE]',
-    ...REVENTS.map((ev) => `- "${ev.name}" -> capch_${ev.id}`),
-    '- "Witness: Clark Street, 10:30 AM" -> cap_cut_clark',
-    '- "Witness: The Rate Goes Up" -> cap_cut_rate',
-    '- "Duets — two voices at a table" -> cap_duets',
-    '- "Aftermaths — what it cost later" -> cap_aftermaths',
-    '- "The Record — the uncovered files" -> cap_record',
-    '- "Return to Cicero, 1924" -> cap_cicero',
+    '- "The rise — 1924 to 1926" -> capg_rise',
+    '- "The business — the rate, the pad, the wall" -> capg_business',
+    '- "The fall — 1930 to 1931" -> capg_fall',
     '[/CHOICE]',
   ),
   status: 'work',
 });
+
+// The three acts. Nothing was dropped from the old sixteen-item list —
+// it was sorted into the order Chicago actually lived it.
+const evById = Object.fromEntries(REVENTS.map((e) => [e.id, e]));
+const evDoor = (id) => `- "${evById[id].name}" -> capch_${id}`;
+
+scenes.push(fanScene(
+  'capg_rise', 'Voices: The Rise', dropCicero,
+  [balloon('capg_rise_sign', 'THE RISE — 1924 TO 1926', 50, 10, { zIndex: 4 })],
+  ['Narrator: "Two years to go from somebody\'s bodyguard to somebody\'s problem. A stolen election, a handed-over empire, and a thousand rounds through a hotel window at lunch."'],
+  [evDoor('cicero'), evDoor('handover'), evDoor('hawthorne')],
+));
+
+scenes.push(fanScene(
+  'capg_business', 'Voices: The Business', dropLexington,
+  [balloon('capg_business_sign', 'THE BUSINESS — RENT, PAD, AND WALL', 50, 10, { zIndex: 4 })],
+  ['Narrator: "This is the part nobody films. A rate on every door, an envelope for every badge, and a garage wall when a customer forgets which of those two he owes."'],
+  [evDoor('rates'), evDoor('cityhall'), evDoor('massacre')],
+));
+
+scenes.push(fanScene(
+  'capg_fall', 'Voices: The Fall', dropSoup,
+  [balloon('capg_fall_sign', 'THE FALL — 1930 TO 1931', 50, 10, { zIndex: 4 })],
+  ['Narrator: "The publicity that built him turns around and takes aim. He answers with soup. It buys him a winter, and not one day more."'],
+  [evDoor('enemy'), evDoor('soup'), '- "The courthouse, October 1931" -> capg_court'],
+));
+
+scenes.push(fanScene(
+  'capg_court', 'Voices: The Courthouse', dropCourt,
+  [balloon('capg_court_sign', 'THE COURTHOUSE — OCTOBER 1931', 50, 10, { zIndex: 4 })],
+  ['Narrator: "Twelve bought names on a list, and a judge who traded his whole panel like a man swapping hats. Then the arithmetic. Chicago never saw it coming, because Chicago was watching the guns."'],
+  [evDoor('jury'), evDoor('verdict'), '- "Back to the back room" -> cap_backroom'],
+));
 
 console.log(`Reaction layer: ${vignetteCount} vignettes across ${REVENTS.length} events (+ ${REVENTS.length} choosers + 1 hub).`);
 
@@ -1553,18 +1678,11 @@ const EXPANSION = [
     stage: [xsign('cap_duets', 'DUETS — TWO VOICES AT A TABLE'),
       spr('cap_duets_a', 'capone', 32, 62), spr('cap_duets_b', 'torrio', 70, 62)],
     script: lines(
-      'Narrator: "Two chairs, one subject, no referee. Some of these conversations history actually staged. Some it never dared — those are flagged. Pick a table."',
+      'Narrator: "Two chairs, one subject, no referee. Some of these conversations history actually staged. Some it never dared — those are flagged. Three rooms, and every table is still set."',
       '[CHOICE]',
-      '- "Capone & Torrio — retire like me" -> capd_retire_1',
-      '- "Capone & Wilson — the interview that never happened" -> capd_interview_1',
-      '- "Wilson & Ness — raids vs receipts" -> capd_methods_1',
-      '- "Capone & the Newsboy — buying the headline" -> capd_headline_1',
-      '- "Torrio & Ness — the old fox and the young lawman" -> capd_fox_1',
-      '- "The Workman & the Breadline — taking the soup" -> capd_takesoup_1',
-      '- "Capone & the mirror — Public Enemy, 2 A.M." -> capd_mirror_1',
-      '- "Aftermaths — what it cost later" -> cap_aftermaths',
-      '- "The Record — the uncovered files" -> cap_record',
-      '- "Return to Cicero, 1924" -> cap_cicero',
+      '- "The Outfit\'s own tables" -> capd_g_outfit',
+      '- "The tables the government sat at" -> capd_g_law',
+      '- "The tables out on the street" -> capd_g_street',
       '[/CHOICE]',
     ),
     status: 'work',
@@ -1576,19 +1694,11 @@ const EXPANSION = [
     dropId: dropGarage,
     stage: [xsign('cap_aftermaths', 'AFTERMATHS — THAT NIGHT / MONTHS / YEARS')],
     script: lines(
-      'Narrator: "Every event runs on three clocks: that night, months later, years later. Four events, two witnesses apiece. Choose where you want to be standing."',
+      'Narrator: "Every event runs on three clocks: that night, months later, years later. Four events, two witnesses apiece, and not one of them got to skip the waiting. Pick the year you want to be standing in."',
       '[CHOICE]',
-      '- "Cicero — the family" -> capa_cic_fam_1',
-      '- "Cicero — the town that got bought" -> capa_cic_town_1',
-      '- "The massacre — the city desk" -> capa_mas_press_1',
-      '- "The massacre — the street" -> capa_mas_street_1',
-      '- "The soup kitchen — the workman" -> capa_soup_work_1',
-      '- "The soup kitchen — the proprietor" -> capa_soup_cap_1',
-      '- "The verdict — the convict" -> capa_ver_cap_1',
-      '- "The verdict — the accountant" -> capa_ver_wil_1',
-      '- "Duets — two voices at a table" -> cap_duets',
-      '- "The Record — the uncovered files" -> cap_record',
-      '- "Return to Cicero, 1924" -> cap_cicero',
+      '- "Cicero, 1924 — the bill for the election" -> capa_g_cicero',
+      '- "The wall, 1929 — the bill for the wall" -> capa_g_wall',
+      '- "The soup and the sentence" -> capa_g_late',
       '[/CHOICE]',
     ),
     status: 'work',
@@ -1601,20 +1711,11 @@ const EXPANSION = [
     stage: [xsign('cap_record', 'THE RECORD — UNCOVERED FILES'),
       spr('cap_record_a', 'wilson', 42, 62)],
     script: lines(
-      'Narrator: "The files the main story walked right past. Entered here as exhibits, without objection."',
+      'Narrator: "The files the main story walked right past. Entered here as exhibits, without objection. Three sections, and a second drawer under the first one."',
       '[CHOICE]',
-      '- "U.S. v. Sullivan, 1927 — the ruling" -> capr_sullivan_1',
-      '- "The Hawthorne lunch counter, 1926" -> capr_lunch',
-      '- "The Adonis Social Club, 1925" -> capr_adonis',
-      '- "Frank Capone — April 1, 1924" -> capr_frank_1',
-      '- "The plea Wilkerson threw out, 1931" -> capr_plea',
-      '- "The brewery raids" -> capr_raids_1',
-      '- "McGurn, 1936 — an aftermath" -> capr_mcgurn',
-      '- "Repeal, 1933 — the empty speakeasy" -> capr_repeal_1',
-      '- "The second drawer — fourteen more files" -> cap_record2',
-      '- "Duets — two voices at a table" -> cap_duets',
-      '- "Aftermaths — what it cost later" -> cap_aftermaths',
-      '- "Return to Cicero, 1924" -> cap_cicero',
+      '- "The law of it" -> capr_g_law',
+      '- "The rooms, and the men in them" -> capr_g_rooms',
+      '- "After the party" -> capr_g_after',
       '[/CHOICE]',
     ),
     status: 'work',
@@ -2188,23 +2289,11 @@ const EXPANSION = [
     stage: [xsign('cap_record2', 'THE RECORD — THE SECOND DRAWER'),
       spr('cap_record2_a', 'wilson', 42, 62)],
     script: lines(
-      'Narrator: "The deeper files. Sources named, doubts flagged where the floor gets thin. Entered as exhibits, objections noted in the margin."',
+      'Narrator: "The deeper files. Sources named, doubts flagged where the floor gets thin. Entered as exhibits, objections noted in the margin. Sorted three ways, because fifteen at once is not a drawer, it is a landslide."',
       '[CHOICE]',
-      '- "Cicero, entered by the Commission" -> capr_peterson',
-      '- "The sixty million" -> capr_sixty',
-      '- "Irey\'s desk — October 18, 1928" -> capr_irey',
-      '- "The bookkeepers: Shumway & Reis" -> capr_books_1',
-      '- "Nitti, Guzik, Ralph — the rehearsal convictions" -> capr_lieutenants',
-      '- "George E.Q. Johnson, for the United States" -> capr_johnson',
-      '- "Twelve names in the paper" -> capr_jurors',
-      '- "The bankers quote — courthouse steps" -> capr_bankers',
-      '- "The bunk quote — an attribution" -> capr_bunk',
-      '- "The milk legend — a disputed file" -> capr_milk',
-      '- "The prestige machine" -> capr_persona',
-      '- "Cicero as rent — the claim itself" -> capr_georgist',
-      '- "Sergeant Sweeney\'s report" -> capr_sweeney',
-      '- "Back to the first drawer" -> cap_record',
-      '- "Return to Cicero, 1924" -> cap_cicero',
+      '- "The numbers" -> capr2_g_numbers',
+      '- "The government\'s men" -> capr2_g_men',
+      '- "The stories, the doubts, and the door" -> capr2_g_story',
       '[/CHOICE]',
     ),
     status: 'work',
@@ -2346,6 +2435,181 @@ const EXPANSION = [
 
 scenes.push(...EXPANSION);
 console.log(`Expansion: ${EXPANSION.length} scenes (4 hubs, 28 duet beats, 20 aftermath beats, 26 record exhibits in two drawers).`);
+
+// ---- expansion fan-out ---------------------------------------------------
+// The three folders used to open onto ten- and fifteen-item lists. Now each
+// opens onto three doors, and the long lists live one beat deeper. Every
+// duet, every aftermath, every exhibit is still down there.
+
+const FANOUT = [
+  fanScene('capd_g_outfit', 'Duets — The Outfit\'s Tables', dropLexington,
+    [xsign('capd_g_outfit', 'THE OUTFIT\'S OWN TABLES'),
+      spr('capd_g_outfit_a', 'capone', 32, 62), spr('capd_g_outfit_b', 'torrio', 70, 62)],
+    ['Narrator: "Three tables where the business talked to itself. Nobody at these takes notes, and nobody needs to."'],
+    [
+      '- "Capone & Torrio — retire like me" -> capd_retire_1',
+      '- "Torrio & Ness — the old fox and the young lawman" -> capd_fox_1',
+      '- "Capone & the mirror — Public Enemy, 2 A.M." -> capd_mirror_1',
+    ]),
+
+  fanScene('capd_g_law', 'Duets — The Government\'s Tables', dropCourt,
+    [xsign('capd_g_law', 'THE TABLES THE GOVERNMENT SAT AT'),
+      spr('capd_g_law_a', 'wilson', 32, 62), spr('capd_g_law_b', 'ness', 70, 62)],
+    ['Narrator: "Two tables the government set. One of them history never let happen — that one is flagged, and it is the better conversation."'],
+    [
+      '- "Capone & Wilson — the interview that never happened" -> capd_interview_1',
+      '- "Wilson & Ness — raids vs receipts" -> capd_methods_1',
+      '- "Close the folder" -> cap_files',
+    ]),
+
+  fanScene('capd_g_street', 'Duets — The Street\'s Tables', dropSoup,
+    [xsign('capd_g_street', 'THE TABLES OUT ON THE STREET'),
+      spr('capd_g_street_a', 'newsboy', 32, 66, 1.8), spr('capd_g_street_b', 'workman', 70, 62)],
+    ['Narrator: "No tablecloths on these. A curb, a soup line, and whatever the city says when it thinks the boss is out of earshot."'],
+    [
+      '- "Capone & the Newsboy — buying the headline" -> capd_headline_1',
+      '- "The Workman & the Breadline — taking the soup" -> capd_takesoup_1',
+      '- "Close the folder" -> cap_files',
+    ]),
+
+  fanScene('capa_g_cicero', 'Aftermaths — Cicero, 1924', dropCicero,
+    [xsign('capa_g_cicero', 'CICERO — THE BILL FOR THE ELECTION')],
+    ['Narrator: "The town voted the way it was told to. The receipt came in two copies: one to a family, one to a whole municipality that woke up owned."'],
+    [
+      '- "Cicero — the family" -> capa_cic_fam_1',
+      '- "Cicero — the town that got bought" -> capa_cic_town_1',
+      '- "Close the folder" -> cap_files',
+    ]),
+
+  fanScene('capa_g_wall', 'Aftermaths — The Wall, 1929', dropGarage,
+    [xsign('capa_g_wall', 'THE WALL — THE BILL FOR FEBRUARY 14')],
+    ['Narrator: "Seven men and seventy rounds bought one photograph. The photograph did more damage to the Outfit than every raid Ness ever staged."'],
+    [
+      '- "The massacre — the city desk" -> capa_mas_press_1',
+      '- "The massacre — the street" -> capa_mas_street_1',
+      '- "Close the folder" -> cap_files',
+    ]),
+
+  fanScene('capa_g_late', 'Aftermaths — Soup and Sentence', dropSoup,
+    [xsign('capa_g_late', 'THE SOUP AND THE SENTENCE')],
+    ['Narrator: "Two thousand two hundred bowls a day, and eleven years at the end of them. Ask a man who stood in that line what it was worth. Then ask the man who paid for it."'],
+    [
+      '- "The soup kitchen — the workman" -> capa_soup_work_1',
+      '- "The soup kitchen — the proprietor" -> capa_soup_cap_1',
+      '- "The verdict, 1931" -> capa_g_verdict',
+    ]),
+
+  fanScene('capa_g_verdict', 'Aftermaths — The Verdict', dropCourt,
+    [xsign('capa_g_verdict', 'THE VERDICT — OCTOBER 17, 1931')],
+    ['Narrator: "Guilty on the tax counts. Two men left that courtroom changed — the one in handcuffs, and the one who had spent six years adding."'],
+    [
+      '- "The verdict — the convict" -> capa_ver_cap_1',
+      '- "The verdict — the accountant" -> capa_ver_wil_1',
+      '- "Close the folder" -> cap_files',
+    ]),
+
+  fanScene('capr_g_law', 'The Record — The Law of It', dropCourt,
+    [xsign('capr_g_law', 'THE RECORD — THE LAW OF IT'), spr('capr_g_law_a', 'wilson', 42, 62)],
+    ['Narrator: "Three files about the machinery of the law itself: a ruling that made the whole case possible, a plea a judge refused to take, and the raids everybody remembers instead."'],
+    [
+      '- "U.S. v. Sullivan, 1927 — the ruling" -> capr_sullivan_1',
+      '- "The plea Wilkerson threw out, 1931" -> capr_plea',
+      '- "The brewery raids" -> capr_raids_1',
+    ]),
+
+  fanScene('capr_g_rooms', 'The Record — The Rooms', dropCicero,
+    [xsign('capr_g_rooms', 'THE RECORD — THE ROOMS AND THE MEN')],
+    ['Narrator: "Three addresses. A lunch counter, a social club, and a Cicero street on election day. Two of them still had the glass swept up by morning."'],
+    [
+      '- "The Hawthorne lunch counter, 1926" -> capr_lunch',
+      '- "The Adonis Social Club, 1925" -> capr_adonis',
+      '- "Frank Capone — April 1, 1924" -> capr_frank_1',
+    ]),
+
+  fanScene('capr_g_after', 'The Record — After the Party', dropLexington,
+    [xsign('capr_g_after', 'THE RECORD — AFTER THE PARTY')],
+    ['Narrator: "What was left when the beer went legal and the shooters got old. Spoiler: the rent kept collecting itself, exactly as before."'],
+    [
+      '- "McGurn, 1936 — an aftermath" -> capr_mcgurn',
+      '- "Repeal, 1933 — the empty speakeasy" -> capr_repeal_1',
+      '- "The next drawer, or the door out" -> capr_g_out',
+    ]),
+
+  fanScene('capr_g_out', 'The Record — The Door', dropCourt,
+    [xsign('capr_g_out', 'THE RECORD — DOWN, OR OUT')],
+    ['Narrator: "Under this drawer there is another one. Fourteen more files, sources named, doubts flagged. Or you can put the folder back on the table and go be twenty-five years old in Cicero again."'],
+    [
+      '- "The second drawer — fourteen more files" -> cap_record2',
+      '- "Back to the files" -> cap_files',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+    ]),
+
+  fanScene('capr2_g_numbers', 'The Second Drawer — The Numbers', dropLexington,
+    [xsign('capr2_g_numbers', 'THE SECOND DRAWER — THE NUMBERS')],
+    ['Narrator: "Sixty million a year, and not one dollar of it filed anywhere. Two exhibits on the size of the hole, and one on the desk where somebody finally started measuring it."'],
+    [
+      '- "The sixty million" -> capr_sixty',
+      '- "Irey\'s desk — October 18, 1928" -> capr_irey',
+      '- "Back to the first drawer" -> cap_record',
+    ]),
+
+  fanScene('capr2_g_men', 'The Second Drawer — The Government\'s Men', dropCourt,
+    [xsign('capr2_g_men', 'THE SECOND DRAWER — THE GOVERNMENT\'S MEN')],
+    ['Narrator: "Nobody remembers their names. They are the reason there is a verdict to remember."'],
+    [
+      '- "George E.Q. Johnson, for the United States" -> capr_johnson',
+      '- "The bookkeepers: Shumway & Reis" -> capr_books_1',
+      '- "The courthouse names" -> capr2_g_court',
+    ]),
+
+  fanScene('capr2_g_court', 'The Second Drawer — The Courthouse Names', dropCourt,
+    [xsign('capr2_g_court', 'THE SECOND DRAWER — COURTHOUSE NAMES')],
+    ['Narrator: "The rehearsal convictions that taught the government the case would hold, and the twelve men whose names ran in a newspaper before they ever ran in a docket."'],
+    [
+      '- "Nitti, Guzik, Ralph — the rehearsal convictions" -> capr_lieutenants',
+      '- "Twelve names in the paper" -> capr_jurors',
+      '- "Back to the first drawer" -> cap_record',
+    ]),
+
+  fanScene('capr2_g_story', 'The Second Drawer — Stories and Doubts', dropSoup,
+    [xsign('capr2_g_story', 'THE SECOND DRAWER — STORIES AND DOUBTS')],
+    ['Narrator: "Now the soft floor. What Chicago said about itself, what Capone said that he probably never said, and the claim this whole chapter rests on."'],
+    [
+      '- "Cicero, on the record" -> capr2_g_cicero',
+      '- "Quotes, legends, and one milk truck" -> capr2_g_quotes',
+      '- "The prestige machine, and the door" -> capr2_g_out',
+    ]),
+
+  fanScene('capr2_g_cicero', 'The Second Drawer — Cicero on the Record', dropCicero,
+    [xsign('capr2_g_cicero', 'THE SECOND DRAWER — CICERO ON THE RECORD')],
+    ['Narrator: "Three files on one town. A commission\'s verdict, a sergeant\'s report, and the argument that the whole thing was a landlord collecting."'],
+    [
+      '- "Cicero, entered by the Commission" -> capr_peterson',
+      '- "Sergeant Sweeney\'s report" -> capr_sweeney',
+      '- "Cicero as rent — the claim itself" -> capr_georgist',
+    ]),
+
+  fanScene('capr2_g_quotes', 'The Second Drawer — Quotes and Legends', dropLexington,
+    [xsign('capr2_g_quotes', 'THE SECOND DRAWER — QUOTES AND LEGENDS')],
+    ['Narrator: "Three things everybody knows he said. One he said, one he maybe said, and one he could not possibly have done. Chicago never checked, and neither did the movies."'],
+    [
+      '- "The bankers quote — courthouse steps" -> capr_bankers',
+      '- "The bunk quote — an attribution" -> capr_bunk',
+      '- "The milk legend — a disputed file" -> capr_milk',
+    ]),
+
+  fanScene('capr2_g_out', 'The Second Drawer — The Door', dropSoup,
+    [xsign('capr2_g_out', 'THE SECOND DRAWER — THE DOOR')],
+    ['Narrator: "One file left: how a man who priced a whole city got himself photographed ladling soup. Then the stairs back up."'],
+    [
+      '- "The prestige machine" -> capr_persona',
+      '- "Back to the first drawer" -> cap_record',
+      '- "Return to Cicero, 1924" -> cap_cicero',
+    ]),
+];
+
+scenes.push(...FANOUT);
+console.log(`Fan-out: ${FANOUT.length} grouping scenes so no [CHOICE] shows more than ${MENU_MAX} doors.`);
 
 // ==========================================================================
 // THE MACHINE, 1929 — the shared Georgist rig, seeded with Chicago's
