@@ -160,6 +160,11 @@ interface UseScriptRunnerOptions {
   textSpeed?: number; // Characters per second
   autoAdvanceDelay?: number; // ms delay after dialogue completes in auto mode
   ability?: AbilitySettings; // player's declared needs; adapts pacing/timing/motion
+  /**
+   * Freeze the show. Nothing advances, no timer fires, the simulation
+   * stops evolving. The player asked the world to hold still.
+   */
+  paused?: boolean;
 }
 
 export function useScriptRunner({
@@ -170,7 +175,13 @@ export function useScriptRunner({
   textSpeed = 100,
   autoAdvanceDelay = 1500,
   ability = DEFAULT_ABILITY_SETTINGS,
+  paused = false,
 }: UseScriptRunnerOptions) {
+  // Read through a ref so a timer that has already been scheduled can
+  // check the CURRENT pause state when it fires, not the value that was
+  // captured when it was created.
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   // Read through a ref so command execution always sees the current
   // settings, even mid-scene when the player changes them.
   const abilityRef = useRef(ability);
@@ -1287,6 +1298,7 @@ export function useScriptRunner({
 
   useEffect(() => {
     if (!tickKey) return;
+    if (paused) return; // the model holds still too
     const intervalSeconds = Number(tickKey.slice(tickKey.lastIndexOf(':') + 1));
     const id = setInterval(() => {
       executeTickBodyRef.current(tickBodyRef.current);
@@ -1301,7 +1313,7 @@ export function useScriptRunner({
       clearInterval(id);
       if (tickIntervalRef.current === id) tickIntervalRef.current = null;
     };
-  }, [tickKey]);
+  }, [tickKey, paused]);
 
   // Execute the flattened command list from an index until something
   // yields (dialogue, choice, wait, scene change) or the script ends.
@@ -1382,6 +1394,7 @@ export function useScriptRunner({
 
   // Advance to next command (user input / auto-play)
   const advance = useCallback(() => {
+    if (pausedRef.current) return; // frozen: a click must not move the show
     if (state.isWaiting) return;
     if (state.choices) return; // choices resolve via selectChoice
     if (state.isComplete) return;
@@ -1450,6 +1463,7 @@ export function useScriptRunner({
   // Auto-advance when in auto-play mode
   useEffect(() => {
     if (!state.isAutoPlay) return;
+    if (paused) return;
     if (state.isWaiting || state.choices) return;
     if (!state.activeDialogue?.isComplete) return;
     
@@ -1460,14 +1474,21 @@ export function useScriptRunner({
     return () => {
       if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     };
-  }, [state.isAutoPlay, state.isWaiting, state.choices, state.activeDialogue?.isComplete, autoAdvanceDelay, advance]);
+  }, [state.isAutoPlay, paused, state.isWaiting, state.choices, state.activeDialogue?.isComplete, autoAdvanceDelay, advance]);
 
-  // Start script on mount
+  // Start script on mount.
+  //
+  // `paused` is in the dependency list for a reason that cost a test to
+  // find: this effect starts the scene by calling advance(), and advance()
+  // refuses while paused. Without re-running on unpause, a player who
+  // paused before the first line would resume into a scene that never
+  // began — no dialogue, no error, a dead show.
   useEffect(() => {
+    if (paused) return;
     if (commands.length > 0 && state.currentCommandIndex === 0 && !state.activeDialogue && !state.isComplete) {
       advance();
     }
-  }, [commands.length, state.currentSceneId]); // Only run when scene changes
+  }, [commands.length, state.currentSceneId, paused]);
 
   // Reset to a specific scene
   const goToScene = useCallback((sceneId: string) => {

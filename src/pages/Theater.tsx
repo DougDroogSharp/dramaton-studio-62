@@ -48,6 +48,9 @@ const Theater: React.FC = () => {
   // variables this scene has moved. On by default — it costs no
   // layout, because the shelf reserves its height either way.
   const [showMeters, setShowMeters] = useState(true);
+  // Pause freezes the whole show: the script, the auto-advance clock,
+  // the TICK simulation, and the voice mid-sentence.
+  const [isPaused, setIsPaused] = useState(false);
   // Onboarding is the front door, not a buried menu: every player is
   // asked how they want to play before the first game.
   const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
@@ -166,6 +169,17 @@ const Theater: React.FC = () => {
     void audio.play().catch(() => {});
   }, [game, isMuted]);
 
+  // Pause holds the score rather than discarding it, so resuming picks
+  // up mid-bar. Mute, by contrast, stops for good.
+  useEffect(() => {
+    const clips = [channelsRef.current.bgm, channelsRef.current.ambience];
+    for (const a of clips) {
+      if (!a) continue;
+      if (isPaused) a.pause();
+      else if (!isMuted) void a.play().catch(() => {});
+    }
+  }, [isPaused, isMuted]);
+
   // Mute stops what is already sounding, not just what has yet to start.
   useEffect(() => {
     if (isMuted) stopAudio('all');
@@ -183,6 +197,7 @@ const Theater: React.FC = () => {
     startSceneId,
     onAudioCommand: handleAudioCommand,
     ability,
+    paused: isPaused,
   });
 
   // Read the show aloud when the player is relying on audio.
@@ -191,7 +206,7 @@ const Theater: React.FC = () => {
     ambient: scriptRunner.state.ambientNarration,
     choices: scriptRunner.state.choices?.options ?? null,
     ability,
-    muted: isMuted,
+    muted: isMuted || isPaused,
     narratorVoice: ability.narratorVoice,
     active: hasStarted,
   });
@@ -350,6 +365,11 @@ const Theater: React.FC = () => {
       }
       
       // Toggle mute
+      if (e.key === 'p' || e.key === 'P') {
+        setIsPaused(prev => !prev);
+        return;
+      }
+
       if (e.key === 'm' || e.key === 'M') {
         setIsMuted(prev => !prev);
       }
@@ -656,6 +676,8 @@ const Theater: React.FC = () => {
         onToggleMute={() => setIsMuted(!isMuted)}
         onOpenMenu={() => setShowMenu(true)}
         onOpenSettings={() => setShowSettings(true)}
+        isPaused={isPaused}
+        onTogglePause={() => setIsPaused(v => !v)}
         showMeters={showMeters}
         onToggleMeters={() => setShowMeters(v => !v)}
         onGoHome={async () => {
