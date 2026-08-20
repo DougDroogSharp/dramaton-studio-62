@@ -17,6 +17,13 @@ const BRIDGE = 'http://localhost:8080/api/flux-generate';
 const STYLE = 'William the Conqueror';
 
 const MANIFEST = [
+  // Title card — the engine draws the chapter title over the upper
+  // third, so that band is kept deliberately empty.
+  {
+    file: 'title_william.png', isCharacter: false,
+    prompt: 'Title card for a chapter on the Norman Conquest. A wide Bayeux-tapestry panel on bare linen: the whole upper third is EMPTY undecorated linen ground with no stitching at all, and all imagery sits in the lower two thirds — a line of Norman knights on horseback riding right with kite shields and lances, a Saxon shield-wall facing them, a low horizon of green hillocks, a decorative stitched border strip along the very bottom. Sparse composition, plenty of bare cloth. No lettering, no words, no text, no numerals anywhere.',
+    retry: 'A wide medieval embroidery panel on plain linen: the top third left completely blank and unstitched, mounted Norman riders with lances and a row of shields worked along the lower half, a stitched ornamental border at the bottom edge. Sparse, lots of bare linen. No lettering or text of any kind.',
+  },
   // Backdrops
   {
     file: 'burning_village.png', isCharacter: false,
@@ -118,25 +125,49 @@ const DIRS = [
   ['n',  'back view, walking straight away from the viewer'],
   ['ne', 'three-quarter back view facing right, walking diagonally away from the viewer and to the right'],
 ];
-const STRIDES = [
-  ['1', 'left leg forward, right leg back, arms mid-swing'],
-  ['2', 'right leg forward, left leg back, arms in the opposite swing'],
-];
+// Frame 1 of each direction references the BASE sprite. Frame 2
+// references its OWN frame 1 — not the base — so the two frames of a
+// cycle are the same person in the same clothes and only the stride
+// changes. Referencing the base for both made frame 1 and frame 2 drift
+// into two different-looking figures and the walk cycle flickered.
+const STRIDE_1 = 'left leg forward, right leg back, arms mid-swing';
+const STRIDE_2 = 'right leg forward, left leg back, arms in the opposite swing';
+
+// The manifest is processed in array order, so each frame 1 MUST be
+// pushed before the frame 2 that references it.
 for (const [dir, view] of DIRS) {
-  for (const [n, stride] of STRIDES) {
-    MANIFEST.push({
-      file: `peasant_walk_${dir}${n}.png`, isCharacter: true,
-      ref: ['peasant.png'],
-      prompt: `The same Saxon peasant farmer walking: ${view}, mid-stride with ${stride}, full body. Same face, rough wool tunic, hood and costume as the reference.`,
-      retry: `A gaunt Saxon peasant in a rough wool tunic and hood walking, ${view}, ${stride}, full body. Same face and costume as the reference.`,
-    });
-    MANIFEST.push({
-      file: `william_walk_${dir}${n}.png`, isCharacter: true,
-      ref: ['..', 'william_king.png'],
-      prompt: `The same Norman king William the Conqueror walking: ${view}, mid-stride with ${stride}, full body. Same face, beard, gold crown, chain mail hauberk and long red cloak as the reference.`,
-      retry: `A stern bearded Norman king with a gold crown, chain mail and long red cloak walking, ${view}, ${stride}, full body. Same face and costume as the reference.`,
-    });
-  }
+  // --- frame 1: off the base sprite
+  MANIFEST.push({
+    file: `peasant_walk_${dir}1.png`, isCharacter: true,
+    ref: ['peasant.png'],
+    prompt: `The same Saxon peasant farmer walking: ${view}, mid-stride with ${STRIDE_1}, full body. Same face, rough wool tunic, hood and costume as the reference.`,
+    retry: `A gaunt Saxon peasant in a rough wool tunic and hood walking, ${view}, ${STRIDE_1}, full body. Same face and costume as the reference.`,
+  });
+  MANIFEST.push({
+    file: `william_walk_${dir}1.png`, isCharacter: true,
+    ref: ['..', 'william_king.png'],
+    prompt: `The same Norman king William the Conqueror walking: ${view}, mid-stride with ${STRIDE_1}, full body. Same face, beard, gold crown, chain mail hauberk and long red cloak as the reference.`,
+    retry: `A stern bearded Norman king with a gold crown, chain mail and long red cloak walking, ${view}, ${STRIDE_1}, full body. Same face and costume as the reference.`,
+  });
+  // --- frame 2: off frame 1 of the SAME direction, stride only.
+  // Keep this prompt SHORT. A long version with an explicit list of
+  // things not to change ("no new hose, no new sleeves, ...") made the
+  // drift much worse — the extra text pulled the model away from the
+  // reference image and it regenerated the figure from scratch. Leading
+  // with "identical to the reference" and saying almost nothing else
+  // keeps the reference dominant.
+  MANIFEST.push({
+    file: `peasant_walk_${dir}2.png`, isCharacter: true,
+    ref: [`peasant_walk_${dir}1.png`],
+    prompt: `Identical to the reference image in every way — the same Saxon peasant, same face, same costume, same colours, same ${view}. Only the legs and arms move, into the opposite stride: ${STRIDE_2}.`,
+    retry: `The same peasant as the reference image, same costume and colours, legs swapped into the opposite stride: ${STRIDE_2}.`,
+  });
+  MANIFEST.push({
+    file: `william_walk_${dir}2.png`, isCharacter: true,
+    ref: [`william_walk_${dir}1.png`],
+    prompt: `Identical to the reference image in every way — the same Norman king, same face, same crown, same costume, same colours, same ${view}. Only the legs and arms move, into the opposite stride: ${STRIDE_2}.`,
+    retry: `The same Norman king as the reference image, same crown, costume and colours, legs swapped into the opposite stride: ${STRIDE_2}.`,
+  });
 }
 
 // Remove the green screen: fully green pixels go transparent, edge

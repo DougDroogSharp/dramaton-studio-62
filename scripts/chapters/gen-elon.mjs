@@ -18,6 +18,13 @@ const BRIDGE = 'http://localhost:8080/api/flux-generate';
 // ---------------------------------------------------------------- manifest
 
 const MANIFEST = [
+  // Title card — the engine draws the chapter title over the upper
+  // third, so that band is kept deliberately empty.
+  {
+    file: 'title_elon.png', isCharacter: false,
+    prompt: 'A wide desert launch-site scene at dusk. The top third of the frame is nothing but an empty gradient sky — completely blank, no rocket, no tower, no structure, no object of any kind reaching up into it. Everything sits low in the bottom half: a small floodlit rocket on its pad far off on the horizon, a chain-link fence running across the middle distance, cracked asphalt and a single tipped-over office chair in the foreground, long raking shadows. Deserted, nobody present. The image contains no screens and no writing whatsoever: no words, no letters, no logos, no numbers, no captions, no signage.',
+    alt: 'A wide satirical dusk scene with the entire top third left as plain empty sky containing nothing at all: a distant floodlit rocket low on the horizon, a chain-link fence across the middle, cracked pavement and an overturned office chair in the foreground. No people, no screens, and absolutely no lettering, logos or numbers.',
+  },
   {
     file: 'factory.png', isCharacter: false,
     prompt: 'A rocket factory floor: a giant rocket engine mounted on a steel test stand, yellow warning signs and caution stripes, harsh overhead work lights throwing hard shadows, cables and tool carts on the concrete. Wide empty middle ground for characters. No people.',

@@ -26,6 +26,13 @@ const refDataUrl = (...rel) => {
 };
 
 const MANIFEST = [
+  // Title card — the engine draws the chapter title over the upper
+  // third, so that band is kept deliberately empty.
+  {
+    file: 'title_capone.png', isCharacter: false,
+    prompt: 'A wide street-level view of Chicago at night, 1929. The top third of the frame is nothing but empty smoggy black sky — completely blank, no buildings, no wires, no structures reaching into it. In the bottom two thirds: a rain-slick cobbled street, a long black Cadillac sedan parked at the curb under a haloed streetlamp, a plain unmarked doorway spilling warm light, drifting fog and steam. Deserted street, nobody present. The image is entirely unlettered: no words, no letters, no signs, no shopfront lettering, no posters, no license plates, no numbers anywhere.',
+    fallback: 'A moody 1929 American city street at night with the top third left as plain empty black sky containing nothing: rain-slick cobbles, a vintage black sedan at the curb, a glowing streetlamp in fog, a plain lit doorway. Empty street, no people. Completely unlettered — no signs, posters, writing or numbers anywhere.',
+  },
   // Backdrops
   {
     file: 'capone_soupkitchen.png', isCharacter: false,

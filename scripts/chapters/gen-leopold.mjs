@@ -19,6 +19,13 @@ const STYLE = 'King Leopold';
 // Documentary restraint throughout: no violence, no wounds, no children
 // in danger. The horror lives in absence and aftermath.
 const MANIFEST = [
+  // Title card — the engine draws the chapter title over the upper
+  // third, so that band is kept deliberately empty.
+  {
+    file: 'title_leopold.png', isCharacter: false,
+    prompt: 'A wide low-angle documentary photograph, circa 1900, of a Congo river landing seen from the water. The top third of the frame is nothing but flat overcast sky — completely blank and featureless, no treeline, no smoke, no objects reaching into it. In the bottom two thirds: a stern-wheel river steamer moored against a muddy bank, stacked rubber bales and wooden crates along the shore, a low wall of jungle behind, still water in the foreground. Deserted, nobody present. The photograph is entirely unlettered: no words, no letters, no writing, no captions, no signs, no painted names on the hull, no numbers.',
+    fallback: 'A period documentary photograph circa 1900 in which the top third is plain empty overcast sky with nothing in it: a moored river steamboat and stacked cargo bales on a muddy bank in the lower half, low forest behind, calm water. No people. Completely unlettered — no writing, captions, signs or numbers anywhere.',
+  },
   {
     file: 'leopold_palace.png', isCharacter: false,
     prompt: 'Brussels royal palace grand office, 1900: gilded paneled walls, a huge desk stacked with papers and dispatch boxes, large maps of Africa on the wall, heavy drapes, a globe. Wide empty middle ground. No people.',
