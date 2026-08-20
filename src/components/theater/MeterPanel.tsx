@@ -50,7 +50,7 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
   return (
     <div className="w-full">
       <div className="grid gap-1.5 px-3 pt-2 sm:grid-cols-2 lg:grid-cols-3">
-        {shown.map(row => {
+        {shown.map((row, i) => {
           const min = row.meaning.min ?? 0;
           const max = row.meaning.max ?? 100;
           const span = max - min || 1;
@@ -62,10 +62,14 @@ export const MeterPanel: React.FC<MeterPanelProps> = ({ rows, worldState, moneyF
 
           return (
             <div
-              key={row.meaning.variable}
-              className={`px-2 py-1.5 border ${
+              key={`${row.meaning.variable}-${row.seq}`}
+              // The needle lights when it moves. Keying on `seq` restarts
+              // the animation on every fresh move, so a gauge nudged
+              // again flashes again instead of sitting quietly lit.
+              className={`px-2 py-1.5 border animate-meter-lit ${
                 isNewest ? 'border-diesel-gold/70 bg-diesel-gold/5' : 'border-diesel-border'
               }`}
+              style={{ animationDelay: `${Math.min(i * 60, 240)}ms` }}
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[10px] uppercase tracking-widest text-diesel-steel">

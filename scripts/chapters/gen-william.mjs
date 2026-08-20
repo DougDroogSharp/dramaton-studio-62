@@ -109,6 +109,71 @@ const MANIFEST = [
     ref: ['..', 'william_odo.png'],
     prompt: 'Bishop Odo of Bayeux pointing with a self-satisfied smirk: the same tonsured Norman bishop in his vestments, one arm extended pointing forward, the other hand resting on his belt, smug knowing smile, standing, full body, facing slightly right. Same face and costume as the reference.',
   },
+
+  // ---------------------------------------------------------------
+  // ANIMATION LOOPS — frame sets for [ANIMATE el A B C every 200ms].
+  // Same rule as the walk cycles: frame 1 is generated off the style
+  // pack alone, and every later frame references the frame BEFORE it
+  // with a SHORT "identical to the reference" prompt naming only the
+  // one thing that moves. No negative lists — they pull the model off
+  // the reference and it starts over from scratch.
+  // Order matters: each frame must be pushed before the one that
+  // references it.
+  // ---------------------------------------------------------------
+
+  // Flames — matched to the fire already stitched into
+  // burning_village.png: satin-stitch tongues in orange, ochre and
+  // rust red, stem-stitch outlines, bare linen behind.
+  {
+    file: 'flame_1.png', isCharacter: true,
+    prompt: 'One single tall tongue of fire worked in Bayeux tapestry embroidery, exactly as fire is stitched above a burning thatched house in a medieval tapestry: a tall mass of pointed flame tongues rising from the bottom edge of the picture, one continuous flame. Every tongue is outlined in dark rust red stem stitch and filled with dense satin stitch in vivid orange and golden ochre wool, deepening to rust red at the roots, the tips tapering into sharp curling points. Flat saturated orange stitching, no shading. Only the one fire fills the picture — no torch, no handle, no stick, no candle, no building, no ground.',
+    retry: 'A single mass of stitched flames in medieval wool embroidery, rising from the bottom of the picture: pointed tongues in bright orange and golden satin stitch, rust red at the base, dark red outlines, curling tips. Only the one flame, nothing else, no torch or handle.',
+  },
+  {
+    file: 'flame_2.png', isCharacter: true,
+    ref: ['flame_1.png'], refMode: 'edit',
+    prompt: 'Lean the fire to the LEFT: the top of the flame is displaced well to the left of its base and every pointed tip curls to the left. Same colours, same stitching, same size. Change nothing else.',
+    retry: 'Tilt the flame to the left so its top sits left of its base and the tips curl left. Same colours and stitching. Change nothing else.',
+  },
+  {
+    file: 'flame_3.png', isCharacter: true,
+    // Deliberately references flame_1, NOT flame_2. Chaining 1→2→3
+    // made frame 3 inherit frame 2's leftward displacement and then add
+    // a rightward one on top, which overshot into a completely
+    // different shape. Both lean frames are edits of the same upright
+    // fire, so the loop swings symmetrically: upright, left, right.
+    ref: ['flame_1.png'], refMode: 'edit',
+    prompt: 'Lean the fire to the RIGHT: the top of the flame is displaced well to the right of its base and every pointed tip curls to the right. Same colours, same stitching, same size. Change nothing else.',
+    retry: 'Tilt the flame to the right so its top sits right of its base and the tips curl right. Same colours and stitching. Change nothing else.',
+  },
+
+  // Birds — the register of the tapestry's border creatures: simple
+  // outline, minimal fill, one bird only.
+  {
+    file: 'bird_1.png', isCharacter: true,
+    prompt: 'A single bird in flight worked in Bayeux tapestry embroidery, in the style of the creatures stitched along the tapestry border: simple stem-stitch outline with minimal wool fill in tan and rust red, small body, long neck, both wings raised high above the back in an upstroke, tail feathers fanned, flying to the right. Flat medieval embroidery on bare linen, one bird only, nothing else in the picture.',
+    retry: 'A single stitched bird in flight, medieval embroidery border creature: plain outline in dark wool with light tan fill, wings raised up above its back, tail fanned, facing right. Only the bird, nothing else.',
+  },
+  {
+    file: 'bird_2.png', isCharacter: true,
+    ref: ['bird_1.png'], refMode: 'edit',
+    prompt: 'Sweep the wings down: both wings now point steeply downward beneath the body, wingtips below the belly, at the bottom of a wingbeat. Keep everything else exactly as it is.',
+    retry: 'Move both wings down below the body, wingtips beneath the belly. Change nothing else.',
+  },
+
+  // Smoke — the companion to the burning village: the pale scrolled
+  // plumes already stitched above the cottages there.
+  {
+    file: 'smoke_1.png', isCharacter: true,
+    prompt: 'A plume of smoke worked in Bayeux tapestry embroidery: rounded scrolling curls of smoke rising and widening upward, outlined in stem stitch in grey-brown wool and filled with pale cream and soft grey stitching, the way smoke is stitched above a burning house in a medieval tapestry. Flat embroidery, one plume only, nothing else in the picture.',
+    retry: 'A rising plume of smoke in medieval wool embroidery: scrolled rounded curls outlined in grey-brown thread with pale cream fill, widening as it rises. Only the smoke, nothing else.',
+  },
+  {
+    file: 'smoke_2.png', isCharacter: true,
+    ref: ['smoke_1.png'], refMode: 'edit',
+    prompt: 'Lean the whole plume of smoke over to the left, its curls trailing sideways as if blown by a wind from the right. Keep everything else exactly as it is.',
+    retry: 'Tip the plume of smoke over to the left, curls trailing sideways. Change nothing else.',
+  },
 ];
 
 // 8-direction walk sets for the MAJOR actors only (William, Aldric).
@@ -200,7 +265,7 @@ const refDataUrl = (ref) => {
   return `data:image/png;base64,${readFileSync(p).toString('base64')}`;
 };
 
-async function generate(prompt, isCharacter, ref) {
+async function generate(prompt, isCharacter, ref, refMode) {
   const body = {
     prompt,
     isCharacter,
@@ -209,7 +274,39 @@ async function generate(prompt, isCharacter, ref) {
   };
   if (ref) {
     const dataUrl = refDataUrl(ref);
-    if (dataUrl) body.referenceImageFullBody = dataUrl;
+    if (dataUrl) {
+      // Three ways to pass the previous frame, and which one you pick
+      // decides whether an animation frame holds together:
+      //
+      //  'body' (default) — referenceImageFullBody, which the bridge
+      //    labels "character body reference — match body proportions
+      //    and clothing". Right for people, meaningless for a fire or
+      //    a bird, so the model treats it weakly and redraws.
+      //  'composition' — also sends referenceImage ("match this layout,
+      //    perspective and camera angle"). Locks the silhouette hard —
+      //    so hard the requested motion stops happening.
+      //  'edit' — editMode + existingImage ("edit THIS image, keeping
+      //    the overall scene"). This is the one that works for object
+      //    animation frames: colour and stitch density survive because
+      //    the model is editing the frame rather than regenerating it.
+      //    Keep 'edit' prompts phrased as an instruction ("Make the
+      //    flames lean left"), not as a description of a picture.
+      if (refMode === 'edit') {
+        body.editMode = true;
+        body.existingImage = dataUrl;
+        // Drop the style pack for edits. The frame being edited ALREADY
+        // is the style; sending the pack as well appends its mandatory
+        // "render figures mostly UNFILLED on bare linen" text after the
+        // edit instruction, which strips the colour out of every frame
+        // (the orange fire came back as bare linen every single time).
+        // With no stylePack the bridge uses an empty pack, so the edit
+        // is judged only against the source frame.
+        delete body.stylePack;
+      } else {
+        body.referenceImageFullBody = dataUrl;
+        if (refMode === 'composition') body.referenceImage = dataUrl;
+      }
+    }
   }
   const resp = await fetch(BRIDGE, {
     method: 'POST',
@@ -235,11 +332,11 @@ for (const item of MANIFEST) {
   try {
     let buf;
     try {
-      buf = await generate(item.prompt, item.isCharacter, item.ref);
+      buf = await generate(item.prompt, item.isCharacter, item.ref, item.refMode);
     } catch (err) {
       if (/content_policy/i.test(err.message) && item.retry) {
         process.stdout.write(`policy hit, rephrasing... `);
-        buf = await generate(item.retry, item.isCharacter, item.ref);
+        buf = await generate(item.retry, item.isCharacter, item.ref, item.refMode);
       } else throw err;
     }
     if (item.isCharacter) buf = chromaKey(buf);

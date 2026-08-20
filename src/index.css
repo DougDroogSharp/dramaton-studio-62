@@ -281,3 +281,18 @@
   text-overflow: clip !important;
   white-space: normal !important;
 }
+
+
+/* A gauge lights up when its needle moves, then settles. The glow is
+   the signal that something in the model just changed — you can watch
+   the shelf out of the corner of your eye and know. */
+@keyframes meter-lit {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--diesel-gold) / 0), inset 0 0 0 0 hsl(var(--diesel-gold) / 0); border-color: hsl(var(--diesel-gold)); }
+  15%  { box-shadow: 0 0 18px 2px hsl(var(--diesel-gold) / .55), inset 0 0 22px 0 hsl(var(--diesel-gold) / .28); border-color: hsl(var(--diesel-gold)); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--diesel-gold) / 0), inset 0 0 0 0 hsl(var(--diesel-gold) / 0); }
+}
+.animate-meter-lit { animation: meter-lit 1.6s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-meter-lit { animation: none; }
+}

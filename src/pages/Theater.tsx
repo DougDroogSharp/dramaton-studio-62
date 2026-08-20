@@ -17,7 +17,8 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { AbilityPanel } from '@/components/theater/AbilityPanel';
 import { AbilityOnboarding } from '@/components/theater/AbilityOnboarding';
 import { EndCard } from '@/components/theater/EndCard';
-import { MeterPanel, MeterRow } from '@/components/theater/MeterPanel';
+import { MeterRow } from '@/components/theater/MeterPanel';
+import { StageConsole } from '@/components/theater/StageConsole';
 import { metersFor } from '@/utils/meters';
 import { AbilitySettings, loadAbilitySettings, saveAbilitySettings, hasOnboarded, markOnboarded } from '@/utils/accessibility';
 
@@ -39,9 +40,10 @@ const Theater: React.FC = () => {
     saveAbilitySettings(next);
   }, []);
   const [hasStarted, setHasStarted] = useState(false);
-  // The model showing its work: shrink the stage and show the meters
-  // this scene has actually moved, with commentary. Toggleable.
-  const [showMeters, setShowMeters] = useState(false);
+  // The model showing its work: the console shelf reads out the
+  // variables this scene has moved. On by default — it costs no
+  // layout, because the shelf reserves its height either way.
+  const [showMeters, setShowMeters] = useState(true);
   // Onboarding is the front door, not a buried menu: every player is
   // asked how they want to play before the first game.
   const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
@@ -459,13 +461,27 @@ const Theater: React.FC = () => {
         <div
           className="w-full relative"
           style={{
-            // The stage gives up height to the meter panel when it is
-            // open, so the model and the drama share one screen.
-            maxWidth: showMeters
-              ? 'min(56rem, calc((100vh - 340px) * 16 / 9))'
-              : 'min(72rem, calc((100vh - 120px) * 16 / 9))',
-            transition: 'max-width 300ms ease-in-out',
+            // The stage never resizes. The console below it reserves
+            // its height whether or not it has anything to show, so
+            // toggling the instruments moves nothing on screen.
+            maxWidth: 'min(64rem, calc((100vh - 330px) * 16 / 9))',
           }}
+        >
+        <StageConsole
+          meterRows={meterRows}
+          worldState={scriptRunner.state.worldState}
+          moneyFormat={game.info.moneyFormat}
+          showMeters={showMeters && ability.presentation !== 'sound'}
+          frame={game.info.frame}
+          narration={
+            ability.presentation === 'sound' ? null :
+            scriptRunner.state.ambientNarration?.text ??
+            (scriptRunner.state.activeDialogue &&
+             scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator'
+              ? scriptRunner.state.activeDialogue.displayedText
+              : null)
+          }
+          narrationKey={scriptRunner.state.ambientNarration?.id ?? scriptRunner.state.currentCommandIndex}
         >
           {currentScene && (
             <Stage
@@ -502,42 +518,13 @@ const Theater: React.FC = () => {
             onSelectChoice={scriptRunner.selectChoice}
             scanIndex={choiceCount > 1 ? scanIndex : null}
           />}
-          {/* Narration as a comic caption overlaying the stage top */}
-          {ability.presentation !== 'sound' && scriptRunner.state.activeDialogue &&
-            scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[94%]" style={{ zIndex: 320 }}>
-              <DialogueBox
-                dialogue={scriptRunner.state.activeDialogue}
-                actor={dialogueActor}
-                onAdvance={scriptRunner.advance}
-              />
-            </div>
-          )}
-          {/* Ambient narration ([NARRATE]) — the simulation describing
-              itself while it runs. Sits at the stage foot so it never
-              collides with the narrator caption at the top. */}
-          {ability.presentation !== 'sound' && scriptRunner.state.ambientNarration && (
-            <div
-              key={scriptRunner.state.ambientNarration.id}
-              className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[88%] animate-fade-in pointer-events-none"
-              style={{ zIndex: 318 }}
-            >
-              <p className="text-center text-diesel-paper text-sm md:text-base italic leading-snug px-4 py-2 rounded bg-diesel-black/70 backdrop-blur-[2px] border border-diesel-border/60">
-                {scriptRunner.state.ambientNarration.text}
-              </p>
-            </div>
-          )}
+          {/* Narration no longer overlays the stage: it lives on the
+              console's narration plate below, which reserves its height
+              so nothing on screen moves when a line arrives. */}
           {/* Quote pop-up card */}
           {activeQuote && <QuoteCard quote={activeQuote} onDismiss={dismissQuote} />}
+        </StageConsole>
         </div>
-
-        {/* The model, showing its work — only what this scene moved. */}
-        {showMeters && (
-          <div className="w-full mt-2 bg-diesel-panel/70 border border-diesel-border max-h-[210px] overflow-y-auto"
-               style={{ maxWidth: 'min(56rem, 100%)' }}>
-            <MeterPanel rows={meterRows} worldState={scriptRunner.state.worldState} moneyFormat={game.info.moneyFormat} />
-          </div>
-        )}
       </div>
 
       {/* Controls */}

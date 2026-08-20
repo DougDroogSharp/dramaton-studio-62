@@ -27,6 +27,9 @@ export interface GameInfo {
   // Era coin for {var:money} in meter commentary: pence (Norman
   // England), francs, dollars1929, dollars, plain.
   moneyFormat?: string;
+  // Which cabinet the game is played inside: diesel | linen | brass |
+  // amiga | flat. See src/utils/frames.ts.
+  frame?: string;
 }
 
 export interface ActorGraphic {

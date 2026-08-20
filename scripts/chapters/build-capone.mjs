@@ -2632,6 +2632,7 @@ scenes.push(machineHubScene({
 
 const game = {
   info: {
+    frame: 'amiga',
     title: 'HVB — King of Chicago',
     author: 'Doug Sharp',
     styleGuide: null,

@@ -3959,6 +3959,7 @@ const poeEnd = scenes.length;
 
 const game = {
   info: {
+    frame: 'flat',
     title: 'HVB: Elon Musk (2020s)',
     author: 'Doug Sharp',
     styleGuide: null,

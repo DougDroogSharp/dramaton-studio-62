@@ -2019,6 +2019,7 @@ const MACHINE_SCENES = [
 
 const game = {
   info: {
+    frame: 'brass',
     title: 'HVB — King Leopold: The Kodak and the King',
     author: 'Doug Sharp',
     styleGuide: null,

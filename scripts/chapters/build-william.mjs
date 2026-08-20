@@ -4127,6 +4127,7 @@ scenes.push(
 
 const game = {
   info: {
+    frame: 'linen',
     title: 'HVB — William the Conqueror',
     author: 'Doug Sharp',
     styleGuide: null,
