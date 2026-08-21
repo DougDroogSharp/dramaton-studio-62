@@ -32,9 +32,9 @@ type Kind = 'sparkle' | 'twinkle';
 interface Light {
   id: number;
   kind: Kind;
-  /** Percent of the container, on the frame band. */
-  x: number;
-  y: number;
+  /** CSS positions on the band -- see jewelPoint. */
+  left: string;
+  top: string;
   /** Extra delay so a cascade staggers instead of strobing. */
   delay: number;
   size: number;
@@ -55,38 +55,36 @@ interface FrameSparkleProps {
  * landing on a set stone reads as the stone catching it.
  *
  * The bezel is a repeating border-image, so exact gem coordinates are
- * not knowable at runtime — but the PATTERN is: a big table-cut stone at
- * every corner, and cabochons at regular intervals along each run. So
- * the candidates are the four corners plus evenly spaced points on each
- * edge, with a little jitter so a repeated hit never lands pixel-identical.
+ * not knowable at runtime -- but the PATTERN is: a big stone at every
+ * corner, and more along each run. So the candidates are the corners
+ * plus evenly spaced points on each edge, jittered so a repeat never
+ * lands pixel-identical.
  *
- * Corners are weighted heaviest: they hold the largest stones, they are
- * where the eye rests, and they are the only positions guaranteed to
- * carry a gem whatever the window size.
+ * Positions mix units on purpose: PIXELS across the band (its real
+ * thickness) and PERCENT along it. One percentage cannot describe both
+ * axes of a box far wider than it is tall.
  */
-function jewelPoint(bandPct: number): { x: number; y: number } {
-  const c = bandPct * 0.5;                    // centre of the band
-  const jitter = () => (Math.random() - 0.5) * bandPct * 0.4;
+function jewelPoint(band: number): { left: string; top: string } {
+  const mid = band / 2;
+  const jx = () => (Math.random() - 0.5) * band * 0.5;
+  const px = (v: number) => `${v}px`;
 
-  // The four corner stones, doubled up so they win more often.
-  const corners = [
-    { x: c, y: c }, { x: 100 - c, y: c },
-    { x: c, y: 100 - c }, { x: 100 - c, y: 100 - c },
-  ];
+  // Corner stones first: the largest, and the only ones guaranteed to
+  // be there whatever the window size.
   if (Math.random() < 0.45) {
-    const p = corners[Math.floor(Math.random() * corners.length)];
-    return { x: p.x + jitter(), y: p.y + jitter() };
+    const l = Math.random() < 0.5 ? px(mid + jx()) : `calc(100% - ${mid + jx()}px)`;
+    const t = Math.random() < 0.5 ? px(mid + jx()) : `calc(100% - ${mid + jx()}px)`;
+    return { left: l, top: t };
   }
 
-  // Otherwise a cabochon along one of the runs. Sixths keep them clear
-  // of the corners and roughly on the repeat.
-  const stops = [1, 2, 3, 4, 5].map(i => (i / 6) * 100);
-  const along = stops[Math.floor(Math.random() * stops.length)] + jitter();
+  // Otherwise a stone along one of the four runs.
+  const stops = [1, 2, 3, 4, 5, 6, 7].map(i => (i / 8) * 100);
+  const along = `${stops[Math.floor(Math.random() * stops.length)] + (Math.random() - 0.5) * 6}%`;
   switch (Math.floor(Math.random() * 4)) {
-    case 0: return { x: along, y: c + jitter() };
-    case 1: return { x: 100 - c + jitter(), y: along };
-    case 2: return { x: along, y: 100 - c + jitter() };
-    default: return { x: c + jitter(), y: along };
+    case 0:  return { left: along, top: px(mid + jx()) };
+    case 1:  return { left: `calc(100% - ${mid + jx()}px)`, top: along };
+    case 2:  return { left: along, top: `calc(100% - ${mid + jx()}px)` };
+    default: return { left: px(mid + jx()), top: along };
   }
 }
 
@@ -100,19 +98,16 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
   useEffect(() => {
     if (!enabled) { setLights([]); return; }
 
-    // The band as a percentage of the shorter side, roughly — good
-    // enough to keep a light on the gold rather than the linen.
-    const bandPct = Math.min(12, Math.max(4, band / 6));
 
     const add = (kind: Kind, count = 1, spread = 0) => {
       const born: Light[] = [];
       for (let i = 0; i < count; i++) {
-        const p = jewelPoint(bandPct);
+        const p = jewelPoint(band);
         born.push({
           id: nextId.current++,
           kind,
-          x: p.x,
-          y: p.y,
+          left: p.left,
+          top: p.top,
           delay: spread ? Math.random() * spread : 0,
           size: kind === 'twinkle'
             ? 40 + Math.random() * 22
@@ -157,8 +152,13 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      style={{ zIndex: 500 }}
+      className="pointer-events-none absolute"
+      // An absolutely positioned child is laid out against the PADDING
+      // box, so inset-0 covers the area INSIDE the bezel -- which is why
+      // the glints were appearing on a rectangle smaller than the frame,
+      // out on the linen instead of on the gold. Negative insets of the
+      // border width push the overlay back out over the band itself.
+      style={{ top: -band, right: -band, bottom: -band, left: -band, zIndex: 500 }}
       aria-hidden="true"
     >
       {lights.map(l => (
@@ -167,8 +167,8 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
           className={l.kind === 'twinkle' ? 'animate-frame-twinkle' : 'animate-frame-sparkle'}
           style={{
             position: 'absolute',
-            left: `${l.x}%`,
-            top: `${l.y}%`,
+            left: l.left,
+            top: l.top,
             width: l.size,
             height: l.size,
             marginLeft: -l.size / 2,

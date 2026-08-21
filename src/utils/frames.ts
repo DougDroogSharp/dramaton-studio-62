@@ -81,46 +81,109 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
       borderImageSource: `url("data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'>
   <defs>
-    <linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-color='#f6e3a8'/><stop offset='.35' stop-color='#c9a145'/>
-      <stop offset='.62' stop-color='#8a6a22'/><stop offset='1' stop-color='#e2c476'/>
+    <linearGradient id='gold' x1='0' y1='0' x2='.3' y2='1'>
+      <stop offset='0' stop-color='#fff4cf'/><stop offset='.18' stop-color='#e8c874'/>
+      <stop offset='.45' stop-color='#b98f2e'/><stop offset='.68' stop-color='#7d5c14'/>
+      <stop offset='.86' stop-color='#d9b45f'/><stop offset='1' stop-color='#f7e6b2'/>
     </linearGradient>
-    <radialGradient id='ruby' cx='.35' cy='.3'>
-      <stop offset='0' stop-color='#ff9a9a'/><stop offset='.45' stop-color='#b3151f'/>
-      <stop offset='1' stop-color='#5c0009'/>
-    </radialGradient>
-    <radialGradient id='sap' cx='.35' cy='.3'>
-      <stop offset='0' stop-color='#9fc4ff'/><stop offset='.45' stop-color='#1b3f9e'/>
-      <stop offset='1' stop-color='#08103f'/>
-    </radialGradient>
-    <radialGradient id='eme' cx='.35' cy='.3'>
-      <stop offset='0' stop-color='#9ff0c0'/><stop offset='.45' stop-color='#127a45'/>
-      <stop offset='1' stop-color='#03301a'/>
-    </radialGradient>
-    <radialGradient id='prl' cx='.35' cy='.3'>
-      <stop offset='0' stop-color='#fffdf4'/><stop offset='1' stop-color='#cfc3a4'/>
-    </radialGradient>
+    <linearGradient id='rope' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0' stop-color='#ffeeb8'/><stop offset='1' stop-color='#8a6a20'/>
+    </linearGradient>
   </defs>
-  <rect width='120' height='120' fill='url(#g)'/>
-  <rect x='27' y='27' width='66' height='66' fill='none' stroke='#5e4718' stroke-width='2'/>
-  <rect x='3' y='3' width='114' height='114' fill='none' stroke='#f7e9b8' stroke-width='1.5' opacity='.8'/>
-  <g stroke='#5e4718' stroke-width='1'>
-    <circle cx='15' cy='15' r='10' fill='url(#ruby)'/>
-    <circle cx='105' cy='15' r='10' fill='url(#sap)'/>
-    <circle cx='15' cy='105' r='10' fill='url(#eme)'/>
-    <circle cx='105' cy='105' r='10' fill='url(#ruby)'/>
-    <circle cx='60' cy='13' r='6' fill='url(#eme)'/>
-    <circle cx='60' cy='107' r='6' fill='url(#sap)'/>
-    <circle cx='13' cy='60' r='6' fill='url(#sap)'/>
-    <circle cx='107' cy='60' r='6' fill='url(#eme)'/>
-    <circle cx='37' cy='13' r='3.4' fill='url(#prl)'/>
-    <circle cx='83' cy='13' r='3.4' fill='url(#prl)'/>
-    <circle cx='37' cy='107' r='3.4' fill='url(#prl)'/>
-    <circle cx='83' cy='107' r='3.4' fill='url(#prl)'/>
-    <circle cx='13' cy='37' r='3.4' fill='url(#prl)'/>
-    <circle cx='13' cy='83' r='3.4' fill='url(#prl)'/>
-    <circle cx='107' cy='37' r='3.4' fill='url(#prl)'/>
-    <circle cx='107' cy='83' r='3.4' fill='url(#prl)'/>
+
+  <!-- the metal -->
+  <rect width='120' height='120' fill='url(#gold)'/>
+  <rect x='2.5' y='2.5' width='115' height='115' fill='none' stroke='#fff6d8' stroke-width='1.6' opacity='.85'/>
+  <rect x='26' y='26' width='68' height='68' fill='none' stroke='#6b4f14' stroke-width='2.4'/>
+  <rect x='29.5' y='29.5' width='61' height='61' fill='none' stroke='#ffeec2' stroke-width='1' opacity='.7'/>
+
+  <!-- CORNERS: round brilliants, claw-set -->
+  <g>
+    <g transform='translate(15,15)'>
+      <g fill='#f3d888'><circle cx='0' cy='-12' r='2.6'/><circle cx='12' cy='0' r='2.6'/><circle cx='0' cy='12' r='2.6'/><circle cx='-12' cy='0' r='2.6'/></g>
+      <circle r='11' fill='#3d0007'/>
+      <polygon points='0,-10 7,-7 10,0 7,7 0,10 -7,7 -10,0 -7,-7' fill='#c9142a'/>
+      <polygon points='0,-6.5 4.6,-4.6 6.5,0 4.6,4.6 0,6.5 -4.6,4.6 -6.5,0 -4.6,-4.6' fill='#ef4b5c'/>
+      <polygon points='0,-3.4 2.4,-2.4 3.4,0 2.4,2.4 0,3.4 -2.4,2.4 -3.4,0 -2.4,-2.4' fill='#ff9aa4'/>
+      <path d='M-6 -6 L-1 -3 L-3 -1 Z' fill='#ffffff' opacity='.92'/>
+    </g>
+    <g transform='translate(105,15)'>
+      <g fill='#f3d888'><circle cx='0' cy='-12' r='2.6'/><circle cx='12' cy='0' r='2.6'/><circle cx='0' cy='12' r='2.6'/><circle cx='-12' cy='0' r='2.6'/></g>
+      <circle r='11' fill='#00113d'/>
+      <polygon points='0,-10 7,-7 10,0 7,7 0,10 -7,7 -10,0 -7,-7' fill='#1b3fae'/>
+      <polygon points='0,-6.5 4.6,-4.6 6.5,0 4.6,4.6 0,6.5 -4.6,4.6 -6.5,0 -4.6,-4.6' fill='#3f74e8'/>
+      <polygon points='0,-3.4 2.4,-2.4 3.4,0 2.4,2.4 0,3.4 -2.4,2.4 -3.4,0 -2.4,-2.4' fill='#a8c9ff'/>
+      <path d='M-6 -6 L-1 -3 L-3 -1 Z' fill='#ffffff' opacity='.92'/>
+    </g>
+    <g transform='translate(15,105)'>
+      <g fill='#f3d888'><circle cx='0' cy='-12' r='2.6'/><circle cx='12' cy='0' r='2.6'/><circle cx='0' cy='12' r='2.6'/><circle cx='-12' cy='0' r='2.6'/></g>
+      <circle r='11' fill='#00220f'/>
+      <polygon points='0,-10 7,-7 10,0 7,7 0,10 -7,7 -10,0 -7,-7' fill='#0f7a41'/>
+      <polygon points='0,-6.5 4.6,-4.6 6.5,0 4.6,4.6 0,6.5 -4.6,4.6 -6.5,0 -4.6,-4.6' fill='#2fb96c'/>
+      <polygon points='0,-3.4 2.4,-2.4 3.4,0 2.4,2.4 0,3.4 -2.4,2.4 -3.4,0 -2.4,-2.4' fill='#adf5cd'/>
+      <path d='M-6 -6 L-1 -3 L-3 -1 Z' fill='#ffffff' opacity='.92'/>
+    </g>
+    <g transform='translate(105,105)'>
+      <g fill='#f3d888'><circle cx='0' cy='-12' r='2.6'/><circle cx='12' cy='0' r='2.6'/><circle cx='0' cy='12' r='2.6'/><circle cx='-12' cy='0' r='2.6'/></g>
+      <circle r='11' fill='#3d0007'/>
+      <polygon points='0,-10 7,-7 10,0 7,7 0,10 -7,7 -10,0 -7,-7' fill='#c9142a'/>
+      <polygon points='0,-6.5 4.6,-4.6 6.5,0 4.6,4.6 0,6.5 -4.6,4.6 -6.5,0 -4.6,-4.6' fill='#ef4b5c'/>
+      <polygon points='0,-3.4 2.4,-2.4 3.4,0 2.4,2.4 0,3.4 -2.4,2.4 -3.4,0 -2.4,-2.4' fill='#ff9aa4'/>
+      <path d='M-6 -6 L-1 -3 L-3 -1 Z' fill='#ffffff' opacity='.92'/>
+    </g>
+  </g>
+
+  <!-- MID-RUN: marquise cuts, set lengthwise along each edge -->
+  <g>
+    <g transform='translate(60,14)'>
+      <polygon points='0,-9 4,0 0,9 -4,0' fill='#00220f'/>
+      <polygon points='0,-7.4 3,0 0,7.4 -3,0' fill='#17924f'/>
+      <polygon points='0,-4 1.6,0 0,4 -1.6,0' fill='#8ff0bd'/>
+      <path d='M-1.6 -3 L0 -1 L-1 0 Z' fill='#ffffff' opacity='.9'/>
+      <g fill='#f3d888'><circle cx='0' cy='-9' r='1.8'/><circle cx='0' cy='9' r='1.8'/></g>
+    </g>
+    <g transform='translate(60,106)'>
+      <polygon points='0,-9 4,0 0,9 -4,0' fill='#00113d'/>
+      <polygon points='0,-7.4 3,0 0,7.4 -3,0' fill='#2350c8'/>
+      <polygon points='0,-4 1.6,0 0,4 -1.6,0' fill='#b3d0ff'/>
+      <path d='M-1.6 -3 L0 -1 L-1 0 Z' fill='#ffffff' opacity='.9'/>
+      <g fill='#f3d888'><circle cx='0' cy='-9' r='1.8'/><circle cx='0' cy='9' r='1.8'/></g>
+    </g>
+    <g transform='translate(14,60) rotate(90)'>
+      <polygon points='0,-9 4,0 0,9 -4,0' fill='#00113d'/>
+      <polygon points='0,-7.4 3,0 0,7.4 -3,0' fill='#2350c8'/>
+      <polygon points='0,-4 1.6,0 0,4 -1.6,0' fill='#b3d0ff'/>
+      <path d='M-1.6 -3 L0 -1 L-1 0 Z' fill='#ffffff' opacity='.9'/>
+      <g fill='#f3d888'><circle cx='0' cy='-9' r='1.8'/><circle cx='0' cy='9' r='1.8'/></g>
+    </g>
+    <g transform='translate(106,60) rotate(90)'>
+      <polygon points='0,-9 4,0 0,9 -4,0' fill='#00220f'/>
+      <polygon points='0,-7.4 3,0 0,7.4 -3,0' fill='#17924f'/>
+      <polygon points='0,-4 1.6,0 0,4 -1.6,0' fill='#8ff0bd'/>
+      <path d='M-1.6 -3 L0 -1 L-1 0 Z' fill='#ffffff' opacity='.9'/>
+      <g fill='#f3d888'><circle cx='0' cy='-9' r='1.8'/><circle cx='0' cy='9' r='1.8'/></g>
+    </g>
+  </g>
+
+  <!-- BETWEEN: little pear cuts and gold beading, because sixteen
+       stones is vulgar and vulgar is the brief -->
+  <g>
+    <g transform='translate(37,13)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(83,13)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(37,107)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(83,107)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(13,37) rotate(90)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(13,83) rotate(90)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(107,37) rotate(90)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+    <g transform='translate(107,83) rotate(90)'><polygon points='0,-6 3.4,1 0,6 -3.4,1' fill='#5a4a00'/><polygon points='0,-4.6 2.4,.8 0,4.6 -2.4,.8' fill='#ffd23f'/><polygon points='0,-2.4 1.2,.4 0,2.4 -1.2,.4' fill='#fff6c2'/></g>
+  </g>
+
+  <!-- rope beading, so no run of gold is ever plain -->
+  <g fill='url(#rope)'>
+    <circle cx='26' cy='13' r='1.5'/><circle cx='48' cy='13' r='1.5'/><circle cx='72' cy='13' r='1.5'/><circle cx='94' cy='13' r='1.5'/>
+    <circle cx='26' cy='107' r='1.5'/><circle cx='48' cy='107' r='1.5'/><circle cx='72' cy='107' r='1.5'/><circle cx='94' cy='107' r='1.5'/>
+    <circle cx='13' cy='26' r='1.5'/><circle cx='13' cy='48' r='1.5'/><circle cx='13' cy='72' r='1.5'/><circle cx='13' cy='94' r='1.5'/>
+    <circle cx='107' cy='26' r='1.5'/><circle cx='107' cy='48' r='1.5'/><circle cx='107' cy='72' r='1.5'/><circle cx='107' cy='94' r='1.5'/>
   </g>
 </svg>`)}")`,
       borderImageSlice: '30 fill',
