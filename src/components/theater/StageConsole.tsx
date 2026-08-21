@@ -51,6 +51,9 @@ interface StageConsoleProps {
   narration?: string | null;
   /** Keyed so a screen reader re-announces each new line. */
   narrationKey?: string | number;
+  /** The scene caption — "NORMANDY, EARLY 1066". Sits above the line
+   *  rather than over the art. */
+  location?: string | null;
   /** Who is speaking — an icon and a name. Null while narrating. */
   speaker?: { name: string; imageUrl?: string } | null;
   /** Choices, offered on the plate rather than floating over the art. */
@@ -80,6 +83,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   showMeters = true,
   narration,
   narrationKey,
+  location,
   speaker,
   choices,
   onSelectChoice,
@@ -196,6 +200,13 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           onAdvance();
         }}
       >
+        {/* WHERE AND WHEN — the caption that used to sit on the picture. */}
+        {location && (
+          <div className={`text-[10px] uppercase tracking-[0.28em] opacity-60 shrink-0 ${skin.label}`}>
+            {location}
+          </div>
+        )}
+
         {/* Who is talking */}
         {speaker && (
           <div className="flex items-center gap-2 shrink-0">
@@ -269,8 +280,8 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
           gauges say a number moved; this says what it feeds. Fixed
           height, like every region of this cabinet. */}
       <div
-        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} ${skin.label} px-3 py-1 shrink-0`}
-        style={{ height: '182px' }}
+        className={`${skin.divider} [@media(min-aspect-ratio:1/1)]:border-t-0 ${skin.shelf} ${skin.plateText} px-3 py-1 shrink-0`}
+        style={{ height: '224px' }}
       >
         <MachineDiagram rows={meterRows} worldState={worldState} />
       </div>

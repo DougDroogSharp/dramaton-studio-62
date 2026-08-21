@@ -191,8 +191,8 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
               d={d}
               fill="none"
               stroke="currentColor"
-              strokeWidth={e.live ? 2.6 : 1}
-              strokeOpacity={e.live ? 0.95 : 0.2}
+              strokeWidth={e.live ? 3 : 1.4}
+              strokeOpacity={e.live ? 1 : 0.42}
               markerEnd="url(#md-arrow)"
               className={e.live ? 'animate-meter-lit' : undefined}
               style={{
@@ -218,7 +218,7 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={m ? 2 : 1}
-                strokeOpacity={m ? 1 : 0.3}
+                strokeOpacity={m ? 1 : 0.55}
                 style={{ transition: 'stroke-width 500ms, stroke-opacity 500ms' }}
               />
               {/* the sweep it reads across */}
@@ -227,7 +227,7 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={1}
-                strokeOpacity={0.25}
+                strokeOpacity={0.4}
               />
               {/* the needle, only when there is a value to show */}
               {tip && (
@@ -236,18 +236,18 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
                   stroke="currentColor"
                   strokeWidth={m ? 2.2 : 1.6}
                   strokeLinecap="round"
-                  strokeOpacity={m ? 1 : 0.7}
+                  strokeOpacity={m ? 1 : 0.85}
                   style={{ transition: 'all 700ms cubic-bezier(.2,.8,.3,1)' }}
                 />
               )}
-              <circle cx={n.x} cy={n.y} r={1.8} fill="currentColor" fillOpacity={m ? 1 : 0.5} />
+              <circle cx={n.x} cy={n.y} r={1.8} fill="currentColor" fillOpacity={m ? 1 : 0.75} />
 
               {/* the reading */}
               {reading && (
                 <text
                   x={n.x} y={n.y + NODE_R - 5}
                   textAnchor="middle" fontSize="9"
-                  fill="currentColor" fillOpacity={m ? 1 : 0.7}
+                  fill="currentColor" fillOpacity={m ? 1 : 0.9}
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
                   {Math.round(reading.value)}
@@ -259,7 +259,7 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
                 x={n.x} y={n.y + NODE_R + 11}
                 textAnchor="middle" fontSize="8.5" fontWeight="bold"
                 letterSpacing="0.5"
-                fill="currentColor" fillOpacity={m ? 1 : 0.55}
+                fill="currentColor" fillOpacity={m ? 1 : 0.8}
                 style={{ transition: 'fill-opacity 500ms' }}
               >
                 {n.title}
@@ -283,7 +283,7 @@ export const MachineDiagram: React.FC<MachineDiagramProps> = ({ rows, worldState
           the diagram above never shifts when one arrives. */}
       <div className="h-[26px] shrink-0 flex items-center">
         {why && (
-          <p key={why} className="text-[10px] leading-tight opacity-80 animate-fade-in">
+          <p key={why} className="text-[10px] leading-tight opacity-95 animate-fade-in">
             {why}
           </p>
         )}

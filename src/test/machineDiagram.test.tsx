@@ -101,3 +101,24 @@ describe('every node is a gauge', () => {
     expect(container.querySelectorAll('line').length).toBe(1);
   });
 });
+
+describe('captions leave the picture', () => {
+  it('a _sign balloon is a caption, not a label on the scenery', () => {
+    // Doug: "don't overlay the place name. it looks bad in every
+    // platform. Put it in the text box."
+    //
+    // The distinction the code relies on: *_sign is a dateline
+    // ("NORMANDY, EARLY 1066"), while every other balloon labels
+    // something IN the scene — THE GRANARY, the newspaper tickers, the
+    // place markers on the map — and must stay on the picture. If that
+    // convention ever breaks, captions reappear over the art or, worse,
+    // scenery labels vanish from it.
+    const isCaption = (id: string) => /_sign$/i.test(id);
+    expect(isCaption('cr_sign')).toBe(true);
+    expect(isCaption('ans_sign')).toBe(true);
+    expect(isCaption('h_granary')).toBe(false);
+    expect(isCaption('trib_ticker')).toBe(false);
+    expect(isCaption('cr_hastings')).toBe(false);
+    expect(isCaption('works_label')).toBe(false);
+  });
+});

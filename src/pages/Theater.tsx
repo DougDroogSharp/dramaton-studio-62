@@ -501,6 +501,12 @@ const Theater: React.FC = () => {
     ? game.drops.find(d => d.id === currentScene.dropId) 
     : undefined;
   
+  // The scene's caption, lifted off the picture and onto the plate.
+  // Convention: a BALLOON element whose id ends in _sign is a dateline,
+  // not a label on something in the scene.
+  const sceneCaption = currentScene?.stage
+    ?.find(e => e.type === 'BALLOON' && /_sign$/i.test(e.id))?.text ?? null;
+
   // Find actor for dialogue
   const dialogueActor = scriptRunner.state.activeDialogue?.actorId
     ? game.actors.find(a => a.id === scriptRunner.state.activeDialogue?.actorId)
@@ -580,7 +586,7 @@ const Theater: React.FC = () => {
       {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
       {/* overflow-y-auto so a tall console on a short window scrolls
           instead of vanishing off the bottom */}
-      <div className="flex-1 flex items-stretch justify-center p-2 min-h-0 overflow-hidden">
+      <div className="flex-1 flex items-stretch justify-center p-3 [@media(min-aspect-ratio:1/1)]:p-6 min-h-0 overflow-hidden">
         <div
           className="w-full h-full relative"
           style={{
@@ -597,7 +603,7 @@ const Theater: React.FC = () => {
             // Cap the width so the cabinet does not sprawl across an
             // ultrawide monitor; 96rem leaves the stage about 74rem after
             // the 22rem console, which is a generous 16:9.
-            maxWidth: '96rem',
+            maxWidth: '84rem',
           }}
         >
         <StageConsole
@@ -615,6 +621,7 @@ const Theater: React.FC = () => {
             null
           }
           narrationKey={scriptRunner.state.ambientNarration?.id ?? scriptRunner.state.currentCommandIndex}
+          location={ability.presentation === 'sound' ? null : sceneCaption}
           speaker={
             ability.presentation === 'sound' || !scriptRunner.state.activeDialogue ||
             scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator'

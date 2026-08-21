@@ -123,6 +123,21 @@ export const Stage: React.FC<StageProps> = ({
 
     // Merge script-driven overrides (ENTER/MOVE/POSE/BIND) over the
     // editor-authored element
+    // CAPTIONS DO NOT GO ON THE PICTURE.
+    //
+    // A `*_sign` balloon is a dateline — "NORMANDY, EARLY 1066" — and
+    // laying it over the art looked wrong on every device. It belongs
+    // with the other words, on the plate, and Theater renders it there.
+    //
+    // Only captions. Every other balloon is a label on something IN the
+    // scene — THE GRANARY, the newspaper tickers, the machine part
+    // names, the place markers on the map — and those are part of the
+    // picture, so they stay.
+    //
+    // The editor still draws them, because you cannot position a thing
+    // you cannot see.
+    if (!editable && element.type === 'BALLOON' && /_sign$/i.test(element.id)) return null;
+
     const override = elementOverrides?.get(element.id);
     const el: StageElement = override ? { ...element, ...override } : element;
 
