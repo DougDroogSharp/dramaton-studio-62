@@ -379,3 +379,29 @@
   .animate-frame-sparkle,
   .animate-frame-twinkle { animation: none; opacity: 0; }
 }
+
+/* THE BEZEL BAND IS RESPONSIVE.
+ *
+ * 52px of gold on each side is 104px of a desktop window and nobody
+ * notices. On a landscape iPhone — about 375px tall — it is 104px of
+ * 375, and it ate the stage entirely.
+ *
+ * The band therefore scales with the SHORTER axis. It is measured in
+ * one place, here, because the sparkle overlay has to know the same
+ * number and reads it off the element rather than being told twice. */
+.bezel-band {
+  border-width: 52px;
+  border-image-width: 52px;
+}
+/* A landscape phone: height is the scarce axis. */
+@media (max-height: 560px) {
+  .bezel-band { border-width: 16px; border-image-width: 16px; }
+}
+/* A portrait phone: width is. */
+@media (max-width: 560px) {
+  .bezel-band { border-width: 16px; border-image-width: 16px; }
+}
+/* Tablets and small laptops: something in between. */
+@media (min-height: 561px) and (max-height: 820px) and (min-width: 561px) {
+  .bezel-band { border-width: 32px; border-image-width: 32px; }
+}

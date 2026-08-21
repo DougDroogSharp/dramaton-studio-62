@@ -41,7 +41,7 @@ interface Light {
 }
 
 interface FrameSparkleProps {
-  /** Border width in px, so lights land on the band and not the art. */
+  /** Fallback only. The real width is measured from the case itself. */
   band?: number;
   /** Off entirely when the player asked for stillness. */
   enabled?: boolean;
@@ -88,8 +88,30 @@ function jewelPoint(band: number): { left: string; top: string } {
   }
 }
 
-export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled = true }) => {
+export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band: fallback = 52, enabled = true }) => {
   const [lights, setLights] = useState<Light[]>([]);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [band, setBand] = useState(fallback);
+
+  // Read the band off the CASE, and re-read it when the window changes.
+  // The width is set by media queries now, so any number handed in from
+  // React would be stale the moment the phone turned sideways — and a
+  // wrong band is exactly what put the glints on the linen before.
+  useEffect(() => {
+    const measure = () => {
+      const host = hostRef.current?.parentElement;
+      if (!host) return;
+      const w = parseFloat(getComputedStyle(host).borderTopWidth);
+      if (Number.isFinite(w) && w > 0) setBand(w);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, []);
   const nextId = useRef(0);
   // Held in a ref so the scheduling loop never re-subscribes and never
   // needs the current list to add to it.
@@ -152,6 +174,7 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
 
   return (
     <div
+      ref={hostRef}
       className="pointer-events-none absolute"
       // An absolutely positioned child is laid out against the PADDING
       // box, so inset-0 covers the area INSIDE the bezel -- which is why

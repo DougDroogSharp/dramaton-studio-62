@@ -66,7 +66,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
     id: 'linen',
     name: 'Bayeux linen, framed',
     jewelled: true,
-    shell: 'border-[52px] shadow-2xl',
+    shell: 'bezel-band shadow-2xl',
     divider: 'border-t border-[#8d7a52]/40',
     shelf: '',
     plate: '',
@@ -223,7 +223,6 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
       // the stage. The middle of a bezel is meant to be empty.
       borderImageSlice: '32',
       borderImageRepeat: 'round',
-      borderImageWidth: '52px',
       // Two shadows doing two jobs: the inner one recesses the linen
       // behind the frame the way glass and a mount do, the outer one
       // hangs the whole case off a wall.
