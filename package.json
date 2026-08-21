@@ -23,7 +23,8 @@
     "docs:all": "npm run docs:dram && npm run docs:dram:html && npm run docs:sync",
     "typecheck": "tsc -b --force",
     "verify": "tsc -b --force && eslint . -c eslint.hooks.config.js && vitest run",
-    "lint:hooks": "eslint . -c eslint.hooks.config.js"
+    "lint:hooks": "eslint . -c eslint.hooks.config.js",
+    "safe": "git fetch -q origin && node scripts/is-it-safe.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
