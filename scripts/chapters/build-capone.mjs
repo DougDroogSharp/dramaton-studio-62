@@ -17,6 +17,7 @@ import {
   lines, balloon, actorEl, SFX,
   WORLD_BASE, ACTORS as CORE_ACTORS, SFX as CORE_SFX, machineHubScene,
 } from '../machine-core.mjs';
+import { buildStamp } from '../stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -2646,6 +2647,8 @@ const game = {
       hawthorne: 0, juryBribe: 0, capMachineIntro: 0,
       greed: 75, repression: 60, regulation: 15, prestige: 65,
     },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'cap_cicero',
     enableAutosave: true,

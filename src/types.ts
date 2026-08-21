@@ -30,6 +30,12 @@ export interface GameInfo {
   // Which cabinet the game is played inside: diesel | linen | brass |
   // amiga | flat. See src/utils/frames.ts.
   frame?: string;
+  // Stamped by the build, never hand-edited. Shown on the title page so
+  // a bug report carries which build it came from, which matters when
+  // the same game is being played on three devices and one of them is
+  // holding a cached copy. See scripts/stamp.mjs.
+  version?: string;
+  builtAt?: string;
 }
 
 export interface ActorGraphic {

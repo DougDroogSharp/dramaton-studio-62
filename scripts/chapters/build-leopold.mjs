@@ -13,6 +13,7 @@ import {
   lines, balloon, machineHubScene, WORLD_BASE,
   ACTORS as CORE_ACTORS, SFX as CORE_SFX,
 } from '../machine-core.mjs';
+import { buildStamp } from '../stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -2034,6 +2035,8 @@ const game = {
       pressFunded: 0, commissioned: 0, quotaDoubled: 0, hostages: 0,
       testimony: 0, thinDossier: 0, celebrities: 0,
     },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'lp_palace',
     enableAutosave: true,

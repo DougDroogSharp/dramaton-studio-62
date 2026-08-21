@@ -21,6 +21,7 @@ import {
   ACTORS as CORE_ACTORS,
   SFX as CORE_SFX,
 } from '../machine-core.mjs';
+import { buildStamp } from '../stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -4375,6 +4376,8 @@ const game = {
       // Two-thirds of Yorkshire was still returned 'vasta' in 1086.
       waste: 66,
     },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     // The conquest opening. wm_court is still reachable from every
     // scene of it, so a returning player can skip straight to the hall.

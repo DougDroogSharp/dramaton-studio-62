@@ -15,6 +15,7 @@ import {
   lines, machineHubScene, WORLD_BASE,
   ACTORS as CORE_ACTORS, SFX as CORE_SFX,
 } from '../machine-core.mjs';
+import { buildStamp } from '../stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -3984,6 +3985,8 @@ const game = {
       prestige: 80,
       education: 40,
     },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'elon_feed',
     enableAutosave: true,

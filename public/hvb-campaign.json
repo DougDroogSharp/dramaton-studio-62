@@ -64,6 +64,9 @@
       "c_legacyEdu": 0.5,
       "c_autoDrift": 1
     },
+    "version": "2026-08-20 · 10735ba+",
+    "builtAt": "2026-08-21T00:54:01.762Z",
+    "commit": "10735ba+",
     "gameMode": "INTERACTIVE",
     "titleSceneId": "menu",
     "enableAutosave": true,

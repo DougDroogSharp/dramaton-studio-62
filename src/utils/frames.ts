@@ -101,26 +101,26 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
       <stop offset='0' stop-color='#fffdf4'/><stop offset='1' stop-color='#cfc3a4'/>
     </radialGradient>
   </defs>
-  <rect width='120' height='120' fill='url(%23g)'/>
-  <rect x='27' y='27' width='66' height='66' fill='none' stroke='%235e4718' stroke-width='2'/>
-  <rect x='3' y='3' width='114' height='114' fill='none' stroke='%23f7e9b8' stroke-width='1.5' opacity='.8'/>
-  <g stroke='%235e4718' stroke-width='1'>
-    <circle cx='15' cy='15' r='10' fill='url(%23ruby)'/>
-    <circle cx='105' cy='15' r='10' fill='url(%23sap)'/>
-    <circle cx='15' cy='105' r='10' fill='url(%23eme)'/>
-    <circle cx='105' cy='105' r='10' fill='url(%23ruby)'/>
-    <circle cx='60' cy='13' r='6' fill='url(%23eme)'/>
-    <circle cx='60' cy='107' r='6' fill='url(%23sap)'/>
-    <circle cx='13' cy='60' r='6' fill='url(%23sap)'/>
-    <circle cx='107' cy='60' r='6' fill='url(%23eme)'/>
-    <circle cx='37' cy='13' r='3.4' fill='url(%23prl)'/>
-    <circle cx='83' cy='13' r='3.4' fill='url(%23prl)'/>
-    <circle cx='37' cy='107' r='3.4' fill='url(%23prl)'/>
-    <circle cx='83' cy='107' r='3.4' fill='url(%23prl)'/>
-    <circle cx='13' cy='37' r='3.4' fill='url(%23prl)'/>
-    <circle cx='13' cy='83' r='3.4' fill='url(%23prl)'/>
-    <circle cx='107' cy='37' r='3.4' fill='url(%23prl)'/>
-    <circle cx='107' cy='83' r='3.4' fill='url(%23prl)'/>
+  <rect width='120' height='120' fill='url(#g)'/>
+  <rect x='27' y='27' width='66' height='66' fill='none' stroke='#5e4718' stroke-width='2'/>
+  <rect x='3' y='3' width='114' height='114' fill='none' stroke='#f7e9b8' stroke-width='1.5' opacity='.8'/>
+  <g stroke='#5e4718' stroke-width='1'>
+    <circle cx='15' cy='15' r='10' fill='url(#ruby)'/>
+    <circle cx='105' cy='15' r='10' fill='url(#sap)'/>
+    <circle cx='15' cy='105' r='10' fill='url(#eme)'/>
+    <circle cx='105' cy='105' r='10' fill='url(#ruby)'/>
+    <circle cx='60' cy='13' r='6' fill='url(#eme)'/>
+    <circle cx='60' cy='107' r='6' fill='url(#sap)'/>
+    <circle cx='13' cy='60' r='6' fill='url(#sap)'/>
+    <circle cx='107' cy='60' r='6' fill='url(#eme)'/>
+    <circle cx='37' cy='13' r='3.4' fill='url(#prl)'/>
+    <circle cx='83' cy='13' r='3.4' fill='url(#prl)'/>
+    <circle cx='37' cy='107' r='3.4' fill='url(#prl)'/>
+    <circle cx='83' cy='107' r='3.4' fill='url(#prl)'/>
+    <circle cx='13' cy='37' r='3.4' fill='url(#prl)'/>
+    <circle cx='13' cy='83' r='3.4' fill='url(#prl)'/>
+    <circle cx='107' cy='37' r='3.4' fill='url(#prl)'/>
+    <circle cx='107' cy='83' r='3.4' fill='url(#prl)'/>
   </g>
 </svg>`)}")`,
       borderImageSlice: '30 fill',

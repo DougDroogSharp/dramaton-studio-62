@@ -474,8 +474,17 @@ const Theater: React.FC = () => {
             {game.info.title}
           </h1>
           
-          <p className="text-diesel-steel text-lg mb-12">
+          <p className="text-diesel-steel text-lg mb-2">
             by {game.info.author}
+          </p>
+
+          {/* WHICH BUILD IS THIS.
+              Quiet enough to ignore, present enough to read out over the
+              phone. When the same game is being played on a PC, an iPad
+              and an iPhone and one of them is holding a cached copy,
+              "it's broken" is unanswerable without this. */}
+          <p className="text-diesel-steel/45 text-xs tracking-wider mb-10 font-mono">
+            {game.info.version ?? 'unversioned build'}
           </p>
           
           <div className="animate-pulse">

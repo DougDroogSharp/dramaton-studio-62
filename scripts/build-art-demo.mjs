@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lines } from './machine-core.mjs';
+import { buildStamp } from './stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const art = (file) =>
@@ -54,6 +55,8 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: {},
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'demo_menu',
     enableAutosave: true,

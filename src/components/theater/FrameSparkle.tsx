@@ -47,16 +47,46 @@ interface FrameSparkleProps {
   enabled?: boolean;
 }
 
-/** A point somewhere on the frame band, in container percent. */
-function pointOnBand(bandPct: number): { x: number; y: number } {
-  const side = Math.floor(Math.random() * 4);
-  const along = Math.random() * 100;
-  const inset = bandPct * (0.25 + Math.random() * 0.5);
-  switch (side) {
-    case 0: return { x: along, y: inset };            // top
-    case 1: return { x: 100 - inset, y: along };      // right
-    case 2: return { x: along, y: 100 - inset };      // bottom
-    default: return { x: inset, y: along };           // left
+/**
+ * A point ON A STONE, not just anywhere on the band.
+ *
+ * Doug: "they should be bright twinkles that glint off jewels in the
+ * bezel." Light scattered at random along the gold reads as noise; light
+ * landing on a set stone reads as the stone catching it.
+ *
+ * The bezel is a repeating border-image, so exact gem coordinates are
+ * not knowable at runtime — but the PATTERN is: a big table-cut stone at
+ * every corner, and cabochons at regular intervals along each run. So
+ * the candidates are the four corners plus evenly spaced points on each
+ * edge, with a little jitter so a repeated hit never lands pixel-identical.
+ *
+ * Corners are weighted heaviest: they hold the largest stones, they are
+ * where the eye rests, and they are the only positions guaranteed to
+ * carry a gem whatever the window size.
+ */
+function jewelPoint(bandPct: number): { x: number; y: number } {
+  const c = bandPct * 0.5;                    // centre of the band
+  const jitter = () => (Math.random() - 0.5) * bandPct * 0.4;
+
+  // The four corner stones, doubled up so they win more often.
+  const corners = [
+    { x: c, y: c }, { x: 100 - c, y: c },
+    { x: c, y: 100 - c }, { x: 100 - c, y: 100 - c },
+  ];
+  if (Math.random() < 0.45) {
+    const p = corners[Math.floor(Math.random() * corners.length)];
+    return { x: p.x + jitter(), y: p.y + jitter() };
+  }
+
+  // Otherwise a cabochon along one of the runs. Sixths keep them clear
+  // of the corners and roughly on the repeat.
+  const stops = [1, 2, 3, 4, 5].map(i => (i / 6) * 100);
+  const along = stops[Math.floor(Math.random() * stops.length)] + jitter();
+  switch (Math.floor(Math.random() * 4)) {
+    case 0: return { x: along, y: c + jitter() };
+    case 1: return { x: 100 - c + jitter(), y: along };
+    case 2: return { x: along, y: 100 - c + jitter() };
+    default: return { x: c + jitter(), y: along };
   }
 }
 
@@ -77,7 +107,7 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
     const add = (kind: Kind, count = 1, spread = 0) => {
       const born: Light[] = [];
       for (let i = 0; i < count; i++) {
-        const p = pointOnBand(bandPct);
+        const p = jewelPoint(bandPct);
         born.push({
           id: nextId.current++,
           kind,
@@ -85,8 +115,8 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
           y: p.y,
           delay: spread ? Math.random() * spread : 0,
           size: kind === 'twinkle'
-            ? 22 + Math.random() * 14
-            : 9 + Math.random() * 7,
+            ? 40 + Math.random() * 22
+            : 14 + Math.random() * 9,
         });
       }
       setLights(prev => [...prev, ...born]);
@@ -147,6 +177,10 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
             backgroundImage: l.kind === 'twinkle' ? TWINKLE_SPRITE : SPARKLE_SPRITE,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
+            // The bloom is what sells it as light rather than a decal.
+            filter: l.kind === 'twinkle'
+              ? 'drop-shadow(0 0 7px rgba(255,240,190,.95)) drop-shadow(0 0 16px rgba(255,215,110,.6))'
+              : 'drop-shadow(0 0 4px rgba(255,245,210,.9))',
           }}
         />
       ))}
@@ -167,8 +201,8 @@ const SPARKLE_SPRITE = `url("data:image/svg+xml;utf8,${encodeURIComponent(`
       <stop offset='1' stop-color='#ffdf7e' stop-opacity='0'/>
     </radialGradient>
   </defs>
-  <circle cx='12' cy='12' r='7' fill='url(%23c)'/>
-  <path d='M12 3 L13.1 10.9 L21 12 L13.1 13.1 L12 21 L10.9 13.1 L3 12 L10.9 10.9 Z' fill='%23fffdf0' opacity='.95'/>
+  <circle cx='12' cy='12' r='7' fill='url(#c)'/>
+  <path d='M12 3 L13.1 10.9 L21 12 L13.1 13.1 L12 21 L10.9 13.1 L3 12 L10.9 10.9 Z' fill='#fffdf0' opacity='.95'/>
 </svg>`)}")`;
 
 // TWINKLE — the same star with long rays and a halo. Bigger, slower,
@@ -182,8 +216,8 @@ const TWINKLE_SPRITE = `url("data:image/svg+xml;utf8,${encodeURIComponent(`
       <stop offset='1' stop-color='#ffd76a' stop-opacity='0'/>
     </radialGradient>
   </defs>
-  <circle cx='24' cy='24' r='18' fill='url(%23h)'/>
-  <path d='M24 1 L26 22 L47 24 L26 26 L24 47 L22 26 L1 24 L22 22 Z' fill='%23ffffff'/>
-  <path d='M24 8 L25 23 L40 24 L25 25 L24 40 L23 25 L8 24 L23 23 Z' fill='%23fff6d0' opacity='.9'/>
-  <path d='M13 13 L25 23 L35 13 L25 25 L35 35 L23 25 L13 35 L23 23 Z' fill='%23ffffff' opacity='.45'/>
+  <circle cx='24' cy='24' r='18' fill='url(#h)'/>
+  <path d='M24 1 L26 22 L47 24 L26 26 L24 47 L22 26 L1 24 L22 22 Z' fill='#ffffff'/>
+  <path d='M24 8 L25 23 L40 24 L25 25 L24 40 L23 25 L8 24 L23 23 Z' fill='#fff6d0' opacity='.9'/>
+  <path d='M13 13 L25 23 L35 13 L25 25 L35 35 L23 25 L13 35 L23 23 Z' fill='#ffffff' opacity='.45'/>
 </svg>`)}")`;

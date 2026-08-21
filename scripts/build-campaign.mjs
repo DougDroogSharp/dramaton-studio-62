@@ -18,6 +18,7 @@ import {
   lines, setLines, actorEl, WORLD_BASE, SIM_RESET, ACTORS, SFX,
   machineHubScene, witnessScene, toyWitnessScenes, tuningScene,
 } from './machine-core.mjs';
+import { buildStamp } from './stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -789,6 +790,8 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: { ...WORLD_BASE },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'menu',
     enableAutosave: true,

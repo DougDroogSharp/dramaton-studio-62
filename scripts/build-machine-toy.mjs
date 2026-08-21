@@ -13,6 +13,7 @@ import {
   lines, WORLD_BASE, ACTORS, SFX,
   machineHubScene, toyWitnessScenes, tuningScene,
 } from './machine-core.mjs';
+import { buildStamp } from './stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +25,8 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: { ...WORLD_BASE, machineIntroSeen: 0 },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'machine_intro',
     enableAutosave: true,

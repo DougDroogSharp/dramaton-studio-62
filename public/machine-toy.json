@@ -65,6 +65,9 @@
       "c_autoDrift": 1,
       "machineIntroSeen": 0
     },
+    "version": "2026-08-20 · 10735ba+",
+    "builtAt": "2026-08-21T00:54:01.551Z",
+    "commit": "10735ba+",
     "gameMode": "INTERACTIVE",
     "titleSceneId": "machine_intro",
     "enableAutosave": true,

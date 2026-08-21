@@ -14,6 +14,7 @@ import {
   ART_DIR, generateArt, WORLD,
   tickLedger, tickChain, tickEmigration, tickWalk, truthLines, tickNews,
 } from './personified-core.mjs';
+import { buildStamp } from './stamp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -519,6 +520,8 @@ const game = {
     author: 'Doug Sharp',
     styleGuide: null,
     worldState: { ...WORLD, hoardPrev: 50, introSeen: 0 },
+    // Which build this is. Stamped, never hand-edited -- see scripts/stamp.mjs.
+    ...buildStamp(),
     gameMode: 'INTERACTIVE',
     titleSceneId: 'menu',
     enableAutosave: true,
