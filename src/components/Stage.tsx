@@ -276,7 +276,16 @@ export const Stage: React.FC<StageProps> = ({
   return (
     <div
       ref={canvasRef}
-      className={`relative w-full bg-diesel-panel ${editable ? 'cursor-crosshair' : ''} ${camera ? 'overflow-hidden' : ''}`}
+      // ALWAYS clip. This used to be `camera ? 'overflow-hidden' : ''`,
+      // so the stage only contained its contents while a CAMERA was
+      // active -- and the rest of the time a tall actor simply hung out
+      // of the picture and stood on the cabinet. It was invisible
+      // against a black page and obvious the moment the stage sat on
+      // cream inside a bezel: William's legs continued below the
+      // backdrop onto the frame.
+      //
+      // A stage is a window. What does not fit is not shown.
+      className={`relative w-full overflow-hidden bg-diesel-panel ${editable ? 'cursor-crosshair' : ''}`}
       style={{
         aspectRatio: '16/9',
         // [CAMERA]: scale the whole stage about the focus point
