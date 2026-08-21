@@ -76,6 +76,8 @@ interface StageConsoleProps {
   abilityBar?: React.ReactNode;
   /** Player asked for stillness: no sparkle, at all. */
   reduceMotion?: boolean;
+  /** Draw the ornate case. Off returns its ~104px to the picture. */
+  showBezel?: boolean;
 }
 
 export const StageConsole: React.FC<StageConsoleProps> = ({
@@ -99,8 +101,20 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   frameMood,
   abilityBar,
   reduceMotion,
+  showBezel = true,
 }) => {
-  const skin = frameFor(frame);
+  const bezelSkin = frameFor(frame);
+  // Bezel off: keep the cabinet's COLOURS -- its ground, its ink, its
+  // dividers -- and drop only the band. A game that loses its palette
+  // when the frame goes looks broken rather than uncluttered.
+  const skin = showBezel ? bezelSkin : {
+    ...bezelSkin,
+    shell: 'border border-current/25 shadow-xl',
+    shellStyle: {
+      background: bezelSkin.shellStyle?.background,
+      boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+    },
+  };
   const line = narration;
   // Known moods only, so a typo in a script cannot inject a class.
   const moodClass = frameMood && ['fun', 'scary', 'sad'].includes(frameMood.mood)
@@ -114,7 +128,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
     >
       {/* THE BLING — only on a jewelled case, never over the picture,
           and never at all when the player asked for stillness. */}
-      {skin.jewelled && <FrameSparkle enabled={!reduceMotion} band={52} />}
+      {skin.jewelled && showBezel && <FrameSparkle enabled={!reduceMotion} band={52} />}
 
       {/* THE MAIN COLUMN — the show itself: the picture, and the words
           directly beneath it. The instruments live in their own column

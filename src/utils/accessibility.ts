@@ -30,6 +30,17 @@ export interface AbilitySettings {
    *  (key, switch, sound, blink) rather than requiring pointer or
    *  number keys. */
   scanChoices: boolean;
+  /**
+   * Draw the ornate bezel around the stage.
+   *
+   * Off gives the picture the ~104px the band was using. Doug:
+   * "players will be able to switch off the bezel to get a few more
+   * pixels of stage." It is a display preference rather than an access
+   * need, but it lives with the ability settings because that is where
+   * a player looks for "make the picture bigger", and because someone
+   * with low vision wants exactly this and should not have to hunt.
+   */
+  showBezel: boolean;
   /** Seconds each option is held during scanning. */
   scanSeconds: number;
   /** Browser voice name for the narrator; empty = the system default. */
@@ -44,6 +55,7 @@ export const DEFAULT_ABILITY_SETTINGS: AbilitySettings = {
   readingTime: 1,
   describeAction: false,
   scanChoices: false,
+  showBezel: true,
   scanSeconds: 3,
 };
 
@@ -75,6 +87,7 @@ export function loadAbilitySettings(): AbilitySettings {
       readingTime: typeof saved.readingTime === 'number' ? saved.readingTime : base.readingTime,
       describeAction: saved.describeAction ?? base.describeAction,
       scanChoices: saved.scanChoices ?? base.scanChoices,
+      showBezel: saved.showBezel ?? base.showBezel,
       scanSeconds: typeof saved.scanSeconds === 'number' ? saved.scanSeconds : base.scanSeconds,
       narratorVoice: typeof saved.narratorVoice === 'string' ? saved.narratorVoice : base.narratorVoice,
     };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, Type, Wind, Timer, Radar } from 'lucide-react';
+import { Volume2, Type, Wind, Timer, Radar, Frame } from 'lucide-react';
 import { AbilitySettings } from '@/utils/accessibility';
 
 // The adjustments worth reaching for MID-SCENE, on the cabinet itself.
@@ -7,7 +7,7 @@ import { AbilitySettings } from '@/utils/accessibility';
 // The settings drawer already holds everything. But a player who finds
 // the text too fast, or the motion unpleasant, or who needs the show to
 // speak, should not have to stop, open a drawer, read a list, and find
-// the right control while the scene waits. These five are the ones you
+// the right control while the scene waits. These six are the ones you
 // change because of something happening right now, so they live on the
 // frame where a thumb can reach them.
 //
@@ -58,6 +58,14 @@ export const AbilityBar: React.FC<AbilityBarProps> = ({ settings, onChange, labe
       on: settings.noTimeLimits,
       hint: 'Nothing is ever taken away from you on a clock',
       toggle: () => set({ noTimeLimits: !settings.noTimeLimits }),
+    },
+    {
+      key: 'bezel',
+      icon: Frame,
+      label: 'Bezel',
+      on: settings.showBezel,
+      hint: 'The jewelled case. Off gives the picture more room',
+      toggle: () => set({ showBezel: !settings.showBezel }),
     },
     {
       key: 'scan',
