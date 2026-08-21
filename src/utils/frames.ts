@@ -87,109 +87,126 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
       <stop offset='.85' stop-color='#dcb75f'/><stop offset='1' stop-color='#fbeec0'/>
     </linearGradient>
     <linearGradient id='dia' x1='0' y1='0' x2='1' y2='1'>
-      <stop offset='0' stop-color='#ffffff'/><stop offset='.4' stop-color='#dff0ff'/>
+      <stop offset='0' stop-color='#ffffff'/><stop offset='.35' stop-color='#e6f4ff'/>
       <stop offset='.7' stop-color='#a9c8e8'/><stop offset='1' stop-color='#ffffff'/>
     </linearGradient>
+    <radialGradient id='rub' cx='.34' cy='.3'>
+      <stop offset='0' stop-color='#ff8d99'/><stop offset='.45' stop-color='#c9142a'/>
+      <stop offset='1' stop-color='#4d0009'/>
+    </radialGradient>
+    <radialGradient id='emr' cx='.34' cy='.3'>
+      <stop offset='0' stop-color='#9df0c2'/><stop offset='.45' stop-color='#0f7a41'/>
+      <stop offset='1' stop-color='#012a15'/>
+    </radialGradient>
+    <g id='tulip'>
+      
+      <path d='M0 15 C -1.6 9, -1.4 4, 0 0' fill='none' stroke='#0f7a41' stroke-width='1.9' stroke-linecap='round'/>
+      <path d='M-0.5 9 C -6 8, -8.5 4, -8 -0.5 C -3.5 1, -1.5 4.5, -0.5 9 Z' fill='url(#emr)'/>
+      <path d='M0.5 11 C 5.6 10.4, 8.2 6.6, 8 2.4 C 3.6 3.8, 1.5 7, 0.5 11 Z' fill='url(#emr)'/>
+      <path d='M0 1 C -6 0, -7.4 -6, -5.4 -9.6 C -3.6 -6.6, -1.6 -4.6, 0 -3.6 Z' fill='url(#rub)'/>
+      <path d='M0 1 C 6 0, 7.4 -6, 5.4 -9.6 C 3.6 -6.6, 1.6 -4.6, 0 -3.6 Z' fill='url(#rub)'/>
+      <path d='M0 -2.6 C -3 -4.4, -3.4 -9.4, 0 -12 C 3.4 -9.4, 3 -4.4, 0 -2.6 Z' fill='url(#rub)'/>
+      <path d='M-1.6 -8 C -2 -6, -1.2 -4.6, -0.4 -4' fill='none' stroke='#ffd0d6' stroke-width='.8' opacity='.85'/>
+      <circle cx='0' cy='-6.4' r='1.5' fill='url(#dia)'/>
+      <circle cx='0' cy='-6.4' r='.7' fill='#fff'/>
+    </g>
   </defs>
 
   <rect width='120' height='120' fill='url(#gold)'/>
-  <rect x='2' y='2' width='116' height='116' fill='none' stroke='#fff8e2' stroke-width='1.5' opacity='.9'/>
-  <rect x='25' y='25' width='70' height='70' fill='none' stroke='#65490f' stroke-width='2.6'/>
-  <rect x='28.5' y='28.5' width='63' height='63' fill='none' stroke='#fff2c8' stroke-width='1' opacity='.75'/>
 
-  <!-- ============ CORNERS: four different stones ============ -->
+  <!-- the only straight lines in the piece: hairlines holding the linen -->
+  <rect x='24.5' y='24.5' width='71' height='71' fill='none' stroke='#65490f' stroke-width='2.4'/>
+  <rect x='28' y='28' width='64' height='64' fill='none' stroke='#fff2c8' stroke-width='.9' opacity='.7'/>
 
-  <!-- NW: emerald-cut ruby, stepped -->
-  <g transform='translate(14,14)'>
-    <rect x='-11' y='-8.5' width='22' height='17' rx='1.5' fill='#40000a'/>
-    <rect x='-9.2' y='-6.9' width='18.4' height='13.8' fill='#a10f22'/>
-    <rect x='-6.8' y='-5' width='13.6' height='10' fill='#d81f36'/>
-    <rect x='-4' y='-2.9' width='8' height='5.8' fill='#f4626f'/>
-    <path d='M-9 -6.6 L-4 -3 L-7 -1 Z' fill='#fff' opacity='.95'/>
-    <g fill='#f7dd93'><circle cx='-11' cy='-8.5' r='2.3'/><circle cx='11' cy='-8.5' r='2.3'/><circle cx='-11' cy='8.5' r='2.3'/><circle cx='11' cy='8.5' r='2.3'/></g>
+  <!-- ============ SCROLLWORK: the metal curls, everywhere ============ -->
+  <g fill='none' stroke='#5e4413' stroke-width='1.5' opacity='.55' stroke-linecap='round'>
+    <path d='M30 16 C 40 4, 52 26, 62 14 C 72 3, 80 24, 90 13'/>
+    <path d='M30 104 C 40 116, 52 94, 62 106 C 72 117, 80 96, 90 107'/>
+    <path d='M16 30 C 4 40, 26 52, 14 62 C 3 72, 24 80, 13 90'/>
+    <path d='M104 30 C 116 40, 94 52, 106 62 C 117 72, 96 80, 107 90'/>
+  </g>
+  <g fill='none' stroke='#ffeec2' stroke-width='.9' opacity='.75' stroke-linecap='round'>
+    <path d='M30 17.4 C 40 5.4, 52 27.4, 62 15.4 C 72 4.4, 80 25.4, 90 14.4'/>
+    <path d='M30 105.4 C 40 117.4, 52 95.4, 62 107.4 C 72 118.4, 80 97.4, 90 108.4'/>
+    <path d='M17.4 30 C 5.4 40, 27.4 52, 15.4 62 C 4.4 72, 25.4 80, 14.4 90'/>
+    <path d='M105.4 30 C 117.4 40, 95.4 52, 107.4 62 C 118.4 72, 96.4 80, 107.4 90'/>
   </g>
 
-  <!-- NE: trillion sapphire -->
-  <g transform='translate(106,14)'>
-    <polygon points='0,-11 10,7 -10,7' fill='#000c33'/>
-    <polygon points='0,-8.4 7.6,5.4 -7.6,5.4' fill='#1c42b8'/>
-    <polygon points='0,-4.8 4.4,3 -4.4,3' fill='#5286f0'/>
-    <polygon points='0,-2 1.9,1.3 -1.9,1.3' fill='#c2dcff'/>
-    <path d='M-6 3 L-1 -2 L-2 2 Z' fill='#fff' opacity='.95'/>
-    <g fill='#f7dd93'><circle cx='0' cy='-11' r='2.2'/><circle cx='10' cy='7' r='2.2'/><circle cx='-10' cy='7' r='2.2'/></g>
-  </g>
+  <!-- ============ TULIPS at the corners, each turned differently ===== -->
+  <use href='#tulip' transform='translate(15,17) rotate(-12) scale(1.05)'/>
+  <use href='#tulip' transform='translate(105,17) rotate(14) scale(1)'/>
+  <use href='#tulip' transform='translate(15,103) rotate(190) scale(1)'/>
+  <use href='#tulip' transform='translate(105,103) rotate(168) scale(1.05)'/>
 
-  <!-- SW: round brilliant DIAMOND, the big one -->
-  <g transform='translate(14,106)'>
-    <circle r='11.5' fill='#8fb6da'/>
-    <circle r='10' fill='url(#dia)'/>
-    <polygon points='0,-10 7,-7 10,0 7,7 0,10 -7,7 -10,0 -7,-7' fill='#f2fbff'/>
-    <g stroke='#7ea7cf' stroke-width='.7' fill='none'>
-      <polygon points='0,-6 4.2,-4.2 6,0 4.2,4.2 0,6 -4.2,4.2 -6,0 -4.2,-4.2'/>
-      <path d='M0 -10 L0 -6 M7 -7 L4.2 -4.2 M10 0 L6 0 M7 7 L4.2 4.2 M0 10 L0 6 M-7 7 L-4.2 4.2 M-10 0 L-6 0 M-7 -7 L-4.2 -4.2'/>
+  <!-- ============ DIAMONDS THREADED ALONG THE SWIRLS ============ -->
+  <!-- sizes rise and fall with the curve, so no two sit at one inset -->
+  <g>
+    <g fill='url(#dia)'>
+      <circle cx='33' cy='12.6' r='1.3'/><circle cx='37' cy='8.6' r='1.8'/>
+      <circle cx='42' cy='7.4' r='2.3'/><circle cx='47' cy='10.4' r='1.9'/>
+      <circle cx='52' cy='15.4' r='1.4'/><circle cx='57' cy='18' r='1.9'/>
+      <circle cx='62' cy='15' r='2.4'/><circle cx='67' cy='9.6' r='1.9'/>
+      <circle cx='72' cy='7.4' r='1.4'/><circle cx='77' cy='10.6' r='2'/>
+      <circle cx='82' cy='16' r='2.5'/><circle cx='87' cy='14' r='1.5'/>
     </g>
-    <polygon points='0,-4 2.8,-2.8 4,0 0,2 -3,-1' fill='#ffffff'/>
-    <path d='M-7 -5 L-2 -2 L-4 0 Z' fill='#fff'/>
-    <g fill='#f7dd93'><circle cx='-8' cy='-8' r='2.4'/><circle cx='8' cy='-8' r='2.4'/><circle cx='-8' cy='8' r='2.4'/><circle cx='8' cy='8' r='2.4'/></g>
+    <g fill='#ffffff' opacity='.9'>
+      <circle cx='41.4' cy='6.8' r='.8'/><circle cx='61.4' cy='14.4' r='.9'/><circle cx='81.4' cy='15.4' r='.9'/>
+    </g>
   </g>
 
-  <!-- SE: pear emerald with a diamond shoulder each side -->
-  <g transform='translate(106,106)'>
-    <polygon points='0,-11 6.5,2 0,10 -6.5,2' fill='#00240f'/>
-    <polygon points='0,-8.6 4.9,1.4 0,7.8 -4.9,1.4' fill='#0e8043'/>
-    <polygon points='0,-5 2.8,.8 0,4.6 -2.8,.8' fill='#39cd7f'/>
-    <polygon points='0,-2.2 1.2,.4 0,2 -1.2,.4' fill='#c6ffe2'/>
-    <path d='M-3.6 -2 L-.6 -.4 L-1.8 1 Z' fill='#fff' opacity='.95'/>
-    <g><circle cx='-9' cy='-2' r='3' fill='url(#dia)'/><circle cx='-9' cy='-2' r='1.3' fill='#fff'/></g>
-    <g><circle cx='9' cy='-2' r='3' fill='url(#dia)'/><circle cx='9' cy='-2' r='1.3' fill='#fff'/></g>
+  <g>
+    <g fill='url(#dia)'>
+      <circle cx='33' cy='107.4' r='1.3'/><circle cx='37' cy='111.4' r='1.8'/>
+      <circle cx='42' cy='112.6' r='2.3'/><circle cx='47' cy='109.6' r='1.9'/>
+      <circle cx='52' cy='104.6' r='1.4'/><circle cx='57' cy='102' r='1.9'/>
+      <circle cx='62' cy='105' r='2.4'/><circle cx='67' cy='110.4' r='1.9'/>
+      <circle cx='72' cy='112.6' r='1.4'/><circle cx='77' cy='109.4' r='2'/>
+      <circle cx='82' cy='104' r='2.5'/><circle cx='87' cy='106' r='1.5'/>
+    </g>
+    <g fill='#ffffff' opacity='.9'>
+      <circle cx='41.4' cy='113.2' r='.8'/><circle cx='61.4' cy='105.6' r='.9'/><circle cx='81.4' cy='104.6' r='.9'/>
+    </g>
   </g>
 
-  <!-- ============ RUNS: a different rhythm on each edge ============ -->
-
-  <!-- TOP: baguette diamond flanked by a stepping trio -->
-  <g transform='translate(60,13)'>
-    <rect x='-9' y='-5' width='18' height='10' rx='1' fill='#8fb6da'/>
-    <rect x='-7.6' y='-3.8' width='15.2' height='7.6' fill='url(#dia)'/>
-    <g stroke='#82abd2' stroke-width='.6'><path d='M-4 -3.8 L-4 3.8 M0 -3.8 L0 3.8 M4 -3.8 L4 3.8'/></g>
-    <path d='M-7 -3.4 L-3 -1 L-5.4 .4 Z' fill='#fff'/>
-  </g>
-  <g fill='#c9142a'><circle cx='36' cy='13' r='4.6'/><circle cx='30' cy='13' r='2.8'/><circle cx='25.5' cy='13' r='1.7'/></g>
-  <g fill='#ff8a95' opacity='.85'><circle cx='36' cy='11.6' r='1.7'/><circle cx='30' cy='12' r='1'/></g>
-  <g><circle cx='84' cy='13' r='3.4' fill='url(#dia)'/><circle cx='84' cy='13' r='1.5' fill='#fff'/>
-     <circle cx='90' cy='13' r='2.2' fill='url(#dia)'/><circle cx='95' cy='13' r='1.4' fill='url(#dia)'/></g>
-
-  <!-- BOTTOM: off-centre marquise, pavé run, then one fat cabochon -->
-  <g transform='translate(46,107) rotate(-14)'>
-    <polygon points='0,-10 4.4,0 0,10 -4.4,0' fill='#000c33'/>
-    <polygon points='0,-8 3.3,0 0,8 -3.3,0' fill='#2350c8'/>
-    <polygon points='0,-4.2 1.7,0 0,4.2 -1.7,0' fill='#bcd6ff'/>
-    <path d='M-1.8 -3.2 L0 -1 L-1 .4 Z' fill='#fff'/>
-  </g>
-  <g fill='url(#dia)'><circle cx='60' cy='107' r='1.6'/><circle cx='65' cy='107' r='1.6'/><circle cx='70' cy='107' r='1.6'/><circle cx='75' cy='107' r='1.6'/><circle cx='80' cy='107' r='1.6'/></g>
-  <g><circle cx='92' cy='107' r='5.2' fill='#5a3d00'/><circle cx='92' cy='107' r='4.1' fill='#ffc21f'/><circle cx='90.6' cy='105.6' r='1.6' fill='#fff6c8'/></g>
-  <g fill='#8ff0bd'><circle cx='28' cy='107' r='3.2'/></g><circle cx='27' cy='106' r='1.2' fill='#fff'/>
-
-  <!-- LEFT: three sizes falling, then a diamond pair -->
-  <g fill='#0f7a41'><circle cx='13' cy='34' r='4.4'/><circle cx='13' cy='42' r='2.6'/><circle cx='13' cy='48' r='1.6'/></g>
-  <circle cx='11.8' cy='32.8' r='1.6' fill='#c9ffe4'/>
-  <g><circle cx='13' cy='62' r='3.2' fill='url(#dia)'/><circle cx='13' cy='62' r='1.4' fill='#fff'/>
-     <circle cx='13' cy='70' r='2' fill='url(#dia)'/></g>
-  <g transform='translate(13,84) rotate(90)'>
-    <polygon points='0,-7 3.9,1 0,7 -3.9,1' fill='#40000a'/>
-    <polygon points='0,-5.4 2.7,.6 0,5.2 -2.7,.6' fill='#d81f36'/>
-    <polygon points='0,-2.6 1.3,.3 0,2.4 -1.3,.3' fill='#ffb3bb'/>
+  <g>
+    <g fill='url(#dia)'>
+      <circle cx='12.6' cy='33' r='1.3'/><circle cx='8.6' cy='37' r='1.8'/>
+      <circle cx='7.4' cy='42' r='2.3'/><circle cx='10.4' cy='47' r='1.9'/>
+      <circle cx='15.4' cy='52' r='1.4'/><circle cx='18' cy='57' r='1.9'/>
+      <circle cx='15' cy='62' r='2.4'/><circle cx='9.6' cy='67' r='1.9'/>
+      <circle cx='7.4' cy='72' r='1.4'/><circle cx='10.6' cy='77' r='2'/>
+      <circle cx='16' cy='82' r='2.5'/><circle cx='14' cy='87' r='1.5'/>
+    </g>
+    <g fill='#ffffff' opacity='.9'>
+      <circle cx='6.8' cy='41.4' r='.8'/><circle cx='14.4' cy='61.4' r='.9'/><circle cx='15.4' cy='81.4' r='.9'/>
+    </g>
   </g>
 
-  <!-- RIGHT: pavé, then one enormous stone off the centre -->
-  <g fill='url(#dia)'><circle cx='107' cy='32' r='1.7'/><circle cx='107' cy='37' r='1.7'/><circle cx='107' cy='42' r='1.7'/></g>
-  <g transform='translate(107,56)'>
-    <circle r='6.4' fill='#2a0034'/>
-    <polygon points='0,-5.6 4,-4 5.6,0 4,4 0,5.6 -4,4 -5.6,0 -4,-4' fill='#8324a8'/>
-    <polygon points='0,-3.2 2.3,-2.3 3.2,0 2.3,2.3 0,3.2 -2.3,2.3 -3.2,0 -2.3,-2.3' fill='#cf7ef0'/>
-    <path d='M-3.4 -3 L-.6 -1.2 L-1.8 .2 Z' fill='#fff'/>
+  <g>
+    <g fill='url(#dia)'>
+      <circle cx='107.4' cy='33' r='1.3'/><circle cx='111.4' cy='37' r='1.8'/>
+      <circle cx='112.6' cy='42' r='2.3'/><circle cx='109.6' cy='47' r='1.9'/>
+      <circle cx='104.6' cy='52' r='1.4'/><circle cx='102' cy='57' r='1.9'/>
+      <circle cx='105' cy='62' r='2.4'/><circle cx='110.4' cy='67' r='1.9'/>
+      <circle cx='112.6' cy='72' r='1.4'/><circle cx='109.4' cy='77' r='2'/>
+      <circle cx='104' cy='82' r='2.5'/><circle cx='106' cy='87' r='1.5'/>
+    </g>
+    <g fill='#ffffff' opacity='.9'>
+      <circle cx='113.2' cy='41.4' r='.8'/><circle cx='105.6' cy='61.4' r='.9'/><circle cx='104.6' cy='81.4' r='.9'/>
+    </g>
   </g>
-  <g fill='#ffc21f'><circle cx='107' cy='72' r='2.6'/><circle cx='107' cy='79' r='1.6'/></g>
-  <g><circle cx='107' cy='90' r='3.6' fill='url(#dia)'/><circle cx='107' cy='90' r='1.6' fill='#fff'/></g>
+
+  <!-- a few coloured stones caught in the curls, off any line at all -->
+  <g>
+    <circle cx='54' cy='6.6' r='2.1' fill='url(#rub)'/>
+    <circle cx='70' cy='19.6' r='1.9' fill='url(#emr)'/>
+    <circle cx='54' cy='113.4' r='2.1' fill='url(#emr)'/>
+    <circle cx='70' cy='100.4' r='1.9' fill='url(#rub)'/>
+    <circle cx='6.6' cy='54' r='2.1' fill='url(#emr)'/>
+    <circle cx='19.6' cy='70' r='1.9' fill='url(#rub)'/>
+    <circle cx='113.4' cy='54' r='2.1' fill='url(#rub)'/>
+    <circle cx='100.4' cy='70' r='1.9' fill='url(#emr)'/>
+  </g>
 </svg>`)}")`,
       // NO 'fill' keyword. It paints the SVG's middle slice across the whole
       // element background, which flooded the entire cabinet gold and buried

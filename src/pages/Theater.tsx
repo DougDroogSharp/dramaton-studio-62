@@ -595,7 +595,7 @@ const Theater: React.FC = () => {
       {/* Stage Area — width capped so the 16:9 stage always fits the viewport */}
       {/* overflow-y-auto so a tall console on a short window scrolls
           instead of vanishing off the bottom */}
-      <div className="flex-1 flex items-stretch justify-center p-3 [@media(min-aspect-ratio:1/1)]:p-6 min-h-0 overflow-hidden">
+      <div className="flex-1 flex items-stretch justify-center p-2 [@media(min-aspect-ratio:1/1)]:p-3 min-h-0 overflow-hidden">
         <div
           className="w-full h-full relative"
           style={{
@@ -612,7 +612,7 @@ const Theater: React.FC = () => {
             // Cap the width so the cabinet does not sprawl across an
             // ultrawide monitor; 96rem leaves the stage about 74rem after
             // the 22rem console, which is a generous 16:9.
-            maxWidth: '84rem',
+            maxWidth: '120rem',
           }}
         >
         <StageConsole
