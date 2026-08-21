@@ -612,7 +612,7 @@ const Theater: React.FC = () => {
             // Cap the width so the cabinet does not sprawl across an
             // ultrawide monitor; 96rem leaves the stage about 74rem after
             // the 22rem console, which is a generous 16:9.
-            maxWidth: '120rem',
+            maxWidth: '150rem',
           }}
         >
         <StageConsole

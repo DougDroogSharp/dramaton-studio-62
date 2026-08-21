@@ -114,7 +114,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
     >
       {/* THE BLING — only on a jewelled case, never over the picture,
           and never at all when the player asked for stillness. */}
-      {skin.jewelled && <FrameSparkle enabled={!reduceMotion} band={34} />}
+      {skin.jewelled && <FrameSparkle enabled={!reduceMotion} band={52} />}
 
       {/* THE MAIN COLUMN — the show itself: the picture, and the words
           directly beneath it. The instruments live in their own column
@@ -282,7 +282,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
       {/* THE CONSOLE — beside the stage on a wide screen, beneath it on a
           narrow one. Fixed width when it stands beside, so the stage gets
           every pixel left over and never has to guess. */}
-      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[18rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20 [@media(max-aspect-ratio:1/1)]:flex-1 [@media(max-aspect-ratio:1/1)]:min-h-0 [@media(max-aspect-ratio:1/1)]:overflow-y-auto">
+      <div className="w-full [@media(min-aspect-ratio:1/1)]:w-[16rem] shrink-0 flex flex-col [@media(min-aspect-ratio:1/1)]:border-l-2 [@media(min-aspect-ratio:1/1)]:border-current/20 [@media(max-aspect-ratio:1/1)]:flex-1 [@media(max-aspect-ratio:1/1)]:min-h-0 [@media(max-aspect-ratio:1/1)]:overflow-y-auto">
 
       {/* THE MACHINE, RUNNING — the mechanism under the scene. The
           gauges say a number moved; this says what it feeds. Fixed

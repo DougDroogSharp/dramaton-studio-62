@@ -66,7 +66,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
     id: 'linen',
     name: 'Bayeux linen, framed',
     jewelled: true,
-    shell: 'border-[34px] shadow-2xl',
+    shell: 'border-[52px] shadow-2xl',
     divider: 'border-t border-[#8d7a52]/40',
     shelf: '',
     plate: '',
@@ -82,13 +82,13 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
 <svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'>
   <defs>
     <linearGradient id='gold' x1='0' y1='0' x2='.3' y2='1'>
-      <stop offset='0' stop-color='#fff6d6'/><stop offset='.16' stop-color='#ecd083'/>
-      <stop offset='.42' stop-color='#bd932f'/><stop offset='.66' stop-color='#7a5910'/>
-      <stop offset='.85' stop-color='#dcb75f'/><stop offset='1' stop-color='#fbeec0'/>
+      <stop offset='0' stop-color='#fff8dd'/><stop offset='.15' stop-color='#efd58c'/>
+      <stop offset='.4' stop-color='#c19733'/><stop offset='.63' stop-color='#77560f'/>
+      <stop offset='.84' stop-color='#dfbb66'/><stop offset='1' stop-color='#fdf1c9'/>
     </linearGradient>
     <linearGradient id='dia' x1='0' y1='0' x2='1' y2='1'>
-      <stop offset='0' stop-color='#ffffff'/><stop offset='.35' stop-color='#e6f4ff'/>
-      <stop offset='.7' stop-color='#a9c8e8'/><stop offset='1' stop-color='#ffffff'/>
+      <stop offset='0' stop-color='#ffffff'/><stop offset='.35' stop-color='#e9f6ff'/>
+      <stop offset='.7' stop-color='#a5c6e8'/><stop offset='1' stop-color='#ffffff'/>
     </linearGradient>
     <radialGradient id='rub' cx='.34' cy='.3'>
       <stop offset='0' stop-color='#ff8d99'/><stop offset='.45' stop-color='#c9142a'/>
@@ -98,122 +98,132 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
       <stop offset='0' stop-color='#9df0c2'/><stop offset='.45' stop-color='#0f7a41'/>
       <stop offset='1' stop-color='#012a15'/>
     </radialGradient>
+
     <g id='tulip'>
-      
-      <path d='M0 15 C -1.6 9, -1.4 4, 0 0' fill='none' stroke='#0f7a41' stroke-width='1.9' stroke-linecap='round'/>
-      <path d='M-0.5 9 C -6 8, -8.5 4, -8 -0.5 C -3.5 1, -1.5 4.5, -0.5 9 Z' fill='url(#emr)'/>
-      <path d='M0.5 11 C 5.6 10.4, 8.2 6.6, 8 2.4 C 3.6 3.8, 1.5 7, 0.5 11 Z' fill='url(#emr)'/>
-      <path d='M0 1 C -6 0, -7.4 -6, -5.4 -9.6 C -3.6 -6.6, -1.6 -4.6, 0 -3.6 Z' fill='url(#rub)'/>
-      <path d='M0 1 C 6 0, 7.4 -6, 5.4 -9.6 C 3.6 -6.6, 1.6 -4.6, 0 -3.6 Z' fill='url(#rub)'/>
-      <path d='M0 -2.6 C -3 -4.4, -3.4 -9.4, 0 -12 C 3.4 -9.4, 3 -4.4, 0 -2.6 Z' fill='url(#rub)'/>
-      <path d='M-1.6 -8 C -2 -6, -1.2 -4.6, -0.4 -4' fill='none' stroke='#ffd0d6' stroke-width='.8' opacity='.85'/>
-      <circle cx='0' cy='-6.4' r='1.5' fill='url(#dia)'/>
-      <circle cx='0' cy='-6.4' r='.7' fill='#fff'/>
+      <path d='M0 17 C -2 10, -1.6 4, 0 0' fill='none' stroke='#0f7a41' stroke-width='2.2' stroke-linecap='round'/>
+      <path d='M-0.6 10 C -7 9, -10 4.4, -9.4 -0.6 C -4 1.2, -1.8 5, -0.6 10 Z' fill='url(#emr)'/>
+      <path d='M0.6 12.4 C 6.6 11.8, 9.6 7.4, 9.4 2.6 C 4.2 4.2, 1.8 8, 0.6 12.4 Z' fill='url(#emr)'/>
+      <path d='M0 1 C -7 0, -8.6 -7, -6.2 -11.2 C -4.2 -7.6, -1.8 -5.4, 0 -4.2 Z' fill='url(#rub)'/>
+      <path d='M0 1 C 7 0, 8.6 -7, 6.2 -11.2 C 4.2 -7.6, 1.8 -5.4, 0 -4.2 Z' fill='url(#rub)'/>
+      <path d='M0 -3 C -3.6 -5.2, -4 -11, 0 -14 C 4 -11, 3.6 -5.2, 0 -3 Z' fill='url(#rub)'/>
+      <path d='M-1.9 -9.4 C -2.4 -7, -1.4 -5.4, -0.5 -4.7' fill='none' stroke='#ffd0d6' stroke-width='.9' opacity='.85'/>
+      <circle cx='0' cy='-7.6' r='1.8' fill='url(#dia)'/><circle cx='0' cy='-7.6' r='.9' fill='#fff'/>
+      <path d='M5 6 C 9 4, 11 0, 10.4 -3' fill='none' stroke='#0f7a41' stroke-width='1.4' stroke-linecap='round'/>
+      <path d='M10.4 -3 C 8.6 -5.6, 11.4 -7.6, 13 -5.4 C 14.2 -3.6, 12.4 -1.6, 10.4 -3 Z' fill='url(#rub)'/>
+    </g>
+
+    <!-- the money, set in gold with diamond terminals -->
+    <g id='dollar'>
+      <path d='M0 -11 L0 11' stroke='#5e4413' stroke-width='3.4' stroke-linecap='round'/>
+      <path d='M5.4 -6.6 C 4 -9.6, -5.4 -10.4, -5.4 -5.2 C -5.4 -0.6, 5.4 -0.8, 5.4 4.4 C 5.4 9.8, -4.2 9.4, -5.6 6.2'
+            fill='none' stroke='#5e4413' stroke-width='3.4' stroke-linecap='round'/>
+      <path d='M0 -11 L0 11' stroke='#ffeec2' stroke-width='1.5' stroke-linecap='round'/>
+      <path d='M5.4 -6.6 C 4 -9.6, -5.4 -10.4, -5.4 -5.2 C -5.4 -0.6, 5.4 -0.8, 5.4 4.4 C 5.4 9.8, -4.2 9.4, -5.6 6.2'
+            fill='none' stroke='#ffeec2' stroke-width='1.5' stroke-linecap='round'/>
+      <circle cx='0' cy='-11' r='1.9' fill='url(#dia)'/><circle cx='0' cy='-11' r='.9' fill='#fff'/>
+      <circle cx='0' cy='11' r='1.9' fill='url(#dia)'/><circle cx='0' cy='11' r='.9' fill='#fff'/>
+    </g>
+
+    <!-- a C-scroll to spring off the main line wherever it looks bare -->
+    <g id='curl'>
+      <path d='M0 0 C 5 -4, 9 -1, 7.4 3 C 6.2 6, 2.2 6, 1.6 3'
+            fill='none' stroke='#5e4413' stroke-width='1.5' stroke-linecap='round'/>
+      <path d='M0 .9 C 5 -3.1, 9 -.1, 7.4 3.9 C 6.2 6.9, 2.2 6.9, 1.6 3.9'
+            fill='none' stroke='#ffeec2' stroke-width='.85' stroke-linecap='round' opacity='.8'/>
     </g>
   </defs>
 
   <rect width='120' height='120' fill='url(#gold)'/>
+  <rect x='27' y='27' width='66' height='66' fill='none' stroke='#65490f' stroke-width='2.6'/>
+  <rect x='30' y='30' width='60' height='60' fill='none' stroke='#fff2c8' stroke-width='.9' opacity='.7'/>
 
-  <!-- the only straight lines in the piece: hairlines holding the linen -->
-  <rect x='24.5' y='24.5' width='71' height='71' fill='none' stroke='#65490f' stroke-width='2.4'/>
-  <rect x='28' y='28' width='64' height='64' fill='none' stroke='#fff2c8' stroke-width='.9' opacity='.7'/>
-
-  <!-- ============ SCROLLWORK: the metal curls, everywhere ============ -->
-  <g fill='none' stroke='#5e4413' stroke-width='1.5' opacity='.55' stroke-linecap='round'>
-    <path d='M30 16 C 40 4, 52 26, 62 14 C 72 3, 80 24, 90 13'/>
-    <path d='M30 104 C 40 116, 52 94, 62 106 C 72 117, 80 96, 90 107'/>
-    <path d='M16 30 C 4 40, 26 52, 14 62 C 3 72, 24 80, 13 90'/>
-    <path d='M104 30 C 116 40, 94 52, 106 62 C 117 72, 96 80, 107 90'/>
+  <!-- MAIN SCROLLWORK, doubling back -->
+  <g fill='none' stroke='#5e4413' stroke-width='1.7' opacity='.6' stroke-linecap='round'>
+    <path d='M27 18 C 36 3, 47 24, 58 12 C 66 3, 74 22, 84 10 C 88 5, 92 8, 93 13'/>
+    <path d='M27 102 C 36 117, 47 96, 58 108 C 66 117, 74 98, 84 110 C 88 115, 92 112, 93 107'/>
+    <path d='M18 27 C 3 36, 24 47, 12 58 C 3 66, 22 74, 10 84 C 5 88, 8 92, 13 93'/>
+    <path d='M102 27 C 117 36, 96 47, 108 58 C 117 66, 98 74, 110 84 C 115 88, 112 92, 107 93'/>
   </g>
-  <g fill='none' stroke='#ffeec2' stroke-width='.9' opacity='.75' stroke-linecap='round'>
-    <path d='M30 17.4 C 40 5.4, 52 27.4, 62 15.4 C 72 4.4, 80 25.4, 90 14.4'/>
-    <path d='M30 105.4 C 40 117.4, 52 95.4, 62 107.4 C 72 118.4, 80 97.4, 90 108.4'/>
-    <path d='M17.4 30 C 5.4 40, 27.4 52, 15.4 62 C 4.4 72, 25.4 80, 14.4 90'/>
-    <path d='M105.4 30 C 117.4 40, 95.4 52, 107.4 62 C 118.4 72, 96.4 80, 107.4 90'/>
+  <g fill='none' stroke='#ffeec2' stroke-width='.95' opacity='.8' stroke-linecap='round'>
+    <path d='M27 19.4 C 36 4.4, 47 25.4, 58 13.4 C 66 4.4, 74 23.4, 84 11.4'/>
+    <path d='M27 103.4 C 36 118.4, 47 97.4, 58 109.4 C 66 118.4, 74 99.4, 84 111.4'/>
+    <path d='M19.4 27 C 4.4 36, 25.4 47, 13.4 58 C 4.4 66, 23.4 74, 11.4 84'/>
+    <path d='M103.4 27 C 118.4 36, 97.4 47, 109.4 58 C 118.4 66, 99.4 74, 111.4 84'/>
   </g>
 
-  <!-- ============ TULIPS at the corners, each turned differently ===== -->
-  <use href='#tulip' transform='translate(15,17) rotate(-12) scale(1.05)'/>
-  <use href='#tulip' transform='translate(105,17) rotate(14) scale(1)'/>
-  <use href='#tulip' transform='translate(15,103) rotate(190) scale(1)'/>
-  <use href='#tulip' transform='translate(105,103) rotate(168) scale(1.05)'/>
+  <!-- C-scrolls springing off it -->
+  <use href='#curl' transform='translate(34,20) rotate(-25)'/>
+  <use href='#curl' transform='translate(74,18) rotate(155) scale(.9)'/>
+  <use href='#curl' transform='translate(34,100) rotate(25)'/>
+  <use href='#curl' transform='translate(74,102) rotate(-155) scale(.9)'/>
+  <use href='#curl' transform='translate(20,34) rotate(65)'/>
+  <use href='#curl' transform='translate(18,74) rotate(-115) scale(.9)'/>
+  <use href='#curl' transform='translate(100,34) rotate(115)'/>
+  <use href='#curl' transform='translate(102,74) rotate(-65) scale(.9)'/>
 
-  <!-- ============ DIAMONDS THREADED ALONG THE SWIRLS ============ -->
-  <!-- sizes rise and fall with the curve, so no two sit at one inset -->
+  <!-- THE MONEY, mid-run on every side -->
+  <use href='#dollar' transform='translate(60,15) scale(1.05)'/>
+  <use href='#dollar' transform='translate(60,105) scale(1.05)'/>
+  <use href='#dollar' transform='translate(15,60) scale(1.05)'/>
+  <use href='#dollar' transform='translate(105,60) scale(1.05)'/>
+
+  <!-- TULIPS, bigger, each turned its own way -->
+  <use href='#tulip' transform='translate(15,18) rotate(-14) scale(1.15)'/>
+  <use href='#tulip' transform='translate(105,18) rotate(16) scale(1.08)'/>
+  <use href='#tulip' transform='translate(15,102) rotate(194) scale(1.08)'/>
+  <use href='#tulip' transform='translate(105,102) rotate(166) scale(1.15)'/>
+
+  <!-- DIAMONDS THAT DO NOT BEHAVE.
+       Insets and radii hand-set to defeat any rhythm: one jammed at the
+       edge beside one riding deep, two nearly touching then a gap. -->
+  <g fill='url(#dia)'>
+    <circle cx='31' cy='6.5' r='1.1'/><circle cx='34.5' cy='13.8' r='2.6'/><circle cx='37' cy='8.2' r='1.5'/>
+    <circle cx='41.5' cy='20.5' r='1.3'/><circle cx='44' cy='9.4' r='2.9'/><circle cx='46.5' cy='16.2' r='1.1'/>
+    <circle cx='50' cy='6.2' r='1.9'/><circle cx='52' cy='12.4' r='1.2'/><circle cx='71' cy='19.6' r='2.4'/>
+    <circle cx='74.5' cy='7.4' r='1.4'/><circle cx='78' cy='14.8' r='2.8'/><circle cx='80.2' cy='9.2' r='1.1'/>
+    <circle cx='84.5' cy='20.2' r='1.6'/><circle cx='88' cy='11' r='2.2'/><circle cx='90.5' cy='17.5' r='1.2'/>
+
+    <circle cx='31' cy='113.5' r='1.1'/><circle cx='34.5' cy='106.2' r='2.6'/><circle cx='37' cy='111.8' r='1.5'/>
+    <circle cx='41.5' cy='99.5' r='1.3'/><circle cx='44' cy='110.6' r='2.9'/><circle cx='46.5' cy='103.8' r='1.1'/>
+    <circle cx='50' cy='113.8' r='1.9'/><circle cx='52' cy='107.6' r='1.2'/><circle cx='71' cy='100.4' r='2.4'/>
+    <circle cx='74.5' cy='112.6' r='1.4'/><circle cx='78' cy='105.2' r='2.8'/><circle cx='80.2' cy='110.8' r='1.1'/>
+    <circle cx='84.5' cy='99.8' r='1.6'/><circle cx='88' cy='109' r='2.2'/><circle cx='90.5' cy='102.5' r='1.2'/>
+
+    <circle cx='6.5' cy='31' r='1.1'/><circle cx='13.8' cy='34.5' r='2.6'/><circle cx='8.2' cy='37' r='1.5'/>
+    <circle cx='20.5' cy='41.5' r='1.3'/><circle cx='9.4' cy='44' r='2.9'/><circle cx='16.2' cy='46.5' r='1.1'/>
+    <circle cx='6.2' cy='50' r='1.9'/><circle cx='12.4' cy='52' r='1.2'/><circle cx='19.6' cy='71' r='2.4'/>
+    <circle cx='7.4' cy='74.5' r='1.4'/><circle cx='14.8' cy='78' r='2.8'/><circle cx='9.2' cy='80.2' r='1.1'/>
+    <circle cx='20.2' cy='84.5' r='1.6'/><circle cx='11' cy='88' r='2.2'/><circle cx='17.5' cy='90.5' r='1.2'/>
+
+    <circle cx='113.5' cy='31' r='1.1'/><circle cx='106.2' cy='34.5' r='2.6'/><circle cx='111.8' cy='37' r='1.5'/>
+    <circle cx='99.5' cy='41.5' r='1.3'/><circle cx='110.6' cy='44' r='2.9'/><circle cx='103.8' cy='46.5' r='1.1'/>
+    <circle cx='113.8' cy='50' r='1.9'/><circle cx='107.6' cy='52' r='1.2'/><circle cx='100.4' cy='71' r='2.4'/>
+    <circle cx='112.6' cy='74.5' r='1.4'/><circle cx='105.2' cy='78' r='2.8'/><circle cx='110.8' cy='80.2' r='1.1'/>
+    <circle cx='99.8' cy='84.5' r='1.6'/><circle cx='109' cy='88' r='2.2'/><circle cx='102.5' cy='90.5' r='1.2'/>
+  </g>
+
+  <!-- hard flashes on the big ones only -->
+  <g fill='#ffffff' opacity='.95'>
+    <circle cx='43.4' cy='8.6' r='1'/><circle cx='77.4' cy='14' r='1'/>
+    <circle cx='43.4' cy='111.4' r='1'/><circle cx='77.4' cy='106' r='1'/>
+    <circle cx='8.6' cy='43.4' r='1'/><circle cx='14' cy='77.4' r='1'/>
+    <circle cx='111.4' cy='43.4' r='1'/><circle cx='106' cy='77.4' r='1'/>
+  </g>
+
+  <!-- colour caught in the curls, off every line -->
   <g>
-    <g fill='url(#dia)'>
-      <circle cx='33' cy='12.6' r='1.3'/><circle cx='37' cy='8.6' r='1.8'/>
-      <circle cx='42' cy='7.4' r='2.3'/><circle cx='47' cy='10.4' r='1.9'/>
-      <circle cx='52' cy='15.4' r='1.4'/><circle cx='57' cy='18' r='1.9'/>
-      <circle cx='62' cy='15' r='2.4'/><circle cx='67' cy='9.6' r='1.9'/>
-      <circle cx='72' cy='7.4' r='1.4'/><circle cx='77' cy='10.6' r='2'/>
-      <circle cx='82' cy='16' r='2.5'/><circle cx='87' cy='14' r='1.5'/>
-    </g>
-    <g fill='#ffffff' opacity='.9'>
-      <circle cx='41.4' cy='6.8' r='.8'/><circle cx='61.4' cy='14.4' r='.9'/><circle cx='81.4' cy='15.4' r='.9'/>
-    </g>
-  </g>
-
-  <g>
-    <g fill='url(#dia)'>
-      <circle cx='33' cy='107.4' r='1.3'/><circle cx='37' cy='111.4' r='1.8'/>
-      <circle cx='42' cy='112.6' r='2.3'/><circle cx='47' cy='109.6' r='1.9'/>
-      <circle cx='52' cy='104.6' r='1.4'/><circle cx='57' cy='102' r='1.9'/>
-      <circle cx='62' cy='105' r='2.4'/><circle cx='67' cy='110.4' r='1.9'/>
-      <circle cx='72' cy='112.6' r='1.4'/><circle cx='77' cy='109.4' r='2'/>
-      <circle cx='82' cy='104' r='2.5'/><circle cx='87' cy='106' r='1.5'/>
-    </g>
-    <g fill='#ffffff' opacity='.9'>
-      <circle cx='41.4' cy='113.2' r='.8'/><circle cx='61.4' cy='105.6' r='.9'/><circle cx='81.4' cy='104.6' r='.9'/>
-    </g>
-  </g>
-
-  <g>
-    <g fill='url(#dia)'>
-      <circle cx='12.6' cy='33' r='1.3'/><circle cx='8.6' cy='37' r='1.8'/>
-      <circle cx='7.4' cy='42' r='2.3'/><circle cx='10.4' cy='47' r='1.9'/>
-      <circle cx='15.4' cy='52' r='1.4'/><circle cx='18' cy='57' r='1.9'/>
-      <circle cx='15' cy='62' r='2.4'/><circle cx='9.6' cy='67' r='1.9'/>
-      <circle cx='7.4' cy='72' r='1.4'/><circle cx='10.6' cy='77' r='2'/>
-      <circle cx='16' cy='82' r='2.5'/><circle cx='14' cy='87' r='1.5'/>
-    </g>
-    <g fill='#ffffff' opacity='.9'>
-      <circle cx='6.8' cy='41.4' r='.8'/><circle cx='14.4' cy='61.4' r='.9'/><circle cx='15.4' cy='81.4' r='.9'/>
-    </g>
-  </g>
-
-  <g>
-    <g fill='url(#dia)'>
-      <circle cx='107.4' cy='33' r='1.3'/><circle cx='111.4' cy='37' r='1.8'/>
-      <circle cx='112.6' cy='42' r='2.3'/><circle cx='109.6' cy='47' r='1.9'/>
-      <circle cx='104.6' cy='52' r='1.4'/><circle cx='102' cy='57' r='1.9'/>
-      <circle cx='105' cy='62' r='2.4'/><circle cx='110.4' cy='67' r='1.9'/>
-      <circle cx='112.6' cy='72' r='1.4'/><circle cx='109.4' cy='77' r='2'/>
-      <circle cx='104' cy='82' r='2.5'/><circle cx='106' cy='87' r='1.5'/>
-    </g>
-    <g fill='#ffffff' opacity='.9'>
-      <circle cx='113.2' cy='41.4' r='.8'/><circle cx='105.6' cy='61.4' r='.9'/><circle cx='104.6' cy='81.4' r='.9'/>
-    </g>
-  </g>
-
-  <!-- a few coloured stones caught in the curls, off any line at all -->
-  <g>
-    <circle cx='54' cy='6.6' r='2.1' fill='url(#rub)'/>
-    <circle cx='70' cy='19.6' r='1.9' fill='url(#emr)'/>
-    <circle cx='54' cy='113.4' r='2.1' fill='url(#emr)'/>
-    <circle cx='70' cy='100.4' r='1.9' fill='url(#rub)'/>
-    <circle cx='6.6' cy='54' r='2.1' fill='url(#emr)'/>
-    <circle cx='19.6' cy='70' r='1.9' fill='url(#rub)'/>
-    <circle cx='113.4' cy='54' r='2.1' fill='url(#rub)'/>
-    <circle cx='100.4' cy='70' r='1.9' fill='url(#emr)'/>
+    <circle cx='57.5' cy='4.8' r='2.2' fill='url(#rub)'/><circle cx='66' cy='22' r='2' fill='url(#emr)'/>
+    <circle cx='57.5' cy='115.2' r='2.2' fill='url(#emr)'/><circle cx='66' cy='98' r='2' fill='url(#rub)'/>
+    <circle cx='4.8' cy='57.5' r='2.2' fill='url(#emr)'/><circle cx='22' cy='66' r='2' fill='url(#rub)'/>
+    <circle cx='115.2' cy='57.5' r='2.2' fill='url(#rub)'/><circle cx='98' cy='66' r='2' fill='url(#emr)'/>
   </g>
 </svg>`)}")`,
       // NO 'fill' keyword. It paints the SVG's middle slice across the whole
       // element background, which flooded the entire cabinet gold and buried
       // the stage. The middle of a bezel is meant to be empty.
-      borderImageSlice: '30',
+      borderImageSlice: '32',
       borderImageRepeat: 'round',
-      borderImageWidth: '34px',
+      borderImageWidth: '52px',
       // Two shadows doing two jobs: the inner one recesses the linen
       // behind the frame the way glass and a mount do, the outer one
       // hangs the whole case off a wall.
