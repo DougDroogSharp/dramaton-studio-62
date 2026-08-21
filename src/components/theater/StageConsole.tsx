@@ -3,6 +3,7 @@ import { MeterPanel, MeterRow } from './MeterPanel';
 import { WorldVars } from '@/utils/expression';
 import { frameFor } from '@/utils/frames';
 import { MachineDiagram } from './MachineDiagram';
+import { FrameSparkle } from './FrameSparkle';
 
 // The cabinet the show is played inside.
 //
@@ -73,6 +74,8 @@ interface StageConsoleProps {
   frameMood?: { mood: string; seq: number } | null;
   /** The five mid-scene accessibility switches, mounted on the frame. */
   abilityBar?: React.ReactNode;
+  /** Player asked for stillness: no sparkle, at all. */
+  reduceMotion?: boolean;
 }
 
 export const StageConsole: React.FC<StageConsoleProps> = ({
@@ -95,6 +98,7 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   onCloseDrawer,
   frameMood,
   abilityBar,
+  reduceMotion,
 }) => {
   const skin = frameFor(frame);
   const line = narration;
@@ -105,9 +109,13 @@ export const StageConsole: React.FC<StageConsoleProps> = ({
   return (
     <div
       key={frameMood?.seq ?? 0}
-      className={`w-full h-full flex flex-col [@media(min-aspect-ratio:1/1)]:flex-row ${skin.shell} ${moodClass}`}
+      className={`relative w-full h-full flex flex-col [@media(min-aspect-ratio:1/1)]:flex-row ${skin.shell} ${moodClass}`}
       style={skin.shellStyle}
     >
+      {/* THE BLING — only on a jewelled case, never over the picture,
+          and never at all when the player asked for stillness. */}
+      {skin.jewelled && <FrameSparkle enabled={!reduceMotion} band={34} />}
+
       {/* THE MAIN COLUMN — the show itself: the picture, and the words
           directly beneath it. The instruments live in their own column
           beside (landscape) or below (portrait), so nothing ever comes

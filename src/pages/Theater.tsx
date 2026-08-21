@@ -637,6 +637,7 @@ const Theater: React.FC = () => {
           onAdvance={scriptRunner.advance}
           frameMood={scriptRunner.state.frameMood}
           abilityBar={<AbilityBar settings={ability} onChange={updateAbility} />}
+          reduceMotion={ability.reduceMotion}
           drawerTitle="Settings"
           onCloseDrawer={() => setShowSettings(false)}
           drawer={showSettings ? (

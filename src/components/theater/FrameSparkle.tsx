@@ -1,0 +1,189 @@
+import React, { useEffect, useRef, useState } from 'react';
+
+// THE BLING.
+//
+// Doug: "have a few of the jewels do a sparkle anim randomly. bling.
+// subtle sparkles mainly but the occasional twinkle. a sparkle about
+// every 2 seconds with twinkles 20 seconds apart… Every minute or so do
+// a lot of sparkles and twinkles at once."
+//
+// So there are three events, not one, and the rarity is the point:
+//
+//   SPARKLE   ~every 2s   small, brief, easy to miss. The frame is alive.
+//   TWINKLE   ~every 20s  a real four-point star with rays. You look up.
+//   CASCADE   ~every 60s  eight or nine at once, staggered. Showing off.
+//
+// A jewelled case that glitters constantly is a slot machine. One that
+// catches the light every few seconds is an expensive object in a room
+// with a window. The gap between them is entirely in the timing, which
+// is why the intervals are jittered rather than fixed — anything on an
+// exact beat stops reading as light and starts reading as a cursor.
+//
+// The lights sit only on the FRAME BAND, never over the picture: each
+// one is placed on the border ring, so nothing ever glitters across an
+// actor's face.
+//
+// Under reduce-motion this renders nothing at all. Not slower, not
+// dimmer — nothing. A player who asked for stillness did not ask for
+// gentler flashing.
+
+type Kind = 'sparkle' | 'twinkle';
+
+interface Light {
+  id: number;
+  kind: Kind;
+  /** Percent of the container, on the frame band. */
+  x: number;
+  y: number;
+  /** Extra delay so a cascade staggers instead of strobing. */
+  delay: number;
+  size: number;
+}
+
+interface FrameSparkleProps {
+  /** Border width in px, so lights land on the band and not the art. */
+  band?: number;
+  /** Off entirely when the player asked for stillness. */
+  enabled?: boolean;
+}
+
+/** A point somewhere on the frame band, in container percent. */
+function pointOnBand(bandPct: number): { x: number; y: number } {
+  const side = Math.floor(Math.random() * 4);
+  const along = Math.random() * 100;
+  const inset = bandPct * (0.25 + Math.random() * 0.5);
+  switch (side) {
+    case 0: return { x: along, y: inset };            // top
+    case 1: return { x: 100 - inset, y: along };      // right
+    case 2: return { x: along, y: 100 - inset };      // bottom
+    default: return { x: inset, y: along };           // left
+  }
+}
+
+export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled = true }) => {
+  const [lights, setLights] = useState<Light[]>([]);
+  const nextId = useRef(0);
+  // Held in a ref so the scheduling loop never re-subscribes and never
+  // needs the current list to add to it.
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    if (!enabled) { setLights([]); return; }
+
+    // The band as a percentage of the shorter side, roughly — good
+    // enough to keep a light on the gold rather than the linen.
+    const bandPct = Math.min(12, Math.max(4, band / 6));
+
+    const add = (kind: Kind, count = 1, spread = 0) => {
+      const born: Light[] = [];
+      for (let i = 0; i < count; i++) {
+        const p = pointOnBand(bandPct);
+        born.push({
+          id: nextId.current++,
+          kind,
+          x: p.x,
+          y: p.y,
+          delay: spread ? Math.random() * spread : 0,
+          size: kind === 'twinkle'
+            ? 22 + Math.random() * 14
+            : 9 + Math.random() * 7,
+        });
+      }
+      setLights(prev => [...prev, ...born]);
+      // Retire them after the animation plus the longest stagger.
+      const life = (kind === 'twinkle' ? 1500 : 900) + spread + 200;
+      const t = setTimeout(() => {
+        const ids = new Set(born.map(b => b.id));
+        setLights(prev => prev.filter(l => !ids.has(l.id)));
+      }, life);
+      timers.current.push(t);
+    };
+
+    // Jittered self-rescheduling, rather than setInterval: a fixed beat
+    // reads as a blinking cursor, and these are supposed to read as
+    // light catching a stone.
+    const loop = (fn: () => void, base: number, jitter: number) => {
+      const tick = () => {
+        fn();
+        const t = setTimeout(tick, base + (Math.random() - 0.5) * jitter);
+        timers.current.push(t);
+      };
+      const t = setTimeout(tick, base * (0.3 + Math.random() * 0.7));
+      timers.current.push(t);
+    };
+
+    loop(() => add('sparkle'), 2000, 1400);
+    loop(() => add('twinkle'), 20000, 8000);
+    // The show-off moment: a handful of each, staggered over a second.
+    loop(() => { add('sparkle', 7, 1100); add('twinkle', 2, 900); }, 60000, 20000);
+
+    return () => {
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+    };
+  }, [enabled, band]);
+
+  if (!enabled) return null;
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ zIndex: 500 }}
+      aria-hidden="true"
+    >
+      {lights.map(l => (
+        <span
+          key={l.id}
+          className={l.kind === 'twinkle' ? 'animate-frame-twinkle' : 'animate-frame-sparkle'}
+          style={{
+            position: 'absolute',
+            left: `${l.x}%`,
+            top: `${l.y}%`,
+            width: l.size,
+            height: l.size,
+            marginLeft: -l.size / 2,
+            marginTop: -l.size / 2,
+            animationDelay: `${l.delay}ms`,
+            backgroundImage: l.kind === 'twinkle' ? TWINKLE_SPRITE : SPARKLE_SPRITE,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// The sprites, inline so they cost no request and stay crisp at any size.
+//
+// SPARKLE — a soft four-point gleam. Mostly a bright core with short
+// arms; at 9-16px it reads as a glint rather than a shape.
+const SPARKLE_SPRITE = `url("data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>
+  <defs>
+    <radialGradient id='c'>
+      <stop offset='0' stop-color='#ffffff'/>
+      <stop offset='.4' stop-color='#fff3c4' stop-opacity='.9'/>
+      <stop offset='1' stop-color='#ffdf7e' stop-opacity='0'/>
+    </radialGradient>
+  </defs>
+  <circle cx='12' cy='12' r='7' fill='url(%23c)'/>
+  <path d='M12 3 L13.1 10.9 L21 12 L13.1 13.1 L12 21 L10.9 13.1 L3 12 L10.9 10.9 Z' fill='%23fffdf0' opacity='.95'/>
+</svg>`)}")`;
+
+// TWINKLE — the same star with long rays and a halo. Bigger, slower,
+// and rare enough that it is worth looking up for.
+const TWINKLE_SPRITE = `url("data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>
+  <defs>
+    <radialGradient id='h'>
+      <stop offset='0' stop-color='#ffffff' stop-opacity='.95'/>
+      <stop offset='.35' stop-color='#fff0b8' stop-opacity='.55'/>
+      <stop offset='1' stop-color='#ffd76a' stop-opacity='0'/>
+    </radialGradient>
+  </defs>
+  <circle cx='24' cy='24' r='18' fill='url(%23h)'/>
+  <path d='M24 1 L26 22 L47 24 L26 26 L24 47 L22 26 L1 24 L22 22 Z' fill='%23ffffff'/>
+  <path d='M24 8 L25 23 L40 24 L25 25 L24 40 L23 25 L8 24 L23 23 Z' fill='%23fff6d0' opacity='.9'/>
+  <path d='M13 13 L25 23 L35 13 L25 25 L35 35 L23 25 L13 35 L23 23 Z' fill='%23ffffff' opacity='.45'/>
+</svg>`)}")`;

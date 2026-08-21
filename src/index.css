@@ -343,3 +343,39 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-frame-scary, .animate-frame-fun, .animate-frame-sad { animation: none; }
 }
+
+/* THE BLING — a jewelled case catching the light.
+ *
+ * Two animations, deliberately different in character rather than just
+ * in size. A sparkle is quick and small and you half-miss it. A twinkle
+ * turns as it flares, so the star rotates a little and the rays sweep,
+ * which is what makes it worth looking up for once every twenty seconds.
+ *
+ * Both are pure transform+opacity, so they composite on the GPU and cost
+ * nothing on a phone — which matters, because these run forever. */
+@keyframes frame-sparkle {
+  0%   { opacity: 0; transform: scale(.35) rotate(0deg); }
+  35%  { opacity: 1; transform: scale(1) rotate(25deg); }
+  100% { opacity: 0; transform: scale(.5) rotate(45deg); }
+}
+.animate-frame-sparkle {
+  animation: frame-sparkle 900ms ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes frame-twinkle {
+  0%   { opacity: 0; transform: scale(.2) rotate(-35deg); }
+  25%  { opacity: 1; transform: scale(1.15) rotate(0deg); }
+  55%  { opacity: .85; transform: scale(.92) rotate(20deg); }
+  100% { opacity: 0; transform: scale(1.3) rotate(55deg); }
+}
+.animate-frame-twinkle {
+  animation: frame-twinkle 1500ms cubic-bezier(.2,.7,.3,1) forwards;
+  opacity: 0;
+}
+
+/* Stillness means stillness. Not slower, not dimmer — gone. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-frame-sparkle,
+  .animate-frame-twinkle { animation: none; opacity: 0; }
+}

@@ -25,6 +25,8 @@ export interface FrameSkin {
   plateText: string;
   /** small caps labels on the shelf */
   label: string;
+  /** Set stones that catch the light. Only a jewelled case sparkles. */
+  jewelled?: boolean;
   /** optional decorative styles applied to the shell */
   shellStyle?: React.CSSProperties;
 }
@@ -63,6 +65,7 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
   linen: {
     id: 'linen',
     name: 'Bayeux linen, framed',
+    jewelled: true,
     shell: 'border-[34px] shadow-2xl',
     divider: 'border-t border-[#8d7a52]/40',
     shelf: '',
