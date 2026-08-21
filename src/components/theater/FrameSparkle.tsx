@@ -116,7 +116,7 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
       }
       setLights(prev => [...prev, ...born]);
       // Retire them after the animation plus the longest stagger.
-      const life = (kind === 'twinkle' ? 1500 : 900) + spread + 200;
+      const life = (kind === 'twinkle' ? 1000 : 560) + spread + 200;
       const t = setTimeout(() => {
         const ids = new Set(born.map(b => b.id));
         setLights(prev => prev.filter(l => !ids.has(l.id)));
@@ -137,10 +137,10 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
       timers.current.push(t);
     };
 
-    loop(() => add('sparkle'), 2000, 1400);
-    loop(() => add('twinkle'), 20000, 8000);
+    loop(() => add('sparkle'), 900, 700);
+    loop(() => add('twinkle'), 7000, 4000);
     // The show-off moment: a handful of each, staggered over a second.
-    loop(() => { add('sparkle', 7, 1100); add('twinkle', 2, 900); }, 60000, 20000);
+    loop(() => { add('sparkle', 14, 900); add('twinkle', 5, 700); }, 30000, 12000);
 
     return () => {
       timers.current.forEach(clearTimeout);
@@ -179,8 +179,8 @@ export const FrameSparkle: React.FC<FrameSparkleProps> = ({ band = 34, enabled =
             backgroundRepeat: 'no-repeat',
             // The bloom is what sells it as light rather than a decal.
             filter: l.kind === 'twinkle'
-              ? 'drop-shadow(0 0 7px rgba(255,240,190,.95)) drop-shadow(0 0 16px rgba(255,215,110,.6))'
-              : 'drop-shadow(0 0 4px rgba(255,245,210,.9))',
+              ? 'drop-shadow(0 0 5px #fff) drop-shadow(0 0 12px rgba(255,245,205,1)) drop-shadow(0 0 26px rgba(255,220,120,.85))'
+              : 'drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px rgba(255,248,215,.95))',
           }}
         />
       ))}
