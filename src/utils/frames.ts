@@ -186,7 +186,10 @@ export const FRAMES: Record<FrameId, FrameSkin> = {
     <circle cx='107' cy='26' r='1.5'/><circle cx='107' cy='48' r='1.5'/><circle cx='107' cy='72' r='1.5'/><circle cx='107' cy='94' r='1.5'/>
   </g>
 </svg>`)}")`,
-      borderImageSlice: '30 fill',
+      // NO 'fill' keyword. It paints the SVG's middle slice across the whole
+      // element background, which flooded the entire cabinet gold and buried
+      // the stage. The middle of a bezel is meant to be empty.
+      borderImageSlice: '30',
       borderImageRepeat: 'round',
       borderImageWidth: '34px',
       // Two shadows doing two jobs: the inner one recesses the linen

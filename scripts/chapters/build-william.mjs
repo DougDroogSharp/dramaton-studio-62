@@ -229,7 +229,7 @@ scenes.push({
   sceneType: 'CUTSCENE',
   dropId: dropId('wm_rouen', 'wm_hall'),
   stage: [
-    ...el('cl_william', 'william_king', 38, 62),
+    ...el('cl_william', 'william_king', 38, 66, { scale: 1.7 }),
     ...balloon('cl_sign', 'NORMANDY, EARLY 1066', 50, 10, { scale: 0.9 }),
   ],
   script: lines(
@@ -326,8 +326,8 @@ scenes.push({
   sceneType: 'CUTSCENE',
   dropId: dropId('wm_hall'),
   stage: [
-    ...el('cw_william', 'william_king', 34, 62),
-    ...el('cw_odo', 'william_odo', 68, 63),
+    ...el('cw_william', 'william_king', 34, 66, { scale: 1.7 }),
+    ...el('cw_odo', 'william_odo', 68, 66, { scale: 1.7 }),
     ...balloon('cw_sign', 'WESTMINSTER, CHRISTMAS DAY 1066', 50, 10, { scale: 0.9 }),
   ],
   script: lines(
@@ -370,7 +370,7 @@ scenes.push({
   sceneType: 'CUTSCENE',
   dropId: dropId('wm_motte_drop', 'wm_hall'),
   stage: [
-    ...el('ct_william', 'william_king', 24, 64, { scale: 2.0 }),
+    ...el('ct_william', 'william_king', 24, 66, { scale: 1.6 }),
     ...balloon('ct_sign', 'ENGLAND, 1067 ONWARD', 50, 10, { scale: 0.9 }),
   ],
   script: lines(
