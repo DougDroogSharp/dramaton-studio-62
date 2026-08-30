@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dramaton-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\dev8080.mjs"],
+      "port": 8080
+    },
+    {
+      "name": "georgeworld",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8201"],
+      "port": 8201
+    },
+    {
+      "name": "william-run-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\serve8123.mjs"],
+      "port": 8123
+    }
+  ]
+}

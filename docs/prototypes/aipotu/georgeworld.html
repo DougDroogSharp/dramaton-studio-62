@@ -1,0 +1,4155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!-- stale-cache killers: a plain refresh must always fetch the latest build -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>George World v0.18</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  canvas { display:block; touch-action:none; }
+  #hud { position:fixed; inset:0; pointer-events:none; color:#fff; }
+  #title { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    font-weight:800; font-size:20px; letter-spacing:3px; white-space:nowrap;
+    text-shadow:0 2px 6px rgba(0,40,60,.45); }
+  #title #ver { font-weight:700; font-size:12px; letter-spacing:1px; opacity:.95;
+    background:rgba(10,40,55,.5); border-radius:9px; padding:2px 8px; vertical-align:2px; }
+  #roster { position:absolute; top:46px; left:10px; display:flex; flex-direction:column;
+    gap:5px; pointer-events:auto; }
+  .sideLabel { font-size:8px; font-weight:800; letter-spacing:1px; color:#cfd9e2;
+    text-shadow:0 1px 3px rgba(0,0,0,.5); opacity:.85; padding-left:2px; }
+  .chip { background:rgba(10,40,55,.5); border-radius:14px; padding:4px 11px;
+    font-size:12px; font-weight:700; cursor:pointer; display:flex; gap:7px;
+    align-items:center; letter-spacing:.5px; backdrop-filter:blur(2px); }
+  .chip .dot { width:9px; height:9px; border-radius:50%; background:#7ed957;
+    box-shadow:0 0 4px rgba(0,0,0,.4); flex:none; }
+  .chip.sel { outline:2px solid #ffd94a; }
+  .chip .tag { font-weight:400; font-size:10px; opacity:.75; }
+  #hint { position:absolute; bottom:44px; left:50%; transform:translateX(-50%);
+    max-width:86vw; text-align:center; font-size:15px; font-weight:600;
+    background:rgba(10,40,55,.5); padding:8px 16px; border-radius:18px;
+    text-shadow:0 1px 3px rgba(0,0,0,.4); transition:opacity .4s; }
+  #help { position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+    font-size:11px; opacity:.75; text-shadow:0 1px 3px rgba(0,0,0,.5); white-space:nowrap; }
+  #gbtn { position:absolute; bottom:40px; right:12px; pointer-events:auto; cursor:pointer;
+    font-size:12px; font-weight:800; letter-spacing:1px; color:#e8eef3;
+    background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
+    border-radius:10px; padding:9px 13px;
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
+  #gbtn.on { background:linear-gradient(180deg,#7f6a2c,#5c4d1f); border-color:#ffd94a; color:#ffe98a; }
+  #wbtn { position:absolute; bottom:40px; right:152px; pointer-events:auto; cursor:pointer;
+    font-size:12px; font-weight:800; letter-spacing:1px; color:#e8eef3;
+    background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
+    border-radius:10px; padding:9px 13px;
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
+  #wbtn.off { opacity:.6; color:#aab4be; }
+  #whyline { position:absolute; top:104px; left:50%; transform:translateX(-50%); display:none;
+    max-width:88vw; text-align:center; font-size:11px; font-weight:700; letter-spacing:.5px;
+    color:#ffd071; background:linear-gradient(180deg,#3b4148,#2a2f35); border:1px solid #79838f;
+    border-radius:9px; padding:6px 12px; font-family:Consolas,monospace;
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15); }
+  #daybox { position:absolute; bottom:40px; left:12px; pointer-events:auto; display:flex;
+    align-items:center; gap:8px; background:rgba(10,40,55,.5); border-radius:12px;
+    padding:7px 12px; backdrop-filter:blur(2px); }
+  #daybox #dayicon { font-size:15px; width:22px; text-align:center; }
+  #daybox .dlbl { font-size:9px; font-weight:800; letter-spacing:1px; opacity:.8; line-height:1.2; }
+  #daybox input { width:120px; accent-color:#ffd94a; }
+  /* ---- the CHRONICLE: scrollable one-line event log; click a line to rewind ---- */
+  #eventlog { position:absolute; bottom:84px; left:50%; transform:translateX(-50%);
+    width:min(68vw, 500px); max-height:72px; overflow-y:auto; pointer-events:auto;
+    background:linear-gradient(180deg,#31363d,#23272d); border:1px solid #79838f;
+    border-radius:10px; padding:4px 9px 5px; font-size:11px; line-height:1.55; color:#cfd9e2;
+    box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12); }
+  #eventlog .evlabel { font-size:8px; font-weight:800; letter-spacing:1px; color:#8b95a0; padding:0 3px; }
+  #eventlog .evline { cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    border-radius:5px; padding:0 4px; }
+  #eventlog .evline:hover { background:rgba(255,217,74,.15); color:#fff; }
+  #eventlog .evline .evt { color:#8b95a0; font-family:Consolas,monospace; font-size:9px; margin-right:5px; }
+  #eventlog .evline .evdot { display:inline-block; width:7px; height:7px; border-radius:50%;
+    margin-right:6px; }
+  #eventlog .evline.future { opacity:.38; }
+  /* ---- Georgeomat x-ray panel: metallic utilitarian ---- */
+  #xray { position:absolute; right:10px; top:46px; width:236px; display:none;
+    background:linear-gradient(180deg,#454c55,#2e333a); border:1px solid #79838f;
+    border-radius:10px; padding:10px 12px 12px; pointer-events:auto;
+    color:#dfe6ec; font-size:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.16); }
+  #xray h3 { margin:0 0 2px; font-size:15px; letter-spacing:1.5px; color:#fff;
+    font-weight:800; display:flex; justify-content:space-between; align-items:center; }
+  #xray h3 span { cursor:pointer; font-weight:400; color:#aab4be; padding:0 3px; }
+  #xray .role { font-size:10px; letter-spacing:1px; font-weight:700; color:#ffd071;
+    margin-bottom:8px; text-transform:uppercase; }
+  #xray .grow { display:flex; align-items:center; gap:7px; margin:5px 0; }
+  #xray .glbl { font-size:9px; font-weight:800; letter-spacing:1px; width:52px;
+    color:#aab4be; flex:none; }
+  #xray .gbar { flex:1; height:11px; background:#20242a; border-radius:6px;
+    border:1px solid #14171b; box-shadow:inset 0 1px 2px rgba(0,0,0,.6); overflow:hidden; }
+  #xray .gbar > div { height:100%; border-radius:5px; }
+  #xray .gnum { font-size:11px; font-weight:700; width:26px; text-align:right; flex:none; }
+  #xray .links { margin-top:9px; border-top:1px solid #59626c; padding-top:7px; }
+  #xray .links .lk { margin:4px 0; line-height:1.35; }
+  #xray .lk.pipe { color:#5fe3d8; }
+  #xray .lk.spring { color:#ff8272; }
+  #xray .lk.none { color:#8b95a0; font-style:normal; }
+  #xray .traits { margin-top:8px; font-size:10px; color:#aab4be; letter-spacing:.5px; }
+  #xray .traits b { color:#dfe6ec; }
+  /* ---- metrics HUD: the four value-judgments, always on ---- */
+  #metrics { position:absolute; top:36px; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px; pointer-events:auto; }
+  .mtile { width:88px; background:linear-gradient(180deg,#454c55,#2e333a);
+    border:1px solid #79838f; border-radius:8px; padding:4px 8px 6px;
+    box-shadow:0 4px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15);
+    transition:box-shadow .35s; }
+  .mtile.win { border-color:#ffd94a; }
+  .mtile.flash { box-shadow:0 0 16px rgba(255,217,74,.95), inset 0 1px 0 rgba(255,255,255,.15); }
+  .mtile .mlbl { font-size:8px; font-weight:800; letter-spacing:1px; color:#aab4be; white-space:nowrap; }
+  .mtile.win .mlbl { color:#ffd94a; }
+  .mtile .mval { font-size:17px; font-weight:800; font-family:Consolas,monospace;
+    line-height:1.15; color:#f2f6fa; }
+  .mtile .mval .trend { font-size:10px; margin-left:3px; vertical-align:2px; }
+  .mtile .mbar { height:5px; background:#20242a; border-radius:3px; margin-top:3px;
+    border:1px solid #14171b; overflow:hidden; }
+  .mtile .mbar > div { height:100%; border-radius:2px; transition:width .5s; }
+  /* ---- intervention levers: the player's hands ---- */
+  #levers { position:absolute; right:12px; bottom:98px; display:flex; flex-direction:column;
+    gap:7px; pointer-events:auto; }
+  .lever { cursor:pointer; font-size:11px; font-weight:800; letter-spacing:.8px; color:#e8eef3;
+    background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
+    border-radius:10px; padding:7px 11px; text-align:left; white-space:nowrap;
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
+  .lever small { display:block; font-size:8px; font-weight:600; letter-spacing:.5px; color:#aab4be; }
+  .lever.armed { background:linear-gradient(180deg,#7f6a2c,#5c4d1f); border-color:#ffd94a; color:#ffe98a; }
+  .lever.armed small { color:#d8c47a; }
+  .lever.on { background:linear-gradient(180deg,#2c6d5a,#1f4d40); border-color:#5fe3d8; color:#aef3ea; }
+  .lever.on small { color:#7fc9bf; }
+  .lever.done { opacity:.6; }
+  /* ---- pause button ---- */
+  #pausebtn { cursor:pointer; font-size:15px; width:30px; height:30px; flex:none;
+    display:flex; align-items:center; justify-content:center; border-radius:8px;
+    background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
+  #pausebtn.on { background:linear-gradient(180deg,#7f6a2c,#5c4d1f); border-color:#ffd94a; }
+  /* ---- the light tech tree: unfolds as the society develops ---- */
+  #techtree { position:absolute; left:10px; bottom:88px; width:138px; pointer-events:auto;
+    background:linear-gradient(180deg,#454c55,#2e333a); border:1px solid #79838f;
+    border-radius:10px; padding:7px 10px 8px;
+    box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.16); }
+  #techtree h4 { margin:0 0 4px; font-size:10px; letter-spacing:1.5px; color:#ffd071; font-weight:800; }
+  .tnode { position:relative; font-size:9px; font-weight:800; letter-spacing:.6px;
+    color:#5c656f; padding:3px 0 3px 15px; line-height:1.25; }
+  .tnode::before { content:''; position:absolute; left:3px; top:6px; width:7px; height:7px;
+    border-radius:50%; background:#20242a; border:1px solid #59626c; }
+  .tnode + .tnode::after { content:''; position:absolute; left:6px; top:-6px; width:1px;
+    height:11px; background:#59626c; }
+  .tnode.lit { color:#ffe98a; }
+  .tnode.lit::before { background:#ffd94a; border-color:#ffd94a;
+    box-shadow:0 0 7px rgba(255,217,74,.85); }
+  .tnode.lit + .tnode.lit::after { background:#ffd94a; }
+  .tnode small { display:none; font-size:8px; font-weight:600; opacity:.7; letter-spacing:.3px; }
+  .tnode.lit small { display:block; }
+  /* ---- discovery / milestone ado: a JOYFUL superimposed announcement — big,
+     warm, confetti falling behind playful type; sim paused beneath ---- */
+  #adobox { position:absolute; top:30%; left:50%; transform:translate(-50%,-50%); display:none;
+    width:min(86vw, 560px); text-align:center; pointer-events:auto; cursor:pointer;
+    overflow:hidden;
+    /* Doug's soft sunburst + sparkles, layered low-opacity BEHIND the text */
+    background:
+      url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 240' preserveAspectRatio='xMidYMid slice'><defs><radialGradient id='ewGlow' cx='50%25' cy='16%25' r='85%25'><stop offset='0%25' stop-color='%23ffe9b0' stop-opacity='0.28'/><stop offset='55%25' stop-color='%23ffb86b' stop-opacity='0.07'/><stop offset='100%25' stop-color='%23ffb86b' stop-opacity='0'/></radialGradient></defs><rect width='400' height='240' fill='url(%23ewGlow)'/><g fill='%23ffd98a' opacity='0.09'><path d='M200 26 L150 240 L172 240 Z'/><path d='M200 26 L182 240 L196 240 Z'/><path d='M200 26 L206 240 L220 240 Z'/><path d='M200 26 L232 240 L258 240 Z'/><path d='M200 26 L96 240 L124 240 Z'/><path d='M200 26 L280 240 L312 240 Z'/></g><g fill='%23fff3d0' opacity='0.45'><circle cx='62' cy='64' r='1.6'/><circle cx='338' cy='52' r='1.9'/><circle cx='300' cy='96' r='1.3'/><circle cx='96' cy='120' r='1.4'/><circle cx='356' cy='150' r='1.5'/><circle cx='48' cy='176' r='1.7'/></g></svg>") center / cover no-repeat,
+      linear-gradient(165deg,#ffa94d 0%,#ff7a5c 52%,#e0619c 100%);
+    border:3px solid #ffe066; border-radius:22px; padding:24px 28px 18px; color:#fff;
+    box-shadow:0 16px 64px rgba(0,0,0,.55), 0 0 38px rgba(255,210,90,.55),
+      inset 0 2px 0 rgba(255,255,255,.4);
+    animation:adopop .5s cubic-bezier(.2,1.7,.4,1); }
+  @keyframes adopop { from { transform:translate(-50%,-50%) scale(.55) rotate(-3deg); opacity:0; } }
+  #adobox .adokick { font-size:14px; letter-spacing:5px; color:#fff3c4; font-weight:800;
+    text-shadow:0 2px 6px rgba(140,50,20,.4); }
+  #adobox h2 { margin:6px 0 10px; font-size:36px; letter-spacing:2.5px; color:#fff;
+    font-weight:800; transform:rotate(-1.5deg);
+    text-shadow:0 3px 0 rgba(150,50,30,.35), 0 6px 18px rgba(120,30,30,.3); }
+  #adobox p { margin:0 auto; max-width:46ch; font-size:15.5px; line-height:1.6;
+    color:#fff7ec; font-weight:600; text-shadow:0 1px 3px rgba(120,40,20,.3); }
+  #adobox .adosub { margin-top:12px; font-size:10px; color:#ffe4c0; letter-spacing:1.5px; font-weight:800; }
+  #adobox .conf { position:absolute; top:-16px; width:9px; height:15px; border-radius:2px;
+    opacity:.95; pointer-events:none; animation:conffall linear infinite; }
+  @keyframes conffall { to { transform:translateY(400px) rotate(720deg); } }
+  .lever.pulse { animation:levpulse .5s ease 4; }
+  @keyframes levpulse { 50% { box-shadow:0 0 18px rgba(95,227,216,.95); } }
+  #ratelabel { position:absolute; left:calc(100% + 8px); top:4px; white-space:nowrap;
+    font-size:7.5px; font-weight:700; letter-spacing:.5px; color:#aab4be; pointer-events:none;
+    background:rgba(10,40,55,.5); border-radius:7px; padding:3px 7px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="title">GEORGE WORLD <span id="ver">v0.18</span></div>
+  <div id="metrics">
+    <div class="mtile win" title="EVERYONE'S HAPPINESS — the humane score. This is how you win.">
+      <div class="mlbl">★ EVERYONE</div><div class="mval" id="m-everyone">–</div>
+      <div class="mbar"><div id="mb-everyone" style="background:#7ed957"></div></div>
+    </div>
+    <div class="mtile" title="ECONOMIC OUTPUT — how much gets produced. High output can hide misery.">
+      <div class="mlbl">OUTPUT</div><div class="mval" id="m-output">–</div>
+      <div class="mbar"><div id="mb-output" style="background:#ffb340"></div></div>
+    </div>
+    <div class="mtile" title="UPPER-CLASS HAPPINESS — how the richest are doing.">
+      <div class="mlbl">ELITE</div><div class="mval" id="m-elite">–</div>
+      <div class="mbar"><div id="mb-elite" style="background:#c9a2ff"></div></div>
+    </div>
+    <div class="mtile" title="WORST-OFF HAPPINESS — the floor. A humane society lifts it.">
+      <div class="mlbl">WORST-OFF</div><div class="mval" id="m-floor">–</div>
+      <div class="mbar"><div id="mb-floor" style="background:#5fe3d8"></div></div>
+    </div>
+  </div>
+  <div id="whyline"></div>
+  <div id="roster"><div class="sideLabel">CHARACTERS · tap = zoom · 2×tap = follow</div></div>
+  <div id="hint"></div>
+  <div id="help">drag = orbit · tap a Vita = zoom + x-ray · double-tap = follow cam · tap a pipe/spring = explain it · levers (right) = intervene · Space = pause · G = Georgeomat · W = wires on/off · ✦ yellow burst = a Vita's JOY · red flash = a spring clamps on</div>
+  <div id="levers">
+    <div class="sideLabel" style="text-align:right;padding-right:2px">INTERVENTIONS — your hands on the society</div>
+    <div class="lever" id="lv-tax">💰 TAX A HOARD<small>then tap a rich Vita</small></div>
+    <div class="lever" id="lv-snap">✂ SNAP A SPRING<small>then tap a sprung Vita</small></div>
+    <div class="lever" id="lv-commons">⚘ SEED A COMMONS<small>a shared hoard for all</small></div>
+    <div class="lever" id="lv-land">⚖ LAND TAX<small>big hoards fund the commons</small></div>
+  </div>
+  <div id="gbtn" title="GEORGEOMAT VIEW — strip the island to its machinery: dial faces, links, resource nodes (key: G)">⚙ GEORGEOMAT</div>
+  <div id="wbtn" title="show / hide the WIRING — the springs and pipes between Vitas (key: W)">⌇ WIRES ON</div>
+  <div id="daybox" title="TIME RATE — left = rewind, center = pause, right = forward; the knob HOLDS where you set it"><span id="pausebtn" title="pause / play (Space)">⏸</span><span id="dayicon">☀</span><span class="dlbl">TIME<br>RATE</span><span class="dlbl">⏪</span><input id="dayspeed" type="range" min="-100" max="100" value="30"><span class="dlbl">⏩</span><span id="ratelabel">◂ rewind · ⏸ center · forward ▸<br>sets how fast time flows</span></div>
+  <div id="techtree"><h4>DISCOVERIES</h4></div>
+  <div id="adobox"></div>
+  <div id="eventlog" title="THE CHRONICLE — everything that has happened, one line at a time. Scroll back through it; CLICK any line to rewind the world to that moment."></div>
+  <div id="xray"></div>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+
+// ---------- helpers ----------
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep = (a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const rand = (a,b)=>a+Math.random()*(b-a);
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); this.closePath();
+    return this;
+  };
+}
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY = new THREE.Color(0xa5ddf5);
+const SKY_G = new THREE.Color(0x252b33);   // georgeomat sky
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 200, 460);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.5, 900);
+camera.position.set(-10, 38, 112);
+
+const hemi = new THREE.HemisphereLight(0xd6ecff, 0xb7d59a, 0.95);
+scene.add(hemi);
+const fill = new THREE.DirectionalLight(0xdfefff, 0.5);
+fill.position.set(-50, 45, 70);
+scene.add(fill);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
+sun.position.set(70, 110, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+sun.shadow.camera.far = 350;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+
+// ---------- terrain ----------
+// fig beach south (+z), ridge across the middle, date grove north, bay SE.
+function ridgeMask(x){
+  let m = (1 - sstep(55, 78, Math.abs(x))) * (0.78 + 0.22*Math.sin(x*0.09 + 1.0));
+  m *= (1 - 0.5*Math.exp(-(((x-18)/8)**2)));   // low saddle / pass at x≈18
+  return m;
+}
+function terrainH(x, z){
+  const d = Math.hypot(x, z);
+  let h = 9*(1 - sstep(38, 88, d)) - 3.2;
+  h += 15 * Math.exp(-(((z+8)/10)**2)) * ridgeMask(x);
+  h += 0.6*Math.sin(x*0.15)*Math.sin(z*0.17)
+     + 0.4*Math.sin(x*0.31+2)*Math.sin(z*0.23+1);
+  h -= 9 * Math.exp(-(((x-52)/16)**2 + ((z-40)/13)**2));
+  return h;
+}
+const PATH = [[0,50],[8,30],[14,12],[18,-6],[10,-24],[-2,-38]];   // ends AT the inland grove
+function pathDist(x, z){
+  let best = 1e9;
+  for(let i=0;i<PATH.length-1;i++){
+    const [ax,az]=PATH[i], [bx,bz]=PATH[i+1];
+    const abx=bx-ax, abz=bz-az;
+    const t = clamp(((x-ax)*abx+(z-az)*abz)/(abx*abx+abz*abz), 0, 1);
+    const dx=x-(ax+abx*t), dz=z-(az+abz*t);
+    best = Math.min(best, Math.hypot(dx,dz));
+  }
+  return best;
+}
+
+const TSIZE = 260, TSEG = 130;
+const tGeo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+tGeo.rotateX(-Math.PI/2);
+{
+  const pos = tGeo.attributes.position;
+  const colors = new Float32Array(pos.count*3);
+  const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+  const cRock = new THREE.Color(0xa29383), cRockHi = new THREE.Color(0xbcb0a2);
+  const cSand = new THREE.Color(0xeed9a4), cDeep = new THREE.Color(0x7d9a8a);
+  const cPath = new THREE.Color(0xd9b98a);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x, z);
+    pos.setY(i, h);
+    const s = Math.hypot(terrainH(x+1.5,z)-terrainH(x-1.5,z), terrainH(x,z+1.5)-terrainH(x,z-1.5)) / 3;
+    const n = 0.5 + 0.5*Math.sin(x*0.23+3)*Math.sin(z*0.19+1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    const tr = Math.max(sstep(0.72, 1.05, s), sstep(7.5, 11, h));
+    c.lerp(h>12 ? cRockHi : cRock, tr);
+    const ts = (1 - sstep(1.6, 2.5, h)) * (1 - tr*0.75);
+    c.lerp(cSand, ts);
+    if(h < 0) c.lerp(cDeep, clamp(-h/5, 0, 1)*0.8);
+    const pd = pathDist(x, z);
+    if(pd < 3 && h > 0.5) c.lerp(cPath, (1 - pd/3)*0.8);
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+  }
+  tGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();
+}
+const matTerrain = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+const matTerrainG = new THREE.MeshLambertMaterial({ color:0x2e343c, flatShading:true });
+const terrain = new THREE.Mesh(tGeo, matTerrain);
+terrain.receiveShadow = true;
+scene.add(terrain);
+// blueprint wireframe overlay for georgeomat view
+const terrainWire = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({
+  wireframe:true, color:0x46525e, transparent:true, opacity:0.30 }));
+terrainWire.position.y = 0.06;
+terrainWire.visible = false;
+scene.add(terrainWire);
+
+const deep = new THREE.Mesh(new THREE.PlaneGeometry(900, 900),
+  new THREE.MeshBasicMaterial({ color:0x1d7fa0 }));
+deep.rotation.x = -Math.PI/2; deep.position.y = -5.5;
+scene.add(deep);
+
+const wGeo = new THREE.PlaneGeometry(500, 500, 56, 56);
+wGeo.rotateX(-Math.PI/2);
+const wBase = wGeo.attributes.position.array.slice();
+const water = new THREE.Mesh(wGeo, new THREE.MeshPhongMaterial({
+  color:0x3ec6e0, transparent:true, opacity:0.8, flatShading:true, shininess:80, specular:0x9adfff
+}));
+scene.add(water);
+
+// ---------- flora (grouped so georgeomat view can dim the scenery) ----------
+const flora = new THREE.Group();
+scene.add(flora);
+const swayCrowns = [];
+const harvestables = []; // {kind, pos, fruit, hasFruit, regrowT, regrowMax, claim, marker}
+const OBSTACLES = [];    // {x, z, r} static solids Vitas walk AROUND: trunks, rocks
+
+const matTrunk = new THREE.MeshLambertMaterial({ color:0x8a6239, flatShading:true });
+const matTrunkPale = new THREE.MeshLambertMaterial({ color:0xa07a4a, flatShading:true });
+const matLeafA = new THREE.MeshLambertMaterial({ color:0x3f9e4d, flatShading:true, side:THREE.DoubleSide });
+const matLeafB = new THREE.MeshLambertMaterial({ color:0x52b45f, flatShading:true, side:THREE.DoubleSide });
+const matFigLeaf = new THREE.MeshLambertMaterial({ color:0x3c7d44, flatShading:true });
+const matFigLeaf2 = new THREE.MeshLambertMaterial({ color:0x4d9152, flatShading:true });
+// fruit is YELLOW — bright against the green so fruit-bearing trees read
+// as fruit-bearing trees at a glance, not anonymous bushes
+const matFig = new THREE.MeshLambertMaterial({ color:0xffcf3d, flatShading:true });
+const matDate = new THREE.MeshLambertMaterial({ color:0xffe14a, flatShading:true });
+const matCoco = new THREE.MeshLambertMaterial({ color:0x6b4c2c, flatShading:true });
+
+function curvedTrunk(segs, h, r0, r1, lean, mat){
+  // one CONTINUOUS trunk: each segment starts exactly where the last one ended,
+  // with generous overlap at the joints — no floating slices, no gaps
+  const g = new THREE.Group();
+  const segLen = h/segs;
+  let px = 0, py = 0, tilt = 0;
+  for(let i=0;i<segs;i++){
+    const t = i/segs;
+    const r = r0 + (r1-r0)*t;
+    tilt += lean/segs;
+    const dx = -Math.sin(tilt)*segLen, dy = Math.cos(tilt)*segLen;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r*0.94, r, segLen + 0.45, 7), mat);
+    seg.castShadow = true;
+    seg.position.set(px + dx/2, py + dy/2, 0);
+    seg.rotation.z = tilt;
+    g.add(seg);
+    px += dx; py += dy;
+  }
+  return { g, top: new THREE.Vector3(px, py, 0) };
+}
+
+function makePalm(scale=1, lean=0.22, tall=false){
+  const grp = new THREE.Group();
+  const h = (tall ? 11 : rand(7.5, 9)) * scale;
+  const { g, top } = curvedTrunk(tall?7:5, h, 0.30*scale, 0.16*scale, lean, tall?matTrunkPale:matTrunk);
+  grp.add(g);
+  const crown = new THREE.Group();
+  crown.position.copy(top);
+  // FRIENDLY fronds: soft rounded capsules arching out and gently drooping —
+  // no spiky cones
+  const nLeaf = tall ? 9 : 7;
+  const _up = new THREE.Vector3(0, 1, 0), _dir = new THREE.Vector3();
+  for(let i=0;i<nLeaf;i++){
+    const a = (i/nLeaf)*Math.PI*2;
+    const len = (tall ? 4.1 : 3.3)*scale;
+    const geo = new THREE.CapsuleGeometry(0.26*scale, len, 3, 7);
+    geo.translate(0, len/2 + 0.1, 0);    // pivot at the crown, frond reaches outward
+    const leaf = new THREE.Mesh(geo, i%2?matLeafA:matLeafB);
+    leaf.castShadow = true;
+    leaf.scale.set(1.2, 1, 0.38);        // slim, soft frond — palm-like proportions
+    _dir.set(Math.cos(a), 0.2 - (i%3)*0.17, Math.sin(a)).normalize();   // gentle even droop
+    leaf.quaternion.setFromUnitVectors(_up, _dir);
+    crown.add(leaf);
+  }
+  if(!tall) for(let i=0;i<3;i++){
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.3*scale, 6, 5), matCoco);
+    const a = i*2.1;
+    c.position.set(Math.cos(a)*0.5, -0.2, Math.sin(a)*0.5);
+    crown.add(c);
+  }
+  grp.add(crown);
+  swayCrowns.push({ node:crown, baseZ:crown.rotation.z, baseX:crown.rotation.x, phase:Math.random()*7, amp:tall?0.045:0.075 });
+  return { grp, crown };
+}
+
+function placeOnTerrain(obj, x, z, sink=0.3){
+  obj.position.set(x, terrainH(x,z)-sink, z);
+  obj.rotation.y = Math.random()*Math.PI*2;
+  flora.add(obj);
+}
+
+function makeFigTree(x, z){
+  const grp = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.4, 6), matTrunk);
+  trunk.position.y = 1.2; trunk.castShadow = true;
+  grp.add(trunk);
+  const blobs = [[0,3.2,0,2.0],[1.3,2.6,0.5,1.4],[-1.1,2.8,-0.6,1.5],[0.2,2.5,1.1,1.2]];
+  for(const [bx,by,bz,r] of blobs){
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(r,0), Math.random()<0.5?matFigLeaf:matFigLeaf2);
+    b.position.set(bx,by,bz); b.castShadow = true;
+    grp.add(b);
+  }
+  const fruit = new THREE.Group();
+  for(let i=0;i<7;i++){
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.38, 6, 5), matFig);
+    const a = rand(0, Math.PI*2);
+    // sit ON the canopy surface, not buried in it — the yellow must read from afar
+    f.position.set(Math.cos(a)*rand(1.6,2.2), rand(2.4,3.9), Math.sin(a)*rand(1.6,2.2));
+    fruit.add(f);
+  }
+  grp.add(fruit);
+  placeOnTerrain(grp, x, z);
+  OBSTACLES.push({ x, z, r: 0.75 });
+  harvestables.push({ kind:'fig', pos:new THREE.Vector3(x, terrainH(x,z), z), fruit, hasFruit:true, regrowT:0, regrowMax:32, claim:null });
+}
+
+function makeDatePalm(x, z){
+  const { grp, crown } = makePalm(1.05, rand(0.05,0.14), true);
+  const fruit = new THREE.Group();
+  for(let cl=0; cl<2; cl++){
+    const a = cl*2.4 + 0.6;
+    const cx = Math.cos(a)*0.55, cz = Math.sin(a)*0.55;
+    for(let i=0;i<8;i++){
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.28, 5, 4), matDate);
+      d.position.set(cx+rand(-0.3,0.3), -0.5-Math.random()*1.1, cz+rand(-0.3,0.3));
+      fruit.add(d);
+    }
+  }
+  crown.add(fruit);
+  placeOnTerrain(grp, x, z);
+  harvestables.push({ kind:'date', pos:new THREE.Vector3(x, terrainH(x,z), z), fruit, hasFruit:true, regrowT:0, regrowMax:48, claim:null });
+}
+
+// fig beach (south shore)
+makeFigTree(-26, 57); makeFigTree(-16, 61); makeFigTree(-4, 58);
+makeFigTree(6, 61); makeFigTree(14, 55); makeFigTree(-34, 52);
+const beachPalms = [[-33,62],[-22,66],[-12,65],[-1,64],[9,66],[18,60],[-30,55],[3,55]];
+for(const [px,pz] of beachPalms){
+  const {grp} = makePalm(rand(0.85,1.15), rand(0.15,0.3));
+  placeOnTerrain(grp, px, pz);
+  OBSTACLES.push({ x:px, z:pz, r: 0.5 });
+}
+
+// the DATE GROVE: a tight, distinct stand INLAND, on the upland just over the
+// ridge — not scattered along the far shore. Beach = palms + figs; dates are
+// the over-the-ridge resource you work to reach.
+const grovePos = [[-5,-30],[1,-33],[-2,-37],[4,-28],[-8,-34],[3,-38]];
+for(const [gx,gz] of grovePos){ makeDatePalm(gx, gz); OBSTACLES.push({ x:gx, z:gz, r: 0.55 }); }
+
+// rocks on the ridge
+const matRock = new THREE.MeshLambertMaterial({ color:0x968a7c, flatShading:true });
+for(let i=0;i<12;i++){
+  const x = rand(-55, 55), z = -8 + rand(-9, 9);
+  const rr = rand(0.8, 2.2);
+  const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr, 0), matRock);
+  r.castShadow = true;
+  placeOnTerrain(r, x, z, 0.4);
+  r.rotation.set(Math.random(), Math.random()*3, Math.random());
+  OBSTACLES.push({ x, z, r: rr * 0.75 });
+}
+
+// georgeomat resource-node markers (visible only in x-ray view)
+const gMarkers = new THREE.Group();
+gMarkers.visible = false;
+scene.add(gMarkers);
+for(const h of harvestables){
+  const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.9),
+    new THREE.MeshBasicMaterial({ color: h.kind==='date' ? 0xffb340 : 0xb98aff, transparent:true }));
+  m.position.set(h.pos.x, h.pos.y + 3.4, h.pos.z);
+  gMarkers.add(m);
+  h.marker = m;
+}
+
+// clouds
+const cloudGroup = new THREE.Group();
+scene.add(cloudGroup);
+const clouds = [];
+const matCloud = new THREE.MeshLambertMaterial({ color:0xffffff, flatShading:true });
+for(let i=0;i<5;i++){
+  const g = new THREE.Group();
+  const n = 3+Math.floor(Math.random()*2);
+  for(let j=0;j<n;j++){
+    const s = new THREE.Mesh(new THREE.SphereGeometry(rand(3,6), 7, 6), matCloud);
+    s.position.set(j*rand(3.5,5)-n*2, rand(-0.8,0.8), rand(-2,2));
+    s.scale.y = 0.55;
+    g.add(s);
+  }
+  g.position.set(rand(-160,160), rand(42,62), rand(-130,110));
+  cloudGroup.add(g);
+  clouds.push({ g, v:rand(1.2, 2.6) });
+}
+
+// ==================== DAY / NIGHT CYCLE ====================
+let dayPhase = 0.07;    // 0 = dawn, 0.25 = noon, 0.5 = dusk, 0.75 = deep night
+let cycleLen = 220;     // SIM-seconds per full day — long days: the society plays out at watching pace
+const TWO_PI = Math.PI * 2;
+const PAL = {           // [day, golden dusk/dawn, night]
+  sky:   [0xa5ddf5, 0xf2a05f, 0x0e1830],
+  hemiS: [0xd6ecff, 0xffd9b0, 0x2a3b5e],
+  hemiG: [0xb7d59a, 0x8a6b4d, 0x1c2733],
+  sunC:  [0xfff2d8, 0xffb36b, 0xa8c0e8],
+  water: [0x3ec6e0, 0x6aa7c9, 0x14344a],
+  deepC: [0x1d7fa0, 0x175f80, 0x0c2438],
+  cloud: [0xffffff, 0xffd9c0, 0x46506b],
+};
+for(const k in PAL) PAL[k] = PAL[k].map(c => new THREE.Color(c));
+const _mix = new THREE.Color();
+function mix3(trip, wa, wb, wc){
+  const [a, b, c] = trip;
+  return _mix.setRGB(a.r*wa + b.r*wb + c.r*wc, a.g*wa + b.g*wb + c.g*wc, a.b*wa + b.b*wb + c.b*wc);
+}
+const skyNow = new THREE.Color();
+
+const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(17, 12, 10),
+  new THREE.MeshBasicMaterial({ color:0xffe9a8, fog:false }));
+scene.add(sunDisc);
+const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(12, 12, 10),
+  new THREE.MeshBasicMaterial({ color:0xdfe8f5, fog:false }));
+scene.add(moonDisc);
+let nightStars;
+{
+  const n = 150, arr = new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const a = rand(0, Math.PI*2), y = rand(0.06, 0.95);
+    const r = Math.sqrt(1 - y*y);
+    arr[i*3] = Math.cos(a)*r*430; arr[i*3+1] = y*430; arr[i*3+2] = Math.sin(a)*r*430;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+  nightStars = new THREE.Points(g, new THREE.PointsMaterial({ color:0xcfe0ff, size:1.7,
+    sizeAttenuation:false, transparent:true, opacity:0, fog:false, depthWrite:false }));
+  nightStars.visible = false;
+  scene.add(nightStars);
+}
+// smear ribbon along the celestial arc — lights up when time runs fast
+const arcRibbon = new THREE.Mesh(new THREE.TorusGeometry(330, 5, 6, 80),
+  new THREE.MeshBasicMaterial({ color:0xffca7a, transparent:true, opacity:0, fog:false,
+    depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending }));
+arcRibbon.position.z = -70;
+arcRibbon.visible = false;
+scene.add(arcRibbon);
+
+// ---------- effect pools ----------
+const stars = [];
+const matStar = new THREE.MeshBasicMaterial({ color:0xffd94a, transparent:true });
+for(let i=0;i<30;i++){
+  const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.28), matStar.clone());
+  m.visible = false; scene.add(m);
+  stars.push({ m, v:new THREE.Vector3(), life:0 });
+}
+// the JOY BURST: yellow star-shards that explode off a Vita at a moment of
+// delight — biggest for a date feast; also fed babies, rescues, snapped
+// springs, new roofs, discoveries. Yellow ALWAYS means joy; dark moments
+// (a spring clamping on) pass their own color instead.
+function burst(pos, n, spread=3.4, color=0xffd94a){
+  let used = 0;
+  for(const s of stars){
+    if(used >= n) break;
+    if(s.life > 0) continue;
+    used++;
+    s.life = rand(0.7, 1.2);
+    s.m.visible = true;
+    s.m.material.color.set(color);
+    s.m.position.copy(pos).add(new THREE.Vector3(rand(-0.5,0.5), rand(0.5,1.5), rand(-0.5,0.5)));
+    s.v.set(rand(-spread,spread), rand(3,7), rand(-spread,spread));
+  }
+}
+
+const rings = [];
+const ringGeo = new THREE.RingGeometry(0.35, 0.6, 22);
+for(let i=0;i<10;i++){
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color:0xe4f8ff, transparent:true, side:THREE.DoubleSide }));
+  m.rotation.x = -Math.PI/2; m.visible = false; scene.add(m);
+  rings.push({ m, life:0 });
+}
+function splash(x, z){
+  for(const r of rings){
+    if(r.life > 0) continue;
+    r.life = 0.8;
+    r.m.visible = true;
+    r.m.position.set(x, 0.15, z);
+    r.m.scale.setScalar(1);
+    return;
+  }
+}
+
+// ---------- fish ----------
+const fishGroup = new THREE.Group();
+scene.add(fishGroup);
+const fish = [];
+const matFish = new THREE.MeshLambertMaterial({ color:0x7fc4dd, flatShading:true });
+const matFin = new THREE.MeshLambertMaterial({ color:0x5aa8c4, flatShading:true });
+for(let i=0;i<6;i++){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.3, 6), matFish);
+  body.rotation.x = Math.PI/2;
+  g.add(body);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.6, 4), matFin);
+  tail.rotation.x = -Math.PI/2; tail.position.z = -0.85; tail.scale.x = 0.3;
+  g.add(tail);
+  g.visible = false; fishGroup.add(g);
+  fish.push({ g, state:'wait', t:rand(0.5, 4), A:new THREE.Vector3(), B:new THREE.Vector3(), peak:3, dur:1.1 });
+}
+const BAY = { x:52, z:40 };
+function startJump(f){
+  const a = rand(0, Math.PI*2), r = rand(2, 10);
+  const ax = BAY.x + Math.cos(a)*r, az = BAY.z + Math.sin(a)*r;
+  const dir = rand(0, Math.PI*2), len = rand(5, 9);
+  f.A.set(ax, 0, az);
+  f.B.set(ax + Math.cos(dir)*len, 0, az + Math.sin(dir)*len);
+  f.peak = rand(2.6, 4.6);
+  f.dur = rand(1.0, 1.35);
+  f.state = 'jump'; f.t = 0;
+  f.g.visible = true;
+  splash(ax, az);
+}
+
+/* ==================== ARCHITECTURE: DRAMATON FILE FORMAT (standing requirement, Doug 2026-08-30)
+   George World's data must serialize to the DRAMATON format — the same script + world-state
+   shape the Dramaton engine and Narraton Editor use. Do NOT invent a bespoke save format.
+   Reference: Consolidated/Dramaton_Papers/Dramaton_Slots_and_Script.md and
+   "App Source/Dramaton 2.0 Git/dramaton-studio-62/public/hvb-william.json", whose shape is:
+     { info:{ …meta, worldState:{ flat numeric map } },
+       actors:[ {id, name, graphics:[{id,pose,expression,angle,image}]} ],
+       scenes:[ {id, name, sceneType, dropId, stage:[…], script:"Dramscript text", status} ],
+       drops:[…backdrops], items:[], sfx:[…], buttons:[], episodes:[{id,name,sceneIds}] }
+   Mapping for a George World save (an IPAT2):
+     - info.worldState  ← ALL global sim numbers, flat: dayPhase, simT, techMask, totalHarvests,
+       landTax, commonsHoard, plus per-vita keys (mia_hunger, mia_hoard, mia_energy, …) and
+       link keys (spring_lomi_mia:1, pipe_mia_baby:1) — same style as william's greed/rent/wages.
+     - actors           ← the VITAS (id, name, traits in worldState; art in graphics[]).
+     - scenes           ← SCENE_DEFS as Dramscript (`Speaker: "line"`, [EFFECT], [CHOICE]) with
+       their world-state firing keys; discovery/milestone ados are CUTSCENE-type scenes.
+     - drops            ← the island / backdrops; episodes ← the scenario roster.
+     - history[]        ← a sequence of worldState maps (snapshot = one worldState frame).
+   Consequence for THIS file: keep snap()/state flat, numeric, and name-addressable so the
+   export is a straight transform. Persistence layer itself comes later. */
+
+// ==================== VITAS ====================
+// Each Vita is a little agent: a fun low-detail body, an expressive face,
+// internal state (hunger / work / hoard) and traits (industry / greed).
+
+const VITAS = [];
+let theBaby = null;
+
+// --- auto-namer ---
+const SYL = ['mi','za','bo','ki','ta','ru','ne','po','fa','lo','ka','yu','sa','pi','del','mo'];
+const usedNames = new Set();
+function autoName(){
+  for(let tries=0; tries<40; tries++){
+    let n = SYL[Math.floor(Math.random()*SYL.length)] + SYL[Math.floor(Math.random()*SYL.length)];
+    if(Math.random() < 0.25) n += SYL[Math.floor(Math.random()*SYL.length)];
+    n = n[0].toUpperCase() + n.slice(1);
+    if(!usedNames.has(n)){ usedNames.add(n); return n; }
+  }
+  return 'Vita' + (VITAS.length+1);
+}
+
+// --- generic-metal materials for georgeomat view ---
+const matMetalBody = new THREE.MeshLambertMaterial({ color:0x8f99a3, flatShading:true });
+const matMetalHead = new THREE.MeshLambertMaterial({ color:0xb1bac3, flatShading:true });
+const matNotch = new THREE.MeshLambertMaterial({ color:0x3a4046, flatShading:true });
+const matNotchHot = new THREE.MeshLambertMaterial({ color:0xff7a5c, emissive:0x8a2413, flatShading:true });
+
+// shared dial-plate texture (replaces the face in georgeomat view)
+const plateCv = document.createElement('canvas');
+plateCv.width = plateCv.height = 128;
+{
+  const p = plateCv.getContext('2d');
+  p.fillStyle = '#2b3138';
+  p.beginPath(); p.arc(64,64,58,0,Math.PI*2); p.fill();
+  p.strokeStyle = '#7c8894'; p.lineWidth = 6;
+  p.beginPath(); p.arc(64,64,55,0,Math.PI*2); p.stroke();
+  p.lineWidth = 3;
+  for(let i=0;i<8;i++){
+    const a = Math.PI*0.75 + i*(Math.PI*1.5/7);
+    p.beginPath();
+    p.moveTo(64+Math.cos(a)*40, 64+Math.sin(a)*40);
+    p.lineTo(64+Math.cos(a)*48, 64+Math.sin(a)*48);
+    p.stroke();
+  }
+  p.strokeStyle = '#ffd071'; p.lineWidth = 5; p.lineCap = 'round';
+  p.beginPath(); p.moveTo(64,64); p.lineTo(64+Math.cos(Math.PI*1.25)*36, 64+Math.sin(Math.PI*1.25)*36); p.stroke();
+  p.fillStyle = '#7c8894';
+  for(const [bx,by] of [[20,20],[108,20],[20,108],[108,108]]){
+    p.beginPath(); p.arc(bx,by,5,0,Math.PI*2); p.fill();
+  }
+}
+const plateTex = new THREE.CanvasTexture(plateCv);
+
+// --- per-vita face drawing ---
+function drawFace(v, state, blink){
+  const fx = v.faceCtx;
+  fx.clearRect(0, 0, 256, 256);
+  const ink = '#241209';
+  fx.fillStyle = ink; fx.strokeStyle = ink;
+  fx.lineCap = 'round';
+  const eyeY = 128, eL = 76, eR = 180;
+  const happy = state==='exult' || state==='eat' || state==='smug';
+  if(blink && !happy && state!=='working' && state!=='ko' && state!=='wail'){
+    fx.lineWidth = 11;
+    fx.beginPath(); fx.moveTo(eL-17,eyeY); fx.lineTo(eL+17,eyeY); fx.stroke();
+    fx.beginPath(); fx.moveTo(eR-17,eyeY); fx.lineTo(eR+17,eyeY); fx.stroke();
+  } else if(state==='exult' || state==='eat'){
+    fx.lineWidth = 12;
+    fx.beginPath(); fx.arc(eL, eyeY+8, 19, Math.PI*1.08, Math.PI*1.92); fx.stroke();
+    fx.beginPath(); fx.arc(eR, eyeY+8, 19, Math.PI*1.08, Math.PI*1.92); fx.stroke();
+  } else if(state==='smug'){
+    fx.lineWidth = 10;   // heavy half-lids
+    fx.beginPath(); fx.arc(eL, eyeY+4, 15, 0, Math.PI); fx.fill();
+    fx.beginPath(); fx.arc(eR, eyeY+4, 15, 0, Math.PI); fx.fill();
+    fx.beginPath(); fx.moveTo(eL-16,eyeY+2); fx.lineTo(eL+16,eyeY+2); fx.stroke();
+    fx.beginPath(); fx.moveTo(eR-16,eyeY+2); fx.lineTo(eR+16,eyeY+2); fx.stroke();
+  } else if(state==='working'){
+    fx.lineWidth = 12;
+    fx.beginPath(); fx.moveTo(eL-17,eyeY-10); fx.lineTo(eL+15,eyeY+5); fx.stroke();
+    fx.beginPath(); fx.moveTo(eR+17,eyeY-10); fx.lineTo(eR-15,eyeY+5); fx.stroke();
+  } else if(state==='wail'){
+    fx.lineWidth = 12;   // scrunched crying eyes
+    fx.beginPath(); fx.arc(eL, eyeY-6, 17, Math.PI*0.1, Math.PI*0.9); fx.stroke();
+    fx.beginPath(); fx.arc(eR, eyeY-6, 17, Math.PI*0.1, Math.PI*0.9); fx.stroke();
+    fx.fillStyle = '#5db5ec';
+    fx.beginPath(); fx.arc(eL-24, eyeY+26, 9, 0, Math.PI*2); fx.fill();
+    fx.beginPath(); fx.arc(eR+24, eyeY+30, 7, 0, Math.PI*2); fx.fill();
+    fx.fillStyle = ink;
+  } else if(state==='ko'){
+    fx.lineWidth = 10;   // X X eyes — collapsed
+    for(const ex of [eL, eR]){
+      fx.beginPath(); fx.moveTo(ex-14,eyeY-14); fx.lineTo(ex+14,eyeY+14); fx.stroke();
+      fx.beginPath(); fx.moveTo(ex+14,eyeY-14); fx.lineTo(ex-14,eyeY+14); fx.stroke();
+    }
+  } else if(state==='sleep'){
+    fx.lineWidth = 10;   // gently closed eyes + drifting z's
+    fx.beginPath(); fx.arc(eL, eyeY-4, 16, Math.PI*0.15, Math.PI*0.85); fx.stroke();
+    fx.beginPath(); fx.arc(eR, eyeY-4, 16, Math.PI*0.15, Math.PI*0.85); fx.stroke();
+    fx.font = 'bold 40px sans-serif';
+    fx.fillText('z', 206, 66);
+    fx.font = 'bold 26px sans-serif';
+    fx.fillText('z', 232, 42);
+  } else if(state==='hungry' || state==='starving'){
+    fx.beginPath(); fx.arc(eL, eyeY, 17, 0, Math.PI); fx.fill();
+    fx.beginPath(); fx.arc(eR, eyeY, 17, 0, Math.PI); fx.fill();
+    fx.lineWidth = 8;
+    fx.beginPath(); fx.moveTo(eL-18,eyeY-2); fx.lineTo(eL+18,eyeY-2); fx.stroke();
+    fx.beginPath(); fx.moveTo(eR-18,eyeY-2); fx.lineTo(eR+18,eyeY-2); fx.stroke();
+  } else {
+    fx.beginPath(); fx.arc(eL, eyeY, 16, 0, Math.PI*2); fx.fill();
+    fx.beginPath(); fx.arc(eR, eyeY, 16, 0, Math.PI*2); fx.fill();
+    fx.fillStyle = '#fff';
+    fx.beginPath(); fx.arc(eL+5, eyeY-5, 5, 0, Math.PI*2); fx.fill();
+    fx.beginPath(); fx.arc(eR+5, eyeY-5, 5, 0, Math.PI*2); fx.fill();
+    fx.fillStyle = ink;
+  }
+  fx.lineWidth = 11;
+  if(state==='exult'){
+    fx.beginPath(); fx.arc(128, 182, 34, 0, Math.PI); fx.closePath(); fx.fill();
+    fx.fillStyle = '#e2726d';
+    fx.beginPath(); fx.arc(128, 206, 15, Math.PI, 0); fx.closePath(); fx.fill();
+  } else if(state==='eat'){
+    fx.beginPath(); fx.arc(128, 190, 14, 0, Math.PI*2); fx.fill();
+  } else if(state==='smug'){
+    fx.beginPath(); fx.moveTo(96,196); fx.quadraticCurveTo(128,184,162,190);
+    fx.quadraticCurveTo(170,188,174,180); fx.stroke();
+  } else if(state==='working'){
+    fx.beginPath(); fx.moveTo(100,192); fx.lineTo(156,192); fx.stroke();
+    fx.lineWidth = 5;
+    fx.beginPath(); fx.moveTo(116,182); fx.lineTo(116,202); fx.stroke();
+    fx.beginPath(); fx.moveTo(140,182); fx.lineTo(140,202); fx.stroke();
+  } else if(state==='wail'){
+    fx.beginPath(); fx.arc(128, 196, 26, 0, Math.PI*2); fx.fill();
+    fx.fillStyle = '#e2726d';
+    fx.beginPath(); fx.arc(128, 206, 12, 0, Math.PI*2); fx.fill();
+  } else if(state==='ko'){
+    fx.beginPath(); fx.arc(128, 206, 11, 0, Math.PI*2); fx.stroke();
+  } else if(state==='starving'){
+    fx.beginPath(); fx.arc(128, 216, 28, Math.PI*1.12, Math.PI*1.88); fx.stroke();
+    fx.fillStyle = '#5db5ec';
+    fx.beginPath(); fx.moveTo(216, 88);
+    fx.quadraticCurveTo(234, 116, 216, 126);
+    fx.quadraticCurveTo(198, 116, 216, 88); fx.fill();
+  } else if(state==='hungry'){
+    fx.beginPath(); fx.arc(128, 214, 26, Math.PI*1.15, Math.PI*1.85); fx.stroke();
+  } else if(state==='peckish'){
+    fx.beginPath(); fx.moveTo(104,194); fx.lineTo(152,194); fx.stroke();
+  } else {
+    fx.beginPath(); fx.arc(128, 176, 30, Math.PI*0.12, Math.PI*0.88); fx.stroke();
+  }
+  if(state==='content' || happy){
+    fx.fillStyle = 'rgba(255,110,100,0.55)';
+    fx.beginPath(); fx.arc(44, 172, 18, 0, Math.PI*2); fx.fill();
+    fx.beginPath(); fx.arc(212, 172, 18, 0, Math.PI*2); fx.fill();
+  }
+  v.faceTex.needsUpdate = true;
+}
+
+// --- per-vita floating gauge (name + hunger + work + hoard) ---
+function drawGauge(v){
+  const g = v.gaugeCtx;
+  g.clearRect(0, 0, 220, 116);
+  g.fillStyle = 'rgba(8,35,50,0.6)';
+  g.beginPath(); g.roundRect(0, 0, 220, 108, 14); g.fill();
+  g.fillStyle = '#fff';
+  g.font = 'bold 17px sans-serif';
+  g.fillText(v.name.toUpperCase(), 12, 24);
+  const hoardN = v.state.hoard + v.state.carrying;
+  g.font = 'bold 13px sans-serif';
+  g.fillStyle = '#ffd94a';
+  g.textAlign = 'right';
+  g.fillText(hoardN > 0 ? '▮'.repeat(Math.min(hoardN,8)) + (hoardN>8?'+':'') : '', 208, 24);
+  g.textAlign = 'left';
+  const row = (y, label, frac, color)=>{
+    g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = 'bold 10px sans-serif';
+    g.fillText(label, 12, y+10);
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.beginPath(); g.roundRect(52, y, 156, 13, 6); g.fill();
+    if(frac > 0.02){
+      g.fillStyle = color;
+      g.beginPath(); g.roundRect(52, y, Math.max(8, 156*frac), 13, 6); g.fill();
+    }
+  };
+  row(32, 'HUNGR', v.state.hunger/100, `hsl(${(1 - v.state.hunger/100)*110}, 72%, 52%)`);
+  row(50, 'WORK', v.state.work/100, '#ffb340');
+  if(!v.isBaby) row(68, 'REST', v.state.energy/100, v.state.energy < 25 ? '#ff6a55' : '#6fd3ff');
+  if(v.state.prog !== null && v.state.prog !== undefined){
+    g.fillStyle = 'rgba(255,255,255,0.3)';
+    g.beginPath(); g.roundRect(52, 91, 156, 8, 4); g.fill();
+    g.fillStyle = '#8be86f';
+    g.beginPath(); g.roundRect(52, 91, Math.max(5, 156*v.state.prog), 8, 4); g.fill();
+  }
+  v.gaugeTex.needsUpdate = true;
+}
+
+// --- vita factory ---
+function makeVita(opts){
+  const v = {
+    name: opts.name || autoName(),
+    isBaby: !!opts.isBaby,
+    traits: opts.traits || { industry:0.6, greed:0.2 },
+    camp: opts.camp,
+    state: { hunger: opts.hunger ?? 40, work: 0, hoard: opts.hoard ?? 0, carrying: 0,
+      energy: rand(70, 88),
+      task: null, prog: null, mood: null, faceState: '', faceBlink: false,
+      blinkT: rand(2,5), wanderT: rand(1,4), depositT: 0, feedT: 0, depositCount: 0,
+      totalGained: 0, hutStage: 0, inspectCd: rand(20,45), collapsed: false, collapseT: 0,
+      clampCd: 0, surfCd: rand(60, 120) },
+    links: { springing: null, sprungBy: null, feeds: null, fedBy: null },
+    bodyMeshes: [],   // [mesh, normalMaterial] pairs for georgeomat swap
+  };
+  const grp = new THREE.Group();
+  v.group = grp;
+
+  const matSkin = new THREE.MeshLambertMaterial({ color: opts.skin ?? 0xffd9b3, flatShading:true });
+  const matDress = new THREE.MeshLambertMaterial({ color: opts.dress ?? 0xff7a5c, flatShading:true });
+  const matHair = new THREE.MeshLambertMaterial({ color: opts.hair ?? 0x5b3a29, flatShading:true });
+
+  const dress = new THREE.Mesh(new THREE.ConeGeometry(1.15, 2.3, 8), matDress);
+  dress.position.y = 1.55; dress.castShadow = true;
+  grp.add(dress);
+  v.bodyMeshes.push([dress, matDress]);
+
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.9, 6), matSkin);
+  const legR = legL.clone();
+  legL.position.set(-0.35, 0.45, 0); legR.position.set(0.35, 0.45, 0);
+  grp.add(legL, legR);
+  v.bodyMeshes.push([legL, matSkin], [legR, matSkin]);
+
+  const armGeo = new THREE.CapsuleGeometry(0.16, 0.9, 3, 6);
+  armGeo.translate(0, -0.5, 0);
+  const armL = new THREE.Mesh(armGeo, matSkin);
+  const armR = new THREE.Mesh(armGeo, matSkin);
+  // pivots sit WELL outside the dress cone's flare and the arms tilt OUTWARD
+  // (negative z on the left arm swings its hang away from the body — the old
+  // positive sign pointed both arms INTO the cone, the root of the clipping)
+  armL.position.set(-0.8, 2.52, 0.14); armR.position.set(0.8, 2.52, 0.14);
+  armL.rotation.z = -0.42; armR.rotation.z = 0.42;
+  grp.add(armL, armR);
+  v.bodyMeshes.push([armL, matSkin], [armR, matSkin]);
+
+  const headGrp = new THREE.Group();
+  headGrp.position.y = 3.55;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1.05, 12, 10), matSkin);
+  head.castShadow = true;
+  headGrp.add(head);
+  v.bodyMeshes.push([head, matSkin]);
+  if(v.isBaby){
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 5), matHair);
+    tuft.position.set(0, 1.1, 0); tuft.rotation.z = 0.3;
+    headGrp.add(tuft);
+    v.bodyMeshes.push([tuft, matHair]);
+    headGrp.scale.setScalar(1.3);
+  } else {
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(1.14, 12, 10, 0, Math.PI*2, 0, Math.PI*0.52), matHair);
+    hair.position.set(0, 0.3, -0.22);
+    hair.rotation.x = -0.16;
+    headGrp.add(hair);
+    v.bodyMeshes.push([hair, matHair]);
+    if(opts.buns){
+      const bunL = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), matHair);
+      const bunR = bunL.clone();
+      bunL.position.set(-0.85, 0.75, -0.3); bunR.position.set(0.85, 0.75, -0.3);
+      headGrp.add(bunL, bunR);
+      v.bodyMeshes.push([bunL, matHair], [bunR, matHair]);
+    }
+  }
+
+  // expressive face
+  const faceCv = document.createElement('canvas');
+  faceCv.width = 256; faceCv.height = 256;
+  v.faceCtx = faceCv.getContext('2d');
+  v.faceTex = new THREE.CanvasTexture(faceCv);
+  const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 1.75),
+    new THREE.MeshBasicMaterial({ map:v.faceTex, transparent:true }));
+  facePlane.position.set(0, -0.05, 1.06);
+  headGrp.add(facePlane);
+  v.facePlane = facePlane;
+
+  // georgeomat dial-plate (hidden in normal view)
+  const plate = new THREE.Mesh(new THREE.CircleGeometry(0.82, 24),
+    new THREE.MeshBasicMaterial({ map:plateTex, transparent:true }));
+  plate.position.set(0, -0.05, 1.07);
+  plate.visible = false;
+  headGrp.add(plate);
+  v.plate = plate;
+  grp.add(headGrp);
+
+  // WORK-NOTCH on the back — the little lever an outside force can clamp
+  const notch = new THREE.Group();
+  const notchBase = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.22), matNotch);
+  const notchPeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), matNotch);
+  notchPeg.rotation.x = Math.PI/2;
+  notchPeg.position.z = -0.2;
+  notch.add(notchBase, notchPeg);
+  notch.position.set(0, 2.35, -0.95);
+  notch.visible = false;   // no mystery black boxes: the notch shows only in
+  grp.add(notch);          // georgeomat view, or when a spring is clamped on it
+  v.notch = notch;
+  v.notchMeshes = [notchBase, notchPeg];
+
+  // surplus is HAULED, not worn: a conspicuous fruit-load on the back that
+  // grows with what the Vita carries — and weighs them down (see walkStep)
+  if(!v.isBaby){
+    const loadGrp = new THREE.Group();
+    loadGrp.position.set(0, 2.05, -0.85);
+    for(let i=0;i<6;i++){
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.27, 6, 5), i%2 ? matFig : matDate);
+      const a = i*2.4;
+      f.position.set(Math.cos(a)*0.3, 0.34*Math.floor(i/2) - 0.15, Math.sin(a)*0.16 - 0.12);
+      f.visible = false;
+      loadGrp.add(f);
+    }
+    grp.add(loadGrp);
+    v.loadGrp = loadGrp;
+  }
+
+  // floating gauge
+  const gaugeCv = document.createElement('canvas');
+  gaugeCv.width = 220; gaugeCv.height = 116;
+  v.gaugeCtx = gaugeCv.getContext('2d');
+  v.gaugeTex = new THREE.CanvasTexture(gaugeCv);
+  const gauge = new THREE.Sprite(new THREE.SpriteMaterial({ map:v.gaugeTex, transparent:true,
+    depthTest:false, depthWrite:false }));
+  gauge.renderOrder = 50;   // over foliage, under speech balloons
+  gauge.scale.set(6.0, 3.16, 1);
+  gauge.position.y = v.gaugeHomeY = v.isBaby ? 8.8 : 7.2;
+  gauge.visible = false;   // decluttered: bars pop up only when the Vita is clicked
+  v.gaugeShowT = 0;
+  grp.add(gauge);
+  v.gauge = gauge;
+
+  v.parts = { dress, legL, legR, armL, armR, headGrp };
+  if(v.isBaby){
+    grp.scale.setScalar(0.55);
+    legL.rotation.x = 1.25; legR.rotation.x = 1.25;   // sitting
+    legL.position.y = legR.position.y = 0.3;
+  }
+  grp.position.set(opts.x, terrainH(opts.x, opts.z), opts.z);
+  grp.rotation.y = rand(0, Math.PI*2);
+  scene.add(grp);
+
+  // camp: a basket that holds the hoard
+  if(!v.isBaby){
+    const campG = new THREE.Group();
+    const basket = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 0.85, 0.9, 9, 1, true),
+      new THREE.MeshLambertMaterial({ color:0xc98d4e, flatShading:true, side:THREE.DoubleSide }));
+    basket.position.y = 0.45;
+    campG.add(basket);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.09, 6, 12), matTrunk);
+    rim.rotation.x = Math.PI/2; rim.position.y = 0.9;
+    campG.add(rim);
+    v.jarFruit = [];
+    for(let i=0;i<14;i++){
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.24, 6, 5), i%2 ? matFig : matDate);
+      const a = i*2.39996, r = 0.18 + 0.65*Math.sqrt((i%7)/7);
+      f.position.set(Math.cos(a)*r, 0.95 + Math.floor(i/7)*0.4, Math.sin(a)*r);
+      f.visible = false;
+      campG.add(f);
+      v.jarFruit.push(f);
+    }
+    campG.position.set(v.camp.x, terrainH(v.camp.x, v.camp.z), v.camp.z);
+    scene.add(campG);
+    v.jarGroup = campG;
+  }
+
+  drawFace(v, 'content', false);
+  drawGauge(v);
+  VITAS.push(v);
+  if(v.isBaby) theBaby = v;
+  return v;
+}
+function updateJar(v){
+  if(!v.jarFruit) return;
+  for(let i=0;i<v.jarFruit.length;i++) v.jarFruit[i].visible = i < v.state.hoard;
+}
+
+// --- the society: 5 vitas — the DICE ROLL FRESH every run ---
+// Mia (design canon: the first character) plus three adults and a baby, but
+// traits (work-drive, greed), starting hunger, starting hoards, and even WHO
+// this run's hoarder is are randomized: no two games play out the same.
+const greedySlot = Math.floor(rand(0, 4));   // any adult may be this run's grasping one — even Mia
+function rollTraits(slot){
+  return slot === greedySlot
+    ? { industry: rand(0.55, 0.9), greed: rand(0.7, 0.95) }
+    : { industry: rand(0.35, 0.9), greed: rand(0.02, 0.45) };
+}
+function rollStart(slot){
+  return { hunger: rand(25, 60),
+    hoard: slot === greedySlot ? Math.floor(rand(1, 4)) : (Math.random() < 0.25 ? 1 : 0) };
+}
+const ADULT_LOOKS = [
+  { x:-8,  z:50, buns:true, dress:0xff7a5c, hair:0x5b3a29, skin:0xffd9b3 },
+  { x:2,   z:47, dress:0x4f9fd8, hair:0x2e2620, skin:0xf2c299 },
+  { x:-19, z:45, dress:0x8fbf50, hair:0x7a4a20, skin:0xffe0c2 },
+  { x:26,  z:27, dress:0x9059c9, hair:0x1d1a16, skin:0xecc9a2 },
+];
+let mia = null;
+ADULT_LOOKS.forEach((look, i) => {
+  const jx = look.x + rand(-2.5, 2.5), jz = look.z + rand(-2.5, 2.5);
+  const s = rollStart(i);
+  const v = makeVita({ ...look, x:jx, z:jz, camp:{x:jx, z:jz},
+    name: i === 0 ? 'Mia' : undefined,
+    hunger: s.hunger, hoard: s.hoard, traits: rollTraits(i) });
+  updateJar(v);
+});
+mia = VITAS[0];
+const boss = VITAS.filter(v => !v.isBaby).sort((a,b) => b.traits.greed - a.traits.greed)[0];
+makeVita({ isBaby:true, x:-5, z:53, camp:{x:-5, z:53},
+  dress:0xffe066, hair:0x5b3a29, skin:0xffd9b3, hunger: rand(35, 60),
+  traits:{ industry:0, greed:0 } });
+
+// roster chips
+const rosterEl = document.getElementById('roster');
+for(const v of VITAS){
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.innerHTML = `<span class="dot"></span>${v.name}` + (v.isBaby ? ' <span class="tag">baby</span>' : '');
+  chip.addEventListener('click', ()=>selectVita(v, true));
+  chip.addEventListener('dblclick', ()=>startChase(v));
+  rosterEl.appendChild(chip);
+  v.chip = chip;
+  v.chipDot = chip.querySelector('.dot');
+}
+
+// ---- speech bubbles (dramaton beats render into these) ----
+function attachBubble(v){
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 200;
+  v.bubbleCtx = cv.getContext('2d');
+  v.bubbleTex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:v.bubbleTex, transparent:true,
+    depthTest:false, depthWrite:false }));
+  sp.renderOrder = 60;   // composite dead last — no inverted/negative blending over foliage
+  const k = v.isBaby ? 1/0.55 : 1;
+  sp.scale.set(11.5*k, 4.5*k, 1);
+  sp.position.y = v.bubbleHomeY = v.isBaby ? 14.2 : 9.8;
+  sp.visible = false;
+  v.group.add(sp);
+  v.bubble = sp;
+}
+for(const v of VITAS) attachBubble(v);
+
+// per-frame balloon pass: (a) CONSTANT SCREEN SIZE — the sprite's world scale
+// tracks camera distance, so a balloon reads the same near or far and never
+// balloons up to fill the view; (b) fully INSIDE the viewport — project the
+// anchor, clamp in screen space by the balloon's projected size, unproject back.
+const _bubW = new THREE.Vector3(), _bubNDC = new THREE.Vector3();
+const BUB_HW = 5.75, BUB_HH = 2.25;   // balloon half-size in world units at reference distance
+const BUB_REFD = 32;                  // camera distance where the base size is "right"
+function clampBubbles(){
+  camera.updateMatrixWorld();
+  for(const v of VITAS){
+    if(!v.bubble || !v.bubble.visible) continue;
+    const kB = v.isBaby ? 1/0.55 : 1;
+    _bubW.copy(v.group.position);
+    _bubW.y += (v.isBaby ? 14.2 : 9.8) * v.group.scale.y;
+    const d = camera.position.distanceTo(_bubW);
+    const sf = clamp(d / BUB_REFD, 0.35, 4.5);   // constant apparent size, gently capped
+    v.bubble.scale.set(11.5*kB*sf, 4.5*kB*sf, 1);
+    _bubW.y += BUB_HH * (sf - 1);   // keep the tail near the head as the sprite grows
+    _bubNDC.copy(_bubW).project(camera);
+    if(!isFinite(_bubNDC.x) || !isFinite(_bubNDC.y)){   // degenerate viewport (hidden window)
+      v.bubble.position.set(0, v.bubbleHomeY, 0);
+      continue;
+    }
+    if(_bubNDC.z < 1){   // in front of the camera → clamp to the frame
+      const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) * d;
+      const halfW = halfH * camera.aspect;
+      const mX = Math.min(0.92, BUB_HW*sf/halfW + 0.02);
+      const mY = Math.min(0.92, BUB_HH*sf/halfH + 0.02);
+      const cx = clamp(_bubNDC.x, -1 + mX, 1 - mX);
+      const cy = clamp(_bubNDC.y, -1 + mY, 1 - mY);
+      if(cx !== _bubNDC.x || cy !== _bubNDC.y){
+        _bubNDC.x = cx; _bubNDC.y = cy;
+        _bubW.copy(_bubNDC).unproject(camera);
+      }
+    }
+    v.group.updateMatrixWorld();
+    v.bubble.position.copy(v.group.worldToLocal(_bubW));
+  }
+  // status panels get the same treatment: constant on-screen size, near or far
+  for(const v of VITAS){
+    if(!v.gauge || !v.gauge.visible) continue;
+    _bubW.copy(v.group.position);
+    _bubW.y += v.gaugeHomeY * v.group.scale.y;
+    const d = camera.position.distanceTo(_bubW);
+    if(!isFinite(d)) continue;
+    const sf = clamp(d / BUB_REFD, 0.35, 4.5);
+    const bw = gmode ? 7.0 : 6.0, bh = gmode ? 3.69 : 3.16;
+    v.gauge.scale.set(bw*sf, bh*sf, 1);
+    v.gauge.position.y = v.gaugeHomeY + bh*(sf - 1)/2;   // grow upward, not into the Vita
+  }
+}
+
+// ---- campfires: warm glows at each camp once night falls ----
+const fires = [];
+for(const v of VITAS){
+  if(v.isBaby) continue;
+  const fg = new THREE.Group();
+  for(let i=0;i<3;i++){
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.95, 5), matTrunk);
+    log.rotation.z = Math.PI/2; log.rotation.y = i*1.05;
+    log.position.y = 0.1;
+    fg.add(log);
+  }
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.15, 6),
+    new THREE.MeshBasicMaterial({ color:0xffa040, fog:false }));
+  flame.position.y = 0.72; flame.visible = false;
+  const glow = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.72, 6),
+    new THREE.MeshBasicMaterial({ color:0xffe9a8, fog:false }));
+  glow.position.y = 0.66; glow.visible = false;
+  const light = new THREE.PointLight(0xff9c4a, 0, 24, 2);
+  light.position.y = 1.5;
+  fg.add(flame, glow, light);
+  const fx0 = v.camp.x + 2.3, fz0 = v.camp.z + 1.9;
+  fg.position.set(fx0, terrainH(fx0, fz0), fz0);
+  scene.add(fg);
+  fires.push({ g:fg, flame, glow, light, seed: rand(0, 10) });
+}
+
+// ---- TIME RATE: one signed control. left = rewind, center = pause, right = forward.
+// non-self-centering: it holds wherever the player sets it.
+let paused = false, sliderPrev = 30;
+const pauseBtn = document.getElementById('pausebtn');
+const daySlider = document.getElementById('dayspeed');
+const dayIcon = document.getElementById('dayicon');
+const DEAD = 8;   // center dead-zone = paused
+function applySlider(){
+  const val = +daySlider.value;
+  if(Math.abs(val) < DEAD){           // center = pause
+    if(!paused) setPaused(true, true);
+    return;
+  }
+  if(paused) setPaused(false, true);
+  if(val > 0){
+    lastFwd = val;
+    // the MASTER SIM RATE: everything — vitas, hunger, links, sun — runs off this
+    simRate = Math.pow(val / 30, 1.5);   // 30 = 1× · 8 ≈ 0.14× · 100 ≈ 6×
+    if(timeMode !== 'play') resumePlay();   // covers rewind AND a chronicle jump
+  } else {
+    if(timeMode === 'play') pushSnapshot();   // capture "now" before running backward
+    timeMode = 'rewind';
+    rewindRate = 1.5 + Math.pow(-val/100, 1.5) * 20;   // snapshots per second
+  }
+}
+daySlider.addEventListener('input', applySlider);
+function setPaused(on, fromSlider){
+  paused = on;
+  pauseBtn.textContent = on ? '▶' : '⏸';
+  pauseBtn.classList.toggle('on', on);
+  setHint(on ? '⏸ PAUSED — the society holds its breath. Space, ▶ or the slider to resume' : '▶ time flows again', on ? 9999 : 3);
+  if(!fromSlider){   // button / Space drive the slider too
+    if(on){
+      if(Math.abs(+daySlider.value) >= DEAD) sliderPrev = +daySlider.value;
+      daySlider.value = 0;
+    } else {
+      daySlider.value = sliderPrev || 30;
+      applySlider();
+    }
+  }
+}
+pauseBtn.addEventListener('click', ()=>setPaused(!paused));
+
+// (the old drag-scrub timeline bar is gone — history navigation now lives in
+// the CHRONICLE event log: click a logged moment to rewind to it.)
+
+// ---- the lighting engine: applies the current hour to sky, sun, moon, fires ----
+function applyDayNight(t){
+  const e = Math.sin(dayPhase*TWO_PI);
+  const wD = sstep(0.05, 0.4, e);           // day weight
+  const wN = sstep(0.02, 0.35, -e);         // night weight
+  const wK = Math.max(0, 1 - wD - wN);      // golden dusk/dawn weight
+  skyNow.copy(mix3(PAL.sky, wD, wK, wN));
+  scene.background = skyNow;
+  scene.fog.color.copy(skyNow);
+  hemi.color.copy(mix3(PAL.hemiS, wD, wK, wN));
+  hemi.groundColor.copy(mix3(PAL.hemiG, wD, wK, wN));
+  hemi.intensity = 0.28 + 0.67*wD + 0.3*wK;
+  fill.intensity = 0.12 + 0.38*wD;
+  water.material.color.copy(mix3(PAL.water, wD, wK, wN));
+  deep.material.color.copy(mix3(PAL.deepC, wD, wK, wN));
+  matCloud.color.copy(mix3(PAL.cloud, wD, wK, wN));
+  const th = dayPhase*TWO_PI;
+  sunDisc.position.set(-Math.cos(th)*330, Math.sin(th)*330, -70);
+  moonDisc.position.set(Math.cos(th)*330, -Math.sin(th)*330, -70);
+  sunDisc.visible = sunDisc.position.y > -40;
+  moonDisc.visible = moonDisc.position.y > -40;
+  nightStars.visible = wN > 0.03;
+  nightStars.material.opacity = wN * 0.9;
+  if(e > -0.04){
+    sun.position.copy(sunDisc.position).multiplyScalar(0.45);
+    sun.position.y = Math.max(sun.position.y, 14);
+    sun.color.copy(mix3(PAL.sunC, wD, 1-wD, 0));
+    sun.intensity = 0.3 + 1.3*Math.pow(Math.max(0, e), 0.7);
+  } else {
+    sun.position.copy(moonDisc.position).multiplyScalar(0.45);
+    sun.position.y = Math.max(sun.position.y, 14);
+    sun.color.copy(PAL.sunC[2]);
+    sun.intensity = 0.32;
+  }
+  for(const f of fires){
+    const on = wN > 0.12;
+    f.flame.visible = f.glow.visible = on;
+    f.light.intensity = on ? wN * (1.5 + 0.5*Math.sin(t*9 + f.seed) + 0.25*Math.sin(t*23 + f.seed*2)) : 0;
+    if(on){
+      const s = 1 + 0.14*Math.sin(t*11 + f.seed);
+      f.flame.scale.set(s, 1 + 0.22*Math.sin(t*13 + f.seed), s);
+    }
+  }
+  // fast-time smear: sun/moon streak along their arc as days blur past
+  arcRibbon.visible = blur > 0.02;
+  arcRibbon.material.opacity = blur * 0.28;
+  const tangA = Math.atan2(Math.cos(th), Math.sin(th));
+  sunDisc.rotation.z = tangA;
+  moonDisc.rotation.z = tangA;
+  sunDisc.scale.set(1 + blur*7, Math.max(0.4, 1 - blur*0.4), 1);
+  moonDisc.scale.set(1 + blur*5, Math.max(0.5, 1 - blur*0.3), 1);
+}
+
+function drawBubbleText(v, text){
+  const c = v.bubbleCtx;
+  c.clearRect(0, 0, 512, 200);
+  const metal = gmode;   // in georgeomat view the bubbles go utilitarian
+  const wrap = px => {
+    c.font = `600 ${px}px ${metal ? 'Consolas, monospace' : '"Segoe UI", sans-serif'}`;
+    const out = [];
+    let cur = '';
+    for(const w of text.split(' ')){
+      const tst = cur ? cur + ' ' + w : w;
+      if(c.measureText(tst).width > 420 && cur){ out.push(cur); cur = w; }
+      else cur = tst;
+    }
+    if(cur) out.push(cur);
+    return out;
+  };
+  // long beats shrink to fit the bubble instead of clipping off its top
+  let fpx = metal ? 26 : 30, lh = metal ? 34 : 38;
+  let lines = wrap(fpx);
+  if(lines.length > 3){ fpx -= 6; lh -= 7; lines = wrap(fpx); }
+  const h = 30 + lines.length*lh;
+  const w0 = Math.min(474, Math.max(...lines.map(l=>c.measureText(l).width)) + 44);
+  const x0 = (512-w0)/2, y0 = 164 - h;
+  c.fillStyle = metal ? 'rgba(38,43,50,0.95)' : 'rgba(255,255,255,0.96)';
+  c.strokeStyle = metal ? '#79838f' : 'rgba(30,60,80,0.35)';
+  c.lineWidth = 4;
+  c.beginPath(); c.roundRect(x0, y0, w0, h, 18); c.fill(); c.stroke();
+  c.beginPath();
+  c.moveTo(236, y0+h-2); c.lineTo(256, y0+h+26); c.lineTo(276, y0+h-2);
+  c.closePath(); c.fill();
+  c.fillStyle = metal ? '#ffd071' : '#1c2b36';
+  c.textAlign = 'center';
+  let ty = y0 + 42;
+  for(const l of lines){ c.fillText(l, 256, ty); ty += lh; }
+  c.textAlign = 'left';
+  v.bubbleTex.needsUpdate = true;
+}
+
+// ---- habitations: a deep enough hoard builds itself a home ----
+const matHutWood = new THREE.MeshLambertMaterial({ color:0x9a6b3a, flatShading:true });
+const matThatch = new THREE.MeshLambertMaterial({ color:0xc9a85c, flatShading:true });
+const matWall = new THREE.MeshLambertMaterial({ color:0xd8b37e, flatShading:true });
+const matDoor = new THREE.MeshLambertMaterial({ color:0x4a3524, flatShading:true });
+const HUT_AT = [8, 18, 30];
+const HUT_NAMES = ['', 'LEAN-TO', 'HUT', 'HOUSE'];
+function buildHut(v, stage, quiet){
+  if(v.hut) scene.remove(v.hut);
+  const g = new THREE.Group();
+  if(stage === 1){
+    for(const [px,pz] of [[-1.4,-1],[1.4,-1],[-1.4,1],[1.4,1]]){
+      const hgt = pz < 0 ? 2.2 : 1.5;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, hgt, 5), matHutWood);
+      post.position.set(px, hgt/2, pz);
+      post.castShadow = true; g.add(post);
+    }
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.14, 2.9), matThatch);
+    roof.position.set(0, 2.0, 0); roof.rotation.x = 0.32; roof.castShadow = true;
+    g.add(roof);
+  } else if(stage === 2){
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.8), matWall);
+    walls.position.y = 1.1; walls.castShadow = true; g.add(walls);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.5), matDoor);
+    door.position.set(0, 0.78, 1.41); g.add(door);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1.6, 4), matThatch);
+    roof.position.y = 3.0; roof.rotation.y = Math.PI/4; roof.castShadow = true; g.add(roof);
+  } else {
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(4.0, 2.9, 3.4), matWall);
+    walls.position.y = 1.45; walls.castShadow = true; g.add(walls);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.7), matDoor);
+    door.position.set(0, 0.88, 1.71); g.add(door);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(3.2, 2.0, 4), matThatch);
+    roof.position.y = 3.95; roof.rotation.y = Math.PI/4; roof.castShadow = true; g.add(roof);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 5), matHutWood);
+    pole.position.set(1.7, 5.3, 0); g.add(pole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6),
+      new THREE.MeshLambertMaterial({ color:0x9059c9, side:THREE.DoubleSide }));
+    flag.position.set(2.3, 6.1, 0); g.add(flag);
+  }
+  const hx = v.camp.x + 3.4, hz = v.camp.z - 3.0;
+  g.position.set(hx, terrainH(hx, hz) - 0.15, hz);
+  g.rotation.y = Math.atan2(v.camp.x - hx, v.camp.z - hz);
+  scene.add(g);
+  v.hut = g;
+  if(!quiet){
+    recordEvent('hut', `${v.name} raised a ${HUT_NAMES[stage]}`);
+    setHint(`🏠 ${v.name}'s hoard has grown into a ${HUT_NAMES[stage]} — habitation level ${stage}`, 6);
+    burst(g.position.clone().add(new THREE.Vector3(0, 2, 0)), 14, 4);
+    // a little celebration: everyone nearby bounces for the new roof
+    for(const o of VITAS){
+      if(o.state.collapsed || o.sleeping) continue;
+      if(o.group.position.distanceTo(g.position) < 30) setMood(o, 'exult', 3.0);
+    }
+    if(stage >= 2){   // a real milestone gets the full ado
+      showAdo('🏠 MILESTONE', `${v.name.toUpperCase()} RAISED A ${HUT_NAMES[stage]}`,
+        stage === 2
+          ? 'Walls and a door — property you can shut. Standing now rises with the roofline.'
+          : 'A HOUSE with a flag: the hoard announces itself. The habitation ladder is climbing — who will it climb on?',
+        3.5, ()=>focusVita(v));
+    }
+  }
+}
+function checkHut(v){
+  if(!hasTech(T_BUILD)) return;   // habitations wait for the BUILDING art
+  while(v.state.hutStage < 3 && v.state.totalGained >= HUT_AT[v.state.hutStage])
+    buildHut(v, ++v.state.hutStage);
+}
+
+// ==================== AGENT BRAINS ====================
+const HARVEST = {
+  fig:  { dur:1.3, workRate:6,  food:32, reach:4.5 },
+  date: { dur:3.6, workRate:13, food:75, reach:5.0 },
+  eggs: { dur:1.1, workRate:4,  food:55, reach:3.2 },
+};
+const hintEl = document.getElementById('hint');
+let hintText = '', hintLock = 0;
+function setHint(t, lock=0){
+  if(hintLock > 0 && !lock) return;
+  if(t !== hintText){ hintText = t; hintEl.textContent = t; }
+  if(lock) hintLock = lock;
+}
+setHint('A little society. Watch them forage — tap any Vita to x-ray its machine', 8);
+setTimeout(()=>setHint('⏱ bottom box = THE CHRONICLE: every event, one line at a time — click a line to rewind the world to that moment · the small knob = TIME RATE (left rewinds, center pauses, right runs forward)', 10), 9500);
+
+// walking with slope physics (climbing fills the work gauge).
+// walkToward routes ridge crossings through the SADDLE PATH — the quicker,
+// gentler way over. Only a Vita with energy to burn crests the hill directly.
+const RIDGE_Z = -8;
+const CROSS_S2N = [[14,12],[18,-6],[10,-24]];   // the saddle waypoints, south → north
+const CROSS_N2S = [[10,-24],[18,-6],[14,12]];
+function walkToward(v, tx, tz, dt, t, arriveDist){
+  if(!v.isBaby && (v.group.position.z > RIDGE_Z) !== (tz > RIDGE_Z) && v.state.energy <= 75){
+    const wps = v.group.position.z > RIDGE_Z ? CROSS_S2N : CROSS_N2S;
+    if(!v.route || v.route.tx !== tx || v.route.tz !== tz) v.route = { tx, tz, i: 0 };
+    while(v.route.i < wps.length &&
+          Math.hypot(v.group.position.x - wps[v.route.i][0], v.group.position.z - wps[v.route.i][1]) < 4)
+      v.route.i++;
+    if(v.route.i < wps.length){
+      walkStep(v, wps[v.route.i][0], wps[v.route.i][1], dt, t, 3.5);
+      return false;   // still en route to the crossing
+    }
+  } else if(v.route) v.route = null;
+  return walkStep(v, tx, tz, dt, t, arriveDist);
+}
+const _wish = new THREE.Vector3();
+function walkStep(v, tx, tz, dt, t, arriveDist){
+  const g = v.group;
+  _wish.set(tx - g.position.x, 0, tz - g.position.z);
+  const d = _wish.length();
+  if(d < arriveDist) return true;
+  _wish.divideScalar(d);
+  const hHere = terrainH(g.position.x, g.position.z);
+  const hAhead = terrainH(g.position.x + _wish.x*1.4, g.position.z + _wish.z*1.4);
+  const grade = (hAhead - hHere) / 1.4;
+  let slopeF = grade > 0 ? 1/(1 + grade*(hasTech(T_TOOLS) ? 0.9 : 1.5)) : Math.min(1.15, 1 - grade*0.15);
+  slopeF = clamp(slopeF, 0.35, 1.15);
+  const starveF = v.state.hunger > 85 ? 0.7 : 1;
+  const loadF = 1 / (1 + (v.state.carrying || 0) * 0.07);   // a heavy load slows the hauler
+  const speed = (v.isBaby ? 1.6 : 6.6) * slopeF * starveF * loadF;
+  const step = speed * dt;
+  const nx = g.position.x + _wish.x*step, nz = g.position.z + _wish.z*step;
+  if(terrainH(nx, nz) > 0.25){ g.position.x = nx; g.position.z = nz; }
+  else if(terrainH(nx, g.position.z) > 0.25){ g.position.x = nx; }
+  else if(terrainH(g.position.x, nz) > 0.25){ g.position.z = nz; }
+  else return true;   // stuck at the water line — give up on this target
+  const hNow = terrainH(g.position.x, g.position.z);
+  if(hNow > hHere && !v.isBaby) v.state.work = Math.min(100, v.state.work + (hNow - hHere)*3.5);
+  const targA = Math.atan2(_wish.x, _wish.z);
+  let dA = targA - g.rotation.y;
+  dA = ((dA + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+  g.rotation.y += dA * (1 - Math.pow(0.0001, dt));
+  v.walking = true;
+  return false;
+}
+
+// pick a tree: urgent hunger = nearest anything; industrious / sprung vitas
+// cross the ridge for dates; easy-going ones stay on the fig beach
+function chooseTree(v){
+  const s = v.state, g = v.group.position;
+  const urgent = s.hunger > 75;
+  const wantDates = !urgent && ((v.traits.industry > 0.6 && v.traits.greed < 0.6) || v.links.sprungBy);
+  let best = null, bestScore = 1e9;
+  for(const h of harvestables){
+    if(h.locked || !h.hasFruit) continue;
+    if(h.claim && h.claim !== v) continue;
+    let score = Math.hypot(h.pos.x - g.x, h.pos.z - g.z);
+    if(h.kind === 'eggs') score -= 25;   // fresh eggs on the sand — easy pickings
+    else if(!urgent) score += (h.kind === 'date') === wantDates ? 0 : 55;
+    if(score < bestScore){ bestScore = score; best = h; }
+  }
+  return best;
+}
+
+// who answers the baby's cry: closest non-greedy adult holding food
+function chooseFeeder(baby){
+  let best = null, bestScore = 1e9;
+  const generousCan = VITAS.some(v => !v.isBaby && !v.state.collapsed &&
+    v.traits.greed <= 0.7 && v.state.carrying + v.state.hoard > 0);
+  for(const v of VITAS){
+    if(v.isBaby || v.state.collapsed) continue;
+    if(v.state.carrying + v.state.hoard <= 0) continue;
+    if(generousCan && v.traits.greed > 0.7) continue;   // the greedy feed only as a last resort
+    let score = Math.hypot(v.group.position.x - baby.group.position.x,
+                           v.group.position.z - baby.group.position.z);
+    score += v.traits.greed * 60;              // the greedy don't hurry
+    if(baby.links.fedBy === v) score -= 15;    // loyalty to the usual feeder
+    if(score < bestScore){ bestScore = score; best = v; }
+  }
+  return best;
+}
+
+function releaseClaim(v){
+  for(const h of harvestables) if(h.claim === v) h.claim = null;
+}
+
+function decide(v){
+  const s = v.state;
+  // 0. a collapsed vita is the loudest claim on anyone's surplus
+  const fallen = VITAS.find(o => o !== v && o.state.collapsed);
+  if(fallen && chooseFeeder(fallen) === v){
+    s.task = { kind:'rescue', who:fallen }; s.feedT = 0; return;
+  }
+  // 1. answer the baby's cry if I'm the chosen feeder
+  if(theBaby && theBaby.state.hunger > 52){
+    const feeder = chooseFeeder(theBaby);
+    if(feeder === v){ s.task = { kind:'feed', who:theBaby }; s.feedT = 0; return; }
+  }
+  // 2. hungry with a stocked jar → eat from it (the boss lives off extraction)
+  if(s.hunger > 62 && s.hoard > 0){
+    s.hoard--;
+    s.hunger = Math.max(0, s.hunger - 42);
+    updateJar(v);
+    setMood(v, v.traits.greed > 0.6 ? 'smug' : 'eat', 1.6);
+    sendPulse([v.jarGroup.position.clone().add(new THREE.Vector3(0,1.2,0)),
+               v.group.position.clone().add(new THREE.Vector3(0,2.6,0))], 0xffd94a);
+    s.task = { kind:'idle', t: rand(1.5, 3) };
+    return;
+  }
+  // 2.5 the commons feeds anyone hungry with an empty jar
+  if(s.hunger > 58 && commons.active && commons.hoard > 0 && s.hoard === 0 && s.carrying === 0){
+    s.task = { kind:'commonsEat' }; s.feedT = 0; return;
+  }
+  // 2.7 NIGHT → home to sleep. A sprung worker is denied this: the spring works them on.
+  if(nightNow && !v.links.sprungBy && s.hunger < 80 && s.energy < 97){
+    releaseClaim(v);
+    s.task = { kind:'sleep' };
+    return;
+  }
+  // 3. carrying fruit → take it home to the hoard
+  if(s.carrying > 0){ s.task = { kind:'deposit' }; return; }
+  // 4. hungry → go eat
+  if(s.hunger > 45){
+    const h = chooseTree(v);
+    if(h){ h.claim = v; s.task = { kind:'harvest', h }; return; }
+  }
+  // 5. sprung workers are forced to keep producing; the industrious build surplus
+  const hoardCap = v.traits.greed > 0.6 ? 99 : (hasTech(T_STORAGE) ? 9 : 4);
+  if(v.links.sprungBy || (v.traits.industry > 0.55 && s.hoard < hoardCap && s.hunger < 70)){
+    const h = chooseTree(v);
+    if(h){ h.claim = v; s.task = { kind:'harvest', h }; return; }
+  }
+  // 5.5 a boss strolls over now and then to lean on his sprung worker
+  if(v.links.springing && s.inspectCd <= 0){
+    s.inspectCd = 70;
+    s.task = { kind:'inspect', who: v.links.springing, t: 0 };
+    return;
+  }
+  // 5.8 flourishing enough to PLAY? off to the surf beach — recreation is
+  // the visible sign of a society with surplus and rest to spare
+  if(!nightNow && s.surfCd <= 0 && canPlay(v)){
+    s.surfCd = rand(90, 150);
+    s.task = { kind:'surf', phase:'go' };
+    return;
+  }
+  // 6. otherwise: potter about near camp
+  s.task = { kind:'idle', t: rand(2, 5) };
+  v.wanderTo = { x: v.camp.x + rand(-6,6), z: v.camp.z + rand(-6,6) };
+}
+
+function setMood(v, state, dur){
+  v.state.mood = { state, t:0, dur };
+  v.moodJump = state === 'exult';
+}
+
+function finishHarvest(v, h){
+  const spec = HARVEST[h.kind];
+  h.hasFruit = false; h.fruit.visible = false; h.regrowT = h.regrowMax; h.claim = null;
+  if(h.ephemeral){   // an egg clutch is a one-time windfall
+    h.locked = true;
+    if(Math.random() < 0.6) setHint(`🥚 ${v.name} gathers the turtle eggs — the sea provides`, 4);
+  }
+  outputEMA = Math.min(120, outputEMA + 7);   // the OUTPUT metric feels every harvest
+  totalHarvests++;                            // and the tech tree counts them
+  const eatThreshold = v.links.sprungBy ? 60 : 42;   // the sprung eat later, work more
+  if(v.state.hunger > eatThreshold){
+    v.state.hunger = Math.max(0, v.state.hunger - spec.food);
+    if(h.kind === 'date'){ setMood(v, 'exult', 2.6); burst(v.group.position, 14, 4.5); }
+    else { setMood(v, 'eat', 1.1); burst(v.group.position, 5, 2.2); }
+  } else {
+    v.state.carrying++;
+    setMood(v, 'eat', 0.6);
+  }
+  v.state.task = null; v.state.prog = null;
+}
+
+function depositUnit(v){
+  v.state.carrying--;
+  v.state.depositCount++;
+  const bossV = v.links.sprungBy;
+  // a clamped worker's output pipes up to the boss — 2 units of every 3
+  if(bossV && v.state.depositCount % 3 !== 0){
+    // the LAND TAX intercepts half the skim and pipes it to the commons instead
+    if(landTax && commons.active && v.state.depositCount % 3 === 1){
+      commonsAdd(1, v.group.position);
+      if(Math.random() < 0.35) setHint(`⚖ the land tax intercepts ${bossV.name}'s skim — it flows to the COMMONS`, 3.5);
+      return;
+    }
+    bossV.state.hoard++;
+    updateJar(bossV);
+    bossV.state.totalGained++;
+    checkHut(bossV);
+    if(bossV.state.hoard === 8) recordEvent('hoard', `${bossV.name}'s load is getting heavy — skimmed output piles up`);
+    const ex = linkOf(v, bossV, 'extract');
+    if(ex) sendPulse(ex.pts.map(p=>p.clone()), 0xffb340);
+    setMood(bossV, 'smug', 1.4);
+    if(Math.random() < 0.35) setHint(`${v.name}'s output flows up the pipe to ${bossV.name}`, 3.5);
+  } else if(commons.active && v.traits.greed <= 0.6 && v.state.depositCount % 6 === 0){
+    // a free vita shares every sixth unit into the commons
+    commonsAdd(1, v.group.position);
+    if(Math.random() < 0.3) setHint(`⚘ ${v.name} shares a fruit into the COMMONS`, 3);
+  } else {
+    v.state.hoard++;
+    updateJar(v);
+    v.state.totalGained++;
+    checkHut(v);
+    if(v.state.hoard === 8) recordEvent('hoard', `${v.name}'s load is getting heavy — eight fruits deep`);
+  }
+}
+
+// ==================== VISIBLE CONNECTIONS ====================
+// pipes (food flows) and springs (coercion) drawn as fat lines between vitas
+let wiresOn = true;   // the declutter switch: hide all wiring, just watch the world
+const links = [];   // {type:'pipe'|'spring'|'extract', from, to, line, mat, pts}
+function linkOf(a, b, type){
+  return links.find(l => l.type === type && l.from === a && l.to === b);
+}
+function makeLink(from, to, type){
+  if(linkOf(from, to, type)) return;
+  const colors = { pipe:0x39d0c8, spring:0xff5340, extract:0xffb340 };
+  const nPts = type === 'spring' ? 18 : 14;
+  const pts = [];
+  for(let i=0;i<nPts;i++) pts.push(new THREE.Vector3());
+  const geo = new LineGeometry();
+  geo.setPositions(pts.flatMap(p=>[p.x,p.y,p.z]));
+  // pipes carry FLOW: georgeomat-style traveling dashes show its direction.
+  // springs are tension, not flow — they stay solid.
+  const flows = type !== 'spring';
+  // worldUnits: the wiring is a WORLD object — it thins with distance like
+  // everything else on the island (the balloons/panels stay constant; not these)
+  const mat = new LineMaterial({ color: colors[type], linewidth: 0.2, worldUnits: true,
+    transparent:true, opacity: 0.9, depthTest:true,
+    dashed: flows, dashSize: 1.3, gapSize: 0.9 });
+  mat.resolution.set(window.innerWidth, window.innerHeight);
+  const line = new Line2(geo, mat);
+  line.frustumCulled = false;
+  line.visible = wiresOn;
+  if(flows) line.computeLineDistances();
+  scene.add(line);
+  links.push({ type, from, to, line, mat, pts, flows });
+}
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _perp = new THREE.Vector3();
+function updateLinks(t){
+  for(const l of links){
+    _a.copy(l.from.group.position);
+    _b.copy(l.to.group.position);
+    if(l.type === 'spring'){
+      // boss chest → worker's back work-notch, drawn as a taut zigzag
+      _a.y += 2.3 * l.from.group.scale.y;
+      l.to.group.getWorldPosition(_b);
+      _b.x -= Math.sin(l.to.group.rotation.y) * 0.95;
+      _b.z -= Math.cos(l.to.group.rotation.y) * 0.95;
+      _b.y += 2.35;
+      _perp.subVectors(_b, _a);
+      const len = _perp.length();
+      _perp.set(-_perp.z/len, 0, _perp.x/len);
+      const n = l.pts.length;
+      for(let i=0;i<n;i++){
+        const f = i/(n-1);
+        l.pts[i].lerpVectors(_a, _b, f);
+        if(i>0 && i<n-1){
+          const zig = (i%2 ? 1 : -1) * 0.42 * (0.9 + 0.15*Math.sin(t*7 + i));
+          l.pts[i].addScaledVector(_perp, zig);
+          l.pts[i].y += (i%2 ? 0.12 : -0.12);
+        }
+      }
+    } else if(l.type === 'extract'){
+      // worker → boss, arcing up: output flowing up the chain
+      _a.y += 2.8; _b.y += 2.8 * l.to.group.scale.y;
+      const n = l.pts.length;
+      for(let i=0;i<n;i++){
+        const f = i/(n-1);
+        l.pts[i].lerpVectors(_a, _b, f);
+        l.pts[i].y += 4.5 * Math.sin(f * Math.PI);
+      }
+    } else {
+      // feed pipe: hand → mouth with a soft sag
+      _a.y += 2.5 * l.from.group.scale.y;
+      _b.y += 2.2 * l.to.group.scale.y;
+      const n = l.pts.length, sag = Math.min(2.2, _a.distanceTo(_b)*0.12);
+      for(let i=0;i<n;i++){
+        const f = i/(n-1);
+        l.pts[i].lerpVectors(_a, _b, f);
+        l.pts[i].y -= sag * Math.sin(f * Math.PI);
+      }
+    }
+    l.line.geometry.setPositions(l.pts.flatMap(p=>[p.x,p.y,p.z]));
+    if(l.flows){
+      l.line.computeLineDistances();
+      l.mat.dashOffset = -t * 3.2;   // dashes travel from → to: the direction of flow
+    }
+  }
+}
+
+// pulses: little glowing beads that travel along a link when something flows
+const pulses = [];
+for(let i=0;i<10;i++){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6),
+    new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true }));
+  m.visible = false; scene.add(m);
+  pulses.push({ m, pts:null, t:0 });
+}
+function sendPulse(pts, color){
+  if(!wiresOn) return;   // wiring hidden → its traffic is hidden too
+  for(const p of pulses){
+    if(p.pts) continue;
+    p.pts = pts; p.t = 0;
+    p.m.material.color.set(color);
+    p.m.visible = true;
+    return;
+  }
+}
+function updatePulses(dt){
+  for(const p of pulses){
+    if(!p.pts) continue;
+    p.t += dt / 1.1;
+    if(p.t >= 1){ p.pts = null; p.m.visible = false; continue; }
+    const f = p.t * (p.pts.length - 1);
+    const i = Math.min(Math.floor(f), p.pts.length - 2);
+    p.m.position.lerpVectors(p.pts[i], p.pts[i+1], f - i);
+    p.m.material.opacity = Math.min(1, 4*Math.min(p.t, 1-p.t) + 0.3);
+  }
+}
+
+// ==================== THE SOCIETY TICK ====================
+// a greedy vita with a fat hoard reaches out and clamps a spring on the
+// poorest worker's notch — coercion emerging from surplus, nobody scripted it
+let societyT = 0, landLeakT = 0, tradeT = 20;
+function updateSociety(dt){
+  societyT -= dt;
+  if(societyT > 0) return;
+  societyT = 1.5;
+  checkTechs();
+  // TRADE: now and then a surplus-holder passes a unit down to the poorest
+  if(hasTech(T_TRADE)){
+    tradeT -= 1.5;
+    if(tradeT <= 0){ tradeT = 32; tradeGift(); }
+  }
+  // the single tax quietly drains oversized hoards into the commons
+  if(landTax && commons.active){
+    landLeakT -= 1.5;
+    if(landLeakT <= 0){
+      landLeakT = 7;
+      for(const v of VITAS){
+        if(v.isBaby || v.state.hoard <= 6) continue;
+        v.state.hoard--;
+        updateJar(v);
+        commonsAdd(1, v.jarGroup.position);
+      }
+    }
+  }
+  for(const v of VITAS){
+    if(v.isBaby || v.links.springing || v.traits.greed < 0.7) continue;
+    if(v.state.hoard < 5 || v.state.clampCd > 0) continue;
+    if(v.state.task && v.state.task.kind === 'clamp') continue;
+    let victim = null, worst = 1e9;
+    for(const o of VITAS){
+      if(o === v || o.isBaby || o.links.sprungBy || o.state.collapsed) continue;   // no clamping the unconscious
+      const wealth = o.state.hoard + o.state.carrying;
+      if(wealth < worst){ worst = wealth; victim = o; }
+    }
+    if(victim){
+      releaseClaim(v);
+      v.state.task = { kind:'clamp', who:victim, t:0 };
+      setHint(`${v.name}'s hoard runs deep — and now ${v.name} wants ${victim.name}'s work…`, 4.5);
+    }
+  }
+}
+
+function tradeGift(){
+  const adults = VITAS.filter(v => !v.isBaby && !v.state.collapsed);
+  const rich = adults.filter(v => v.traits.greed <= 0.6 && v.state.hoard >= 3)
+    .sort((a,b) => b.state.hoard - a.state.hoard)[0];
+  const poor = adults.slice().sort((a,b) =>
+    (a.state.hoard + a.state.carrying) - (b.state.hoard + b.state.carrying))[0];
+  if(!rich || !poor || rich === poor || rich.state.hoard - poor.state.hoard < 3) return null;
+  rich.state.hoard--; poor.state.hoard++; poor.state.totalGained++;
+  updateJar(rich); updateJar(poor); checkHut(poor);
+  sendPulse([rich.jarGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)),
+             poor.jarGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0))], 0x9fdcff);
+  if(Math.random() < 0.4) setHint(`⇄ TRADE — ${rich.name} passes surplus to ${poor.name}`, 3);
+  return rich;
+}
+
+function establishSpring(bossV, workerV){
+  bossV.links.springing = workerV;
+  workerV.links.sprungBy = bossV;
+  makeLink(bossV, workerV, 'spring');
+  makeLink(workerV, bossV, 'extract');
+  for(const nm of workerV.notchMeshes) nm.material = matNotchHot;
+  workerV.state.work = Math.max(workerV.state.work, 55);
+  springSeen = true;   // coercion is what makes a society invent LAW
+  recordEvent('spring', `${bossV.name} clamped a SPRING on ${workerV.name}`);
+  setHint(`⌁ ${bossV.name} clamped a SPRING on ${workerV.name}'s work-notch! Output now flows up. SNAP it with the ✂ lever`, 7);
+  burst(workerV.group.position, 10, 3, 0xff5340);   // an ANGRY red flash — this is no celebration
+}
+
+function feedBabyFrom(feeder, baby){
+  if(feeder.state.carrying > 0) feeder.state.carrying--;
+  else if(feeder.state.hoard > 0){ feeder.state.hoard--; updateJar(feeder); }
+  else return;
+  baby.state.hunger = Math.max(0, baby.state.hunger - 52);
+  if(baby.links.fedBy !== feeder){
+    const old = baby.links.fedBy;
+    if(old){ removeLink(old, baby, 'pipe'); old.links.feeds = null; }   // one feeder, one pipe
+    baby.links.fedBy = feeder;
+    feeder.links.feeds = baby;
+    makeLink(feeder, baby, 'pipe');
+    setHint(`◉ ${feeder.name} feeds ${baby.name} — a FEED PIPE joins them`, 5);
+  }
+  const pipe = linkOf(feeder, baby, 'pipe');
+  if(pipe) sendPulse(pipe.pts.map(p=>p.clone()), 0x7ef3ea);
+  setMood(baby, 'exult', 2.0);
+  burst(baby.group.position, 8, 2.5);
+  requestScene('tender', feeder, baby);
+}
+
+function standUp(v){
+  v.state.collapsed = false;
+  v.state.collapseT = 0;
+  v.state.energy = Math.max(v.state.energy, 40);   // food puts something back in the tank
+  v.group.rotation.z = 0;
+  setMood(v, 'eat', 1.4);
+}
+function rescueFeed(rescuer, fallen){
+  if(rescuer.state.carrying > 0) rescuer.state.carrying--;
+  else if(rescuer.state.hoard > 0){ rescuer.state.hoard--; updateJar(rescuer); }
+  else return;
+  fallen.state.hunger = Math.max(0, fallen.state.hunger - 55);
+  standUp(fallen);
+  burst(fallen.group.position, 10, 3);
+  sendPulse([rescuer.group.position.clone().add(new THREE.Vector3(0, 2.5, 0)),
+             fallen.group.position.clone().add(new THREE.Vector3(0, 1.2, 0))], 0x7ef3ea);
+  setHint(`${rescuer.name} feeds ${fallen.name} back onto their feet`, 4.5);
+  requestScene('rescue', rescuer, fallen);
+}
+
+// ==================== DRAMATON MICRO-SCENES ====================
+// zoom close on a linked pair and a little scene fires, KEYED by the
+// world-state (the spring on a notch, hunger levels, the feed pipe).
+// same beat two skins: the drama up close, the mechanism in georgeomat view.
+const whylineEl = document.getElementById('whyline');
+const sceneCooldowns = new Map();
+let drama = null;   // {def, id, a, b, beats, i, t, why, title}
+
+function beatsFor(lines){
+  return lines.map(([who, text, face]) => ({ who, text, face, dur: 1.4 + text.length*0.045 }));
+}
+
+const SCENE_DEFS = {
+  squeeze: {
+    title: 'THE SQUEEZE', cd: 35,
+    why(a, b){ return `KEYED BY · spring clamped on ${b.name}'s work-notch · work pinned at ${Math.round(b.state.work)} · ${b.name} hunger ${Math.round(b.state.hunger)} · 2-of-3 output pipes to ${a.name}`; },
+    script(a, b){
+      if(b.state.hunger > 58) return beatsFor([
+        ['b', `${a.name}… my belly is empty. One date—`, 'starving'],
+        ['a', `Eat AFTER quota. The spring doesn't care about bellies.`, 'smug'],
+        ['b', `Whose rule is that?`, 'hungry'],
+        ['a', `Mine. That is what the spring means.`, 'smug'],
+      ]);
+      return beatsFor([
+        ['a', `Notch up, ${b.name}. The pipe runs thin.`, 'smug'],
+        ['b', `I picked all morning, ${a.name}.`, 'working'],
+        ['a', `And two of every three are mine. That's the spring.`, 'smug'],
+        ['b', `…the spring. Yes.`, 'peckish'],
+      ]);
+    },
+    match(a, b){ return a.links.springing === b; },
+  },
+  tender: {
+    title: 'THE FEEDING', cd: 28,
+    why(a, b){ return `KEYED BY · feed pipe ${a.name} → ${b.name} · ${b.name} hunger ${Math.round(b.state.hunger)} · a dependent produces nothing — cut the pipe and it starves`; },
+    script(a, b){
+      if(a.state.hunger > 58) return beatsFor([
+        ['a', `Last one from my basket, ${b.name}. It's yours.`, 'content'],
+        ['b', `(reaches out, wide-eyed)`, 'exult'],
+        ['a', `I'll cross the ridge again. You just grow.`, 'content'],
+      ]);
+      if(b.state.hunger > 45) return beatsFor([
+        ['a', `Shh, little one. I brought you a fig.`, 'content'],
+        ['b', `(happy gurgle)`, 'exult'],
+        ['a', `Eat. Growing is your only work.`, 'content'],
+      ]);
+      return beatsFor([
+        ['a', `Look at you, ${b.name}. Fat on piped figs.`, 'content'],
+        ['b', `(giggles and grabs ${a.name}'s nose)`, 'exult'],
+        ['a', `One day you'll feed somebody too.`, 'content'],
+      ]);
+    },
+    match(a, b){ return b.isBaby && b.links.fedBy === a; },
+  },
+  rescue: {
+    title: 'THE RESCUE', cd: 30,
+    why(a, b){ return `KEYED BY · ${b.name} hit hunger 100 → COLLAPSE${b.links.sprungBy ? ` · the spring on ${b.name}'s notch kept squeezing` : ''} · ${a.name} arrived holding food`; },
+    script(a, b){
+      return beatsFor([
+        ['a', `${b.name}! Stay with me — eat this.`, 'working'],
+        ['b', `…the world went all white…`, 'ko'],
+        ['a', `You were worked hollow. Eat.`, 'content'],
+        ['b', `(eats. the color comes back)`, 'eat'],
+      ]);
+    },
+    match(){ return false; },   // event-only
+  },
+  // ---- AMBIENT scenes: no link needed — two Vitas near each other just TALK.
+  // They narrate each discovery's benefit and reveal character.
+  toolsjoy: {
+    title: 'EASIER HANDS', cd: 90, ambient: true,
+    why(a, b){ return `KEYED BY · TOOLS known · ${a.name} and ${b.name} idle near each other`; },
+    script(a, b){
+      return beatsFor([
+        ['a', `This handle! I filled a basket before the sun was high.`, 'exult'],
+        ['b', `And my palms aren't torn for once. So much easier now.`, 'content'],
+        ['a', `Remember clawing at bark all morning? Never again.`, 'content'],
+      ]);
+    },
+    match(a, b){ return hasTech(T_TOOLS) && !hasTech(T_FARM); },
+  },
+  storagejoy: {
+    title: 'FULL JARS', cd: 90, ambient: true,
+    why(a, b){ return `KEYED BY · STORAGE known · combined hoards ${a.state.hoard + b.state.hoard}`; },
+    script(a, b){
+      return beatsFor([
+        ['a', `My jar swallows nine now. Let the lean days come.`, 'smug'],
+        ['b', `Full jars, quiet bellies. I sleep easier just knowing.`, 'content'],
+        ['a', `Strange, though — the deeper the jars, the harder some hands grip them.`, 'peckish'],
+      ]);
+    },
+    match(a, b){ return hasTech(T_STORAGE) && (a.state.hoard > 0 || b.state.hoard > 0); },
+  },
+  farmjoy: {
+    title: 'THE NEAR LAND', cd: 90, ambient: true,
+    why(a, b){ return `KEYED BY · FARMING known · planted palms stand by the beach`; },
+    script(a, b){
+      return beatsFor([
+        ['a', `Dates by our own beach! My legs can hardly believe it.`, 'exult'],
+        ['b', `No ridge, no climb. This is so much easier now.`, 'content'],
+        ['a', `The near land feeds us like the far land. Worth more every day.`, 'content'],
+      ]);
+    },
+    match(a, b){ return hasTech(T_FARM); },
+  },
+  gossipStingy: {
+    title: 'THE STINGY ONE', cd: 130, ambient: true,
+    why(a, b){ const c = VITAS.find(x => !x.isBaby && x.traits.greed > 0.6);
+      return `KEYED BY · ${c ? c.name : '?'} greed ${c ? c.traits.greed.toFixed(2) : '—'} · hoard ${c ? c.state.hoard : 0} · two others idle nearby`; },
+    script(a, b){
+      const c = VITAS.find(x => !x.isBaby && x !== a && x !== b && x.traits.greed > 0.6) || boss;
+      return beatsFor([
+        ['a', `Have you seen ${c.name}'s basket? Fruit to the brim.`, 'peckish'],
+        ['b', `And not one ever leaves it. ${c.name} is so stingy.`, 'working'],
+        ['a', `The baskets get deeper. The hands stay closed.`, 'peckish'],
+        ['b', `Watch the notch on your back around that one.`, 'hungry'],
+      ]);
+    },
+    match(a, b){ return VITAS.some(x => !x.isBaby && x !== a && x !== b && x.traits.greed > 0.6 && x.state.hoard >= 3); },
+  },
+  gossipKind: {
+    title: 'THE KIND ONE', cd: 130, ambient: true,
+    why(a, b){ const c = theBaby && theBaby.links.fedBy;
+      return `KEYED BY · ${c ? c.name : '?'} feeds the dependent · greed ${c ? c.traits.greed.toFixed(2) : '—'}`; },
+    script(a, b){
+      const c = (theBaby && theBaby.links.fedBy && theBaby.links.fedBy !== a && theBaby.links.fedBy !== b)
+        ? theBaby.links.fedBy
+        : VITAS.filter(x => !x.isBaby && x !== a && x !== b).sort((p,q)=>p.traits.greed-q.traits.greed)[0];
+      return beatsFor([
+        ['a', `${c.name} crossed the ridge twice today — both times for someone else.`, 'content'],
+        ['b', `So kind. The whole beach eats easier with ${c.name} around.`, 'exult'],
+        ['a', `Generosity is a pipe that never shows on the ground.`, 'content'],
+      ]);
+    },
+    match(a, b){ return !!(theBaby && theBaby.links.fedBy); },
+  },
+  tiredcare: {
+    title: 'WORKED HOLLOW', cd: 100, ambient: true,
+    why(a, b){ return `KEYED BY · ${b.name} REST at ${Math.round(b.state.energy)} · ${a.name} nearby and rested`; },
+    script(a, b){
+      return beatsFor([
+        ['a', `${b.name}, you look worked hollow. Sit. Eat something.`, 'content'],
+        ['b', `The work doesn't stop, ${a.name}…`, 'working'],
+        ['a', `It will still be there after you rest. YOU might not be.`, 'peckish'],
+      ]);
+    },
+    match(a, b){ return b.state.energy < 30 && a.state.energy > 55; },
+  },
+};
+
+function cdKey(id, a, b){ return id + ':' + a.name + ':' + b.name; }
+// (the scrolling scene-transcript box is gone — the dialogue lives in the
+// speech balloons alone; the CHRONICLE below is the only bottom log)
+function startDrama(id, a, b){
+  const def = SCENE_DEFS[id];
+  drama = { def, id, a, b, beats: def.script(a, b), i: -1, t: 0, why: def.why(a, b), title: def.title };
+  sceneCooldowns.set(cdKey(id, a, b), def.cd);
+  a.inScene = drama; b.inScene = drama;
+  whylineEl.textContent = '⟡ ' + drama.why;
+  whylineEl.style.display = gmode ? 'block' : 'none';
+  if(!gmode) setHint(`⟡ ${def.title} — press G to see why this scene fired`, 4);
+  nextBeat();
+}
+function nextBeat(){
+  drama.i++;
+  if(drama.i >= drama.beats.length){ endDrama(); return; }
+  const beat = drama.beats[drama.i];
+  const speaker = beat.who === 'a' ? drama.a : drama.b;
+  const other = beat.who === 'a' ? drama.b : drama.a;
+  drawBubbleText(speaker, beat.text);
+  speaker.bubble.visible = true;
+  other.bubble.visible = false;
+  if(beat.face) setMood(speaker, beat.face, beat.dur);
+  drama.t = beat.dur;
+}
+function endDrama(){
+  if(!drama) return;
+  for(const v of [drama.a, drama.b]){ v.inScene = null; v.bubble.visible = false; }
+  whylineEl.style.display = 'none';
+  drama = null;
+}
+function requestScene(id, a, b){
+  if(drama) return;
+  if((sceneCooldowns.get(cdKey(id, a, b)) || 0) > 0) return;
+  const mx = (a.group.position.x + b.group.position.x)/2;
+  const mz = (a.group.position.z + b.group.position.z)/2;
+  if(Math.hypot(controls.target.x - mx, controls.target.z - mz) > 34) return;
+  if(camera.position.distanceTo(controls.target) > 55) return;
+  startDrama(id, a, b);
+}
+let ambientT = 0, whisperT = 8, chatGapT = 20;
+const AMBIENT_IDS = [];   // filled after SCENE_DEFS exists
+for(const id in SCENE_DEFS) if(SCENE_DEFS[id].ambient) AMBIENT_IDS.push(id);
+function updateDrama(dt){
+  for(const [k, tt] of sceneCooldowns) if(tt > 0) sceneCooldowns.set(k, tt - dt);
+  whisperT -= dt;
+  chatGapT -= dt;
+  if(drama){
+    drama.t -= dt;
+    if(drama.t <= 0) nextBeat();
+    return;
+  }
+  if(demoSeq || cinematic > 0) return;   // never talk over a discovery story
+  ambientT -= dt;
+  if(ambientT > 0) return;
+  ambientT = 0.7;
+  const camDist = camera.position.distanceTo(controls.target);
+  // ambient chats: any two idle adults near each other — discovery benefits
+  // narrated aloud, characters gossiped about
+  if(chatGapT <= 0 && camDist <= 40){
+    const near = VITAS.filter(x => !x.isBaby && !x.state.collapsed && !x.sleeping && !x.surfing && !x.inScene);
+    outer:
+    for(let i = 0; i < near.length; i++) for(let j = i + 1; j < near.length; j++){
+      const a = near[i], b = near[j];
+      if(Math.hypot(a.group.position.x - b.group.position.x, a.group.position.z - b.group.position.z) > 9) continue;
+      const mx = (a.group.position.x + b.group.position.x)/2, mz = (a.group.position.z + b.group.position.z)/2;
+      if(Math.hypot(controls.target.x - mx, controls.target.z - mz) > 24) continue;
+      for(const id of AMBIENT_IDS){
+        const def = SCENE_DEFS[id];
+        const pair = def.match(a, b) ? [a, b] : def.match(b, a) ? [b, a] : null;
+        if(!pair) continue;
+        if((sceneCooldowns.get(cdKey(id, pair[0], pair[1])) || 0) > 0) continue;
+        chatGapT = rand(35, 60);   // breathing room between chats
+        startDrama(id, pair[0], pair[1]);
+        break outer;
+      }
+    }
+    if(drama) return;
+  }
+  for(const l of links){
+    const a = l.from, b = l.to;
+    if(a.state.collapsed || b.state.collapsed) continue;
+    const d = Math.hypot(a.group.position.x - b.group.position.x, a.group.position.z - b.group.position.z);
+    if(d > 16) continue;
+    const mx = (a.group.position.x + b.group.position.x)/2, mz = (a.group.position.z + b.group.position.z)/2;
+    if(Math.hypot(controls.target.x - mx, controls.target.z - mz) > 18) continue;
+    for(const id in SCENE_DEFS){
+      const def = SCENE_DEFS[id];
+      if(!def.match(a, b)) continue;
+      if((sceneCooldowns.get(cdKey(id, a, b)) || 0) > 0) continue;
+      if(camDist <= 26){ startDrama(id, a, b); return; }
+      if(whisperT <= 0){
+        whisperT = 14;
+        setHint(`⟡ ${a.name} and ${b.name} are linked and close — zoom right in to witness their scene`, 4);
+      }
+    }
+  }
+}
+
+// ==================== TIME SCRUBBER ====================
+// lightweight snapshots every 1.5s of play; the timeline bar scrubs through
+// them and the speed slider's left half plays them backward. resuming anywhere
+// truncates the discarded future — rewind to where it went wrong and retry.
+let timeMode = 'play', blur = 0, rewindRate = 8, lastFwd = 30;
+let simRate = 1, simT = 0, cinematic = 0, pendingDemo = null;
+const SNAP_EVERY = 1.5, MAXH = 800;
+const history = [];
+let histClock = 0, recT = SNAP_EVERY, scrubPos = 0;
+
+const vidx = v => v ? VITAS.indexOf(v) : -1;
+// NOTE (Dramaton format): each snapshot is one worldState frame — keep every field here
+// flat + numeric/boolean so it exports 1:1 into info.worldState (see header comment).
+function snap(){
+  return {
+    t: histClock, dayPhase,
+    vitas: VITAS.map(v => ({
+      x: v.group.position.x, z: v.group.position.z, ry: v.group.rotation.y,
+      hunger: v.state.hunger, work: v.state.work, hoard: v.state.hoard,
+      energy: v.state.energy,
+      carrying: v.state.carrying, collapsed: v.state.collapsed, collapseT: v.state.collapseT,
+      totalGained: v.state.totalGained, hutStage: v.state.hutStage,
+      depositCount: v.state.depositCount, inspectCd: v.state.inspectCd,
+      clampCd: v.state.clampCd,
+      springing: vidx(v.links.springing), sprungBy: vidx(v.links.sprungBy),
+      feeds: vidx(v.links.feeds), fedBy: vidx(v.links.fedBy),
+    })),
+    links: links.map(l => ({ type:l.type, from: VITAS.indexOf(l.from), to: VITAS.indexOf(l.to) })),
+    fruit: harvestables.map(h => ({ has:h.hasFruit, rt:h.regrowT })),
+    commonsActive: commons.active, commonsHoard: commons.hoard,
+    landTax, outputEMA,
+    techMask, totalHarvests, springSeen, lastTechT,
+  };
+}
+function pushSnapshot(){
+  history.push(snap());
+  if(history.length > MAXH) history.shift();
+  scrubPos = history.length - 1;
+}
+function restore(s){
+  endDrama();
+  cancelAdo();
+  endChase();
+  for(const p of pulses){ p.pts = null; p.m.visible = false; }
+  histClock = s.t;   // the clock travels with the restore — the chronicle tells the truth
+  dayPhase = s.dayPhase;
+  // rebuild link lines only when the wiring actually differs
+  const curSig = links.map(l => l.type+':'+VITAS.indexOf(l.from)+':'+VITAS.indexOf(l.to)).join('|');
+  const newSig = s.links.map(l => l.type+':'+l.from+':'+l.to).join('|');
+  if(curSig !== newSig){
+    for(const l of links){ scene.remove(l.line); l.line.geometry.dispose(); l.mat.dispose(); }
+    links.length = 0;
+    for(const l of s.links) makeLink(VITAS[l.from], VITAS[l.to], l.type);
+  }
+  s.vitas.forEach((sv, i) => {
+    const v = VITAS[i], st = v.state;
+    let rx = sv.x, rz = sv.z;
+    if(terrainH(rx, rz) < 0.3){ rx = SURF_STAND.x; rz = SURF_STAND.z; }   // snapshotted mid-wave
+    v.group.position.set(rx, terrainH(rx, rz), rz);
+    v.surfing = false;
+    v.group.rotation.y = sv.ry;
+    v.group.rotation.z = sv.collapsed ? 1.5 : 0;
+    st.hunger = sv.hunger; st.work = sv.work; st.hoard = sv.hoard; st.carrying = sv.carrying;
+    st.collapsed = sv.collapsed; st.collapseT = sv.collapseT; st.totalGained = sv.totalGained;
+    st.depositCount = sv.depositCount; st.inspectCd = sv.inspectCd;
+    st.clampCd = sv.clampCd || 0;
+    st.energy = sv.energy ?? 80;
+    v.sleeping = false;
+    st.task = null; st.prog = null; st.mood = null; v.wanderTo = null;
+    v.links.springing = sv.springing >= 0 ? VITAS[sv.springing] : null;
+    v.links.sprungBy = sv.sprungBy >= 0 ? VITAS[sv.sprungBy] : null;
+    v.links.feeds = sv.feeds >= 0 ? VITAS[sv.feeds] : null;
+    v.links.fedBy = sv.fedBy >= 0 ? VITAS[sv.fedBy] : null;
+    for(const nm of v.notchMeshes) nm.material = v.links.sprungBy ? matNotchHot : matNotch;
+    if(sv.hutStage !== st.hutStage){
+      st.hutStage = sv.hutStage;
+      if(sv.hutStage === 0){ if(v.hut){ scene.remove(v.hut); v.hut = null; } }
+      else buildHut(v, sv.hutStage, true);
+    }
+    updateJar(v);
+    const fs = faceFor(v);
+    if(fs !== st.faceState){ drawFace(v, fs, false); st.faceState = fs; st.faceBlink = false; }
+    const gk = `${Math.round(st.hunger)}|${Math.round(st.work)}|${Math.round(st.energy)}|${st.hoard}|${st.carrying}|-1`;
+    if(gk !== v.lastGauge){ drawGauge(v); v.lastGauge = gk; }
+  });
+  s.fruit.forEach((f, i) => {
+    const h = harvestables[i];
+    if(!h || h.ephemeral) return;   // egg clutches are ambience — they don't time-travel
+    h.hasFruit = f.has; h.regrowT = f.rt; h.claim = null;
+    h.fruit.visible = f.has;
+  });
+  for(const slot of eggSlots){
+    slot.locked = true; slot.hasFruit = false; slot.claim = null;
+    slot.eggGroup.visible = false;
+  }
+  for(const tu of turtles){
+    if(tu.state !== 'idle'){ tu.state = 'idle'; tu.t = rand(20, 50); tu.g.visible = false; }
+  }
+  resetFlock();
+  // game-layer state: the commons and the land rule travel with history
+  commons.active = !!s.commonsActive;
+  commons.hoard = s.commonsHoard || 0;
+  commons.group.visible = commons.active;
+  updateCommonsJar();
+  leverEls.commons.classList.toggle('done', commons.active);
+  if(!commons.active)
+    leverEls.commons.querySelector('small').textContent = 'a shared hoard for all';
+  if(landTax !== !!s.landTax){
+    landTax = !!s.landTax;
+    leverEls.land.classList.toggle('on', landTax);
+    landLeverLockText();
+  }
+  outputEMA = s.outputEMA || 0;
+  totalHarvests = s.totalHarvests || 0;
+  springSeen = !!s.springSeen;
+  lastTechT = s.lastTechT || 0;
+  applyTechState(s.techMask || 1);   // the tree folds back with history
+}
+function restoreAt(pos){
+  if(!history.length) return;
+  pos = clamp(pos, 0, history.length - 1);
+  scrubPos = pos;
+  const i = Math.floor(pos);
+  restore(history[i]);
+  const j = Math.min(i + 1, history.length - 1);
+  if(j > i){   // smooth the sky between snapshots
+    const a = history[i].dayPhase, b = history[j].dayPhase;
+    let d = b - a; d = ((d + 0.5) % 1 + 1) % 1 - 0.5;
+    dayPhase = ((a + d * (pos - i)) % 1 + 1) % 1;
+  }
+}
+function resumePlay(){
+  if(history.length){
+    const i = Math.min(Math.floor(scrubPos), history.length - 1);
+    history.length = i + 1;               // the discarded future is overwritten
+    histClock = history[i].t;
+    restore(history[i]);
+    scrubPos = history.length - 1;
+    // the discarded future takes its event pips with it
+    for(let k = events.length - 1; k >= 0; k--)
+      if(events[k].t > histClock) events.splice(k, 1);
+    setHint('▶ playing forward from here — a new history begins', 4);
+  }
+  timeMode = 'play';
+  recT = 0;
+  if(+daySlider.value < DEAD){   // playing forward again → knob returns to its last forward rate
+    daySlider.value = lastFwd;
+    simRate = Math.pow(lastFwd / 30, 1.5);
+    if(paused) setPaused(false, true);
+  }
+}
+
+// ==================== PER-VITA FRAME UPDATE ====================
+function faceFor(v){
+  const s = v.state;
+  if(s.collapsed) return 'ko';
+  if(v.sleeping) return 'sleep';
+  if(v.surfing) return 'exult';
+  if(s.mood) return s.mood.state;
+  if(!v.isBaby && s.task && s.task.kind==='harvest' && s.prog !== null) return 'working';
+  if(v.isBaby){
+    if(s.hunger > 72) return 'wail';
+    if(s.hunger > 50) return 'hungry';
+    if(s.hunger > 30) return 'peckish';
+    return 'content';
+  }
+  if(s.hunger > 82) return 'starving';
+  if(s.hunger > 58) return 'hungry';
+  if(s.hunger > 32) return 'peckish';
+  return 'content';
+}
+
+function updateVita(v, dt, t){
+  const s = v.state, g = v.group, parts = v.parts;
+  v.walking = false;
+  if(!s.task || s.task.kind !== 'sleep'){
+    if(!v.isBaby) v.sleeping = false;
+  }
+  if(!s.task || s.task.kind !== 'surf') v.surfing = false;
+  s.surfCd -= dt;
+  // slow metabolisms: the whole arc must be WATCHABLE, not a race
+  s.hunger = Math.min(100, s.hunger + dt * (v.isBaby ? 1.0 : 0.55) * (v.sleeping ? 0.3 : 1));
+  if(s.mood){ s.mood.t += dt; if(s.mood.t > s.mood.dur) s.mood = null; }
+
+  let harvestingPose = false, feedingPose = false;
+  s.inspectCd -= dt;
+  if(s.clampCd > 0) s.clampCd -= dt;
+
+  // hunger maxed OR energy ground to a nub → COLLAPSE (fed back up, or a grim self-recovery)
+  if(!s.collapsed && (s.hunger >= 100 || (!v.isBaby && s.energy <= 0))){
+    const burnout = !v.isBaby && s.energy <= 0 && s.hunger < 100;
+    s.collapsed = true; s.collapseT = 0; s.task = null; s.prog = null; s.mood = null;
+    v.sleeping = false;
+    releaseClaim(v);
+    if(v.inScene) endDrama();
+    recordEvent('collapse', burnout ? `${v.name} BURNED OUT — worked to a nub` : `${v.name} COLLAPSED from hunger`);
+    setHint(burnout
+      ? `${v.name} is worked to a NUB — ${v.links.sprungBy ? 'the spring never let ' + v.name + ' sleep' : 'no rest, no reserve'}. Burnout collapse!`
+      : `${v.name} has COLLAPSED — ${v.links.sprungBy ? 'the spring wrung ' + v.name + ' hollow' : 'starving and spent'}. Someone bring food!`, 6);
+  }
+  if(s.collapsed){
+    s.collapseT += dt;
+    s.work = Math.max(0, s.work - dt*8);
+    s.energy = Math.min(100, s.energy + dt*1.2);   // lying there is rest of a grim kind
+    g.rotation.z += (1.5 - g.rotation.z) * Math.min(1, dt*4);
+    if(s.collapseT > 30){
+      standUp(v); s.hunger = 85;
+      setHint(`${v.name} staggers back up, hollow-eyed`, 4);
+    }
+  } else if(v.inScene){
+    const other = v.inScene.a === v ? v.inScene.b : v.inScene.a;
+    if(!v.isBaby)
+      g.rotation.y = Math.atan2(other.group.position.x - g.position.x, other.group.position.z - g.position.z);
+  } else if(v.isBaby){
+    v.sleeping = nightNow && s.hunger < 70;   // babies just sleep where they sit
+    if(!v.sleeping){
+      s.wanderT -= dt;
+      if(s.wanderT <= 0){
+        s.wanderT = rand(6, 10);
+        v.wanderTo = { x: v.camp.x + rand(-4,4), z: v.camp.z + rand(-4,4) };
+      }
+      if(v.wanderTo && s.hunger < 70){
+        if(walkToward(v, v.wanderTo.x, v.wanderTo.z, dt, t, 0.8)) v.wanderTo = null;
+      }
+    }
+  } else {
+    // nightfall interrupts ordinary work — free Vitas knock off and head to bed
+    if(nightNow && s.task && !v.links.sprungBy && s.hunger < 80 &&
+       ['harvest','idle','inspect','deposit'].includes(s.task.kind) && s.carrying === 0){
+      releaseClaim(v);
+      s.task = null; s.prog = null;
+    }
+    if(!s.task) decide(v);
+    const task = s.task;
+    if(task) switch(task.kind){
+      case 'harvest': {
+        const h = task.h;
+        if(!h.hasFruit || (h.claim && h.claim !== v)){ s.task = null; s.prog = null; break; }
+        h.claim = v;
+        if(walkToward(v, h.pos.x, h.pos.z, dt, t, HARVEST[h.kind].reach)){
+          const spec = HARVEST[h.kind];
+          s.prog = (s.prog ?? 0) + dt / (spec.dur * (hasTech(T_TOOLS) && !v.demoSlow ? 0.6 : 1));   // TOOLS: visibly faster hands
+          s.work = Math.min(100, s.work + spec.workRate * dt);
+          harvestingPose = true;
+          g.rotation.y = Math.atan2(h.pos.x - g.position.x, h.pos.z - g.position.z);
+          if(s.prog >= 1) finishHarvest(v, h);
+        }
+        break;
+      }
+      case 'feed': {
+        const baby = task.who;
+        if(s.carrying + s.hoard <= 0){ s.task = null; break; }
+        if(walkToward(v, baby.group.position.x, baby.group.position.z, dt, t, 3.2)){
+          feedingPose = true;
+          g.rotation.y = Math.atan2(baby.group.position.x - g.position.x, baby.group.position.z - g.position.z);
+          s.feedT += dt;
+          if(s.feedT > 1.1){ feedBabyFrom(v, baby); s.task = { kind:'idle', t:1.5 }; }
+        }
+        break;
+      }
+      case 'deposit': {
+        if(walkToward(v, v.camp.x, v.camp.z, dt, t, 2.2)){
+          s.depositT -= dt;
+          if(s.depositT <= 0){
+            s.depositT = 0.5;
+            depositUnit(v);
+            if(s.carrying <= 0) s.task = null;
+          }
+        }
+        break;
+      }
+      case 'clamp': {
+        const w = task.who;
+        if(w.links.sprungBy){ s.task = null; break; }
+        if(walkToward(v, w.group.position.x, w.group.position.z, dt, t, 2.8)){
+          feedingPose = true;   // arms out, reaching for the notch
+          g.rotation.y = Math.atan2(w.group.position.x - g.position.x, w.group.position.z - g.position.z);
+          task.t += dt;
+          if(task.t > 1.4){ establishSpring(v, w); s.task = { kind:'idle', t:2 }; }
+        }
+        break;
+      }
+      case 'rescue': {
+        const w = task.who;
+        if(!w.state.collapsed || s.carrying + s.hoard <= 0){ s.task = null; break; }
+        if(walkToward(v, w.group.position.x, w.group.position.z, dt, t, 3.0)){
+          feedingPose = true;
+          g.rotation.y = Math.atan2(w.group.position.x - g.position.x, w.group.position.z - g.position.z);
+          s.feedT += dt;
+          if(s.feedT > 1.2){ rescueFeed(v, w); s.task = { kind:'idle', t:2 }; }
+        }
+        break;
+      }
+      case 'surf': {
+        if(task.phase === 'go'){
+          if(nightNow || s.hunger > 62){ s.task = null; break; }
+          if(walkToward(v, SURF_STAND.x, SURF_STAND.z, dt, t, 2.6)){
+            const w = rollers.find(r => r.p > 0.05 && r.p < 0.22 && !r.rider);
+            if(w){
+              task.phase = 'ride'; task.w = w; w.rider = v;
+              const k = rand(-5, 5);
+              task.ox = SURF_PERP.x * k; task.oz = SURF_PERP.z * k;
+              v.surfing = true;
+              splash(w.pos.x + task.ox, w.pos.z + task.oz);
+              if(!surfHintDone){
+                surfHintDone = true;
+                recordEvent('fun', `${v.name} caught the first wave — the society PLAYS`);
+                setHint(`🏄 ${v.name} paddles out — surplus enough to PLAY. A flourishing society surfs; a squeezed one never gets here`, 7);
+              } else if(Math.random() < 0.3) setHint(`🏄 ${v.name} catches a roller`, 3);
+            }
+          }
+        } else {
+          const w = task.w;
+          if(!w || w.p >= 0.86 || w.p < 0.05 || w.rider !== v){
+            if(w && w.rider === v) w.rider = null;
+            v.surfing = false;
+            g.position.set(SURF_STAND.x + rand(-2.5, 2.5), 0, SURF_STAND.z + rand(-2.5, 2.5));
+            splash(g.position.x, g.position.z);
+            setMood(v, 'exult', 2.8);
+            for(const o of VITAS)   // beach party: playmates whoop along
+              if(o !== v && !o.isBaby && !o.state.collapsed &&
+                 o.group.position.distanceTo(g.position) < 14) setMood(o, 'exult', 2.2);
+            s.task = { kind:'idle', t: rand(2, 5) };
+            break;
+          }
+          g.position.x = w.pos.x + task.ox;
+          g.position.z = w.pos.z + task.oz;
+          g.rotation.y = SURF_HEADING;
+          feedingPose = true;   // arms out front — riding posture
+        }
+        break;
+      }
+      case 'sleep': {
+        if(!nightNow){ s.task = null; v.sleeping = false; break; }
+        const home = v.hut ? v.hut.position : null;
+        const hx = home ? home.x : v.camp.x + 1.4, hz = home ? home.z : v.camp.z - 1.4;
+        if(v.sleeping || walkToward(v, hx, hz, dt, t, 1.8)){
+          v.sleeping = true;
+          // BUILDING's visible benefit: a roof over your head means deeper rest
+          s.energy = Math.min(100, s.energy + (dt / cycleLen) * 100 * (v.hut ? 6.5 : 4.5));
+        }
+        break;
+      }
+      case 'commonsEat': {
+        if(!commons.active || commons.hoard <= 0){ s.task = null; break; }
+        if(walkToward(v, commons.pos.x, commons.pos.z, dt, t, 2.8)){
+          feedingPose = true;
+          s.feedT += dt;
+          if(s.feedT > 0.9){
+            commons.hoard--;
+            updateCommonsJar();
+            s.hunger = Math.max(0, s.hunger - 42);
+            setMood(v, 'eat', 1.4);
+            sendPulse([commons.pos.clone().add(new THREE.Vector3(0, 1.6, 0)),
+                       v.group.position.clone().add(new THREE.Vector3(0, 2.4, 0))], 0x5fe3d8);
+            if(Math.random() < 0.4) setHint(`⚘ ${v.name} draws from the COMMONS`, 3);
+            s.task = { kind:'idle', t: rand(1.5, 3) };
+          }
+        }
+        break;
+      }
+      case 'inspect': {
+        const w = task.who;
+        if(walkToward(v, w.group.position.x, w.group.position.z, dt, t, 4.2)){
+          g.rotation.y = Math.atan2(w.group.position.x - g.position.x, w.group.position.z - g.position.z);
+          task.t += dt;
+          if(task.t > 4) s.task = null;
+        }
+        break;
+      }
+      case 'idle': {
+        if(v.wanderTo){
+          if(walkToward(v, v.wanderTo.x, v.wanderTo.z, dt, t, 1.0)) v.wanderTo = null;
+        }
+        task.t -= dt;
+        if(task.t <= 0) s.task = null;
+        break;
+      }
+    }
+    if(!harvestingPose){
+      s.prog = null;
+      const floor = v.links.sprungBy ? 55 : 0;   // the spring holds the notch up
+      s.work = Math.max(floor, s.work - dt * 2.2);
+    }
+  }
+
+  // ENERGY: spent per day of effort, restored only by sleep — no rest grinds you to a nub
+  if(!v.isBaby && !s.collapsed && !v.sleeping){
+    const f = harvestingPose ? 1.1 : v.walking ? 0.6 : 0.22;
+    s.energy = Math.max(0, s.energy - (dt / cycleLen) * 100 * f);
+  }
+  // lie down to sleep, rise when it ends
+  if(!v.isBaby && !s.collapsed){
+    const targZ = v.sleeping ? 1.35 : 0;
+    if(Math.abs(g.rotation.z - targZ) > 0.01)
+      g.rotation.z += (targZ - g.rotation.z) * Math.min(1, dt*3);
+  }
+
+  if(v.surfing){
+    g.position.y = 0.55 + Math.sin(simT*5 + g.position.x) * 0.14;   // riding the face of the wave
+  } else {
+    g.position.y = terrainH(g.position.x, g.position.z);
+    g.position.y += 0.4 * Math.min(1, Math.abs(g.rotation.z) / 1.4);   // lying down (sleep/collapse)
+  }
+  if(s.mood && s.mood.state === 'exult' && v.moodJump)
+    g.position.y += Math.abs(Math.sin(s.mood.t * 9)) * 1.1;
+
+  // animation
+  if(v.isBaby){
+    parts.armL.rotation.x = Math.sin(t*2.2) * 0.15;
+    parts.armR.rotation.x = -Math.sin(t*2.2) * 0.15;
+    if(faceFor(v) === 'wail'){
+      g.rotation.z = Math.sin(t*14) * 0.06;
+      parts.armL.rotation.z = -0.42 - Math.abs(Math.sin(t*14)) * 0.6;
+      parts.armR.rotation.z = 0.42 + Math.abs(Math.sin(t*14)) * 0.6;
+    } else { if(!s.collapsed && !v.sleeping) g.rotation.z = 0; parts.armL.rotation.z = -0.42; parts.armR.rotation.z = 0.42; }
+  } else if(v.walking){
+    const ph = t * 11 + g.position.x;   // desync gaits
+    parts.legL.rotation.x = Math.sin(ph) * 0.6;
+    parts.legR.rotation.x = -Math.sin(ph) * 0.6;
+    parts.armL.rotation.x = -Math.sin(ph) * 0.3;   // trimmed swing — arc stays clear of the body
+    parts.armR.rotation.x = Math.sin(ph) * 0.3;
+    parts.dress.position.y = 1.55 + Math.abs(Math.sin(ph)) * 0.1;
+    parts.headGrp.position.y = 3.55 + Math.abs(Math.sin(ph)) * 0.12;
+  } else if(harvestingPose){
+    const ph = t * 9;
+    parts.armL.rotation.x = -2.4 + Math.sin(ph) * 0.35;
+    parts.armR.rotation.x = -2.4 - Math.sin(ph) * 0.35;
+    parts.legL.rotation.x = parts.legR.rotation.x = 0;
+  } else if(feedingPose){
+    parts.armL.rotation.x = parts.armR.rotation.x = -1.5;
+    parts.legL.rotation.x = parts.legR.rotation.x = 0;
+  } else {
+    parts.legL.rotation.x = parts.legR.rotation.x = 0;
+    parts.armL.rotation.x = parts.armR.rotation.x = Math.sin(t*1.8) * 0.06;
+    parts.dress.position.y = 1.55;
+    parts.headGrp.position.y = 3.55 + Math.sin(t*1.8) * 0.04;
+  }
+
+  // face + blink
+  s.blinkT -= dt;
+  let blink = false;
+  if(s.blinkT < 0.13) blink = true;
+  if(s.blinkT <= 0){ s.blinkT = rand(2.5, 5); blink = false; }
+  const fs = faceFor(v);
+  if(fs !== s.faceState || blink !== s.faceBlink){
+    drawFace(v, fs, blink);
+    s.faceState = fs; s.faceBlink = blink;
+  }
+
+  // the hauled load tracks what's actually being carried
+  if(v.loadGrp) for(let i=0;i<6;i++) v.loadGrp.children[i].visible = i < Math.min(s.carrying, 6);
+
+  // gauge (redraw only on visible change)
+  const gk = `${Math.round(s.hunger)}|${Math.round(s.work)}|${Math.round(s.energy)}|${s.hoard}|${s.carrying}|${s.prog===null?-1:Math.round(s.prog*20)}`;
+  if(gk !== v.lastGauge){ drawGauge(v); v.lastGauge = gk; }
+}
+
+// ==================== SOFT SEPARATION ====================
+// Vitas are solid: they can't stand inside each other, a basket, or a hut.
+// Overlaps are resolved with a gentle horizontal push, terrain height preserved.
+function vitaRadius(v){ return v.isBaby ? 0.55 : 0.8; }
+function nudgeVita(v, dx, dz){
+  const g = v.group.position;
+  const h0 = terrainH(g.x, g.z);
+  g.x += dx; g.z += dz;
+  g.y += terrainH(g.x, g.z) - h0;   // keeps sleep/collapse/jump offsets intact
+}
+function pushFromObstacle(v, ox, oz, r){
+  const g = v.group.position;
+  const dx = g.x - ox, dz = g.z - oz;
+  const min = r + vitaRadius(v);
+  const d = Math.hypot(dx, dz);
+  if(d >= min) return;
+  const ux = d > 0.001 ? dx/d : 1, uz = d > 0.001 ? dz/d : 0;
+  nudgeVita(v, ux*(min - d), uz*(min - d));
+}
+function resolveCollisions(){
+  for(let i = 0; i < VITAS.length; i++){
+    const a = VITAS[i];
+    if(a.surfing) continue;   // a wave-rider's position belongs to the wave
+    for(let j = i + 1; j < VITAS.length; j++){
+      const b = VITAS[j];
+      if(b.surfing) continue;
+      const dx = b.group.position.x - a.group.position.x;
+      const dz = b.group.position.z - a.group.position.z;
+      const min = vitaRadius(a) + vitaRadius(b);
+      const d = Math.hypot(dx, dz);
+      if(d >= min) continue;
+      const push = (min - d) / 2;
+      const ux = d > 0.001 ? dx/d : 1, uz = d > 0.001 ? dz/d : 0;
+      nudgeVita(a, -ux*push, -uz*push);
+      nudgeVita(b, ux*push, uz*push);
+    }
+    // standing objects: every basket, the commons, other Vitas' huts
+    for(const o of VITAS){
+      if(o.jarGroup) pushFromObstacle(a, o.jarGroup.position.x, o.jarGroup.position.z, 1.3);
+      if(o.hut && o !== a)   // the owner may go inside to sleep
+        pushFromObstacle(a, o.hut.position.x, o.hut.position.z, o.state.hutStage >= 3 ? 2.6 : 2.1);
+    }
+    if(commons.active) pushFromObstacle(a, commons.pos.x, commons.pos.z, 1.8);   // < commonsEat arrive dist
+    // …and the fixed solids: tree trunks, ridge rocks, jetty boulders
+    for(const ob of OBSTACLES){
+      if(ob.gate && !ob.gate()) continue;   // farm palms are solid only once planted
+      pushFromObstacle(a, ob.x, ob.z, ob.r);
+    }
+  }
+}
+
+// ==================== SELECTION + X-RAY PANEL ====================
+const xrayEl = document.getElementById('xray');
+let selected = null, followCam = false, xrayT = 0;
+
+const selRing = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.85, 28),
+  new THREE.MeshBasicMaterial({ color:0xffd94a, transparent:true, opacity:0.9, side:THREE.DoubleSide }));
+selRing.rotation.x = -Math.PI/2;
+selRing.visible = false;
+scene.add(selRing);
+
+function roleOf(v){
+  if(v.isBaby) return 'DEPENDENT — produces nothing, must be fed';
+  if(v.links.springing) return 'OUTSIDE FORCE — springs a notch, skims output';
+  if(v.links.sprungBy) return `SPRUNG WORKER — clamped by ${v.links.sprungBy.name}`;
+  if(v.traits.greed > 0.6) return 'HOARDER — surplus piling up';
+  return 'FREE FORAGER';
+}
+function barHTML(frac, color){
+  return `<div class="gbar"><div style="width:${Math.round(frac*100)}%;background:${color}"></div></div>`;
+}
+function xrayRender(){
+  if(!selected){ xrayEl.style.display = 'none'; return; }
+  const v = selected, s = v.state;
+  const lk = [];
+  if(v.links.fedBy) lk.push(`<div class="lk pipe">◉ FEED PIPE ⟵ ${v.links.fedBy.name} keeps ${v.name} alive</div>`);
+  if(v.links.feeds) lk.push(`<div class="lk pipe">◉ FEED PIPE ⟶ ${v.links.feeds.name} (dependent)</div>`);
+  if(v.links.sprungBy) lk.push(
+    `<div class="lk spring">⌁ SPRING ⟵ ${v.links.sprungBy.name} clamps the work-notch</div>`,
+    `<div class="lk spring">▲ OUTPUT ⟶ 2 of every 3 fruits pipe to ${v.links.sprungBy.name}</div>`);
+  if(v.links.springing) lk.push(
+    `<div class="lk spring">⌁ SPRING ⟶ clamped on ${v.links.springing.name}'s work-notch</div>`,
+    `<div class="lk spring">▼ OUTPUT ⟵ ${v.links.springing.name}'s harvest flows here</div>`);
+  if(!lk.length) lk.push('<div class="lk none">no links — self-sufficient</div>');
+  xrayEl.innerHTML =
+    `<h3>${v.name.toUpperCase()} <span id="xclose">✕</span></h3>
+     <div class="role">${roleOf(v)}</div>
+     <div class="grow"><span class="glbl">HUNGER</span>${barHTML(s.hunger/100, `hsl(${(1-s.hunger/100)*110},72%,52%)`)}<span class="gnum">${Math.round(s.hunger)}</span></div>
+     <div class="grow"><span class="glbl">WORK</span>${barHTML(s.work/100, '#ffb340')}<span class="gnum">${Math.round(s.work)}</span></div>
+     ${v.isBaby ? '' : `<div class="grow"><span class="glbl">REST</span>${barHTML(s.energy/100, s.energy < 25 ? '#ff6a55' : '#6fd3ff')}<span class="gnum">${Math.round(s.energy)}</span></div>`}
+     <div class="grow"><span class="glbl">HOARD</span>${barHTML(Math.min(1, s.hoard/14), '#ffd94a')}<span class="gnum">${s.hoard}</span></div>
+     ${s.carrying ? `<div class="grow"><span class="glbl">CARRY</span><span style="color:#ffd94a;font-weight:700">${'●'.repeat(s.carrying)}</span></div>` : ''}
+     <div class="links">${lk.join('')}</div>
+     <div class="traits">drives · <b>industry</b> ${'▮'.repeat(Math.round(v.traits.industry*5))||'▯'} &nbsp; <b>greed</b> ${'▮'.repeat(Math.round(v.traits.greed*5))||'▯'}</div>`;
+  xrayEl.style.display = 'block';
+}
+xrayEl.addEventListener('click', e => {
+  if(e.target.id === 'xclose'){ selected = null; followCam = false; xrayRender(); refreshChips(); }
+});
+function refreshChips(){
+  for(const v of VITAS) v.chip.classList.toggle('sel', v === selected);
+}
+// ---- FOLLOW CAM: double-click a Vita (or its name) and the camera trails them around ----
+let chase = null;   // {v}
+const _camDes = new THREE.Vector3(), _lookDes = new THREE.Vector3();
+function startChase(v){
+  endChase();
+  selectVita(v);
+  chase = { v, heading: v.group.rotation.y };
+  controls.enabled = false;
+  setHint(`🎥 following ${v.name} around the island — drag or tap anywhere to break away`, 6);
+}
+function endChase(){
+  if(!chase) return;
+  chase = null;
+  controls.enabled = true;   // eases back to the normal follow-cam on the selected Vita
+}
+
+let dollyTo = null;
+function selectVita(v, zoom){
+  selected = v; followCam = true; lookTarget = null; marker.visible = false;
+  dollyTo = zoom ? 24 : null;   // tapping the character zooms the camera in
+  v.gauge.visible = true;       // bars pop up temporarily on click…
+  v.gauge.material.opacity = 1;
+  v.gaugeShowT = 15;            // …and FADE away after ~15s
+  xrayRender(); refreshChips();
+}
+
+// ---- click a connection → it explains itself in plain language ----
+function explainLink(l){
+  const a = l.from.name, b = l.to.name;
+  const text =
+    l.type === 'spring'  ? `⌁ COERCION SPRING — ${a}'s spring pins ${b}'s work-notch high: ${b} must keep producing and eats last. Arm ✂ and tap ${b} to snap it` :
+    l.type === 'extract' ? `▲ EXTRACTION PIPE — 2 of every 3 fruits ${a} gathers flow up this pipe into ${b}'s hoard` :
+                           `◉ FEED PIPE — ${a} feeds ${b}, who produces nothing yet; this pipe is what keeps ${b} alive`;
+  setHint(text, 8);
+  l.mat.linewidth = (gmode ? 0.32 : 0.2) + 0.3;   // flash the clicked link fatter
+  setTimeout(()=>{ l.mat.linewidth = gmode ? 0.32 : 0.2; }, 1500);
+}
+
+// ==================== GEORGEOMAT VIEW ====================
+let gmode = false;
+const gbtn = document.getElementById('gbtn');
+function setGMode(on){
+  gmode = on;
+  scene.background = on ? SKY_G : SKY;
+  scene.fog.color.copy(on ? SKY_G : SKY);
+  terrain.material = on ? matTerrainG : matTerrain;
+  terrainWire.visible = on;
+  flora.visible = !on;
+  cloudGroup.visible = !on;
+  fishGroup.visible = !on;
+  surfGroup.visible = !on;
+  oceanLife.visible = !on;
+  water.visible = !on;
+  deep.material.color.set(on ? 0x12181e : 0x1d7fa0);
+  gMarkers.visible = on;
+  sun.intensity = on ? 0.9 : 1.6;
+  hemi.intensity = on ? 0.55 : 0.95;
+  if(on){   // freeze lighting so the blueprint stays readable at any hour
+    sun.color.set(0xfff2d8);
+    sun.position.set(70, 110, 40);
+    hemi.color.set(0xd6ecff); hemi.groundColor.set(0xb7d59a);
+    fill.intensity = 0.4;
+    sunDisc.visible = moonDisc.visible = false;
+    nightStars.visible = false;
+    arcRibbon.visible = false;
+    for(const f of fires){ f.flame.visible = f.glow.visible = false; f.light.intensity = 0; }
+  }
+  for(const v of VITAS){
+    for(const [mesh, mat] of v.bodyMeshes) mesh.material = on ? matMetalBody : mat;
+    v.facePlane.visible = !on;
+    v.plate.visible = on;
+    v.gauge.scale.set(on ? 7.0 : 6.0, on ? 3.69 : 3.16, 1);
+  }
+  for(const l of links){ l.mat.linewidth = on ? 0.32 : 0.2; l.mat.opacity = on ? 1 : 0.9; }
+  gbtn.classList.toggle('on', on);
+  whylineEl.style.display = (on && drama) ? 'block' : 'none';
+  if(drama && drama.i >= 0 && drama.i < drama.beats.length){
+    const bt = drama.beats[drama.i];
+    drawBubbleText(bt.who === 'a' ? drama.a : drama.b, bt.text);
+  }
+  setHint(on ? 'GEORGEOMAT VIEW — the characters drop away; the machine and its links stay'
+             : 'Back to the island', 3.5);
+}
+gbtn.addEventListener('click', ()=>setGMode(!gmode));
+
+// ---- the WIRES switch: declutter — hide every spring/pipe and its pulses ----
+const wbtn = document.getElementById('wbtn');
+function setWires(on){
+  wiresOn = on;
+  for(const l of links) l.line.visible = on;
+  if(!on) for(const p of pulses){ p.pts = null; p.m.visible = false; }
+  wbtn.textContent = on ? '⌇ WIRES ON' : '⌇ WIRES OFF';
+  wbtn.classList.toggle('off', !on);
+  setHint(on ? '⌇ the wiring is back — springs and pipes visible'
+             : '⌇ wiring hidden — just the island and its people. Tap WIRES (or W) to show it again', 5);
+}
+wbtn.addEventListener('click', ()=>setWires(!wiresOn));
+
+// ==================== GAME LAYER: COMMONS + LEVERS + METRICS ====================
+// the player's hands on the society, and the value-judgment scoreboard.
+
+// ---- the commons: a shared hoard on the beach ----
+const commons = { active:false, hoard:0, pos:new THREE.Vector3(), group:null, jarFruit:[] };
+{
+  const cx = -14, cz = 54;
+  commons.pos.set(cx, terrainH(cx, cz), cz);
+  const g = new THREE.Group();
+  const basket = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 1.6, 1.25, 11, 1, true),
+    new THREE.MeshLambertMaterial({ color:0xc98d4e, flatShading:true, side:THREE.DoubleSide }));
+  basket.position.y = 0.62;
+  g.add(basket);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.13, 6, 14), matTrunk);
+  rim.rotation.x = Math.PI/2; rim.position.y = 1.25;
+  g.add(rim);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 3.6, 5), matTrunk);
+  pole.position.set(2.5, 1.8, 0);
+  g.add(pole);
+  const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.8),
+    new THREE.MeshLambertMaterial({ color:0x2c8d7a, side:THREE.DoubleSide }));
+  banner.position.set(3.25, 3.2, 0);
+  g.add(banner);
+  for(let i=0;i<26;i++){
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.26, 6, 5), i%2 ? matFig : matDate);
+    const a = i*2.39996, r = 0.3 + 1.35*Math.sqrt((i%13)/13);
+    f.position.set(Math.cos(a)*r, 1.3 + Math.floor(i/13)*0.45, Math.sin(a)*r);
+    f.visible = false;
+    g.add(f);
+    commons.jarFruit.push(f);
+  }
+  g.position.copy(commons.pos);
+  g.visible = false;
+  scene.add(g);
+  commons.group = g;
+}
+function updateCommonsJar(){
+  for(let i=0;i<commons.jarFruit.length;i++) commons.jarFruit[i].visible = i < commons.hoard;
+}
+function commonsAdd(n, fromPos){
+  commons.hoard = Math.min(hasTech(T_STORAGE) ? 40 : 30, commons.hoard + n);
+  updateCommonsJar();
+  if(fromPos) sendPulse([fromPos.clone().add(new THREE.Vector3(0, 2.2, 0)),
+                         commons.pos.clone().add(new THREE.Vector3(0, 1.6, 0))], 0x5fe3d8);
+}
+
+// ---- lever DOM + arming ----
+const leverEls = {
+  tax: document.getElementById('lv-tax'),
+  snap: document.getElementById('lv-snap'),
+  commons: document.getElementById('lv-commons'),
+  land: document.getElementById('lv-land'),
+};
+let armed = null;
+function disarm(){
+  armed = null;
+  leverEls.tax.classList.remove('armed');
+  leverEls.snap.classList.remove('armed');
+}
+function armLever(kind){
+  if(armed === kind){ disarm(); return; }
+  disarm();
+  armed = kind;
+  leverEls[kind].classList.add('armed');
+  setHint(kind === 'tax'
+    ? '💰 TAX armed — tap the Vita whose hoard you want to drain into the common pot'
+    : '✂ SNAP armed — tap a sprung worker (or the boss) to break the coercion spring', 8);
+}
+leverEls.tax.addEventListener('click', ()=>armLever('tax'));
+leverEls.snap.addEventListener('click', ()=>armLever('snap'));
+leverEls.commons.addEventListener('click', ()=>{ seedCommons(); });
+leverEls.land.addEventListener('click', ()=>{
+  if(!hasTech(T_LAW)){
+    setHint('⚖ the LAND TAX needs LAW & WRITING — this society hasn\'t invented rules yet', 5);
+    return;
+  }
+  setLandTax(!landTax);
+});
+
+function seedCommons(quiet){
+  if(commons.active) return;
+  commons.active = true;
+  commons.hoard = 3;   // a starter stock
+  commons.group.visible = true;
+  updateCommonsJar();
+  leverEls.commons.classList.add('done');
+  leverEls.commons.querySelector('small').textContent = 'standing — shared by all';
+  if(!quiet){
+    recordEvent('commons', 'the COMMONS was seeded');
+    setHint('⚘ A COMMONS now stands on the beach — free Vitas share into it, the hungry draw from it', 7);
+    burst(commons.pos.clone().add(new THREE.Vector3(0, 1.5, 0)), 16, 4.5);
+    flashMetrics();
+  }
+}
+
+let landTax = false;
+function setLandTax(on, quiet){
+  if(landTax === on) return;
+  landTax = on;
+  if(on && !commons.active) seedCommons(quiet);
+  leverEls.land.classList.toggle('on', on);
+  leverEls.land.querySelector('small').textContent =
+    on ? 'ON — hoards leak, the skim is taxed' : 'big hoards fund the commons';
+  if(!quiet){
+    recordEvent('land', on ? 'LAND TAX enacted' : 'LAND TAX repealed');
+    setHint(on ? '⚖ LAND TAX ON — swollen hoards leak into the commons and half the boss\'s skim is intercepted'
+               : '⚖ LAND TAX repealed — hoards keep what they grab', 7);
+    flashMetrics();
+  }
+}
+
+// ---- the two targeted actions ----
+function removeLink(from, to, type){
+  const i = links.findIndex(l => l.type === type && l.from === from && l.to === to);
+  if(i < 0) return;
+  const l = links[i];
+  scene.remove(l.line);
+  l.line.geometry.dispose();
+  l.mat.dispose();
+  links.splice(i, 1);
+}
+function snapSpring(worker){
+  const bossV = worker.links.sprungBy;
+  if(!bossV) return;
+  removeLink(bossV, worker, 'spring');
+  removeLink(worker, bossV, 'extract');
+  bossV.links.springing = null;
+  worker.links.sprungBy = null;
+  for(const nm of worker.notchMeshes) nm.material = matNotch;
+  bossV.state.clampCd = 45;         // chastened — no re-clamp for a while
+  worker.state.work = Math.min(worker.state.work, 40);
+  setMood(worker, 'exult', 2.6);
+  setMood(bossV, 'wail', 2.0);
+  burst(worker.group.position, 16, 4.5);
+  recordEvent('snap', `the spring on ${worker.name} was SNAPPED`);
+  setHint(`✂ SNAPPED! ${worker.name} is free — the extraction pipe to ${bossV.name} is gone. Watch the metrics climb`, 7);
+  flashMetrics();
+}
+function taxHoard(v){
+  const take = Math.floor(v.state.hoard / 2);
+  if(take <= 0){ setHint(`${v.name}'s hoard is too thin to tax`, 3.5); return; }
+  v.state.hoard -= take;
+  updateJar(v);
+  setMood(v, 'wail', 1.8);
+  let pot = take;
+  if(commons.active && pot > 1){   // a cut tops up the commons first
+    const c = Math.ceil(pot * 0.34);
+    commonsAdd(c, v.jarGroup.position);
+    pot -= c;
+  }
+  const others = VITAS.filter(o => o !== v && !o.isBaby)
+    .sort((a,b) => (a.state.hoard + a.state.carrying) - (b.state.hoard + b.state.carrying));
+  let i = 0;
+  while(pot > 0 && others.length){
+    const o = others[i % others.length];
+    o.state.hoard++;
+    o.state.totalGained++;
+    updateJar(o);
+    checkHut(o);
+    sendPulse([v.jarGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)),
+               o.jarGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0))], 0xffd94a);
+    setMood(o, 'exult', 1.5);
+    pot--; i++;
+  }
+  recordEvent('tax', `${v.name}'s hoard was TAXED — ${take} units redistributed`);
+  setHint(`💰 ${v.name}'s hoard taxed — ${take} units flow to ${commons.active ? 'the commons and ' : ''}the poorest`, 6);
+  flashMetrics();
+}
+function applyLever(v){
+  if(armed === 'tax') taxHoard(v);
+  else if(armed === 'snap'){
+    const worker = v.links.sprungBy ? v : v.links.springing;
+    if(worker) snapSpring(worker);
+    else setHint(`no spring touches ${v.name} — tap a sprung worker or a boss`, 4);
+  }
+  disarm();
+}
+
+// ---- event pips on the history scrubber ----
+const events = [];   // {t, kind, label}
+const EVENT_COLORS = { spring:'#ff5340', collapse:'#b06df0', hut:'#ffd94a',
+  snap:'#7ed957', tax:'#ffb340', commons:'#5fe3d8', land:'#6fa8ff', tech:'#e8eef3',
+  fun:'#ff9ad5', flock:'#c9a85c', hoard:'#e0b64a', turtle:'#7fc9a0' };
+function recordEvent(kind, label){
+  const last = events[events.length - 1];
+  if(last && last.label === label && Math.abs(histClock - last.t) < 3) return;   // replay dedupe
+  events.push({ t: histClock, kind, label });
+}
+
+// ---- the CHRONICLE: readable one-line history, each line a door back in time ----
+const eventlogEl = document.getElementById('eventlog');
+let lastLogKey = '';
+function fmtT(t){ return Math.floor(t/60) + ':' + String(Math.floor(t%60)).padStart(2, '0'); }
+function renderLog(){
+  // rebuild the DOM only when the EVENT LIST changes — never per sim-second,
+  // so the player can scroll the chronicle while time runs
+  const key = events.length + '|' + timeMode;
+  if(key !== lastLogKey){
+    lastLogKey = key;
+    const stick = eventlogEl.scrollHeight - eventlogEl.scrollTop - eventlogEl.clientHeight < 16;
+    let html = '<div class="evlabel">⏱ THE CHRONICLE — click a moment to rewind to it</div>';
+    events.forEach((ev, i) => {
+      html += `<div class="evline" data-i="${i}">`
+        + `<span class="evt">${fmtT(ev.t)}</span>`
+        + `<span class="evdot" style="background:${EVENT_COLORS[ev.kind] || '#8b95a0'}"></span>`
+        + `${ev.label}</div>`;
+    });
+    if(!events.length) html += '<div class="evline future">the chronicle begins…</div>';
+    eventlogEl.innerHTML = html;
+    if(stick) eventlogEl.scrollTop = eventlogEl.scrollHeight;
+  }
+  // the passing of time only re-marks the future flags in place
+  for(const line of eventlogEl.querySelectorAll('.evline[data-i]')){
+    const ev = events[+line.dataset.i];
+    if(ev) line.classList.toggle('future', ev.t > histClock + 0.5);
+  }
+}
+function jumpToEvent(ev){
+  if(!history.length) return;
+  if(timeMode === 'play') pushSnapshot();
+  let best = 0;
+  for(let i = 0; i < history.length; i++)
+    if(Math.abs(history[i].t - ev.t) < Math.abs(history[best].t - ev.t)) best = i;
+  timeMode = 'scrub';
+  restoreAt(best);
+  setPaused(true);
+  setHint(`⏪ rewound to “${ev.label}” — ▶ / Space / the slider plays forward from here (a new history begins)`, 10);
+}
+eventlogEl.addEventListener('click', e => {
+  const line = e.target.closest('.evline');
+  if(!line || line.dataset.i === undefined) return;
+  const ev = events[+line.dataset.i];
+  if(ev) jumpToEvent(ev);
+});
+
+// ---- the metrics: four judgments of the same society ----
+let outputEMA = 0;
+function happinessOf(v){
+  const s = v.state;
+  if(s.collapsed) return 4;
+  let h = 100 - s.hunger;
+  if(v.links.sprungBy) h -= 28;                       // coercion is misery
+  if(!v.isBaby) h -= (100 - s.energy) * 0.15;         // so is exhaustion
+  if(!v.isBaby) h += Math.min(s.hoard, 10) * 3 + s.hutStage * 4;   // security
+  if(v.isBaby && v.links.fedBy) h += 8;
+  if(commons.active && commons.hoard > 0) h += 5;     // a floor under everyone
+  return clamp(h, 0, 100);
+}
+function computeMetrics(){
+  const all = VITAS.map(happinessOf);
+  const adults = VITAS.filter(v => !v.isBaby).sort((a,b) => b.state.hoard - a.state.hoard);
+  return {
+    everyone: all.reduce((a,b)=>a+b, 0) / all.length,
+    output: clamp(outputEMA, 0, 100),
+    elite: (happinessOf(adults[0]) + happinessOf(adults[1])) / 2,
+    floor: Math.min(...all),
+  };
+}
+const mEls = {
+  everyone: [document.getElementById('m-everyone'), document.getElementById('mb-everyone')],
+  output:   [document.getElementById('m-output'),   document.getElementById('mb-output')],
+  elite:    [document.getElementById('m-elite'),    document.getElementById('mb-elite')],
+  floor:    [document.getElementById('m-floor'),    document.getElementById('mb-floor')],
+};
+const mPrev = { everyone:null, output:null, elite:null, floor:null };
+let mTick = 0;
+function renderMetrics(){
+  const m = computeMetrics();
+  const rebase = (mTick++ % 12) === 0;   // trend arrows compare against ~3s ago
+  for(const k in mEls){
+    const val = Math.round(m[k]);
+    const prev = mPrev[k];
+    let trend = '';
+    if(prev !== null && val - prev >= 2) trend = '<span class="trend" style="color:#7ed957">▲</span>';
+    else if(prev !== null && prev - val >= 2) trend = '<span class="trend" style="color:#ff8272">▼</span>';
+    mEls[k][0].innerHTML = val + trend;
+    mEls[k][1].style.width = val + '%';
+    if(rebase || prev === null) mPrev[k] = val;
+  }
+}
+function flashMetrics(){
+  for(const tile of document.querySelectorAll('.mtile')){
+    tile.classList.add('flash');
+    setTimeout(()=>tile.classList.remove('flash'), 900);
+  }
+}
+
+// ==================== THE LIGHT TECH TREE ====================
+// seven arts that unfold, in order, as the society develops — and fold back
+// when the scrubber rewinds past their discovery.
+const T_TOOLS = 1, T_STORAGE = 2, T_FARM = 3, T_BUILD = 4, T_TRADE = 5, T_LAW = 6;
+let techMask = 1, totalHarvests = 0, springSeen = false;
+function hasTech(i){ return !!(techMask & (1 << i)); }
+// PACING: each art must be LIVED IN before the next arrives — thresholds are
+// high enough that the society operates at a level (builds reserves, or
+// suffers it) for a good stretch, AND a minimum dwell time gates every unlock.
+const TECH_DWELL = 200;   // sim-seconds a level must breathe before the next can land
+let lastTechT = 0;
+const TECHS = [
+  { name:'FORAGING',      desc:'pick what the land gives',          cond:()=>true },
+  { name:'TOOLS',         desc:'faster hands, easier ridge',        cond:()=>totalHarvests >= 25 },
+  { name:'STORAGE',       desc:'bigger jars, deeper hoards',        cond:()=>VITAS.some(v => v.state.hoard >= 6) },
+  { name:'FARMING',       desc:'planted groves — land gains value', cond:()=>VITAS.reduce((a,v)=>a+v.state.hoard, 0) + commons.hoard >= 16 },
+  { name:'BUILDING',      desc:'hoards raise habitations',          cond:()=>VITAS.some(v => v.state.totalGained >= 14) },
+  { name:'TRADE',         desc:'surplus moves between camps',       cond:()=>VITAS.filter(v => !v.isBaby && v.state.hoard >= 5).length >= 2 || totalHarvests >= 90 },
+  { name:'LAW & WRITING', desc:'rules, taxes, the single tax',      cond:()=>springSeen || totalHarvests >= 130 },
+];
+const TECH_HINTS = [null,
+  '🛠 TOOLS discovered — harvesting is faster and the ridge is easier to climb',
+  '🏺 STORAGE discovered — jars hold more; surplus can pile up (and so can trouble)',
+  '🌱 FARMING discovered — new date palms planted near home: land itself now holds value',
+  '🏠 BUILDING discovered — a deep enough hoard can now raise a habitation',
+  '⇄ TRADE discovered — surplus starts moving between camps',
+  '⚖ LAW & WRITING discovered — rules exist: the LAND TAX lever is unlocked',
+];
+// FARMING's planted grove: two young date palms, hidden until the art is known
+const farmPlots = [];
+for(const [fx, fz] of [[-24, 40], [8, 40]]){
+  makeDatePalm(fx, fz);
+  OBSTACLES.push({ x:fx, z:fz, r:0.55, gate: ()=>hasTech(T_FARM) });   // solid once planted
+  const h = harvestables[harvestables.length - 1];
+  h.locked = true;
+  h.hasFruit = false;
+  h.fruit.visible = false;
+  h.treeGrp = flora.children[flora.children.length - 1];
+  h.treeGrp.visible = false;
+  const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.9),
+    new THREE.MeshBasicMaterial({ color:0xffb340, transparent:true }));
+  m.position.set(h.pos.x, h.pos.y + 3.4, h.pos.z);
+  m.visible = false;
+  gMarkers.add(m);
+  h.marker = m;
+  farmPlots.push(h);
+}
+const techtreeEl = document.getElementById('techtree');
+const techNodeEls = TECHS.map((tk, i) => {
+  const d = document.createElement('div');
+  d.className = 'tnode';
+  d.innerHTML = `${tk.name}<small>${tk.desc}</small>`;
+  techtreeEl.appendChild(d);
+  return d;
+});
+function landLeverLockText(){
+  leverEls.land.querySelector('small').textContent =
+    !hasTech(T_LAW) ? '🔒 needs LAW & WRITING' :
+    landTax ? 'ON — hoards leak, the skim is taxed' : 'big hoards fund the commons';
+}
+function applyTechVisuals(){
+  for(const h of farmPlots){
+    h.locked = !hasTech(T_FARM);
+    h.treeGrp.visible = !h.locked;
+    h.marker.visible = !h.locked;   // the gMarkers group itself gates georgeomat view
+    if(h.locked){ h.hasFruit = false; h.fruit.visible = false; h.claim = null; }
+  }
+}
+function renderTechTree(){
+  techNodeEls.forEach((el, i) => el.classList.toggle('lit', hasTech(i)));
+}
+function applyTechState(mask){   // scrub/restore path: fold the tree to this moment
+  if(mask === techMask) return;
+  techMask = mask;
+  renderTechTree();
+  applyTechVisuals();
+  landLeverLockText();
+}
+// ---- the ADO: pause the world, superimpose the moment, then play the benefit ----
+const adoboxEl = document.getElementById('adobox');
+function showAdo(kick, title, body, secs, demo){
+  cinematic = secs;
+  pendingDemo = demo || null;
+  // festive confetti raining down behind the type
+  const CC = ['#ffe066','#7ed957','#5fe3d8','#ff9ad5','#ffffff','#ffb340'];
+  let conf = '';
+  for(let i=0;i<18;i++){
+    conf += `<i class="conf" style="left:${(2+Math.random()*95).toFixed(1)}%;`
+      + `background:${CC[i%CC.length]};`
+      + `animation-duration:${(2.2+Math.random()*1.9).toFixed(2)}s;`
+      + `animation-delay:${(Math.random()*2.4).toFixed(2)}s"></i>`;
+  }
+  adoboxEl.innerHTML = conf
+    + `<div class="adokick">✦ ${kick} ✦</div><h2>${title}</h2><p>${body}</p>`
+    + `<div class="adosub">🎉 time is paused — tap to continue</div>`;
+  adoboxEl.style.display = 'block';
+}
+function endAdo(){
+  cinematic = 0;
+  adoboxEl.style.display = 'none';
+  const d = pendingDemo;
+  pendingDemo = null;
+  if(d) d();
+}
+function cancelAdo(){
+  pendingDemo = null; cinematic = 0; adoboxEl.style.display = 'none';
+  demoSeq = null; demoClamp = 0;
+  for(const v of VITAS) v.demoSlow = false;
+}
+adoboxEl.addEventListener('click', endAdo);
+
+// ---- demo sequences: timed steps so a discovery has room to BREATHE.
+// while one runs, sim speed is clamped to 1× so the before→after reads.
+let demoSeq = null, demoClamp = 0;
+function runDemo(steps){
+  demoSeq = { steps, t:0, i:0 };
+  demoClamp = steps[steps.length - 1].at + 5;
+}
+function stepDemo(dt){
+  if(paused) return;   // pausing the world pauses the discovery story too
+  if(demoClamp > 0) demoClamp -= dt;
+  if(!demoSeq || cinematic > 0) return;
+  demoSeq.t += dt;
+  while(demoSeq.i < demoSeq.steps.length && demoSeq.t >= demoSeq.steps[demoSeq.i].at){
+    demoSeq.steps[demoSeq.i].fn();
+    demoSeq.i++;
+  }
+  if(demoSeq.i >= demoSeq.steps.length) demoSeq = null;
+}
+function sendToHarvest(w){
+  releaseClaim(w);
+  w.state.prog = null;
+  const h = chooseTree(w);
+  if(h){ h.claim = w; w.state.task = { kind:'harvest', h }; }
+}
+
+const TECH_STORY = [null,
+  'Sharpened stone, lashed handles. Work now yields more per hour — harvests come quicker and the ridge climb costs less.',
+  'Woven jars keep fruit for later. Surplus can now ACCUMULATE — the seed of security… and of hoards.',
+  'Why cross the ridge every day? Plant the date palm HERE. Land near home becomes productive — and valuable. Wherever land differs, rent is waiting to be born.',
+  'Surplus becomes shelter. A deep enough hoard now raises a habitation — and a roofline announces its owner\'s standing.',
+  'Two surpluses meet and both sides gain. Goods start moving between camps with no spring in sight.',
+  'Rules can now be written down — including the georgist one: tax the LAND\'s value and fund the commons. The ⚖ lever is unlocked.',
+];
+function focusVita(v){ if(v) selectVita(v, true); }
+function techDemo(i){
+  const adults = VITAS.filter(v => !v.isBaby && !v.state.collapsed);
+  switch(i){
+    // Each demo is a real STORY, told slowly: the PROBLEM gets two or three held
+    // beats (a Vita visibly struggling), then the DISCOVERY, then a long
+    // before→after you can actually watch land. ~60-70s each, sim clamped to 1×.
+    case T_TOOLS: {
+      const w = adults.find(v => !v.state.task || ['idle','harvest'].includes(v.state.task.kind)) || adults[0];
+      if(!w) break;
+      runDemo([
+        { at:0, fn(){ w.demoSlow = true; sendToHarvest(w); startChase(w);
+            setHint(`THE PROBLEM — ${w.name} claws at the tree bare-handed. Every single fruit is a slog…`, 12); } },
+        { at:12, fn(){ setHint(`…watch the orange WORK bar crawl while the fruit barely comes. Bare hands are slow hands.`, 12); } },
+        { at:24, fn(){ setHint(`…a whole morning's strength for a handful of figs. There HAS to be a better way.`, 11); } },
+        { at:35, fn(){ burst(w.group.position.clone().add(new THREE.Vector3(0, 3, 0)), 16, 4);
+            setHint(`⚡ THE DISCOVERY — ${w.name} lashes a sharpened stone to a handle: TOOLS.`, 11); } },
+        { at:46, fn(){ w.demoSlow = false; sendToHarvest(w);
+            setHint(`NOW WATCH — the same tree, the same ${w.name}, tool in hand. Compare the pace…`, 12); } },
+        { at:58, fn(){ setHint(`…the harvest bar fills nearly TWICE as fast now. Same sweat — more fruit.`, 11); } },
+        { at:69, fn(){ endChase();
+            setHint('That gap is PRODUCTIVITY. Every art the society discovers from here climbs on it', 11); } },
+      ]);
+      break;
+    }
+    case T_STORAGE: {
+      const rich = adults.slice().sort((a,b)=>b.state.hoard-a.state.hoard)[0];
+      if(!rich) break;
+      runDemo([
+        { at:0, fn(){ focusVita(rich);
+            setHint(`THE PROBLEM — ${rich.name}'s little jar holds just 4 fruits. Look at it beside the camp…`, 12); } },
+        { at:12, fn(){ setHint(`…everything past four spoils on the sand. Good harvests ROT while lean days still come.`, 12); } },
+        { at:24, fn(){ setHint('…plenty today, hunger tomorrow, and nowhere to carry today into tomorrow.', 11); } },
+        { at:35, fn(){ burst(rich.jarGroup.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 16, 3.5);
+            setHint('⚡ THE DISCOVERY — reeds woven deep and tight: STORAGE jars.', 11); } },
+        { at:46, fn(){ focusVita(rich);
+            setHint(`NOW WATCH ${rich.name}'s basket — harvests stack to NINE and wait patiently for the lean days…`, 12); } },
+        { at:58, fn(){ setHint('…surplus can finally ACCUMULATE. Security at last — food that outlives the day it was picked…', 11); } },
+        { at:69, fn(){ setHint('…and the same jars are the seed of HOARDS. What can be kept can be kept from others', 11); } },
+      ]);
+      break;
+    }
+    case T_FARM: {
+      const climber = adults.filter(v=>v.traits.industry > 0.5)[0] || adults[0];
+      runDemo([
+        { at:0, fn(){ if(climber) startChase(climber);
+            setHint(`THE PROBLEM — every date means the ridge: ${climber ? climber.name : 'a Vita'} burns half the day just WALKING…`, 12); } },
+        { at:12, fn(){ setHint('…a hard climb there, a hard climb home. Watch the REST bar drain on the rock.', 12); } },
+        { at:24, fn(){ setHint('…strength spent on stone instead of fruit, day after day after day.', 11); } },
+        { at:35, fn(){ endChase(); selected = null; followCam = false; xrayRender(); refreshChips();
+            const h = farmPlots[0];
+            lookTarget = new THREE.Vector3(h.pos.x, h.pos.y + 4, h.pos.z);
+            for(const p of farmPlots) burst(new THREE.Vector3(p.pos.x, p.pos.y + 2, p.pos.z), 16, 4);
+            setHint('⚡ THE DISCOVERY — plant the seed HERE instead. Young date palms rise by the beach: FARMING.', 12); } },
+        { at:47, fn(){ setHint('LOOK — two new palms stand a short stroll from camp. No ridge, no climb…', 12); } },
+        { at:59, fn(){ setHint('…the near land now yields like the far land, so the near land is suddenly worth MORE…', 11); } },
+        { at:70, fn(){ setHint('…and wherever one patch of land beats another, RENT is waiting to be born. Remember this beach', 11); } },
+      ]);
+      break;
+    }
+    case T_BUILD: {
+      const b = adults.slice().sort((a,b)=>b.state.totalGained-a.state.totalGained)[0];
+      runDemo([
+        { at:0, fn(){ focusVita(b);
+            setHint(`THE PROBLEM — night after night, ${b ? b.name : 'a Vita'} sleeps on open sand beside a full jar…`, 12); } },
+        { at:12, fn(){ setHint('…wealth in the basket, rain on the head. Surplus that shelters NOBODY.', 12); } },
+        { at:24, fn(){ setHint('…what good is a deep hoard if the night is still cold?', 11); } },
+        { at:35, fn(){ setHint('⚡ THE DISCOVERY — posts, thatch, walls: surplus turned into SHELTER. BUILDING.', 11); } },
+        { at:46, fn(){ for(const v of VITAS) if(!v.isBaby) checkHut(v);
+            if(b) focusVita(b);
+            setHint('NOW WATCH the camps — the deep hoards raise their roofs, stage by stage…', 12); } },
+        { at:58, fn(){ setHint('…lean-to, hut, house: the habitation ladder. Comfort climbs with the hoard…', 11); } },
+        { at:69, fn(){ setHint('…and a roofline tells everyone who owns what. STANDING has learned to show itself', 11); } },
+      ]);
+      break;
+    }
+    case T_TRADE: {
+      const rich = adults.filter(v=>v.traits.greed<=0.6).sort((a,b)=>b.state.hoard-a.state.hoard)[0];
+      runDemo([
+        { at:0, fn(){ focusVita(rich || adults[0]);
+            setHint(`THE PROBLEM — ${rich ? rich.name : 'one camp'} has figs to spare; another camp is short. Both just sit there…`, 12); } },
+        { at:12, fn(){ setHint('…a surplus is useless to its owner past a full belly. Wealth stuck in place.', 12); } },
+        { at:24, fn(){ setHint('…one basket overflows while another echoes. The island is rich and hungry at once.', 11); } },
+        { at:35, fn(){ setHint('⚡ THE DISCOVERY — the swap. My extra for your extra: TRADE.', 11); } },
+        { at:46, fn(){ const giver = tradeGift();
+            if(giver) focusVita(giver);
+            setHint('NOW WATCH the pale-blue pulse — surplus drifting camp to camp, to whoever needs it…', 12); } },
+        { at:58, fn(){ const giver = tradeGift();
+            if(giver) focusVita(giver);
+            setHint('…there goes another. Both sides better off, and not a coercion spring in sight…', 11); } },
+        { at:69, fn(){ setHint('…that is EXCHANGE — the free kind of flow. Keep it in mind when you meet the other kind', 11); } },
+      ]);
+      break;
+    }
+    case T_LAW: {
+      const sprung = VITAS.find(v => v.links.sprungBy);
+      runDemo([
+        { at:0, fn(){ focusVita(sprung || adults[0]);
+            setHint(sprung
+              ? `THE PROBLEM — ${sprung.links.sprungBy.name}'s spring answers to NOBODY. ${sprung.name} just endures it…`
+              : 'THE PROBLEM — springs and hoards answer to NOBODY: the strong write their own rules…', 12); } },
+        { at:12, fn(){ setHint('…custom has no teeth, and the machine grinds whoever it happens to grip.', 12); } },
+        { at:24, fn(){ setHint('…every rule so far has been the whim of whoever holds the biggest hoard.', 11); } },
+        { at:35, fn(){ setHint('⚡ THE DISCOVERY — writing. Rules that can be READ, kept, and outlive the strong: LAW.', 11); } },
+        { at:46, fn(){ leverEls.land.classList.add('pulse');
+            setTimeout(()=>leverEls.land.classList.remove('pulse'), 4000);
+            setHint('NOW — society can enact the georgist rule: TAX THE LAND\'s value and fund the commons…', 12); } },
+        { at:58, fn(){ leverEls.land.classList.add('pulse');
+            setTimeout(()=>leverEls.land.classList.remove('pulse'), 4000);
+            setHint('…the ⚖ LAND TAX lever (lower right) is unlocked and pulsing. It is yours to pull…', 11); } },
+        { at:69, fn(){ setHint('…pull it and watch the WORST-OFF metric — law is a tool, and tools cut both ways', 11); } },
+      ]);
+      break;
+    }
+  }
+}
+function unlockTech(i){
+  techMask |= (1 << i);
+  lastTechT = histClock;
+  renderTechTree();
+  applyTechVisuals();
+  recordEvent('tech', `discovered ${TECHS[i].name}`);
+  if(i === T_LAW) landLeverLockText();
+  showAdo('DISCOVERY', TECHS[i].name, TECH_STORY[i], 8, ()=>techDemo(i));
+}
+function checkTechs(){
+  for(let i = 1; i < TECHS.length; i++){
+    if(hasTech(i)) continue;
+    if(hasTech(i - 1) && histClock - lastTechT >= TECH_DWELL && TECHS[i].cond()) unlockTech(i);
+    break;   // the arts come one at a time, in order — and each one BREATHES first
+  }
+}
+renderTechTree();
+landLeverLockText();
+recordEvent('fun', 'a little society begins on the island');
+
+// ==================== THE SURFER'S BEACH ====================
+// NW shore, opposite the fish bay: a regular set of rollers. When the economy
+// leaves room for leisure, Vitas come here to body-surf — recreation as the
+// visible proof of a flourishing arrangement.
+const SURF_A = new THREE.Vector3(-64.4, 0, -50.7);   // offshore swell
+const SURF_B = new THREE.Vector3(-53.4, 0, -42.0);   // where the wave breaks
+const SURF_STAND = { x:-50, z:-39 };
+const SURF_HEADING = Math.atan2(SURF_B.x - SURF_A.x, SURF_B.z - SURF_A.z);
+const SURF_PERP = { x:-(SURF_B.z - SURF_A.z), z:(SURF_B.x - SURF_A.x) };
+{
+  const m = Math.hypot(SURF_PERP.x, SURF_PERP.z);
+  SURF_PERP.x /= m; SURF_PERP.z /= m;
+}
+let surfHintDone = false;
+const surfGroup = new THREE.Group();
+scene.add(surfGroup);
+const rollers = [];
+{
+  const matRoller = new THREE.MeshPhongMaterial({ color:0x4fd0e8, transparent:true,
+    opacity:0.75, flatShading:true, shininess:90, specular:0xbfefff });
+  const matFoam = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 });
+  for(let i=0;i<6;i++){   // a proper SET of rollers marching in toward the sand
+    const rg = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 26, 10), matRoller.clone());
+    body.rotation.z = Math.PI/2;
+    body.scale.y = 1;
+    const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 26, 6), matFoam.clone());
+    foam.rotation.z = Math.PI/2;
+    foam.position.y = 0.85;
+    rg.add(body, foam);
+    // the CREST must lie ALONG the shore (perpendicular to travel): the yaw
+    // maps the cylinder's X axis onto SURF_PERP — the old yaw put the crest
+    // at right angles to the beach, one ludicrous sideways wave
+    rg.rotation.y = Math.atan2(-SURF_PERP.z, SURF_PERP.x);
+    surfGroup.add(rg);
+    rollers.push({ g:rg, body, foam, p:0, pPrev:0, off:i/6, rider:null, pos:new THREE.Vector3() });
+  }
+  // ROCKY JETTIES: two boulder arms flanking the surf lane — a little bay
+  // that funnels the swell in toward the sand
+  const Tm = Math.hypot(SURF_B.x - SURF_A.x, SURF_B.z - SURF_A.z);
+  const Tx = (SURF_B.x - SURF_A.x)/Tm, Tz = (SURF_B.z - SURF_A.z)/Tm;
+  for(const side of [-1, 1]){
+    for(let i=0;i<6;i++){
+      const f = i/5;
+      const w = 14.5 - f*3.5;   // arms narrow toward shore: the funnel
+      const bx = SURF_A.x + Tx*(f*(Tm+9) - 4) + SURF_PERP.x*side*w;
+      const bz = SURF_A.z + Tz*(f*(Tm+9) - 4) + SURF_PERP.z*side*w;
+      const rr = rand(1.2, 2.4);
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rr, 0), matRock);
+      rock.position.set(bx, Math.max(terrainH(bx, bz), -0.7) + rr*0.35, bz);
+      rock.rotation.set(Math.random()*2, Math.random()*3, Math.random()*2);
+      rock.castShadow = true;
+      surfGroup.add(rock);
+      OBSTACLES.push({ x:bx, z:bz, r: rr * 0.8 });
+    }
+  }
+}
+function updateRollers(){
+  for(const r of rollers){
+    r.p = ((simT / 16) + r.off) % 1;
+    const grow = sstep(0, 0.3, r.p), brk = sstep(0.78, 0.94, r.p);
+    r.pos.lerpVectors(SURF_A, SURF_B, r.p);
+    r.g.position.set(r.pos.x, -0.45 + grow*0.7 - brk*0.5, r.pos.z);
+    const s = Math.max(0.05, grow * (1 - brk));
+    r.g.scale.set(1, s, s);
+    r.body.material.opacity = 0.75 * grow * (1 - brk);
+    r.foam.material.opacity = (0.35 + 0.5*brk) * grow * (1 - sstep(0.92, 1, r.p));
+    if(r.pPrev < 0.9 && r.p >= 0.9) splash(r.pos.x, r.pos.z);
+    if(r.p < r.pPrev && r.rider){ r.rider = null; }   // wave looped offshore
+    if(r.rider && !r.rider.surfing) r.rider = null;
+    r.pPrev = r.p;
+  }
+}
+// play is earned: fed, rested, un-coerced, with surplus somewhere to lean on
+function canPlay(v){
+  return !v.isBaby && !v.state.collapsed && !v.links.sprungBy && !v.links.springing &&
+    v.state.hunger < 42 && v.state.energy > 55 &&
+    (v.state.hoard >= 1 || commons.hoard >= 3);
+}
+
+// ==================== OCEAN LIFE ====================
+// ambient wildlife: an orca pod cruising past, and sea turtles that haul out,
+// lay eggs on the beach, and hand the society a free protein windfall.
+const oceanLife = new THREE.Group();
+scene.add(oceanLife);
+
+// ---- orcas: a pod of three, porpoising by on the horizon ----
+const orcas = [];
+{
+  const matOrca = new THREE.MeshLambertMaterial({ color:0x14181d, flatShading:true });
+  const matOrcaWhite = new THREE.MeshLambertMaterial({ color:0xe8eef3, flatShading:true });
+  const matOrcaSaddle = new THREE.MeshLambertMaterial({ color:0x9aa5b1, flatShading:true });
+  for(let i=0;i<3;i++){
+    // forward = +z (so the pod actually swims nose-first)
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.05, 3.4, 4, 10), matOrca);
+    body.rotation.x = Math.PI/2;
+    g.add(body);
+    const snout = new THREE.Mesh(new THREE.SphereGeometry(0.78, 8, 6), matOrca);
+    snout.position.set(0, -0.1, 2.35);
+    snout.scale.set(0.85, 0.7, 1.1);
+    g.add(snout);
+    const belly = new THREE.Mesh(new THREE.CapsuleGeometry(0.72, 2.8, 4, 8), matOrcaWhite);
+    belly.rotation.x = Math.PI/2;
+    belly.position.set(0, -0.52, 0.3);
+    g.add(belly);
+    for(const sx of [-1, 1]){   // the white eye patches — the orca tell
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 5), matOrcaWhite);
+      eye.position.set(sx*0.72, 0.42, 1.75);
+      eye.scale.set(0.5, 0.55, 1.2);
+      g.add(eye);
+      const pec = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 0.55), matOrca);
+      pec.position.set(sx*1.05, -0.45, 0.9);
+      pec.rotation.z = sx * -0.45;
+      g.add(pec);
+    }
+    const saddle = new THREE.Mesh(new THREE.SphereGeometry(0.8, 6, 5), matOrcaSaddle);
+    saddle.position.set(0, 0.72, -0.7);
+    saddle.scale.set(0.9, 0.28, 1.15);
+    g.add(saddle);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.5, 6), matOrca);
+    fin.position.set(0, 1.9, -0.1);
+    fin.scale.x = 0.24;
+    fin.rotation.x = 0.32;   // swept back
+    g.add(fin);
+    const flukes = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.85), matOrca);
+    flukes.position.set(0, 0.1, -2.75);
+    g.add(flukes);
+    g.visible = false;
+    oceanLife.add(g);
+    orcas.push({ g, i });
+  }
+}
+let orcaT = 25, podOn = false, podX = 0, podZ = 0, podDir = 1;
+function updateOrcas(simDt){
+  if(!podOn){
+    orcaT -= simDt;
+    if(orcaT <= 0){
+      podOn = true;
+      podDir = Math.random() < 0.5 ? 1 : -1;
+      podX = -podDir * 150;
+      podZ = (Math.random() < 0.5 ? -1 : 1) * rand(88, 115);
+      for(const o of orcas) o.g.visible = true;
+      setHint('🐋 a pod of orcas is passing the island', 4);
+    }
+    return;
+  }
+  podX += podDir * 7.5 * simDt;
+  for(const o of orcas){
+    const ox = podX - podDir * o.i * 10;
+    const ph = ox * 0.075 + o.i * 1.3;
+    const y = -1.9 + Math.max(0, Math.sin(ph)) * 2.4;
+    o.g.position.set(ox, y, podZ + Math.sin(o.i * 2.4) * 6);
+    o.g.rotation.y = podDir > 0 ? Math.PI/2 : -Math.PI/2;
+    o.g.rotation.x = -Math.cos(ph) * 0.35 * podDir;
+    if(y > 0.3 && Math.random() < simDt * 1.2) splash(ox, o.g.position.z);
+  }
+  if(Math.abs(podX) > 160){
+    podOn = false;
+    orcaT = rand(70, 140);
+    for(const o of orcas) o.g.visible = false;
+  }
+}
+
+// ---- turtles + egg clutches (pre-allocated so the time scrubber stays sane) ----
+const eggSlots = [];
+for(let i=0;i<3;i++){
+  const g = new THREE.Group();
+  for(let e=0;e<6;e++){
+    const egg = new THREE.Mesh(new THREE.SphereGeometry(0.24, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0xf6f1e2, flatShading:true }));
+    const a = e * 2.4;
+    egg.position.set(Math.cos(a)*0.45, 0.16, Math.sin(a)*0.45);
+    g.add(egg);
+  }
+  g.visible = false;
+  flora.add(g);   // flora group → hidden in georgeomat view like other scenery
+  const h = { kind:'eggs', pos:new THREE.Vector3(), fruit:g, hasFruit:false,
+    regrowT:1e9, regrowMax:1e9, claim:null, locked:true, ephemeral:true, eggGroup:g };
+  harvestables.push(h);
+  eggSlots.push(h);
+}
+const turtles = [];
+{
+  const matShell = new THREE.MeshLambertMaterial({ color:0x4a7a52, flatShading:true });
+  const matTurtleSkin = new THREE.MeshLambertMaterial({ color:0x7a9a6a, flatShading:true });
+  for(let i=0;i<2;i++){
+    const g = new THREE.Group();
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.95, 8, 6), matShell);
+    shell.scale.set(1, 0.5, 1.25);
+    shell.position.y = 0.5;
+    g.add(shell);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 5), matTurtleSkin);
+    head.position.set(0, 0.45, 1.35);
+    g.add(head);
+    for(const [fx, fz] of [[-0.9, 0.7], [0.9, 0.7], [-0.8, -0.8], [0.8, -0.8]]){
+      const flip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.45), matTurtleSkin);
+      flip.position.set(fx, 0.3, fz);
+      flip.rotation.y = fx < 0 ? 0.5 : -0.5;
+      g.add(flip);
+    }
+    g.visible = false;
+    oceanLife.add(g);
+    turtles.push({ g, state:'idle', t: rand(15, 45) * (i+1), x:0, laid:null });
+  }
+}
+let turtleHintDone = false;
+function updateTurtles(simDt){
+  for(const tu of turtles){
+    const g = tu.g;
+    if(tu.state === 'idle'){
+      tu.t -= simDt;
+      if(tu.t <= 0){
+        tu.x = rand(-24, 10);
+        tu.state = 'in'; tu.z = 70;
+        g.visible = true;
+        splash(tu.x, 66);
+      }
+      continue;
+    }
+    if(tu.state === 'in'){
+      tu.z -= simDt * 1.3;
+      g.position.set(tu.x, Math.max(terrainH(tu.x, tu.z), -0.35), tu.z);
+      g.rotation.y = Math.PI;   // crawling up the south beach, away from the sea
+      g.rotation.z = Math.sin(simT*7) * 0.06;   // flipper waddle
+      if(terrainH(tu.x, tu.z) > 1.2){
+        tu.state = 'lay'; tu.t = 5;
+      }
+    } else if(tu.state === 'lay'){
+      tu.t -= simDt;
+      if(tu.t <= 0){
+        const slot = eggSlots.find(s => s.locked);
+        if(slot){
+          slot.locked = false; slot.hasFruit = true; slot.claim = null;
+          slot.pos.set(tu.x, terrainH(tu.x, tu.z), tu.z + 1.2);
+          slot.eggGroup.position.copy(slot.pos);
+          slot.eggGroup.visible = true;
+          slot.fruit.visible = true;
+          recordEvent('turtle', 'a sea turtle lays her eggs on the beach');
+          if(!turtleHintDone){
+            turtleHintDone = true;
+            setHint('🐢 a sea turtle lays her eggs on the beach — plentiful, and somebody will gather them', 6);
+          }
+        }
+        tu.state = 'out';
+      }
+    } else if(tu.state === 'out'){
+      tu.z += simDt * 1.5;
+      g.position.set(tu.x, Math.max(terrainH(tu.x, tu.z), -0.35), tu.z);
+      g.rotation.y = 0;
+      g.rotation.z = Math.sin(simT*7) * 0.06;
+      if(tu.z > 70){
+        g.visible = false;
+        splash(tu.x, 67);
+        tu.state = 'idle';
+        tu.t = rand(35, 80);
+      }
+    }
+  }
+}
+
+// ---- birds: lone flybys for life, and the crop-raiding FLOCK (nature's tax) ----
+const matBird = new THREE.MeshLambertMaterial({ color:0x3a3f47, flatShading:true, side:THREE.DoubleSide });
+function makeBird(){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 6, 5), matBird);
+  body.scale.set(0.75, 0.65, 1.5);
+  g.add(body);
+  const mkWing = sign => {
+    const geo = new THREE.PlaneGeometry(1.15, 0.42);
+    geo.rotateX(-Math.PI/2);
+    geo.translate(sign * 0.6, 0.05, 0);
+    return new THREE.Mesh(geo, matBird);
+  };
+  const wL = mkWing(-1), wR = mkWing(1);
+  g.add(wL, wR);
+  g.visible = false;
+  oceanLife.add(g);
+  return { g, wL, wR, ph: rand(0, 6) };
+}
+function flapBird(b, speed=13, amp=0.85){
+  const f = Math.sin(simT * speed + b.ph) * amp;
+  b.wL.rotation.z = -f;
+  b.wR.rotation.z = f;
+}
+const skyBirds = [makeBird(), makeBird(), makeBird()];
+let birdT = 14, birdsOn = false, birdDirX = 0, birdDirZ = 0, birdPos = null, birdY = 30;
+function updateSkyBirds(simDt){
+  if(!birdsOn){
+    birdT -= simDt;
+    if(birdT <= 0){
+      birdsOn = true;
+      const a = rand(0, Math.PI*2);
+      birdDirX = Math.cos(a); birdDirZ = Math.sin(a);
+      birdPos = new THREE.Vector3(-birdDirX*170, 0, -birdDirZ*170);
+      birdY = rand(24, 38);
+      for(const b of skyBirds) b.g.visible = true;
+    }
+    return;
+  }
+  birdPos.x += birdDirX * 11 * simDt;
+  birdPos.z += birdDirZ * 11 * simDt;
+  skyBirds.forEach((b, i) => {
+    b.g.position.set(birdPos.x - birdDirX*i*4 + birdDirZ*(i-1)*3.5,
+      birdY + Math.sin(simT*1.5 + i)*0.8, birdPos.z - birdDirZ*i*4 - birdDirX*(i-1)*3.5);
+    b.g.rotation.y = Math.atan2(birdDirX, birdDirZ);
+    flapBird(b);
+  });
+  if(Math.hypot(birdPos.x, birdPos.z) > 175 && birdPos.x*birdDirX + birdPos.z*birdDirZ > 0){
+    birdsOn = false;
+    birdT = rand(25, 60);
+    for(const b of skyBirds) b.g.visible = false;
+  }
+}
+const flockBirds = [];
+for(let i=0;i<8;i++) flockBirds.push(makeBird());
+let flock = null, flockT = 110;   // {phase, t, target, pos}
+function resetFlock(){
+  if(!flock) return;
+  flock = null;
+  for(const b of flockBirds) b.g.visible = false;
+}
+function updateFlock(simDt){
+  if(!flock){
+    flockT -= simDt;
+    if(flockT > 0 || !hasTech(T_STORAGE)) return;
+    // richest jar or a stocked commons — nature raids the biggest pantry
+    const rich = VITAS.filter(v => !v.isBaby && v.state.hoard >= 4)
+      .sort((a,b) => b.state.hoard - a.state.hoard)[0];
+    const useCommons = commons.active && commons.hoard >= 5 &&
+      (!rich || commons.hoard > rich.state.hoard);
+    if(!rich && !useCommons){ flockT = 30; return; }
+    const pos = useCommons ? commons.pos.clone() : rich.jarGroup.position.clone();
+    flock = { phase:'descend', t:4, target: useCommons ? 'commons' : rich, pos };
+    for(const b of flockBirds) b.g.visible = true;
+    setHint('🐦 a flock wheels down out of the sky…', 4);
+    return;
+  }
+  flock.t -= simDt;
+  const fp = flock.pos;
+  flockBirds.forEach((b, i) => {
+    const a = i / flockBirds.length * Math.PI*2 + simT*0.8;
+    if(flock.phase === 'descend'){
+      const f = clamp(flock.t / 4, 0, 1);   // 1 → 0 as they land
+      b.g.position.set(fp.x + Math.cos(a)*(1.6 + f*10), fp.y + 0.5 + f*22, fp.z + Math.sin(a)*(1.6 + f*10));
+      flapBird(b, 15, 1.0);
+    } else if(flock.phase === 'feed'){
+      b.g.position.set(fp.x + Math.cos(a*0.4 + i)*1.7, fp.y + 0.35 + Math.abs(Math.sin(simT*6 + i))*0.5,
+        fp.z + Math.sin(a*0.4 + i)*1.7);
+      flapBird(b, 8, 0.35);
+    } else {
+      const f = clamp(1 - flock.t / 4, 0, 1);
+      b.g.position.set(fp.x + Math.cos(a)*(2 + f*14), fp.y + 0.5 + f*26, fp.z + Math.sin(a)*(2 + f*14));
+      flapBird(b, 15, 1.0);
+    }
+    b.g.rotation.y = a + Math.PI/2;
+  });
+  if(flock.t <= 0){
+    if(flock.phase === 'descend'){ flock.phase = 'feed'; flock.t = 4.5; }
+    else if(flock.phase === 'feed'){
+      // the bite: surplus lost to nature
+      if(flock.target === 'commons'){
+        const bite = Math.min(3, commons.hoard);
+        commons.hoard -= bite;
+        updateCommonsJar();
+        recordEvent('flock', `a flock ate ${bite} from the COMMONS`);
+        setHint(`🐦 the flock strips ${bite} fruit from the COMMONS — nature takes its cut`, 6);
+      } else {
+        const v = flock.target;
+        const bite = Math.min(3, Math.max(0, v.state.hoard - 1));
+        v.state.hoard -= bite;
+        updateJar(v);
+        recordEvent('flock', `a flock ate ${bite} from ${v.name}'s hoard`);
+        setHint(`🐦 the flock raids ${v.name}'s jar for ${bite} fruit — stored surplus is never safe from nature`, 6);
+        setMood(v, 'wail', 2.0);
+      }
+      flock.phase = 'leave'; flock.t = 4;
+    } else {
+      resetFlock();
+      flockT = rand(130, 240);
+    }
+  }
+}
+
+// ==================== IDLE DIRECTOR CAMERA ====================
+// when the player stops interacting, the camera turns nature-documentary:
+// it roves between points of interest — dramas, surfers, turtles, orcas —
+// with a slow drift. Any touch hands control straight back to the player.
+let idleT = 0, dirPickT = 0, dirPOI = null, dirHinted = false;
+const _dirUp = new THREE.Vector3(0, 1, 0), _dirP = new THREE.Vector3();
+function resetIdle(){ idleT = 0; dirPOI = null; }
+window.addEventListener('pointerdown', resetIdle, true);
+window.addEventListener('wheel', resetIdle, { passive:true, capture:true });
+window.addEventListener('keydown', resetIdle, true);
+function pickPOI(prevWasSea){
+  if(drama) return { kind:'pair', a:drama.a, b:drama.b, d:20 };
+  const surfer = VITAS.find(v => v.surfing || (v.state.task && v.state.task.kind === 'surf'));
+  if(surfer) return { kind:'vita', v:surfer, d:26 };
+  if(flock) return { kind:'pos', p0: flock.pos.clone().add(new THREE.Vector3(0, 2, 0)), d:26 };
+  const tu = turtles.find(t => t.state === 'in' || t.state === 'lay' || t.state === 'out');
+  if(tu) return { kind:'pos', p0: tu.g.position.clone().add(new THREE.Vector3(0, 2, 0)), d:22 };
+  // far-ocean events get a QUICK PEEK only — and never twice in a row, so the
+  // camera scoots out, glimpses the pod, and comes straight home to the society
+  if(podOn && Math.abs(podX) < 110 && !prevWasSea)
+    return { kind:'pos', p0: new THREE.Vector3(podX, 2, podZ), d:55, dwell:5, sea:true };
+  const busy = VITAS.find(v => v.state.task && ['feed','rescue','clamp'].includes(v.state.task.kind));
+  if(busy) return { kind:'vita', v:busy, d:24 };
+  if(Math.random() < 0.25) return { kind:'pos', p0: new THREE.Vector3(0, 8, 10), d:115 };   // wide establishing shot
+  const v = VITAS[Math.floor(Math.random()*VITAS.length)];
+  return { kind:'vita', v, d:30 };
+}
+function poiPoint(poi, out){
+  // vita POIs anchor to the GROUND under the character — bouncing bodies
+  // (dances, jumps) must not shake the director's frame
+  if(poi.kind === 'pair'){
+    out.copy(poi.a.group.position).add(poi.b.group.position).multiplyScalar(0.5);
+    out.y = terrainH(out.x, out.z) + 3;
+  } else if(poi.kind === 'vita'){
+    out.copy(poi.v.group.position);
+    out.y = terrainH(out.x, out.z) + 3;
+  } else out.copy(poi.p0);
+  return out;
+}
+
+// ==================== CAMERA + INPUT ====================
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.55;
+controls.zoomSpeed = 0.9;
+controls.minDistance = 9;
+controls.maxDistance = 180;
+controls.maxPolarAngle = 1.42;
+controls.screenSpacePanning = false;
+controls.target.set(-6, 6, 47);
+let lookTarget = null;
+
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.0, 26),
+  new THREE.MeshBasicMaterial({ color:0xfff3ae, transparent:true, side:THREE.DoubleSide }));
+marker.rotation.x = -Math.PI/2; marker.visible = false;
+scene.add(marker);
+
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+const ray = new THREE.Raycaster();
+let tapStart = null, lastTapV = null, lastTapT = 0;
+const _center = new THREE.Vector3();
+renderer.domElement.addEventListener('pointerdown', e => {
+  endChase();   // any interaction releases the ride-along
+  if(e.isPrimary && e.button === 0) tapStart = { x:e.clientX, y:e.clientY, t:performance.now() };
+});
+renderer.domElement.addEventListener('wheel', endChase, { passive:true });
+renderer.domElement.addEventListener('pointerup', e => {
+  if(!tapStart || e.button !== 0) return;
+  const moved = Math.hypot(e.clientX-tapStart.x, e.clientY-tapStart.y);
+  const dtap = performance.now() - tapStart.t;
+  tapStart = null;
+  if(moved > 8 || dtap > 450) return;
+  const ndc = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+  ray.setFromCamera(ndc, camera);
+  // vitas first (body = select; floating name gauge = select + zoom in)
+  let best = null, bd = 1e9, viaGauge = false;
+  for(const v of VITAS){
+    _center.copy(v.group.position);
+    _center.y += 2.0 * v.group.scale.y;
+    const d = ray.ray.distanceToPoint(_center);
+    if(d < 3.0 && d < bd){ bd = d; best = v; viaGauge = false; }
+    v.gauge.getWorldPosition(_center);
+    const dg = ray.ray.distanceToPoint(_center);
+    if(dg < 2.6 && dg < bd){ bd = dg; best = v; viaGauge = true; }
+  }
+  if(best){
+    if(armed){ applyLever(best); return; }
+    const now = performance.now();
+    if(lastTapV === best && now - lastTapT < 420){   // double-tap → ride-along
+      lastTapV = null;
+      startChase(best);
+      return;
+    }
+    lastTapV = best; lastTapT = now;
+    selectVita(best, true); return;   // single tap = status + zoom in on the character
+  }
+  // then connections: tap a pipe or spring and it explains itself
+  let bestL = null, bl = 1e9;
+  for(const l of wiresOn ? links : []){
+    for(const p of l.pts){
+      const d = ray.ray.distanceToPoint(p);
+      if(d < 1.4 && d < bl){ bl = d; bestL = l; }
+    }
+  }
+  if(bestL){ explainLink(bestL); return; }
+  // else: look at the tapped ground
+  const hit = ray.intersectObject(terrain)[0];
+  if(hit && terrainH(hit.point.x, hit.point.z) > -1){
+    lookTarget = new THREE.Vector3(hit.point.x, terrainH(hit.point.x, hit.point.z)+3, hit.point.z);
+    followCam = false;
+    marker.visible = true;
+    marker.position.set(hit.point.x, terrainH(hit.point.x, hit.point.z)+0.25, hit.point.z);
+  }
+});
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === ' '){ e.preventDefault(); setPaused(!paused); return; }
+  if(k === 'g') setGMode(!gmode);
+  if(k === 'w') setWires(!wiresOn);
+  if(k === 'f'){ if(!selected) selected = mia; followCam = true; xrayRender(); refreshChips(); }
+  if(k === 'escape'){ disarm(); selected = null; followCam = false; xrayRender(); refreshChips(); }
+});
+
+// ==================== MAIN LOOP ====================
+const clock = new THREE.Clock();
+const followTgt = new THREE.Vector3();
+let uiT = 0, lastStep = 0, nightNow = false;
+
+function frame(forceDt){
+  const dt = forceDt !== undefined ? forceDt : Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // ---- MASTER SIM CLOCK: the slider's signed rate drives everything;
+  // the sun merely follows sim-time. Pause/ado freezes the whole sim.
+  if(cinematic > 0){ cinematic -= dt; if(cinematic <= 0) endAdo(); }
+  stepDemo(dt);
+  const frozen = paused || cinematic > 0;
+  const effRate = demoClamp > 0 ? Math.min(simRate, 1) : simRate;   // demos play at 1×
+  const simDt = (timeMode === 'play' && !frozen) ? dt * effRate : 0;
+  simT += simDt;
+  const prevPhase = dayPhase;
+  if(simDt > 0){
+    dayPhase = (dayPhase + simDt / cycleLen) % 1;
+    histClock += simDt; recT += simDt;
+    if(recT >= SNAP_EVERY){ recT = 0; pushSnapshot(); }
+  } else if(timeMode === 'rewind' && !frozen){
+    restoreAt(scrubPos - rewindRate * dt);
+  }
+  let dPh = Math.abs(dayPhase - prevPhase);
+  if(dPh > 0.5) dPh = 1 - dPh;
+  const phRate = dt > 0 ? dPh / dt : 0;
+  blur += (clamp((phRate - 0.035) / 0.1, 0, 1) - blur) * Math.min(1, dt * 6);
+  if(!gmode) applyDayNight(t);
+  nightNow = Math.sin(dayPhase*TWO_PI) < -0.12;
+
+  if(simDt > 0){
+    for(const v of VITAS) updateVita(v, simDt, simT);
+    resolveCollisions();
+    updateSociety(simDt);
+    updateDrama(simDt);
+    outputEMA *= Math.pow(0.5, simDt / 15);   // OUTPUT metric half-life 15 sim-s
+  }
+  updateLinks(simT);
+  updatePulses(simDt);
+
+  // fruit regrow
+  for(const h of harvestables){
+    if(h.locked) continue;
+    if(!h.hasFruit && simDt > 0){
+      h.regrowT -= simDt;
+      if(h.regrowT <= 0){ h.hasFruit = true; h.fruit.visible = true; }
+    }
+    if(gmode && h.marker){
+      h.marker.material.opacity = h.hasFruit ? 0.95 : 0.22;
+      h.marker.rotation.y = t * 0.8;
+    }
+  }
+
+  // ambience (skip the hidden scenery in georgeomat view)
+  if(!gmode){
+    updateRollers();
+    updateOrcas(simDt);
+    updateTurtles(simDt);
+    updateSkyBirds(simDt);
+    updateFlock(simDt);
+    for(const s of swayCrowns){
+      s.node.rotation.z = s.baseZ + Math.sin(t*1.6 + s.phase) * s.amp;
+      s.node.rotation.x = s.baseX + Math.sin(t*1.1 + s.phase*1.7) * s.amp * 0.6;
+    }
+    const wp = water.geometry.attributes.position;
+    for(let i=0;i<wp.count;i++){
+      const x = wBase[i*3], z = wBase[i*3+2];
+      wp.setY(i, Math.sin(x*0.08 + t*1.1) * 0.14 + Math.cos(z*0.1 + t*0.8) * 0.12);
+    }
+    wp.needsUpdate = true;
+    for(const c of clouds){
+      c.g.position.x += c.v * dt;
+      if(c.g.position.x > 220) c.g.position.x = -220;
+    }
+    for(const f of fish){
+      if(f.state === 'wait'){
+        if(f.t <= 0) continue;
+        f.t -= dt;
+        if(f.t <= 0) startJump(f);
+      } else {
+        f.t += dt;
+        const p = f.t / f.dur;
+        if(p >= 1){
+          splash(f.B.x, f.B.z);
+          f.g.visible = false;
+          f.state = 'wait'; f.t = rand(1.5, 5);
+          continue;
+        }
+        const x = THREE.MathUtils.lerp(f.A.x, f.B.x, p);
+        const z = THREE.MathUtils.lerp(f.A.z, f.B.z, p);
+        f.g.position.set(x, f.peak * 4 * p * (1 - p), z);
+        f.g.rotation.y = Math.atan2(f.B.x - f.A.x, f.B.z - f.A.z);
+        f.g.rotation.x = -(f.peak * 4 * (1 - 2*p)) * 0.16;
+      }
+    }
+  }
+  for(const s of stars){
+    if(s.life <= 0) continue;
+    s.life -= dt;
+    if(s.life <= 0){ s.m.visible = false; continue; }
+    s.v.y -= 9 * dt;
+    s.m.position.addScaledVector(s.v, dt);
+    s.m.rotation.x += dt*6; s.m.rotation.y += dt*8;
+    s.m.material.opacity = clamp(s.life / 0.5, 0, 1);
+  }
+  for(const r of rings){
+    if(r.life <= 0) continue;
+    r.life -= dt;
+    if(r.life <= 0){ r.m.visible = false; continue; }
+    r.m.scale.addScalar(dt * 5);
+    r.m.material.opacity = r.life / 0.8;
+  }
+  if(marker.visible) marker.scale.setScalar(1 + Math.sin(t*6) * 0.18);
+
+  // selection ring
+  if(selected){
+    selRing.visible = true;
+    selRing.position.set(selected.group.position.x,
+      terrainH(selected.group.position.x, selected.group.position.z) + 0.22,
+      selected.group.position.z);
+    selRing.material.opacity = 0.65 + Math.sin(t*5) * 0.3;
+  } else selRing.visible = false;
+
+  // low-rate UI refresh: hints, chips, x-ray
+  hintLock = Math.max(0, hintLock - dt);
+  uiT -= dt;
+  if(uiT <= 0){
+    uiT = 0.25;
+    for(const v of VITAS){
+      v.chipDot.style.background = `hsl(${(1 - v.state.hunger/100)*110}, 72%, 52%)`;
+      v.notch.visible = gmode || !!v.links.sprungBy;   // notch on demand only
+      if(v.gaugeShowT > 0){
+        v.gaugeShowT -= 0.25;
+        v.gauge.material.opacity = clamp(v.gaugeShowT / 3.5, 0, 1);   // soft fade-out, no snap
+        if(v.gaugeShowT <= 0){ v.gauge.visible = false; v.gauge.material.opacity = 1; }
+      }
+    }
+    const de = Math.sin(dayPhase*TWO_PI);
+    dayIcon.textContent = paused ? '⏸' : timeMode !== 'play' ? '⏪' :
+      de > 0.3 ? '☀' : de < -0.18 ? '🌙' : (dayPhase < 0.15 || dayPhase > 0.85) ? '🌅' : '🌆';
+    renderMetrics();
+    renderLog();
+    if(selected) xrayRender();
+    if(hintLock <= 0){
+      if(theBaby && theBaby.state.hunger > 72)
+        setHint(`${theBaby.name} is wailing — a dependent Vita starves unless someone pipes food down`);
+      else {
+        const starver = VITAS.find(v => !v.isBaby && v.state.hunger > 82);
+        if(starver) setHint(`${starver.name} is STARVING`);
+      }
+    }
+  }
+
+  // camera: POV / idle director / follow / look
+  idleT += dt;
+  const directing = idleT > 18 && !chase && !demoSeq && cinematic <= 0 && timeMode === 'play';
+  if(directing){
+    dirPickT -= dt;
+    if(dirPickT <= 0 || !dirPOI){
+      const wasSea = !!(dirPOI && dirPOI.sea);
+      dirPOI = pickPOI(wasSea);
+      dirPickT = dirPOI.dwell || 12;   // ocean peeks are brief; island subjects linger
+      if(!dirHinted){
+        dirHinted = true;
+        setHint('🎬 idle — the camera roves the island\'s stories; touch anything to take over', 5);
+      }
+    }
+  }
+  if(chase){
+    // third-person trailing shot: behind and above, the character stays in frame.
+    // The trailing HEADING is damped separately, so a quick spin (waking, dancing)
+    // swings the camera gently instead of whipping it around the character.
+    const cv = chase.v, gp = cv.group.position;
+    let dA = cv.group.rotation.y - chase.heading;
+    dA = ((dA + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
+    chase.heading += dA * Math.min(1, dt * 1.6);
+    const fwdX = Math.sin(chase.heading), fwdZ = Math.cos(chase.heading);
+    const gy = terrainH(gp.x, gp.z);   // ground height, not the bouncing dance y
+    const bx = gp.x - fwdX*11, bz = gp.z - fwdZ*11;
+    _camDes.set(bx, Math.max(gy + 6.5, terrainH(bx, bz) + 3.2), bz);
+    camera.position.lerp(_camDes, 1 - Math.pow(0.06, dt));
+    _lookDes.set(gp.x + fwdX*2, gy + 2.5 * cv.group.scale.y, gp.z + fwdZ*2);
+    controls.target.lerp(_lookDes, 1 - Math.pow(0.001, dt));
+    camera.lookAt(controls.target);
+  } else if(directing && dirPOI){
+    poiPoint(dirPOI, _dirP);
+    controls.target.lerp(_dirP, 1 - Math.pow(0.10, dt));   // slow pan between subjects
+    const off = _camDes.copy(camera.position).sub(controls.target);
+    const dd = off.length();
+    const nd = dd + (dirPOI.d - dd) * Math.min(1, dt * 0.45);   // gentle zoom glide
+    off.applyAxisAngle(_dirUp, dt * 0.07);   // the slow documentary drift
+    camera.position.copy(controls.target).addScaledVector(off.normalize(), nd);
+  } else if(followCam && selected){
+    // aim at a GROUND-anchored point, not the animated body y — a dance-jump
+    // must not bounce the whole camera
+    const sp = selected.group.position;
+    followTgt.set(sp.x, terrainH(sp.x, sp.z) + 3, sp.z);
+    controls.target.lerp(followTgt, 1 - Math.pow(0.01, dt));
+    if(dollyTo !== null){   // name-click zoom: glide in to a close orbit
+      const dir = camera.position.clone().sub(controls.target);
+      const dist = dir.length();
+      const nd = dist + (dollyTo - dist) * Math.min(1, dt * 3);
+      camera.position.copy(controls.target).addScaledVector(dir.normalize(), nd);
+      if(Math.abs(nd - dollyTo) < 0.6) dollyTo = null;
+    }
+  } else if(lookTarget){
+    controls.target.lerp(lookTarget, 1 - Math.pow(0.002, dt));
+    if(controls.target.distanceTo(lookTarget) < 0.4){ lookTarget = null; marker.visible = false; }
+  }
+  if(!chase) controls.update();
+
+  // a Vita must never walk THROUGH the camera: keep a minimum standoff from
+  // the whole body (a vertical capsule), not just one point at chest height.
+  // The push is EASED (a glide, not a snap) with a hard floor as the guarantee.
+  {
+    const HARD = 4.2, SOFT = 6.5;
+    for(const v of VITAS){
+      const gp = v.group.position, sy = v.group.scale.y;
+      _center.set(gp.x, clamp(camera.position.y, gp.y + 0.4*sy, gp.y + 4.4*sy), gp.z);
+      const dCam = camera.position.distanceTo(_center);
+      if(dCam < SOFT){
+        _camDes.copy(camera.position).sub(_center);
+        if(_camDes.lengthSq() < 0.0001) _camDes.set(0, 1, 0.4);
+        const desired = Math.max(dCam + (SOFT - dCam) * Math.min(1, dt*3), HARD);
+        camera.position.copy(_center).addScaledVector(_camDes.normalize(), desired);
+        camera.lookAt(controls.target);
+      }
+    }
+  }
+
+  // terrain occlusion: slide the camera in front of the ridge for this render only
+  let savedPos = null;
+  {
+    const from = controls.target, to = camera.position;
+    let blockT = 1;
+    for(let i = 3; i < 24; i++){
+      const tt = i/24;
+      const x = from.x + (to.x-from.x)*tt, y = from.y + (to.y-from.y)*tt, z = from.z + (to.z-from.z)*tt;
+      if(terrainH(x, z) + 1.1 > y){ blockT = tt; break; }
+    }
+    if(blockT < 1){
+      savedPos = camera.position.clone();
+      const bt = Math.max(blockT - 0.06, 0.08);
+      camera.position.set(
+        from.x + (to.x-from.x)*bt,
+        from.y + (to.y-from.y)*bt + 1.2,
+        from.z + (to.z-from.z)*bt);
+      camera.lookAt(from);
+    }
+  }
+  clampBubbles();   // clamp against the camera that's ACTUALLY rendered (post-occlusion)
+  renderer.render(scene, camera);
+  if(savedPos) camera.position.copy(savedPos);
+}
+function step(){
+  lastStep = performance.now();
+  try { frame(); } catch(e){ window.ANIM_ERR = (e && e.stack) || String(e); throw e; }
+}
+function animate(){ requestAnimationFrame(animate); step(); }
+// fallback driver for webviews where rAF stalls
+setInterval(()=>{ if(performance.now() - lastStep > 120) step(); }, 66);
+animate();
+
+window.GEORGE = { VITAS, links, harvestables, setGMode, setWires, get wiresOn(){ return wiresOn; },
+  selectVita, requestScene,
+  controls, camera, get drama(){ return drama; },
+  commons, taxHoard, snapSpring, seedCommons, setLandTax, computeMetrics, events,
+  get landTax(){ return landTax; }, get armed(){ return armed; }, armLever,
+  setPaused, get paused(){ return paused; }, explainLink,
+  startChase, endChase, get chase(){ return chase; }, get nightNow(){ return nightNow; },
+  get dirPOI(){ return dirPOI; },
+  get simRate(){ return simRate; }, get simT(){ return simT; },
+  get cinematic(){ return cinematic; }, endAdo, rollers, canPlay,
+  orcas, skyBirds, get flock(){ return flock; }, turtles,
+  hasTech, unlockTech, get techMask(){ return techMask; },
+  get totalHarvests(){ return totalHarvests; }, set totalHarvests(n){ totalHarvests = n; },
+  get dayPhase(){ return dayPhase; }, set dayPhase(v){ dayPhase = v; },
+  get cycleLen(){ return cycleLen; },
+  get timeMode(){ return timeMode; }, get history(){ return history; },
+  get scrubPos(){ return scrubPos; }, restoreAt, resumePlay, pushSnapshot,
+  get selected(){ return selected; },
+  tick: n => { for(let i=0;i<n;i++) frame(1/60); renderer.render(scene, camera); } };
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  for(const l of links) l.mat.resolution.set(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
