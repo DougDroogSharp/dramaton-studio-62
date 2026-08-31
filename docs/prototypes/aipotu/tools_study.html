@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     TOOLS STUDY — hammer, axe, saw + a fence-post family, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeHammer()/makeAxe()/makeSaw()/makeFencePost() drop in later.
+
+     Doug's brief: tools Vitas can CARRY and USE, a little BIGGER than
+     scale so they read on screen (the game's own prop rule). A hammer,
+     an axe, a saw — each shown in a stand-in Vita's hands doing its real
+     work: the hammer DRIVES a peg, the axe CHOPS into a stump (with
+     chips flying), the saw STROKES through a log on trestles (sawdust).
+     Plus a VARIETY of wooden fence posts: round, squared, split-rail,
+     pointed picket, forked, and one honest crooked old-timer — with a
+     couple of rail styles between them.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e7e3d2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,24,16,0.78); color:#f2eee0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#7a5a34; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#96703f; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🔨 Tools Study</b> — hammer · axe · saw · fence posts, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="hammer">Hammer</button><button data-m="axe">Axe</button><button data-m="saw">Saw</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 60659;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe5e1d0), 55, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(5.4, 3.2, 7.8);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0de), zenith = new THREE.Color(0x7cb4de),
+        below = new THREE.Color(0xdbd7c4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb4a67e, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(22, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12;  sun.shadow.camera.bottom = -12;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground ---------------------------------------------------------
+{
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xcac180 }));
+  grass.rotation.x = -Math.PI/2;
+  grass.receiveShadow = true;
+  scene.add(grass);
+}
+
+// ---------- materials ------------------------------------------------------
+const WOODS = [0x8a6134, 0x96703f, 0x7d5a30, 0xa07948, 0x6f5028];
+function woodMat(){ return new THREE.MeshLambertMaterial({ color: WOODS[Math.floor(rand(0, WOODS.length))], flatShading:true }); }
+const matHandle = new THREE.MeshLambertMaterial({ color:0xa07948, flatShading:true });
+const matIron = new THREE.MeshStandardMaterial({ color:0x777d84, metalness:0.7, roughness:0.45 });
+const matIronDk = new THREE.MeshStandardMaterial({ color:0x4a4f55, metalness:0.65, roughness:0.5 });
+
+// ==========================================================================
+//  THE TOOLS — deliberately ~1.3× "true" scale so they READ in a Vita's
+//  mitten hand at game camera distance. Each is one Group with its grip
+//  at the origin, ready to parent straight into a hand.
+// ==========================================================================
+function makeHammer(){
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.72, 8), matHandle);
+  handle.position.y = 0.28;
+  handle.castShadow = true;
+  g.add(handle);
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.34, 9), matIron);
+  head.rotation.x = Math.PI/2;
+  head.position.y = 0.66;
+  head.castShadow = true;
+  g.add(head);
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.06, 9), matIronDk);
+  face.rotation.x = Math.PI/2;
+  face.position.set(0, 0.66, 0.2);
+  g.add(face);
+  const claw = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.18, 6), matIronDk);
+  claw.rotation.x = -Math.PI/2;
+  claw.position.set(0, 0.66, -0.26);
+  claw.scale.set(1, 1, 0.55);
+  g.add(claw);
+  return g;
+}
+function makeAxe(){
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.95, 8), matHandle);
+  handle.position.y = 0.38;
+  handle.rotation.z = 0.06;   // the working curve of a real haft
+  handle.castShadow = true;
+  g.add(handle);
+  // the head: cheek wedge + a broad convex BIT
+  const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.22, 0.26), matIron);
+  cheek.position.set(0, 0.82, 0.12);
+  cheek.castShadow = true;
+  g.add(cheek);
+  const bitG = new THREE.CylinderGeometry(0.15, 0.15, 0.08, 12, 1, false, -0.6, 1.2);
+  bitG.rotateZ(Math.PI/2);
+  const bit = new THREE.Mesh(bitG, matIronDk);
+  bit.position.set(0, 0.82, 0.3);
+  bit.scale.set(1, 1.55, 1);
+  g.add(bit);
+  const poll = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.16, 0.08), matIronDk);
+  poll.position.set(0, 0.82, -0.05);
+  g.add(poll);
+  return g;
+}
+function makeSaw(){
+  const g = new THREE.Group();
+  // closed wooden grip
+  const grip = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.038, 7, 14), matHandle);
+  grip.rotation.y = Math.PI/2;
+  grip.position.y = 0.1;
+  grip.castShadow = true;
+  g.add(grip);
+  const cheekPiece = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.16), matHandle);
+  cheekPiece.position.set(0, 0.1, 0.12);
+  g.add(cheekPiece);
+  // the tapering BLADE with painted teeth
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32;
+  const cg = cv.getContext('2d');
+  cg.fillStyle = '#9aa2ab'; cg.fillRect(0, 0, 128, 32);
+  cg.fillStyle = '#565d66';
+  for(let i = 0; i < 16; i++){
+    cg.beginPath();
+    cg.moveTo(i*8, 32); cg.lineTo(i*8 + 4, 22); cg.lineTo(i*8 + 8, 32);
+    cg.fill();
+  }
+  const bladeTex = new THREE.CanvasTexture(cv);
+  bladeTex.colorSpace = THREE.SRGBColorSpace;
+  const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.2),
+    new THREE.MeshLambertMaterial({ map: bladeTex, side:THREE.DoubleSide }));
+  blade.position.set(0, 0.08, 0.62);
+  blade.rotation.y = Math.PI/2;
+  blade.castShadow = true;
+  g.add(blade);
+  return g;
+}
+
+// ==========================================================================
+//  THE FENCE-POST FAMILY — six kinds in a working line, two rail styles.
+//  Each post is its own maker so the game can scatter honest variety.
+// ==========================================================================
+function postRound(){       // plain round driven post
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.05, 8), woodMat());
+  m.position.y = 0.52; return m;
+}
+function postSquare(){      // sawn square post with a weather-cut top
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.0, 0.16), woodMat());
+  m.position.y = 0.5; g.add(m);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.14, 4), woodMat());
+  cap.position.y = 1.06; cap.rotation.y = Math.PI/4; g.add(cap);
+  return g;
+}
+function postPicket(){      // pointed picket
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.95, 0.05), woodMat());
+  m.position.y = 0.48; g.add(m);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.18, 4), woodMat());
+  tip.position.y = 1.04; tip.rotation.y = Math.PI/4; g.add(tip);
+  return g;
+}
+function postForked(){      // a natural fork left on top (rail-cradle)
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, 0.95, 7), woodMat());
+  m.position.y = 0.47; g.add(m);
+  for(const s of [-1, 1]){
+    const tine = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.3, 6), woodMat());
+    tine.position.set(s*0.08, 1.05, 0);
+    tine.rotation.z = s * -0.45;
+    g.add(tine);
+  }
+  return g;
+}
+function postSplit(){       // split-rail end post: squared with through-slots
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.1, 0.14), woodMat());
+  m.position.y = 0.55; g.add(m);
+  for(const y of [0.42, 0.82]){
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.06),
+      new THREE.MeshLambertMaterial({ color:0x3a2a16, flatShading:true }));
+    slot.position.y = y; g.add(slot);
+  }
+  return g;
+}
+function postCrooked(){     // the honest old-timer, leaning and warped
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.1, 7), woodMat());
+  m.position.y = 0.5;
+  m.rotation.z = 0.16; m.rotation.x = -0.07;
+  g.add(m);
+  const knot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), woodMat());
+  knot.position.set(0.1, 0.62, 0.04);
+  g.add(knot);
+  return g;
+}
+{
+  const makers = [postSplit, postRound, postSquare, postForked, postPicket, postCrooked];
+  const line = new THREE.Group();
+  makers.forEach((mk, i) => {
+    const p = mk();
+    p.position.set(-4.2, 0, -2.6 + i * 1.15);
+    p.rotation.y = rand(-0.15, 0.15);
+    p.traverse(o => { if(o.isMesh) o.castShadow = true; });
+    line.add(p);
+    // rails between: round rails on the cradles, flat rails pegged on
+    if(i < makers.length - 1){
+      const flat = i % 2 === 0;
+      const rail = new THREE.Mesh(
+        flat ? new THREE.BoxGeometry(0.06, 0.14, 1.25)
+             : new THREE.CylinderGeometry(0.05, 0.05, 1.25, 7), woodMat());
+      if(!flat) rail.rotation.x = Math.PI/2;
+      rail.position.set(-4.2 + rand(-0.03, 0.03), flat ? 0.72 : 0.86, -2.02 + i * 1.15);
+      rail.rotation.y = rand(-0.03, 0.03);
+      rail.castShadow = true;
+      line.add(rail);
+    }
+  });
+  scene.add(line);
+}
+
+// ==========================================================================
+//  THE WORKER — a stand-in Vita who actually USES each tool
+// ==========================================================================
+const worker = new THREE.Group();
+const W = {};
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x6b8e9e });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  W.hips = new THREE.Group();
+  worker.add(W.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.62; barrel.castShadow = true; W.hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; W.hips.add(head);
+  for(const s of [-1, 1]){
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    leg.position.set(s*0.14, 0.2, 0);
+    W.hips.add(leg);
+  }
+  W.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.95, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.36, 4, 8), skin);
+    limb.position.y = -0.22;
+    limb.castShadow = true;
+    arm.add(limb);
+    // the HAND anchor tools parent into
+    const hand = new THREE.Group();
+    hand.position.y = -0.48;
+    arm.add(hand);
+    W.hips.add(arm);
+    W.arms.push({ arm, hand });
+  }
+  scene.add(worker);
+  worker.position.set(0, 0, 0);
+}
+
+// work pieces: a peg board, a chopping stump, a log on trestles
+const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 7), matHandle);
+{
+  const block = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.5), woodMat());
+  block.position.set(0, 0.17, 0.85);
+  block.castShadow = true;
+  scene.add(block);
+  peg.position.set(0, 0.45, 0.85);
+  peg.castShadow = true;
+  scene.add(peg);
+}
+const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.55, 10), woodMat());
+stump.position.set(1.9, 0.27, 0.6);
+stump.castShadow = true;
+scene.add(stump);
+const trestleLog = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.17, 1.5, 9), woodMat());
+{
+  for(const s of [-1, 1]){
+    for(const s2 of [-1, 1]){
+      const legT = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.62, 6), woodMat());
+      legT.position.set(-1.9 + s*0.5, 0.3, 0.7 + s2*0.14);
+      legT.rotation.z = s2*0.18;
+      scene.add(legT);
+    }
+  }
+  trestleLog.rotation.z = Math.PI/2;
+  trestleLog.position.set(-1.9, 0.66, 0.7);
+  trestleLog.castShadow = true;
+  scene.add(trestleLog);
+}
+
+// tools in hand (one visible at a time) + a rack for the idle two
+const hammer = makeHammer(), axe = makeAxe(), saw = makeSaw();
+for(const tool of [hammer, axe, saw]){
+  tool.rotation.x = Math.PI/2;   // grip in the fist, head forward
+  W.arms[0].hand.add(tool);
+}
+
+// flying CHIPS + falling SAWDUST — tiny recycled particle pools
+const chips = [];
+{
+  const chipMat = new THREE.MeshLambertMaterial({ color:0xc9a05c });
+  for(let i = 0; i < 14; i++){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.08), chipMat);
+    m.visible = false;
+    scene.add(m);
+    chips.push({ m, t: 99, vx:0, vy:0, vz:0 });
+  }
+}
+function throwChip(x, y, z, spread){
+  const c = chips.find(c => c.t > 1);
+  if(!c) return;
+  c.t = 0;
+  c.m.visible = true;
+  c.m.position.set(x, y, z);
+  c.vx = rand(-spread, spread); c.vy = rand(1.2, 2.6); c.vz = rand(-spread, spread);
+}
+
+let mode = 'hammer';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('hammer');
+
+let pegDepth = 0, sawZ = 0, lastSwing = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  hammer.visible = mode === 'hammer';
+  axe.visible = mode === 'axe';
+  saw.visible = mode === 'saw';
+
+  if(mode === 'hammer'){
+    // stand at the peg block, overhand taps: raise… STRIKE
+    worker.position.lerp(new THREE.Vector3(0, 0, 0.15), Math.min(1, dt*3));
+    worker.rotation.y = 0;
+    const ph = (t * 2.6) % (Math.PI*2);
+    const up = Math.max(0, Math.sin(ph));            // slow raise
+    const strike = Math.max(0, -Math.sin(ph)) ** 3;  // sharp fall
+    W.arms[0].arm.rotation.x = -1.9 + up*0.7 - strike*0.9;
+    W.arms[1].arm.rotation.x = -0.3;
+    W.hips.rotation.x = 0.12 + strike*0.1;
+    if(strike > 0.9 && t - lastSwing > 1){
+      lastSwing = t;
+      pegDepth = (pegDepth + 0.05) % 0.22;           // the peg drives, then resets
+      throwChip(0, 0.5, 0.85, 0.6);
+    }
+    peg.position.y = 0.45 - pegDepth;
+  } else if(mode === 'axe'){
+    // side-on at the stump: big shoulder swing, chips FLY on the bite
+    worker.position.lerp(new THREE.Vector3(1.35, 0, 0.25), Math.min(1, dt*3));
+    worker.rotation.y = -0.5;
+    const ph = (t * 2.0) % (Math.PI*2);
+    const wind = Math.max(0, Math.sin(ph));
+    const chop = Math.max(0, -Math.sin(ph)) ** 3;
+    W.arms[0].arm.rotation.x = -2.4 + wind*0.8 - chop*1.35;
+    W.arms[1].arm.rotation.x = -2.3 + wind*0.8 - chop*1.35;   // two-handed
+    W.hips.rotation.x = -0.08 + chop*0.3;
+    if(chop > 0.9 && t - lastSwing > 1.2){
+      lastSwing = t;
+      for(let i = 0; i < 3; i++) throwChip(1.9, 0.62, 0.6, 1.6);
+    }
+  } else {
+    // braced over the trestle log, long level strokes; dust falls
+    worker.position.lerp(new THREE.Vector3(-1.9, 0, 0.05), Math.min(1, dt*3));
+    worker.rotation.y = Math.PI;
+    sawZ = Math.sin(t * 3.4) * 0.22;
+    W.arms[0].arm.rotation.x = -1.3;
+    W.arms[0].arm.position.z = sawZ;                  // the stroke
+    W.arms[1].arm.rotation.x = -0.9;
+    W.hips.rotation.x = 0.22 + Math.sin(t*3.4)*0.05;  // the body works with it
+    if(Math.random() < dt*8) throwChip(-1.9, 0.55, 0.68, 0.15);
+  }
+
+  // particles
+  for(const c of chips){
+    if(c.t > 1.4) { c.m.visible = false; continue; }
+    c.t += dt;
+    c.vy -= 6*dt;
+    c.m.position.x += c.vx*dt;
+    c.m.position.y = Math.max(0.02, c.m.position.y + c.vy*dt);
+    c.m.position.z += c.vz*dt;
+    c.m.rotation.x += dt*8; c.m.rotation.z += dt*6;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
