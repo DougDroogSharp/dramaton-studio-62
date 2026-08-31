@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WAGON STUDY — a one-Vita wooden pull-wagon, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeWagon()/updateWagon() can drop straight in later.
+
+     Doug's brief: a wagon ONE Vita can pull. Wood, FAIRLY well-made —
+     honest carpentry, not factory-perfect: planks sit a hair proud or
+     shy, wheels run a whisker out of true. Two animations:
+     SMOOTH ROLLING forward (packed path) and BUMPY ROLLING forward
+     (rough ground — jolts, rattle, sway; the load and the puller feel it).
+     Wheel spin is DISTANCE-TRUE in both: rotation = travel / radius.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wagon Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e9e4d2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(30,26,18,0.78); color:#f4eee0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#7a5a34; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#96703f; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🛒 Wagon Study</b> — one-Vita pull wagon, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="smooth">Smooth roll</button><button data-m="bumpy">Bumpy roll</button><button data-m="stop">Stop</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 90125;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe7e2cf), 60, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(6.5, 3.6, 8.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.5;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf5f1e2), zenith = new THREE.Color(0x7ab6e2),
+        below = new THREE.Color(0xe0dbc6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xbcae86, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(24, 30, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14;  sun.shadow.camera.bottom = -14;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground: packed sand + a worn track ring -----------------------
+{
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xd7c48e }));
+  sand.rotation.x = -Math.PI/2;
+  sand.receiveShadow = true;
+  scene.add(sand);
+  const track = new THREE.Mesh(new THREE.RingGeometry(4.4, 6.2, 48),
+    new THREE.MeshLambertMaterial({ color:0xc9b47c }));
+  track.rotation.x = -Math.PI/2;
+  track.position.y = 0.01;
+  scene.add(track);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x86a058, flatShading:true });
+  for(let i=0;i<20;i++){
+    const a = rand(0, Math.PI*2), r = rand(8, 28);
+    const t = new THREE.Mesh(new THREE.ConeGeometry(rand(0.12,0.2), rand(0.3,0.6), 5), tuftMat);
+    t.position.set(Math.cos(a)*r, 0.15, Math.sin(a)*r);
+    scene.add(t);
+  }
+}
+
+// ==========================================================================
+//  THE WAGON — honest island carpentry. Every plank cut by hand: each one
+//  gets its own wood shade and sits a hair out of line. Iron-dark bands on
+//  the wheels, pegged rails, two shafts and a crossbar for one pair of hands.
+// ==========================================================================
+const WOODS = [0x8a6134, 0x96703f, 0x7d5a30, 0xa07948, 0x8f6839];
+function woodMat(){ return new THREE.MeshLambertMaterial({ color: WOODS[Math.floor(rand(0, WOODS.length))], flatShading:true }); }
+const matIron = new THREE.MeshLambertMaterial({ color:0x3a3733, flatShading:true });
+
+const wagon = new THREE.Group();
+scene.add(wagon);
+// wag = the sprung part (bed + rails + shafts) that rattles; wheels stay planted
+const bed = new THREE.Group();
+wagon.add(bed);
+
+const BED_W = 1.5, BED_L = 2.3, BED_H = 0.78;   // axle height ~0.42, bed rides above
+{
+  // floor planks, laid across — each slightly proud/shy/tilted
+  for(let i = 0; i < 7; i++){
+    const p = new THREE.Mesh(new THREE.BoxGeometry(BED_W, 0.07, BED_L/7 - 0.015), woodMat());
+    p.position.set(rand(-0.012, 0.012), BED_H + rand(-0.008, 0.012), -BED_L/2 + (i + 0.5) * BED_L/7);
+    p.rotation.y = rand(-0.012, 0.012);
+    p.castShadow = true; p.receiveShadow = true;
+    bed.add(p);
+  }
+  // two long chassis beams under the floor
+  for(const s of [-1, 1]){
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, BED_L + 0.25), woodMat());
+    beam.position.set(s * (BED_W/2 - 0.18), BED_H - 0.1, 0);
+    beam.castShadow = true;
+    bed.add(beam);
+  }
+  // SIDE RAILS: posts + two rows of side planks per side
+  for(const s of [-1, 1]){
+    for(let i = 0; i < 3; i++){
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), woodMat());
+      post.position.set(s * (BED_W/2 - 0.045), BED_H + 0.27, -BED_L/2 + 0.12 + i * (BED_L/2 - 0.12));
+      post.rotation.z = rand(-0.02, 0.02);
+      post.castShadow = true;
+      bed.add(post);
+    }
+    for(let row = 0; row < 2; row++){
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, BED_L), woodMat());
+      plank.position.set(s * (BED_W/2 - 0.02), BED_H + 0.18 + row * 0.22 + rand(-0.01, 0.01), 0);
+      plank.rotation.x = rand(-0.008, 0.008);
+      plank.castShadow = true;
+      bed.add(plank);
+    }
+  }
+  // front + back boards
+  for(const e of [-1, 1]){
+    const board = new THREE.Mesh(new THREE.BoxGeometry(BED_W - 0.06, 0.34, 0.05), woodMat());
+    board.position.set(0, BED_H + 0.24, e * (BED_L/2 - 0.005));
+    board.rotation.x = rand(-0.01, 0.01);
+    board.castShadow = true;
+    bed.add(board);
+  }
+  // the PULL SHAFTS: two poles angling forward and down, crossbar at hand height
+  for(const s of [-1, 1]){
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 1.5, 8), woodMat());
+    shaft.rotation.x = Math.PI/2 - 0.16;
+    shaft.position.set(s * 0.34, BED_H - 0.12, BED_L/2 + 0.68);
+    shaft.castShadow = true;
+    bed.add(shaft);
+  }
+  const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.85, 8), woodMat());
+  crossbar.rotation.z = Math.PI/2;
+  crossbar.position.set(0, BED_H - 0.005, BED_L/2 + 1.38);
+  crossbar.castShadow = true;
+  bed.add(crossbar);
+  // a modest cargo: three logs and a sack, so the rattle READS
+  for(let i = 0; i < 3; i++){
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 1.2, 8), woodMat());
+    log.rotation.z = Math.PI/2;
+    log.rotation.y = rand(-0.06, 0.06);
+    log.position.set(rand(-0.08, 0.08), BED_H + 0.15 + i * 0.16, rand(-0.35, 0.1));
+    log.castShadow = true;
+    bed.add(log);
+  }
+  const sack = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8),
+    new THREE.MeshLambertMaterial({ color:0xc9b48a, flatShading:true }));
+  sack.scale.set(1, 0.82, 1);
+  sack.position.set(0.3, BED_H + 0.24, 0.72);
+  sack.castShadow = true;
+  bed.add(sack);
+}
+
+// ---------- wheels: 8-spoke, iron-banded, a whisker out of true -----------
+const wheels = [];
+function makeWheel(x, z){
+  const w = new THREE.Group();
+  const R = 0.42;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.05, 8, 18), woodMat());
+  rim.castShadow = true;
+  w.add(rim);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(R + 0.035, 0.022, 6, 18), matIron);
+  w.add(band);
+  for(let i = 0; i < 8; i++){
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, R*2 - 0.1, 6), woodMat());
+    sp.rotation.z = (i / 8) * Math.PI;
+    sp.castShadow = true;
+    w.add(sp);
+  }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.14, 8), woodMat());
+  hub.rotation.z = Math.PI/2;
+  w.add(hub);
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6), matIron);
+  pin.rotation.z = Math.PI/2;
+  w.add(pin);
+  w.rotation.y = Math.PI/2;             // face outward along X
+  const carrier = new THREE.Group();    // carrier holds position; wheel spins inside
+  carrier.position.set(x, R, z);
+  carrier.add(w);
+  wagon.add(carrier);
+  wheels.push({ carrier, w, R, wobble: rand(0.015, 0.035), wobPh: rand(0, Math.PI*2) });
+  return carrier;
+}
+makeWheel(-BED_W/2 - 0.09,  0.78);
+makeWheel( BED_W/2 + 0.09,  0.78);
+makeWheel(-BED_W/2 - 0.09, -0.78);
+makeWheel( BED_W/2 + 0.09, -0.78);
+// axles between the wheel pairs
+for(const z of [0.78, -0.78]){
+  const ax = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, BED_W + 0.28, 8), woodMat());
+  ax.rotation.z = Math.PI/2;
+  ax.position.set(0, 0.42, z);
+  ax.castShadow = true;
+  wagon.add(ax);
+}
+
+// ---------- the PULLER: a stand-in Vita leaning into the crossbar ---------
+const puller = new THREE.Group();
+const PL = {};
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x8fbf50 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  PL.body = new THREE.Group();
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 6, 12), dress);
+  barrel.position.y = 0.75; barrel.castShadow = true; PL.body.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), skin);
+  head.position.y = 1.5; head.castShadow = true; PL.body.add(head);
+  PL.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.15, 0.62, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.34, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.28; shin.castShadow = true;
+    leg.add(shin);
+    PL.body.add(leg);
+    PL.legs.push(leg);
+  }
+  PL.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.36, 1.08, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    arm.add(limb);
+    arm.rotation.x = -1.05;             // reaching back to the bar
+    PL.body.add(arm);
+    PL.arms.push(arm);
+  }
+  puller.add(PL.body);
+  wagon.add(puller);
+  puller.position.set(0, 0, BED_L/2 + 1.42);   // standing at the crossbar
+  puller.rotation.y = 0;                        // facing the direction of travel (+Z)
+}
+
+// ==========================================================================
+//  ROLLING — the wagon runs the worn ring track. Wheel spin is distance-
+//  true. SMOOTH = packed path: level bed, even pace, still hands.
+//  BUMPY = rough ground: each wheel rides its own bump-line; the bed takes
+//  pitch + roll from the axles, the cargo RATTLES, the puller jolts.
+// ==========================================================================
+let mode = 'smooth';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('smooth');
+
+const TRACK_R = 5.3;
+let trackA = 0, dist = 0, speed = 0;
+function bumpAt(d, ph){   // a wheel's height on the rough ground, by distance along the track
+  return Math.max(0, Math.sin(d*2.1 + ph)*0.5 + Math.sin(d*4.7 + ph*2.3)*0.3 + Math.sin(d*9.3 + ph*0.7)*0.2) * 0.075;
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  const wantSpeed = mode === 'stop' ? 0 : mode === 'smooth' ? 1.35 : 0.95;
+  speed = lerp(speed, wantSpeed, Math.min(1, dt*2.2));
+  const step = speed * dt;
+  dist += step;
+  trackA += step / TRACK_R;
+
+  // the wagon runs the ring, nose along the track tangent
+  wagon.position.set(Math.cos(trackA)*TRACK_R, 0, -Math.sin(trackA)*TRACK_R);
+  wagon.rotation.y = trackA;
+
+  const rough = mode === 'bumpy' ? Math.min(1, speed/0.9) : 0;
+
+  // wheels: distance-true spin + per-wheel bump ride + a whisker of wobble
+  let axF = 0, axB = 0, axL = 0, axR = 0;
+  wheels.forEach((wh, i) => {
+    wh.w.rotation.x = -dist / wh.R;
+    wh.w.rotation.z = Math.sin(wh.w.rotation.x) * wh.wobble;   // out-of-true, honest carpentry
+    const b = rough * bumpAt(dist + (i < 2 ? 0.9 : 0), wh.wobPh);
+    wh.carrier.position.y = wh.R + b;
+    if(i < 2) axF += b/2; else axB += b/2;
+    if(i % 2 === 0) axL += b/2; else axR += b/2;
+  });
+
+  // the bed takes its posture from the axles: pitch front↔back, roll left↔right
+  bed.rotation.x = (axB - axF) / 1.56 + rough * Math.sin(t*13.7) * 0.006;
+  bed.rotation.z = (axL - axR) / 1.68 + rough * Math.sin(t*11.3) * 0.008;
+  bed.position.y = (axF + axB) / 2 + rough * Math.abs(Math.sin(t*17)) * 0.012;
+
+  // the PULLER: leaning into the bar, harder on rough ground; legs stride
+  // with the actual pace; jolts arrive up through the shafts
+  const lean = speed > 0.05 ? 0.16 + rough*0.1 : 0;
+  PL.body.rotation.x = lerp(PL.body.rotation.x, lean, Math.min(1, dt*4));
+  const ph = dist * 4.6;
+  PL.legs[0].rotation.x = Math.sin(ph) * 0.55 * Math.min(1, speed);
+  PL.legs[1].rotation.x = -Math.sin(ph) * 0.55 * Math.min(1, speed);
+  PL.body.position.y = Math.abs(Math.cos(ph)) * 0.035 * Math.min(1, speed)
+    + rough * bumpAt(dist + 1.6, 1.7) * 0.75;
+  PL.arms[0].rotation.x = -1.05 - rough * Math.sin(t*15) * 0.05;
+  PL.arms[1].rotation.x = -1.05 + rough * Math.sin(t*15) * 0.05;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
