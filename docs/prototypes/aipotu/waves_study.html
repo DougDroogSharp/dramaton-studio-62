@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WAVES STUDY — breaking surf on an UNDULATING coastline, for George
+     World. Filed 2026-08-31. Standalone: nothing touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160), same importmap.
+
+     Doug's brief: realistic waves breaking on a beach — GENTLE, STORM
+     and HURRICANE — that break on the shore of land with an undulating
+     coastline. NO rectilinear wave sheets awkwardly pieced around an
+     island: this is ALGORITHMIC. The method: the island is a radial
+     blob r(θ) with harmonics (any coastline works); every water vertex
+     knows its DISTANCE TO SHORE d; wave phase = k·d − ωt, so crests
+     are automatically PARALLEL TO THE COAST, bending around every lobe
+     and bay. Shoaling: amplitude grows as d→0 (waves stand up in the
+     shallows), then breaks: a FOAM band painted into vertex colors
+     where a crest crosses the shallow zone, plus a washing swash line
+     riding up the sand. Weather scales amplitude, wavelength, speed,
+     foam width and adds chop; the hurricane piles white water far out.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waves Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#cfe2ec; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(14,28,38,0.78); color:#e8f4fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d8ec9; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4da3e0; }
+  #chip button.on { background:#e8c531; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌊 Waves Study</b> — surf on an undulating coast, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the crests follow every lobe and bay — no tiled sheets</span><br>
+  <button data-m="gentle">Gentle</button><button data-m="surf">Surfable</button><button data-m="storm">Storm</button><button data-m="hurricane">Hurricane</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd2e2ea), 80, 380);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(26, 21, 34);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 120;
+controls.maxPolarAngle = 1.5;
+
+// ---------- sky + light ----------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xd8ecf8, 0x6f8fa0, 1.05);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(40, 50, 24);
+scene.add(sun);
+{
+  const geo = new THREE.SphereGeometry(420, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xecf5f8), zenith = new THREE.Color(0x5cabdd),
+        below = new THREE.Color(0xa9c8d2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/420;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  window.__sky = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false }));
+  scene.add(window.__sky);
+}
+
+// ==========================================================================
+//  THE ISLAND — a radial blob with harmonics: an honest undulating coast
+//  with lobes, bays and a spit. r(θ) is the whole coastline definition;
+//  the wave algorithm reads ONLY this, so ANY island shape just works.
+// ==========================================================================
+function shoreR(a){
+  return 13 + 3.2*Math.sin(a*2 + 0.7) + 2.1*Math.sin(a*3 + 2.1)
+       + 1.2*Math.sin(a*5 + 4.4) + 0.7*Math.sin(a*7 + 1.2);
+}
+// distance-to-shore (negative = inland). Radial approximation is exact
+// enough at these curvatures and costs nothing.
+function shoreDist(x, z){
+  const r = Math.hypot(x, z);
+  return r - shoreR(Math.atan2(z, x));
+}
+{
+  // the island mesh: a radial fan, beach at the rim rising to green inland
+  const RAD = 30, SEG = 96;
+  const geo = new THREE.CircleGeometry(1, SEG);   // rebuilt below
+  const positions = [0, 0.9, 0];
+  const cols = [];
+  const beach = new THREE.Color(0xdcc78e), grass = new THREE.Color(0x9cb060),
+        hill = new THREE.Color(0x7a9450);
+  cols.push(hill.r, hill.g, hill.b);
+  const idx = [];
+  for(let i = 0; i <= SEG; i++){
+    const a = (i/SEG) * Math.PI*2;
+    const r = shoreR(a);
+    // two rings: waterline vertex + an inland vertex
+    positions.push(Math.cos(a)*r, 0.02, Math.sin(a)*r);
+    cols.push(beach.r, beach.g, beach.b);
+  }
+  for(let i = 0; i <= SEG; i++){
+    const a = (i/SEG) * Math.PI*2;
+    const r = shoreR(a) * 0.6;
+    positions.push(Math.cos(a)*r, 0.55, Math.sin(a)*r);
+    cols.push(grass.r, grass.g, grass.b);
+  }
+  for(let i = 0; i < SEG; i++){
+    const w0 = 1 + i, w1 = 1 + i + 1;
+    const g0 = 2 + SEG + i, g1 = 2 + SEG + i + 1;
+    idx.push(w0, g0, w1,  w1, g0, g1);   // beach ring
+    idx.push(g0, 0, g1);                 // cap to the hill point
+  }
+  const g2 = new THREE.BufferGeometry();
+  g2.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g2.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  g2.setIndex(idx);
+  g2.computeVertexNormals();
+  scene.add(new THREE.Mesh(g2, new THREE.MeshLambertMaterial({ vertexColors:true })));
+}
+
+// ==========================================================================
+//  THE WATER — one 110×110 grid, 132u square. Per frame, per vertex:
+//  d = distance to shore · phase = k·d − ωt (crests parallel the coast)
+//  · shoaling amplitude ramp as d→0 · foam painted into vertex color
+//  where a crest stands in the shallows, plus ambient white-cap noise.
+// ==========================================================================
+const GRID = 110, SIZE = 132;
+const waterGeo = new THREE.PlaneGeometry(SIZE, SIZE, GRID, GRID);
+waterGeo.rotateX(-Math.PI/2);
+const wpos = waterGeo.attributes.position;
+const wN = wpos.count;
+const wd = new Float32Array(wN);          // distance-to-shore, precomputed
+const inland = new Uint8Array(wN);
+for(let i = 0; i < wN; i++){
+  const d = shoreDist(wpos.getX(i), wpos.getZ(i));
+  wd[i] = d;
+  inland[i] = d < -0.4 ? 1 : 0;
+}
+const wcol = new Float32Array(wN * 3);
+waterGeo.setAttribute('color', new THREE.Float32BufferAttribute(wcol, 3));
+const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({
+  vertexColors:true, transparent:true, opacity:0.92 }));
+scene.add(water);
+
+const DEEP_C = new THREE.Color(0x2a6f9e), SHALLOW_C = new THREE.Color(0x4fa8c4),
+      FOAM_C = new THREE.Color(0xf2fbfd), STORM_DEEP = new THREE.Color(0x24506e),
+      HURR_DEEP = new THREE.Color(0x1e3a4c);
+
+// weather states
+const STATES = {
+  gentle:    { amp:0.22, k:1.15, w:1.35, chop:0.05, foamW:1.6, trains:2, capNoise:0.0,  sky:1.0 },
+  // SURFABLE (Doug): a clean long-period groundswell — one dominant train,
+  // near-zero chop, tall shoaling faces that peel along the shore. This is
+  // the state the game's surfers should ride.
+  surf:      { amp:0.5,  k:0.85, w:1.15, chop:0.02, foamW:2.4, trains:1, capNoise:0.0,  sky:0.95 },
+  storm:     { amp:0.62, k:0.8,  w:2.0,  chop:0.28, foamW:3.2, trains:3, capNoise:0.22, sky:0.55 },
+  hurricane: { amp:1.15, k:0.62, w:2.9,  chop:0.6,  foamW:5.5, trains:3, capNoise:0.5,  sky:0.3 },
+};
+let cur = { ...STATES.gentle }, target = STATES.gentle;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  target = STATES[b.dataset.m];
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+// cheap deterministic 2D noise for chop + white-caps
+function n2(x, z, t){
+  return Math.sin(x*0.7 + t*1.3) * Math.sin(z*0.9 + t*1.1)
+       + 0.5*Math.sin(x*1.7 - t*2.1 + z*0.6);
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ease the weather
+  for(const k2 in target) cur[k2] = lerp(cur[k2], target[k2], Math.min(1, dt*0.8));
+
+  // sky + light darken with the weather
+  hemi.intensity = 0.5 + 0.55*cur.sky;
+  sun.intensity = 0.6 + 1.6*cur.sky;
+  window.__sky.material.color = new THREE.Color().setScalar(0.45 + 0.55*cur.sky);
+
+  const deep = DEEP_C.clone().lerp(STORM_DEEP, clamp((0.62-cur.sky)/0.45, 0, 1))
+                      .lerp(HURR_DEEP, clamp((0.35-cur.sky)/0.3, 0, 1));
+
+  for(let i = 0; i < wN; i++){
+    const d = wd[i];
+    if(inland[i]){                      // underground under the island — park it
+      wpos.setY(i, -0.6);
+      continue;
+    }
+    const x = wpos.getX(i), z = wpos.getZ(i);
+    // SHOALING: amplitude ramps up approaching the shore, dies on the sand
+    const shoal = d < 6 ? clamp(1 + (6 - d) * 0.14, 1, 2.1) : 1;
+    const beachFade = clamp(d / 1.1 + 1, 0, 1);   // the swash thins to nothing
+    let y = 0;
+    // wave trains: phase rides DISTANCE TO SHORE — crests parallel the coast
+    y += Math.sin(d * cur.k - t * cur.w) * cur.amp * shoal;
+    if(cur.trains > 1) y += Math.sin(d * cur.k * 1.7 - t * cur.w * 1.35 + 1.7) * cur.amp * 0.45 * shoal;
+    if(cur.trains > 2) y += Math.sin(d * cur.k * 0.55 - t * cur.w * 0.8 + 3.9) * cur.amp * 0.6;
+    // open-water chop (directionless)
+    y += n2(x, z, t) * cur.chop * clamp(d / 4, 0, 1);
+    y *= beachFade;
+    wpos.setY(i, y);
+
+    // ---- FOAM: a crest standing in the shallows = white water ----
+    const crest = Math.sin(d * cur.k - t * cur.w);
+    let foam = 0;
+    if(d < cur.foamW && d > -0.6)
+      foam = clamp(crest, 0, 1) * clamp(1 - d / cur.foamW, 0, 1) * 1.35;
+    // the swash line washing the sand
+    if(d < 0.9) foam = Math.max(foam, clamp(0.65 + crest*0.5, 0, 1) * clamp(1 - Math.abs(d)/0.9, 0, 1));
+    // white-caps far out in the big winds
+    if(cur.capNoise > 0.02 && d > 3)
+      foam = Math.max(foam, clamp(n2(x*1.6, z*1.6, t*1.5) - (1.35 - cur.capNoise), 0, 1) * 1.6);
+    foam = clamp(foam, 0, 1);
+    const c = deep.clone().lerp(SHALLOW_C, clamp(1 - d/7, 0, 1)).lerp(FOAM_C, foam);
+    wcol[i*3] = c.r; wcol[i*3+1] = c.g; wcol[i*3+2] = c.b;
+  }
+  wpos.needsUpdate = true;
+  waterGeo.attributes.color.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
