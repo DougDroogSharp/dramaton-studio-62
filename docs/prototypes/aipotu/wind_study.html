@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WIND STUDY — the island's flora in moving air, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so the wind rig can drive the real palm/bush/fir integrations.
+
+     Doug's brief: take the palms, the food berry bushes and the fir
+     trees and animate them under a BREEZE, a WIND, a STORM and a
+     HURRICANE — and the berry bushes are STIFFER than the palms, so
+     they bend less. Stiffness ladder here (bend factor): PALM 1.0 —
+     the great flexible streamer · FIR 0.45 — sways and lashes but
+     stands · BERRY BUSH 0.22 — a stiff gnarl that shivers and jiggles
+     rather than bows. One shared wind: direction +X, a slow GUST
+     envelope over a base flow, high-frequency flutter riding on top;
+     the hurricane adds violent gusting and flying debris.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wind Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dde6dc; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(22,28,24,0.78); color:#ecf4ee;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#4a7050; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#5b8a63; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌬 Wind Study</b> — palm · berry bush · fir, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · wind blows left → right</span><br>
+  <button data-w="0.16">Breeze</button><button data-w="0.45">Wind</button><button
+    data-w="0.75">Storm</button><button data-w="1">Hurricane</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 55155;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdbe3da), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(1, 4.6, 17);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 55;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f2e4), zenith = new THREE.Color(0x7cb0da),
+        below = new THREE.Color(0xd4dcc8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 30, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 16;  sun.shadow.camera.bottom = -16;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 100;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xc4bd84 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ---------- materials ------------------------------------------------------
+const matTrunk = new THREE.MeshLambertMaterial({ color:0x8a6a4a, flatShading:true });
+const matBark = new THREE.MeshLambertMaterial({ color:0x5c4632, flatShading:true });
+const matFrond = new THREE.MeshLambertMaterial({ color:0x4a8a3c, flatShading:true, side:THREE.DoubleSide });
+const matBushWood = new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true });
+const matRosette = new THREE.MeshLambertMaterial({ color:0x50783a, flatShading:true });
+const matBerry = new THREE.MeshLambertMaterial({ color:0xd8433c });
+const matFirDeep = new THREE.MeshLambertMaterial({ color:0x33543a, flatShading:true });
+
+// ==========================================================================
+//  THE PALM — bend factor 1.0. Trunk = a CHAIN of segments (each a group
+//  pivoting at its base) so the whole trunk BOWS downwind; the crown is
+//  8 two-joint fronds that stream.
+// ==========================================================================
+const palm = { trunkSegs: [], fronds: [] };
+{
+  const g = new THREE.Group();
+  g.position.set(-6, 0, 0);
+  scene.add(g);
+  let parent = g;
+  const SEGN = 5, segH = 1.05;
+  for(let i = 0; i < SEGN; i++){
+    const seg = new THREE.Group();
+    seg.position.y = i === 0 ? 0 : segH;
+    const r0 = 0.24 * (1 - i/SEGN*0.45);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r0*0.88, r0, segH, 8), matTrunk);
+    m.position.y = segH/2;
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    palm.trunkSegs.push(seg);
+    parent = seg;
+  }
+  // crown: fronds = shoulder group + midrib tip group
+  const crown = new THREE.Group();
+  crown.position.y = segH;
+  parent.add(crown);
+  for(let i = 0; i < 8; i++){
+    const a = (i/8) * Math.PI*2;
+    const sh = new THREE.Group();
+    sh.rotation.y = -a;
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 4), matFrond);
+    inner.rotation.z = -Math.PI/2;
+    inner.scale.set(1, 0.16, 1);
+    inner.position.x = 0.75;
+    inner.castShadow = true;
+    sh.add(inner);
+    const tip = new THREE.Group();
+    tip.position.x = 1.4;
+    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.2, 4), matFrond);
+    outer.rotation.z = -Math.PI/2;
+    outer.scale.set(1, 0.14, 1);
+    outer.position.x = 0.55;
+    outer.castShadow = true;
+    tip.add(outer);
+    sh.add(tip);
+    crown.add(sh);
+    palm.fronds.push({ sh, tip, a, ph: rand(0, Math.PI*2) });
+  }
+}
+
+// ==========================================================================
+//  THE BERRY BUSH — bend factor 0.22: a STIFF Joshua gnarl. Branch elbows
+//  barely move; the leaf rosettes SHIVER and the hanging berries rock —
+//  that's how stiffness reads: high frequency, small amplitude.
+// ==========================================================================
+const bush = { arms: [], rosettes: [], berries: [] };
+{
+  const g = new THREE.Group();
+  g.position.set(0, 0, 0.5);
+  scene.add(g);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.7, 7), matBushWood);
+  trunk.position.y = 0.35;
+  trunk.castShadow = true;
+  g.add(trunk);
+  for(let i = 0; i < 4; i++){
+    const a = (i/4)*Math.PI*2 + rand(-0.3, 0.3);
+    const arm = new THREE.Group();
+    arm.position.y = 0.65;
+    arm.rotation.y = -a;
+    arm.rotation.z = -rand(0.5, 0.9);
+    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.6, 6), matBushWood);
+    seg1.position.y = 0.3;
+    seg1.castShadow = true;
+    arm.add(seg1);
+    const elbow = new THREE.Group();
+    elbow.position.y = 0.6;
+    elbow.rotation.z = rand(0.5, 1.0);   // the kinked Joshua elbow
+    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.5, 6), matBushWood);
+    seg2.position.y = 0.25;
+    seg2.castShadow = true;
+    elbow.add(seg2);
+    // spiky leaf rosette at the end
+    const ros = new THREE.Group();
+    ros.position.y = 0.55;
+    for(let s = 0; s < 7; s++){
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.34, 4), matRosette);
+      const sa = (s/7)*Math.PI*2;
+      spike.position.set(Math.cos(sa)*0.1, 0.05, Math.sin(sa)*0.1);
+      spike.rotation.z = Math.cos(sa)*1.05;
+      spike.rotation.x = -Math.sin(sa)*1.05;
+      spike.castShadow = true;
+      ros.add(spike);
+    }
+    elbow.add(ros);
+    // a hanging berry on its stem
+    const stem = new THREE.Group();
+    stem.position.set(0.12, 0.42, 0);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 4), matBushWood);
+    st.position.y = -0.08;
+    stem.add(st);
+    const berry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 7, 6), matBerry);
+    berry.position.y = -0.18;
+    berry.castShadow = true;
+    stem.add(berry);
+    elbow.add(stem);
+    arm.add(elbow);
+    g.add(arm);
+    bush.arms.push({ arm, elbow, ph: rand(0, Math.PI*2) });
+    bush.rosettes.push({ ros, ph: rand(0, Math.PI*2) });
+    bush.berries.push({ stem, ph: rand(0, Math.PI*2) });
+  }
+}
+
+// ==========================================================================
+//  THE FIR — bend factor 0.45 (compact noble from the fir study): the
+//  trunk sways as one column from the root, the branch-fans FLUTTER and,
+//  in the big winds, LASH downwind.
+// ==========================================================================
+const fir = { root: null, branches: [] };
+{
+  const root = new THREE.Group();
+  root.position.set(6, 0, 0);
+  scene.add(root);
+  fir.root = root;
+  const H = 5.4, baseR = 0.2;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(baseR*0.2, baseR, H, 8), matBark);
+  trunk.position.y = H/2;
+  trunk.castShadow = true;
+  root.add(trunk);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.5, 6), matFirDeep);
+  tip.position.y = H + 0.2;
+  tip.castShadow = true;
+  root.add(tip);
+  const whorls = 9;
+  for(let w = 0; w < whorls; w++){
+    const f = w / (whorls - 1);
+    const wy = H*0.16 + f * H*0.72;
+    const wr = 1.7 * (1 - f*0.75);
+    const n = 7 - Math.floor(f*2);
+    for(let b = 0; b < n; b++){
+      const a = (b/n)*Math.PI*2 + rand(-0.2, 0.2) + w;
+      const br = new THREE.Group();
+      br.position.y = wy;
+      br.rotation.y = -a;
+      const len = wr * rand(0.8, 1.1);
+      const fan = new THREE.Mesh(new THREE.ConeGeometry(len*0.3, len, 5), matFirDeep);
+      fan.rotation.z = -Math.PI/2;
+      fan.scale.set(1, 0.24, 1);
+      fan.position.x = len*0.52;
+      fan.rotation.z += -0.3 - f*0.1;
+      fan.castShadow = true;
+      br.add(fan);
+      root.add(br);
+      fir.branches.push({ br, a, f, ph: rand(0, Math.PI*2) });
+    }
+  }
+}
+
+// ---------- flying DEBRIS for the big winds --------------------------------
+const debris = [];
+{
+  const mats = [matFrond, matRosette, new THREE.MeshLambertMaterial({ color:0xb9a05c })];
+  for(let i = 0; i < 16; i++){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(rand(0.1, 0.28), rand(0.05, 0.12)),
+      mats[i % 3]);
+    m.material = m.material.clone();
+    m.material.side = THREE.DoubleSide;
+    m.visible = false;
+    scene.add(m);
+    debris.push({ m, t: 99 });
+  }
+}
+
+// ==========================================================================
+//  THE WIND — one signal for everything: base level W, a slow GUST wave,
+//  and high-frequency flutter. Every plant reads the same air, scaled by
+//  its own stiffness. Hurricane gusts SLAM (sharp attack, slow release).
+// ==========================================================================
+let W = 0.16, Wt = 0.16;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  Wt = parseFloat(b.dataset.w);
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  W = lerp(W, Wt, Math.min(1, dt*1.2));
+
+  // the shared air: gust envelope + flutter clock
+  const slam = W > 0.85 ? Math.pow(Math.max(0, Math.sin(t*0.9)), 6) * 0.8 : 0;   // hurricane slams
+  const gust = W * (0.75 + 0.25*Math.sin(t*0.5) + 0.18*Math.sin(t*1.7) + slam);
+  const flut = t * (6 + W*14);
+
+  // ---------- PALM (bend 1.0): the trunk bows, the crown streams ----------
+  palm.trunkSegs.forEach((seg, i) => {
+    const f = (i+1) / palm.trunkSegs.length;
+    seg.rotation.z = -gust * 0.16 * f * f - Math.sin(t*1.9 + i)*0.012*W;
+  });
+  for(const fr of palm.fronds){
+    const down = Math.cos(fr.a);            // +1 = pointing downwind
+    // streaming: fronds swing toward downwind as the wind rises
+    fr.sh.rotation.z = -0.25 - gust*0.55*(0.5 - down*0.5) - Math.sin(flut + fr.ph)*0.05*W;
+    fr.sh.rotation.y = -fr.a * (1 - gust*0.4) - gust*0.4 * Math.sign(Math.sin(fr.a)) * (Math.abs(Math.sin(fr.a)));
+    fr.tip.rotation.z = -0.2 - gust*0.7 - Math.sin(flut*1.3 + fr.ph)*0.1*W;
+  }
+
+  // ---------- BERRY BUSH (bend 0.22): shiver, don't bow -------------------
+  for(const a2 of bush.arms){
+    a2.elbow.rotation.x = Math.sin(flut + a2.ph) * 0.02 * W;
+    a2.arm.rotation.x = gust * 0.035;       // the whole gnarl gives only a whisker
+  }
+  for(const r of bush.rosettes)
+    r.ros.rotation.y = Math.sin(flut*1.6 + r.ph) * 0.10 * W;   // the spiky shiver
+  for(const b of bush.berries){
+    b.stem.rotation.x = Math.sin(flut*0.8 + b.ph) * 0.5 * W + gust*0.25;  // berries ROCK hard
+    b.stem.rotation.z = Math.sin(flut*0.6 + b.ph*2) * 0.3 * W;
+  }
+
+  // ---------- FIR (bend 0.45): column sway + lashing fans -----------------
+  fir.root.rotation.z = -gust * 0.07 - Math.sin(t*1.4)*0.008*W;
+  for(const br of fir.branches){
+    const down = Math.cos(br.a);
+    br.br.rotation.z = -gust*0.22*(0.5 - down*0.5)*(0.6 + br.f*0.6)
+      - Math.sin(flut*1.15 + br.ph)*0.045*W;
+    br.br.rotation.x = Math.sin(flut*0.9 + br.ph)*0.03*W;
+  }
+
+  // ---------- debris on the big winds ----------
+  if(W > 0.6 && Math.random() < dt * (W > 0.85 ? 9 : 2.5)){
+    const d = debris.find(d => d.t > 3);
+    if(d){
+      d.t = 0;
+      d.m.visible = true;
+      d.m.position.set(rand(-10, -4), rand(0.3, 3.5), rand(-3, 3));
+    }
+  }
+  for(const d of debris){
+    if(d.t > 3){ d.m.visible = false; continue; }
+    d.t += dt;
+    d.m.position.x += (5 + W*11) * dt * (0.7 + 0.3*Math.sin(t*3 + d.t*7));
+    d.m.position.y += Math.sin(t*9 + d.t*13) * dt * 2.2 - dt*0.25;
+    d.m.rotation.x += dt*11; d.m.rotation.y += dt*7;
+    if(d.m.position.y < 0.05 || d.m.position.x > 14) d.t = 99;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
