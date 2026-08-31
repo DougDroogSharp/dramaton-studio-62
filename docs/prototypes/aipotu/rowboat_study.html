@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ROWBOAT STUDY — a cute little yellow rowboat, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeRowboat()/updateRowboat() can drop straight in later.
+
+     Doug's brief: a LITTLE YELLOW rowboat a Vita can sit in and ROW —
+     animate the rowing (real oar strokes: catch, pull, feather, return),
+     and animate the Vita GETTING IN and GETTING OUT. The boat should
+     look a little CUTE: tubby proportions, bright buttercup hull, a
+     white waterline stripe, rounded bow, a tiny flag on the stern.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rowboat Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dcedf4; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(18,30,38,0.78); color:#eaf5fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d8ec9; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4da3e0; }
+  #chip button.on { background:#e8c531; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🛶 Rowboat Study</b> — the little yellow boat, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="getin">Get in</button><button data-m="row">Row</button><button
+    data-m="drift">Rest oars</button><button data-m="getout">Get out</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 33550336;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdbeaf2), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(5.6, 3.4, 8.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.7, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.5;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeef6f8), zenith = new THREE.Color(0x64aede),
+        below = new THREE.Color(0xd2e4ea), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf8, 0x9db4a4, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(22, 28, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12;  sun.shadow.camera.bottom = -12;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- the water + a little jetty ------------------------------------
+let sea;
+{
+  const geo = new THREE.PlaneGeometry(600, 600, 56, 56);
+  geo.rotateX(-Math.PI/2);
+  sea = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color:0x3f8bb5, transparent:true, opacity:0.94 }));
+  sea.receiveShadow = true;
+  scene.add(sea);
+  // the jetty the Vita boards from: plank deck on posts, at water level
+  const deckMat = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+  for(let i = 0; i < 5; i++){
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.07, 2.2), deckMat);
+    p.position.set(2.05 + i*0.44, 0.42, 0);
+    p.castShadow = true; p.receiveShadow = true;
+    scene.add(p);
+  }
+  for(const [px, pz] of [[2.1, -0.9], [2.1, 0.9], [4.0, -0.9], [4.0, 0.9]]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 1.1, 7), deckMat);
+    post.position.set(px, -0.1, pz);
+    scene.add(post);
+  }
+}
+
+// ==========================================================================
+//  THE BOAT — tubby, buttercup-yellow, and proud of it. Lathe hull with a
+//  rounded bow, white waterline stripe, wooden gunwale + bench, rowlocks,
+//  and a tiny red pennant. Cute is a design requirement.
+// ==========================================================================
+const matYellow = new THREE.MeshLambertMaterial({ color:0xf2c531, flatShading:true });
+const matYellowDk = new THREE.MeshLambertMaterial({ color:0xd9a81f, flatShading:true });
+const matWhite = new THREE.MeshLambertMaterial({ color:0xf6f3e8, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matRed = new THREE.MeshLambertMaterial({ color:0xd84f4f, flatShading:true, side:THREE.DoubleSide });
+
+const boat = new THREE.Group();
+scene.add(boat);
+const hullG = new THREE.Group();   // bobs + rolls; everything aboard rides it
+boat.add(hullG);
+
+{
+  // hull: a squashed capsule shell, open top faked by a dark inner scoop
+  const hgeo = new THREE.CapsuleGeometry(0.62, 1.15, 8, 14);
+  hgeo.rotateX(Math.PI/2);
+  hgeo.scale(1, 0.62, 1);
+  const hull = new THREE.Mesh(hgeo, matYellow);
+  hull.position.y = 0.18;
+  hull.castShadow = true;
+  hullG.add(hull);
+  // inner scoop (the cockpit)
+  const inG = new THREE.CapsuleGeometry(0.52, 1.05, 8, 12);
+  inG.rotateX(Math.PI/2);
+  inG.scale(1, 0.5, 1);
+  const inner = new THREE.Mesh(inG, new THREE.MeshLambertMaterial({ color:0x6b5426, flatShading:true }));
+  inner.position.y = 0.3;
+  hullG.add(inner);
+  // white WATERLINE stripe
+  const stripeG = new THREE.CapsuleGeometry(0.635, 1.16, 8, 14);
+  stripeG.rotateX(Math.PI/2);
+  stripeG.scale(1, 0.16, 1);
+  const stripe = new THREE.Mesh(stripeG, matWhite);
+  stripe.position.y = 0.12;
+  hullG.add(stripe);
+  // wooden gunwale ring
+  const gwG = new THREE.TorusGeometry(0.62, 0.045, 7, 22);
+  gwG.rotateX(Math.PI/2);
+  gwG.scale(1, 1, 1.75);
+  const gw = new THREE.Mesh(gwG, matWood);
+  gw.position.y = 0.5;
+  gw.castShadow = true;
+  hullG.add(gw);
+  // the rowing BENCH
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.06, 0.34), matWood);
+  bench.position.set(0, 0.42, 0.1);
+  bench.castShadow = true;
+  hullG.add(bench);
+  // bow cap + stern pennant
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), matYellowDk);
+  cap.scale.set(1, 0.6, 1.2);
+  cap.position.set(0, 0.5, 1.28);
+  hullG.add(cap);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.55, 6), matWood);
+  mast.position.set(0, 0.72, -1.22);
+  hullG.add(mast);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.17), matRed);
+  flag.position.set(0.16, 0.9, -1.22);
+  hullG.add(flag);
+  hullG.userData.flag = flag;
+}
+
+// ---------- oars in rowlocks ----------------------------------------------
+// each oar pivots at its rowlock; the LOOM (handle side) points inboard to
+// the rower's hands, the BLADE outboard into the water
+const oars = [];
+for(const s of [-1, 1]){
+  const lock = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.018, 6, 12), matWood);
+  lock.position.set(s*0.64, 0.56, 0.12);
+  lock.rotation.y = Math.PI/2;
+  hullG.add(lock);
+  const oar = new THREE.Group();
+  oar.position.copy(lock.position);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 1.7, 7), matWood);
+  shaft.rotation.z = Math.PI/2;
+  shaft.position.x = s * 0.55;   // most of the shaft outboard
+  shaft.castShadow = true;
+  oar.add(shaft);
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.16), matYellowDk);
+  blade.position.x = s * 1.42;
+  blade.castShadow = true;
+  oar.add(blade);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.14, 7), matYellowDk);
+  grip.rotation.z = Math.PI/2;
+  grip.position.x = -s * 0.33;
+  oar.add(grip);
+  hullG.add(oar);
+  oars.push({ g: oar, side: s, blade });
+}
+
+// ---------- the ROWER — study-style stand-in Vita -------------------------
+const rower = new THREE.Group();
+const RW = {};
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x4f9fd8 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xffd9b3 });
+  RW.hips = new THREE.Group();
+  rower.add(RW.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.62; barrel.castShadow = true; RW.hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; RW.hips.add(head);
+  RW.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0.42, 0.06);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.24; shin.castShadow = true;
+    leg.add(shin);
+    RW.hips.add(leg);
+    RW.legs.push(leg);
+  }
+  RW.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.95, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.36, 4, 8), skin);
+    limb.position.y = -0.22;
+    limb.castShadow = true;
+    arm.add(limb);
+    RW.hips.add(arm);
+    RW.arms.push(arm);
+  }
+  scene.add(rower);
+}
+
+// ==========================================================================
+//  THE MOTION — a little state machine with real TRANSITIONS:
+//  getin  : walk the jetty → step down into the hull (a hop + settle) → sit
+//  row    : the full stroke — CATCH (blades drop), PULL (torso swings back,
+//           boat surges), RELEASE + FEATHER (blades lift, turn flat),
+//           RETURN (torso forward). Boat speed follows the pull.
+//  drift  : oars shipped level, boat glides out, gentle bob.
+//  getout : row back near the jetty, ship oars, stand, hop up, walk off.
+// ==========================================================================
+let mode = 'getin', phase = 0, aboard = false;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === mode) return;
+  mode = m; phase = 0;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+chipBtns.find(b => b.dataset.m === 'getin').classList.add('on');
+
+let boatSpeed = 0, boatA = Math.PI/2, boatDist = 0;
+const BOAT_HOME = new THREE.Vector3(0.7, 0, 0);
+boat.position.copy(BOAT_HOME);
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ---------- water ----------
+  {
+    const pos = sea.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, Math.sin(x*0.5 + t*1.1)*0.05 + Math.sin(z*0.7 + t*0.8)*0.04);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // ---------- the boat's bob + the flag ----------
+  const bob = Math.sin(t*1.3)*0.03 + Math.sin(t*2.1)*0.02;
+  hullG.position.y = bob;
+  hullG.rotation.z = Math.sin(t*1.1)*0.025;
+  hullG.rotation.x = Math.sin(t*1.7)*0.02 - boatSpeed*0.03;   // a proud little trim underway
+  hullG.userData.flag.rotation.y = Math.sin(t*4)*0.4;
+
+  // stroke timing (shared by row + the rower's body)
+  const stroke = t * 1.6;                       // stroke cycle clock
+  const cyc = stroke % (Math.PI*2);
+  const pulling = cyc < Math.PI;                // first half = the pull
+  const pullF = pulling ? Math.sin(cyc) : 0;    // surge strength
+
+  // ---------- mode logic ----------
+  let rowing = false;
+  if(mode === 'getin'){
+    // walk the jetty to its end, then the little hop down, then sit
+    phase += dt;
+    if(phase < 2.2){                    // walking in
+      const f = phase / 2.2;
+      rower.position.set(lerp(4.1, 1.9, f), 0.46, 0);
+      rower.rotation.y = -Math.PI/2;
+      const ph = f * 14;
+      RW.legs[0].rotation.x = Math.sin(ph)*0.5;
+      RW.legs[1].rotation.x = -Math.sin(ph)*0.5;
+      RW.hips.position.y = Math.abs(Math.cos(ph))*0.03;
+      aboard = false;
+    } else if(phase < 3.1){             // the HOP down into the hull
+      const f = smooth((phase - 2.2) / 0.9);
+      rower.position.x = lerp(1.9, boat.position.x, f);
+      rower.position.z = lerp(0, boat.position.z + 0.1, f);
+      rower.position.y = 0.46 + Math.sin(f*Math.PI)*0.35 - f*0.28;
+      RW.legs[0].rotation.x = -0.6*f; RW.legs[1].rotation.x = -0.6*f;
+      RW.arms[0].rotation.z = -0.5*Math.sin(f*Math.PI);   // little balance flail
+      RW.arms[1].rotation.z = 0.5*Math.sin(f*Math.PI);
+    } else {                            // settle onto the bench
+      const f = smooth(clamp((phase - 3.1) / 0.7, 0, 1));
+      aboard = true;
+      RW.hips.position.y = lerp(0.1, 0, f);
+      RW.legs[0].rotation.x = lerp(-0.6, -1.35, f);   // knees up, boat-style
+      RW.legs[1].rotation.x = lerp(-0.6, -1.35, f);
+      RW.arms[0].rotation.z = 0; RW.arms[1].rotation.z = 0;
+      if(f >= 1) setMode('row');
+    }
+  } else if(mode === 'row'){
+    aboard = true; rowing = true;
+    boatSpeed = lerp(boatSpeed, 0.85, dt*1.2);
+  } else if(mode === 'drift'){
+    aboard = true;
+    boatSpeed = lerp(boatSpeed, 0, dt*0.8);
+  } else if(mode === 'getout'){
+    // steer home; once close, ship oars, stand, hop to the jetty, walk off
+    const toHome = BOAT_HOME.clone().sub(boat.position);
+    if(aboard && toHome.length() > 0.25 && phase === 0){
+      rowing = true;
+      boatSpeed = lerp(boatSpeed, 0.7, dt*1.2);
+      const wantA = Math.atan2(toHome.x, toHome.z);
+      let dA = wantA - boatA;
+      dA = ((dA + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+      boatA += dA * Math.min(1, dt*1.4);
+    } else {
+      phase += dt;
+      boatSpeed = lerp(boatSpeed, 0, dt*3);
+      if(phase < 0.8){                  // stand up on the floorboards
+        const f = smooth(phase / 0.8);
+        RW.hips.position.y = f * 0.12;
+        RW.legs[0].rotation.x = lerp(-1.35, 0, f);
+        RW.legs[1].rotation.x = lerp(-1.35, 0, f);
+      } else if(phase < 1.7){           // the hop UP to the jetty
+        const f = smooth((phase - 0.8) / 0.9);
+        aboard = false;
+        rower.position.x = lerp(boat.position.x, 1.95, f);
+        rower.position.z = lerp(boat.position.z, 0, f);
+        rower.position.y = lerp(boat.position.y + bob + 0.2, 0.46, f) + Math.sin(f*Math.PI)*0.3;
+        rower.rotation.y = Math.PI/2;
+        RW.arms[0].rotation.z = -0.5*Math.sin(f*Math.PI);
+        RW.arms[1].rotation.z = 0.5*Math.sin(f*Math.PI);
+      } else if(phase < 4.0){           // walk away down the jetty
+        const f = (phase - 1.7) / 2.3;
+        rower.position.set(lerp(1.95, 4.3, f), 0.46, 0);
+        const ph = f * 15;
+        RW.legs[0].rotation.x = Math.sin(ph)*0.5;
+        RW.legs[1].rotation.x = -Math.sin(ph)*0.5;
+        RW.hips.position.y = Math.abs(Math.cos(ph))*0.03;
+        RW.arms[0].rotation.z = 0; RW.arms[1].rotation.z = 0;
+      } else setMode('getin');          // …and back for another lap
+    }
+  }
+
+  // ---------- boat travel (surge on the pull) ----------
+  const surge = rowing ? boatSpeed * (0.35 + pullF) : boatSpeed * 0.4;
+  boat.position.x += Math.sin(boatA) * surge * dt;
+  boat.position.z += Math.cos(boatA) * surge * dt;
+  boat.rotation.y = boatA;
+  if(mode === 'row'){
+    // gentle wandering course, staying on open water
+    boatA += Math.sin(t*0.23) * dt * 0.25;
+    const d = Math.hypot(boat.position.x, boat.position.z);
+    if(d > 14) boatA += dt * 0.8;   // curl back toward home water
+  }
+
+  // ---------- the OARS: catch → pull → feather → return ----------
+  for(const o of oars){
+    if(rowing){
+      // sweep: blade swings stern→bow during the pull, returns feathered
+      const sweep = pulling ? lerp(0.55, -0.55, cyc/Math.PI)
+                            : lerp(-0.55, 0.55, (cyc-Math.PI)/Math.PI);
+      o.g.rotation.y = o.side * -sweep;
+      // dip: blades in the water on the pull, lifted clear on the return
+      o.g.rotation.z = o.side * (pulling ? -0.16 : 0.24);
+      // feather: blade flat on the return
+      o.blade.rotation.x = pulling ? 0 : Math.PI/2 * 0.8;
+    } else {
+      // shipped: level, blades just clear, a lazy trail in the bob
+      o.g.rotation.y = lerp(o.g.rotation.y, 0, dt*3);
+      o.g.rotation.z = lerp(o.g.rotation.z, o.side * 0.18, dt*3);
+      o.blade.rotation.x = lerp(o.blade.rotation.x, Math.PI/2*0.8, dt*3);
+    }
+  }
+
+  // ---------- the rower aboard: torso swing + arm pull ----------
+  if(aboard && mode !== 'getin' && mode !== 'getout'){
+    rower.position.set(boat.position.x, boat.position.y + bob + 0.42, boat.position.z);
+    rower.position.x += Math.sin(boatA) * 0.1;
+    rower.position.z += Math.cos(boatA) * 0.1;
+    rower.rotation.y = boatA + Math.PI;         // rowers face the STERN
+    RW.legs[0].rotation.x = RW.legs[1].rotation.x = -1.35;
+    if(rowing){
+      const lean = pulling ? lerp(0.28, -0.3, cyc/Math.PI)
+                           : lerp(-0.3, 0.28, (cyc-Math.PI)/Math.PI);
+      RW.hips.rotation.x = lean;
+      const reach = pulling ? lerp(-1.15, -0.35, cyc/Math.PI)
+                            : lerp(-0.35, -1.15, (cyc-Math.PI)/Math.PI);
+      RW.arms[0].rotation.x = reach;
+      RW.arms[1].rotation.x = reach;
+    } else {
+      RW.hips.rotation.x = lerp(RW.hips.rotation.x, 0, dt*3);
+      RW.arms[0].rotation.x = lerp(RW.arms[0].rotation.x, -0.4, dt*3);
+      RW.arms[1].rotation.x = lerp(RW.arms[1].rotation.x, -0.4, dt*3);
+    }
+  } else if(mode === 'getin' && aboard){
+    rower.position.set(boat.position.x, boat.position.y + bob + 0.42, boat.position.z);
+    rower.rotation.y = boatA + Math.PI;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
