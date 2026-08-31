@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.71</title>
+<title>George World v0.72</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -379,7 +379,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.71</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.72</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -4957,11 +4957,18 @@ function walkStep(v, tx, tz, dt, t, arriveDist){
   const loadF = 1 / (1 + (v.state.carrying || 0) * 0.07);   // a heavy load slows the hauler
   const speed = (v.isBaby ? 1.6 : 6.6) * slopeF * frailF * loadF;
   const step = Math.min(speed * dt, d);   // at 60× a frame's stride is huge — never overshoot the target
+  const px0 = g.position.x, pz0 = g.position.z;
   const nx = g.position.x + _wish.x*step, nz = g.position.z + _wish.z*step;
   if(terrainH(nx, nz) > 0.25){ g.position.x = nx; g.position.z = nz; }
   else if(terrainH(nx, g.position.z) > 0.25){ g.position.x = nx; }
   else if(terrainH(g.position.x, nz) > 0.25){ g.position.z = nz; }
   else return true;   // stuck at the water line — give up on this target
+  // v0.72 THE GAIT'S TRUTH: the legs are driven by DISTANCE COVERED, not by
+  // the clock — feet plant instead of skating, and a blocked walker's legs
+  // go quiet instead of pumping in place
+  const covered = Math.hypot(g.position.x - px0, g.position.z - pz0);
+  v.moved = dt > 0 ? covered / dt : 0;
+  v.walkPh = (v.walkPh || 0) + covered * 1.35;
   const hNow = terrainH(g.position.x, g.position.z);
   if(hNow > hHere && !v.isBaby) v.state.work = Math.min(100, v.state.work + (hNow - hHere)*3.5);
   const targA = Math.atan2(_wish.x, _wish.z);
@@ -7158,6 +7165,7 @@ function updateVita(v, dt, t){
   const s = v.state, g = v.group, parts = v.parts;
   if(s.dead) return;   // the dead rest — no hunger, no tasks, no animation
   v.walking = false;
+  v.moved = 0;   // v0.72: actual ground covered this frame — the gait's truth
   if(!s.task || (s.task.kind !== 'sleep' && s.task.kind !== 'siesta')){
     if(!v.isBaby) v.sleeping = false;
   }
@@ -7798,7 +7806,10 @@ function updateVita(v, dt, t){
   if(v.surfing){
     g.position.y = 0.55 + Math.sin(simT*9 + g.position.x) * 0.16;   // riding the face of the wave
   } else {
-    g.position.y = terrainH(g.position.x, g.position.z);
+    // v0.72 (Doug: shoes floated a few inches up): press the body slightly
+    // INTO the analytic height so the soles meet the rendered ground even
+    // where the terrain mesh's triangles dip under terrainH() on a slope
+    g.position.y = terrainH(g.position.x, g.position.z) - 0.09;
     g.position.y += 0.4 * Math.min(1, Math.abs(g.rotation.z) / 1.4);   // lying down (sleep/collapse)
   }
   if(s.mood && s.mood.state === 'exult' && v.moodJump)
@@ -7814,14 +7825,19 @@ function updateVita(v, dt, t){
       parts.armR.rotation.z = 0.12 + Math.abs(Math.sin(t*14)) * 0.9;
     } else { if(!s.collapsed && !v.sleeping) g.rotation.z = 0; parts.armL.rotation.z = -0.12; parts.armR.rotation.z = 0.12; }
   } else if(v.walking){
-    const ph = t * 8.5 + g.position.x;   // desync gaits
-    parts.legL.rotation.x = Math.sin(ph) * 0.62;
-    parts.legR.rotation.x = -Math.sin(ph) * 0.62;
-    parts.armL.rotation.x = -Math.sin(ph) * 0.55;
-    parts.armR.rotation.x = Math.sin(ph) * 0.55;
+    // v0.72: phase = accumulated DISTANCE (walkPh, fed by walkStep) so the
+    // stride matches the ground actually covered — no more skating feet —
+    // and swing amplitude scales with real speed: a slowed or blocked walker
+    // shuffles small or stands, never marches in place
+    const ph = (v.walkPh || 0) + (v.gaitOff ??= rand(0, Math.PI*2));
+    const sw = Math.min(1, (v.moved || 0) / 3.2);
+    parts.legL.rotation.x = Math.sin(ph) * 0.62 * sw;
+    parts.legR.rotation.x = -Math.sin(ph) * 0.62 * sw;
+    parts.armL.rotation.x = -Math.sin(ph) * 0.55 * sw;
+    parts.armR.rotation.x = Math.sin(ph) * 0.55 * sw;
     parts.elL.rotation.x = parts.elR.rotation.x = -0.35;
-    parts.hips.position.y = 0.55 + Math.abs(Math.cos(ph)) * 0.045;
-    parts.hips.rotation.z = Math.sin(ph) * 0.05;
+    parts.hips.position.y = 0.55 + Math.abs(Math.cos(ph)) * 0.045 * sw;
+    parts.hips.rotation.z = Math.sin(ph) * 0.05 * sw;
     parts.dress.rotation.x = 0.10;                  // leaning into the walk
     parts.headGrp.rotation.y = 0;
     parts.headGrp.rotation.z = -Math.sin(ph) * 0.05;
@@ -10774,6 +10790,7 @@ function updatePoppy(simDt, t){
       }
       g.position.y = terrainH(g.position.x, g.position.z);
     } else {
+      poppy.pitch = 0; g.rotation.x = 0;   // v0.72: no slope-tilt while curled up
       if(!poppy.sleeping) recordEvent('fun', `🐕 Poppy curls up beside ${fav.name} for the night`);
       poppy.sleeping = true;
       g.position.y = terrainH(g.position.x, g.position.z) - 0.12;   // settled into the sand
@@ -10864,6 +10881,17 @@ function updatePoppy(simDt, t){
   g.position.y = terrainH(g.position.x, g.position.z) + hopY +
     (poppy.playmate ? Math.abs(Math.sin(t*9)) * 0.35 : 0);
   g.rotation.y = Math.atan2(dx, dz);
+  // v0.72 (Doug): her body follows the ground's CONTOUR — nose up climbing a
+  // hill, nose down coming off it. Sampled fore/aft along her heading and
+  // eased, so the tilt rolls smoothly with the slope, no snapping.
+  if(!poppy.jump){
+    const fx = dx/d, fz = dz/d;
+    const ah = terrainH(g.position.x + fx*1.1, g.position.z + fz*1.1);
+    const bh = terrainH(g.position.x - fx*1.1, g.position.z - fz*1.1);
+    const targP = -Math.atan2(ah - bh, 2.2) * 0.85;
+    poppy.pitch = (poppy.pitch ?? 0) + (targP - (poppy.pitch ?? 0)) * Math.min(1, simDt*6);
+  }
+  g.rotation.x = poppy.pitch ?? 0;
   // legs trot ONLY while she's actually covering ground; standing = resting
   // paws; mid-jump = paws tucked
   if(poppy.jump) poppy.legs.forEach(leg => leg.rotation.x = -0.85);
