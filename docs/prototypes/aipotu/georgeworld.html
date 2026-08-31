@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.62</title>
+<title>George World v0.63</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -372,7 +372,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.62</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.63</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -725,10 +725,13 @@ scene.add(flora);
 const swayCrowns = [];
 const harvestables = []; // {kind, pos, fruit, hasFruit, regrowT, regrowMax, claim, marker}
 const OBSTACLES = [];    // {x, z, r} static solids Vitas walk AROUND: trunks, rocks
-// TIMBER comes from FELLING PALMS: each fellable palm registers here. Felled
-// palms leave a stump and are GONE — and since palms are also the food/shade
-// source, heavy felling quietly depletes the island (the collapse hook, armed).
-const FELLABLES = [];    // {x, z, grp, ob, felled, claim, isDate, stump, h}
+// TIMBER comes from FELLING FIRS (v0.63 — Doug: timber ≠ palms): the pine
+// stands on the hillsides are the island's wood. Palms are food & shade and
+// nobody swings an axe at them — they register here only so the camera-fade
+// corridor knows every built tree. Felled firs leave a stump and are GONE;
+// there is no regrowth, so heavy building visibly bares the hills (the
+// depletion hook, armed).
+const FELLABLES = [];    // {x, z, grp, ob, felled, claim, isDate, isFir, stump, h}
 
 const matTrunk = new THREE.MeshLambertMaterial({ color:0x8a6239, flatShading:true });
 const matTrunkPale = new THREE.MeshLambertMaterial({ color:0xa07a4a, flatShading:true });
@@ -1334,7 +1337,10 @@ function makePine(x, z, s = 1){
     grp.add(cone);
   }
   placeOnTerrain(grp, x, z, 0.15);
-  OBSTACLES.push({ x, z, r: 0.3 * s });
+  const ob = { x, z, r: 0.3 * s };
+  OBSTACLES.push(ob);
+  // v0.63: every conifer is FELLABLE — the firs ARE the timber supply
+  FELLABLES.push({ x, z, grp, ob, felled:false, claim:null, isDate:false, isFir:true, stump:null, h:null });
 }
 
 function makeDatePalm(x, z){   // v0.43: the tall grove palms bear NO food now — timber + shade
@@ -1426,16 +1432,17 @@ for(let i = 0; i < 6; i++){
   FELLABLES.push({ x:sp.x, z:sp.z, grp:made.grp, ob, felled:false, claim:null, isDate:true, stump:null, h:null });
 }
 // PINE FORESTS: a ring around the volcano's lower slopes + the SLOPES OF THE
-// TWIN HILLS (v0.61) — always OFF the walking path
-for(let i = 0; i < 12; i++){
-  const a = (i / 12) * Math.PI * 2;
+// TWIN HILLS (v0.61) — always OFF the walking path. v0.63: densified a bit —
+// these stands are now the island's WHOLE timber supply, and they deplete.
+for(let i = 0; i < 18; i++){
+  const a = (i / 18) * Math.PI * 2;
   const px = (44 + Math.cos(a) * rand(19, 23)) * WS, pz = (-14 + Math.sin(a) * rand(19, 23)) * WS;
   const hh = terrainH(px, pz);
   if(hh < 2 || hh > 13 || pathDist(px, pz) < 4.5) continue;
   makePine(px, pz, rand(0.8, 1.2));
 }
 for(const [cx0, cz0] of [[-24, 12], [-15, 5]])   // the twins wear their pines
-  for(let i = 0; i < 7; i++){
+  for(let i = 0; i < 10; i++){
     const a = rand(0, Math.PI*2), r = rand(4, 8);
     const px = (cx0 + Math.cos(a)*r) * WS, pz = (cz0 + Math.sin(a)*r) * WS;
     const hh = terrainH(px, pz);
@@ -4287,11 +4294,12 @@ function risingKing(){
 // own — one per duke-cluster, set back a respectful distance from the duke's
 // door, plus one communal lean-to for the unclaimed). DUKES get timber houses.
 // The KING gets the MEAD HALL — a Heorot-sized long-hall that fits everyone.
-// EVERY structure is raised by SERFS: they fell the palms, haul the timber,
+// EVERY structure is raised by SERFS: they fell the hillside firs, haul the timber,
 // and burn their own stomachs building rooms they will never sleep in.
 const BUILD_COST = { leanto:2, house:4, hall:8 };
 const buildings = [];   // {kind, owner, x, z, cost, progress, consumed, done, grp}
 let lumber = 0;
+let firsGoneNoted = false;   // v0.63: the one-time "island's wood is spent" chronicle line
 // the log pile: the settlement's timber stock, stacked by the commons
 const logPile = [];
 {
@@ -4391,17 +4399,16 @@ function buildCrew(){
   return VITAS.filter(v => v.state.task && ['fell', 'construct'].includes(v.state.task.kind)).length;
 }
 function nearestFellable(v){
+  // v0.63 TIMBER = FIRS ONLY (Doug's call): palms are food and shade — the
+  // axe goes to the pine stands on the hillsides, and nowhere else.
   let best = null, bd = 1e9;
-  for(const pass of [false, true]){   // beach palms first; the date grove is LAST-resort timber
-    for(const f of FELLABLES){
-      if(f.felled || f.isDate !== pass) continue;
-      const busy = f.claim && !f.claim.state.dead && f.claim.state.task &&
-        f.claim.state.task.kind === 'fell' && f.claim.state.task.f === f;
-      if(busy && f.claim !== v) continue;
-      const d = Math.hypot(f.x - v.group.position.x, f.z - v.group.position.z);
-      if(d < bd){ bd = d; best = f; }
-    }
-    if(best) break;
+  for(const f of FELLABLES){
+    if(f.felled || !f.isFir) continue;
+    const busy = f.claim && !f.claim.state.dead && f.claim.state.task &&
+      f.claim.state.task.kind === 'fell' && f.claim.state.task.f === f;
+    if(busy && f.claim !== v) continue;
+    const d = Math.hypot(f.x - v.group.position.x, f.z - v.group.position.z);
+    if(d < bd){ bd = d; best = f; }
   }
   return best;
 }
@@ -4416,7 +4423,8 @@ function setFelled(f, felled){
   f.ob.off = felled;
   f.claim = null;
   if(felled && !f.stump){
-    f.stump = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.55, 6), matTrunk);
+    // stump sized to the tree it was (v0.63: fir trunks are slimmer than palms)
+    f.stump = new THREE.Mesh(new THREE.CylinderGeometry(f.ob.r*0.8, f.ob.r*0.95, 0.55, 6), matTrunk);
     f.stump.position.set(f.x, terrainH(f.x, f.z) + 0.2, f.z);
     flora.add(f.stump);
   }
@@ -4432,10 +4440,10 @@ function finishFell(v, f){
   setFelled(f, true);
   lumber = Math.min(logPile.length, lumber + 2);
   updateLogPile();
-  const left = FELLABLES.filter(x => !x.felled).length;
-  recordEvent('build', f.isDate
-    ? `🪓 ${v.name} fells one of the tall NORTH-SHORE PALMS — the shade line thins`
-    : `🪓 ${v.name} fells a palm for timber (${left} palms still stand)`);
+  const left = FELLABLES.filter(x => x.isFir && !x.felled).length;
+  recordEvent('build', left === 0
+    ? `🪓 ${v.name} fells the LAST FIR — the hillsides stand bare, and the axes go quiet`
+    : `🪓 ${v.name} fells a hillside fir for timber (${left} firs still stand)`);
   if(Math.random() < 0.5){
     const ln = pickLine('build_labor', v.name, (activeProject() && activeProject().owner) ? activeProject().owner.name : 'the boss');
     if(ln && !v.bubble.visible){ drawBubbleText(v, ln[0]); v.bubble.visible = true; mutters.push({ v, t:3.4 }); }
@@ -4630,7 +4638,8 @@ function updateBuildingFades(dt){
     }
   }
 }
-// PALMS NEVER PUSH THE CAMERA — they fade (v0.34). Trees between the lens and
+// TREES NEVER PUSH THE CAMERA — they fade (v0.34; v0.63: firs joined the
+// registry, so they fade the same way). Trees between the lens and
 // the subject go to glass exactly like buildings; the camera glides freely
 // through a grove with zero repulsion (repulsion in a dense stand = jitter).
 // Only the built (group) palms fade; the instanced micro-scatter is too small
@@ -5130,7 +5139,7 @@ function decide(v){
     if(h){ h.claim = v; s.task = { kind:'harvest', h }; return; }
   }
   // 4.7 CONSTRUCTION: assigned SERF labor. The buildings of the powerful are
-  // raised by the hands below them — fell the palms, haul the wood, and burn
+  // raised by the hands below them — fell the firs, haul the wood, and burn
   // your own stomach doing it. Bosses never lift a beam.
   if(hasTech(T_BUILD) && !nightNow && tierOf(v) === 0 && s.hunger < 62 && s.energy > 30){
     const pr = activeProject();
@@ -5138,6 +5147,10 @@ function decide(v){
       if(!pr.consumed && lumber < pr.cost){
         const f = nearestFellable(v);
         if(f){ f.claim = v; s.task = { kind:'fell', f }; s.prog = null; return; }
+        // v0.63: the depletion bites — a project stands waiting and there is
+        // not a fir left on the island to feed it
+        if(!firsGoneNoted){ firsGoneNoted = true;
+          recordEvent('build', '🪓 a project waits for timber — but not a FIR is left standing. The island\'s wood is spent'); }
       } else {
         s.task = { kind:'construct', b: pr }; s.prog = null; return;
       }
@@ -11292,7 +11305,7 @@ function updateKaiju(simDt, t){
       if(f.felled) continue;
       if(Math.hypot(f.x - g.position.x, f.z - g.position.z) < 7){
         setFelled(f, true);
-        if(Math.random() < 0.3) recordEvent('build', '🦖 a palm goes down under the great foot');
+        if(Math.random() < 0.3) recordEvent('build', '🦖 a tree goes down under the great foot');
       }
     }
     for(const b of buildings){
