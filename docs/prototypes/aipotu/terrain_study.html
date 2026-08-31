@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     TERRAIN STUDY — the George World island, realism pass.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+
+     WHAT THIS IS
+     A drop-in replacement for the island's TERRAIN LAYER. The landmass is the
+     SAME island — terrainBase() below is a verbatim copy of georgeworld.html's
+     terrainH() (v0.61: ridge, king's hill, twin hills, comically-large volcano,
+     surf bay, sand ring, WS=1.25). Everything added here is a DETAIL PASS on
+     top of that shape:
+
+       1. terrainDetail()  — erosion noise, downhill gullies, CLIFF TERRACING on
+                             steep high ground, radial volcano rilles. Faded to
+                             zero below h=0.4 so the COASTLINE IS UNCHANGED.
+       2. hybrid normals   — smooth on grass, faceted on rock, in ONE mesh.
+       3. instanced GRASS  — ~22k tufts, one draw call, world-space wind, camera
+                             distance LOD. Masked off sand, cliffs and basalt.
+       4. instanced WEEDS  — taller olive stems w/ seed heads, gully + hill-foot.
+       5. real ROCKS       — 7 procedural eroded/cleaved variants, instanced,
+                             placed by RULE (shoreline, hill outcrops, cliff-base
+                             talus, volcano field, ridge spine) — never uniform
+                             random. Plus tall CRAGS on the hill rims + crater lip.
+
+     DROPPING IT INTO THE GAME (for whoever owns georgeworld.html now)
+       - terrainH() here is a strict superset of the game's. Replace the game's
+         terrainH with this one and every placeOnTerrain() call keeps working.
+       - window.TERRAIN exposes { terrainH, terrainBase, terrainDetail, build,
+         obstacles, groups } — `build(scene)` adds terrain+rocks+grass groups.
+       - window.TERRAIN.obstacles is [{x,z,r}] for every rock big enough to walk
+         around — push those straight into the game's OBSTACLES array.
+       - Grass/weeds need their uniform `uTime` ticked each frame:
+         window.TERRAIN.tick(elapsedSeconds).
+       - Three.js is VENDORED (vendor/three, r160) — same importmap as the game.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terrain Study — the island, made real</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#cfe6f2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10; width:236px;
+    background:rgba(18,26,32,0.74); color:#eaf4f8;
+    font:12.5px/1.45 system-ui, sans-serif;
+    padding:11px 13px; border-radius:11px; user-select:none;
+    backdrop-filter: blur(5px);
+  }
+  #chip b { font-size:13.5px; }
+  #chip .hint { opacity:0.68; font-size:11.5px; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.16); margin:8px 0; }
+  #chip label { display:flex; align-items:center; gap:7px; margin-top:5px; }
+  #chip input[type=range] { flex:1; min-width:0; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+  .btns button {
+    background:rgba(255,255,255,0.12); color:#eaf4f8; border:1px solid rgba(255,255,255,0.18);
+    border-radius:6px; padding:4px 7px; font:11.5px system-ui,sans-serif; cursor:pointer;
+  }
+  .btns button:hover { background:rgba(255,255,255,0.24); }
+  #stats { opacity:0.72; font-size:11px; margin-top:7px; white-space:pre-line; }
+  #busy {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(12,18,22,0.55); color:#eaf4f8; z-index:20;
+    font:15px system-ui,sans-serif;
+  }
+</style>
+</head>
+<body>
+<div id="busy">building the island…</div>
+<div id="chip">
+  <b>⛰ Terrain Study</b> — the island, made real<br>
+  <span class="hint">drag = orbit · scroll = zoom · keys 1–6 = views</span>
+  <hr>
+  <label><input id="tGrass" type="checkbox" checked> grass + weeds</label>
+  <label><input id="tRocks" type="checkbox" checked> rocks + crags</label>
+  <label><input id="tDetail" type="checkbox" checked> cliffs / erosion</label>
+  <label><input id="tWire" type="checkbox"> wireframe</label>
+  <label>wind <input id="wind" type="range" min="0" max="2" step="0.05" value="0.85"></label>
+  <label>grass <input id="gdens" type="range" min="0" max="1" step="0.02" value="1"></label>
+  <div class="btns">
+    <button data-v="1">overview</button><button data-v="2">king's hill</button>
+    <button data-v="3">twin hills</button><button data-v="4">volcano</button>
+    <button data-v="5">shoreline</button><button data-v="6">ground</button>
+  </div>
+  <div id="stats"></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ======================================================================
+// 0. deterministic RNG + noise  (same island every reload)
+// ======================================================================
+let _seed = 20260831;
+function srand(s){ _seed = s >>> 0; }
+function rand(a=1, b){ _seed = (_seed*1103515245 + 12345) & 0x7fffffff;
+  const r = _seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep = (a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const lerp  = (a,b,t)=>a+(b-a)*t;
+
+function hash2(x, y){ const n = Math.sin(x*127.1 + y*311.7) * 43758.5453123; return n - Math.floor(n); }
+function vnoise2(x, y){
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x-xi, yf = y-yi;
+  const u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+  const a = hash2(xi,yi), b = hash2(xi+1,yi), c = hash2(xi,yi+1), d = hash2(xi+1,yi+1);
+  return lerp(lerp(a,b,u), lerp(c,d,u), v);
+}
+function fbm2(x, y, oct=4){
+  let s=0, amp=0.5, f=1, norm=0;
+  for(let i=0;i<oct;i++){ s += amp*vnoise2(x*f, y*f); norm += amp; f *= 2.03; amp *= 0.5; }
+  return s/norm;
+}
+// ridged noise: sharp crests — the shape erosion gullies want
+function ridged2(x, y, oct=3){
+  let s=0, amp=0.5, f=1, norm=0;
+  for(let i=0;i<oct;i++){ const n = 1 - Math.abs(vnoise2(x*f, y*f)*2 - 1);
+    s += amp*n*n; norm += amp; f *= 2.11; amp *= 0.5; }
+  return s/norm;
+}
+function hash3(x, y, z){ const n = Math.sin(x*127.1 + y*311.7 + z*74.7) * 43758.5453123; return n - Math.floor(n); }
+function vnoise3(x, y, z){
+  const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+  const xf=x-xi, yf=y-yi, zf=z-zi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf), w=zf*zf*(3-2*zf);
+  const c000=hash3(xi,yi,zi),     c100=hash3(xi+1,yi,zi);
+  const c010=hash3(xi,yi+1,zi),   c110=hash3(xi+1,yi+1,zi);
+  const c001=hash3(xi,yi,zi+1),   c101=hash3(xi+1,yi,zi+1);
+  const c011=hash3(xi,yi+1,zi+1), c111=hash3(xi+1,yi+1,zi+1);
+  return lerp(lerp(lerp(c000,c100,u), lerp(c010,c110,u), v),
+              lerp(lerp(c001,c101,u), lerp(c011,c111,u), v), w);
+}
+function fbm3(x, y, z, oct=3){
+  let s=0, amp=0.5, f=1, norm=0;
+  for(let i=0;i<oct;i++){ s += amp*vnoise3(x*f,y*f,z*f); norm += amp; f *= 2.07; amp *= 0.5; }
+  return s/norm;
+}
+
+// ======================================================================
+// 1. THE ISLAND — base landform (verbatim from georgeworld.html v0.61)
+// ======================================================================
+const WS = 1.25;                       // world scale — same as the game
+const VOLC = { x:44*WS, z:-14*WS };    // crater centre, world coords
+const PATH = [[0,50],[8,30],[14,12],[18,-6],[10,-24],[-2,-38]].map(([px,pz])=>[px*WS, pz*WS]);
+function pathDist(x, z){
+  let best = 1e9;
+  for(let i=0;i<PATH.length-1;i++){
+    const [ax,az]=PATH[i], [bx,bz]=PATH[i+1];
+    const abx=bx-ax, abz=bz-az;
+    const t = clamp(((x-ax)*abx+(z-az)*abz)/(abx*abx+abz*abz), 0, 1);
+    best = Math.min(best, Math.hypot(x-(ax+abx*t), z-(az+abz*t)));
+  }
+  return best;
+}
+function ridgeMask(x){
+  let m = (1 - sstep(55, 78, Math.abs(x))) * (0.78 + 0.22*Math.sin(x*0.09 + 1.0));
+  m *= (1 - 0.5*Math.exp(-(((x-18)/8)**2)));   // low saddle / pass at x≈18
+  return m;
+}
+function terrainBase(x, z){
+  x /= WS; z /= WS;
+  const d = Math.hypot(x, z);
+  let h = 9*(1 - sstep(38, 88, d)) - 3.2;
+  h += 15 * Math.exp(-(((z+8)/10)**2)) * ridgeMask(x);           // the ridge
+  h += 34 * Math.exp(-(((x-44)/16)**2 + ((z+14)/16)**2));        // the volcano
+  h -= 14 * Math.exp(-(((x-44)/5.5)**2 + ((z+14)/5.5)**2));      // its crater bowl
+  h += 10.5 * (1 - sstep(5.5, 17, Math.hypot(x - 26, z - 34)));  // the king's hill
+  h += 7.0 * (1 - sstep(2.5, 10.5, Math.hypot(x + 24, z - 12))); // twin hill A
+  h += 6.0 * (1 - sstep(2.0, 9.0,  Math.hypot(x + 15, z - 5)));  // twin hill B
+  h += 0.6*Math.sin(x*0.15)*Math.sin(z*0.17)
+     + 0.4*Math.sin(x*0.31+2)*Math.sin(z*0.23+1);
+  h -= 9 * Math.exp(-(((x-56)/14)**2 + ((z-44)/11)**2));         // the surf bay
+  return h;
+}
+// the game's sand-ring width function — reused so the beach lands in exactly
+// the same places, and so rocks know which stretches of coast are ROCKY
+function sandWidth(x, z){
+  const ang = Math.atan2(z, x);
+  return Math.max(0.5, 1.7 + 1.1*Math.sin(ang*3 + 1.2) + 0.8*Math.sin(ang*7 + 3.1)
+    + 1.4*sstep(0.2, 0.9, Math.sin(ang - 1.35)));
+}
+
+// ======================================================================
+// 2. THE DETAIL PASS — erosion, gullies, CLIFF TERRACES, volcano rilles
+//    Pure function of (x,z). Zero below h≈0.4, so the island's outline,
+//    beaches and bay are exactly the shape the game already ships.
+// ======================================================================
+let DETAIL_ON = true;
+const TERRACE_STEP = 3.15;   // vertical spacing of cliff ledges, world units
+
+function terrainDetailFrom(x, z, b, s){
+  if(!DETAIL_ON || b < 0.35) return 0;
+  const inland = sstep(0.35, 3.2, b);           // never disturb the waterline
+  let d = 0;
+
+  // (a) broad erosion — hummocks and hollows, stronger on open slopes
+  d += (fbm2(x*0.048 + 3.1, z*0.048 - 1.7, 4) - 0.5) * 2.6;
+  d += (fbm2(x*0.145 - 8.2, z*0.145 + 4.4, 3) - 0.5) * 1.05;
+  d += (fbm2(x*0.42, z*0.42, 2) - 0.5) * 0.34;   // pebble-scale grain
+
+  // (b) GULLIES — ridged noise carved DOWNWARD, only where water would run
+  const gully = ridged2(x*0.041 + 11.3, z*0.041 - 6.8, 3);
+  d -= gully * 2.5 * sstep(0.22, 0.85, s) * sstep(2.0, 6.0, b);
+
+  // (c) CLIFFS — quantise steep, high ground into ledges: flat treads with a
+  //     sharp riser between. h -> STEP*(floor(t) + smoothstep(frac)).
+  const cliffW = sstep(0.30, 0.72, s) * sstep(2.8, 8.5, b)
+               * (0.55 + 0.45*fbm2(x*0.07 + 21, z*0.07 - 13, 2));   // banded, not uniform
+  if(cliffW > 0.004){
+    const t = b / TERRACE_STEP, fr = t - Math.floor(t);
+    d += (sstep(0.28, 0.72, fr) - fr) * TERRACE_STEP * 0.92 * cliffW;
+  }
+
+  // (d) THE VOLCANO — radial rilles down the cone, and a crisper crater lip
+  const vdx = x - VOLC.x, vdz = z - VOLC.z, vd = Math.hypot(vdx, vdz);
+  if(vd < 46*WS){
+    const ang = Math.atan2(vdz, vdx);
+    const flank = sstep(9*WS, 15*WS, vd) * (1 - sstep(24*WS, 44*WS, vd));
+    const rille = Math.abs(Math.sin(ang*11 + fbm2(ang*3, vd*0.06, 2)*3.4));
+    d -= (1 - rille) * 1.3 * flank;
+    d += (1 - sstep(0.0, 2.4*WS, Math.abs(vd - 10.2*WS))) * 1.5;   // rim ledge
+  }
+
+  return d * inland;
+}
+function baseSlopeAt(x, z){
+  const e = 1.5;
+  return Math.hypot(terrainBase(x+e,z)-terrainBase(x-e,z),
+                    terrainBase(x,z+e)-terrainBase(x,z-e)) / (2*e);
+}
+// THE drop-in: same signature as the game's terrainH
+function terrainH(x, z){
+  const b = terrainBase(x, z);
+  return b + terrainDetailFrom(x, z, b, baseSlopeAt(x, z));
+}
+function slopeAt(x, z){
+  const e = 1.2;
+  return Math.hypot(terrainH(x+e,z)-terrainH(x-e,z), terrainH(x,z+e)-terrainH(x,z-e)) / (2*e);
+}
+function normalAt(x, z, e=1.2){
+  return new THREE.Vector3(
+    terrainH(x-e,z) - terrainH(x+e,z), 2*e,
+    terrainH(x,z-e) - terrainH(x,z+e)).normalize();
+}
+// steepest-descent step — used to lay talus fans BELOW cliff faces
+function downhill(x, z, step){
+  const e = 1.4;
+  const gx = terrainH(x+e,z) - terrainH(x-e,z);
+  const gz = terrainH(x,z+e) - terrainH(x,z-e);
+  const m = Math.hypot(gx, gz) || 1;
+  return [x - gx/m*step, z - gz/m*step];
+}
+
+// ======================================================================
+// 3. renderer / scene / camera
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// the island never moves: render the shadow map ONCE per rebuild instead of
+// every frame. On integrated graphics this is the single biggest win — it
+// halves the geometry the GPU chews through.
+renderer.shadowMap.autoUpdate = false;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOGC = new THREE.Color(0xbfdfef);
+scene.fog = new THREE.Fog(FOGC, 230, 620);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.4, 1400);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 460;
+controls.maxPolarAngle = 1.55;
+
+// sky dome (gradient, unfogged) — same trick as palm_study
+{
+  const geo = new THREE.SphereGeometry(700, 26, 18);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xdcf0f8), zenith = new THREE.Color(0x59a9e0);
+  const below = new THREE.Color(0xc9e2ec), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/700;
+    if(h >= 0) c.copy(horizon).lerp(zenith, Math.pow(h, 0.5)); else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+
+scene.add(new THREE.HemisphereLight(0xd6ecff, 0xb0c98e, 0.95));
+const sun = new THREE.DirectionalLight(0xfff0d6, 2.05);
+sun.position.set(120, 165, 78);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -175; sun.shadow.camera.right = 175;
+sun.shadow.camera.top = 175;  sun.shadow.camera.bottom = -175;
+sun.shadow.camera.near = 40;  sun.shadow.camera.far = 480;
+sun.shadow.bias = -0.0007;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd8ecff, 0.42);
+fill.position.set(-70, 50, -60);
+scene.add(fill);
+
+// ======================================================================
+// 4. THE TERRAIN MESH
+//    Heights are solved on a GRID first (one terrainBase call per vertex),
+//    then slope/curvature come from grid neighbours — no re-sampling.
+//    Normals are HYBRID: smooth where it's turf, faceted where it's rock,
+//    in a single mesh with a single material.
+// ======================================================================
+const TSIZE = Math.round(260*WS);   // 325 — same footprint as the game
+const TSEG  = 288;                  // finer than the game's 200: cliffs need it
+const ROW   = TSEG + 1;
+const CELL  = TSIZE / TSEG;
+
+const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+const cGrassDry = new THREE.Color(0xa9bd63), cMoss = new THREE.Color(0x4d7f45);
+const cRock = new THREE.Color(0x9c9184), cRockHi = new THREE.Color(0xbdb2a3);
+const cRockDk = new THREE.Color(0x6f665c), cSand = new THREE.Color(0xeed9a4);
+const cWetSand = new THREE.Color(0xc3aa79), cDeep = new THREE.Color(0x7d9a8a);
+const cPath = new THREE.Color(0xd9b98a), cBasalt = new THREE.Color(0x3b322d);
+
+// grids kept around so scatter placement can look terrain facts up cheaply
+let gH = null, gSlope = null, gRock = null, gSand = null;
+
+function gridSample(arr, x, z){
+  const fx = (x + TSIZE/2)/CELL, fz = (z + TSIZE/2)/CELL;
+  const ix = clamp(Math.floor(fx), 0, TSEG-1), iz = clamp(Math.floor(fz), 0, TSEG-1);
+  const tx = clamp(fx-ix, 0, 1), tz = clamp(fz-iz, 0, 1);
+  const i = iz*ROW + ix;
+  return lerp(lerp(arr[i], arr[i+1], tx), lerp(arr[i+ROW], arr[i+ROW+1], tx), tz);
+}
+
+function buildTerrainGeometry(){
+  const geo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, N = pos.count;
+
+  // --- pass 1: base heights -------------------------------------------
+  const xs = new Float32Array(N), zs = new Float32Array(N), base = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    xs[i]=x; zs[i]=z; base[i] = terrainBase(x, z);
+  }
+  // --- pass 2: base slope from neighbours ------------------------------
+  const bslope = new Float32Array(N);
+  for(let iz=0; iz<ROW; iz++) for(let ix=0; ix<ROW; ix++){
+    const i = iz*ROW+ix;
+    const xm = base[iz*ROW + Math.max(0,ix-1)], xp = base[iz*ROW + Math.min(TSEG,ix+1)];
+    const zm = base[Math.max(0,iz-1)*ROW + ix], zp = base[Math.min(TSEG,iz+1)*ROW + ix];
+    bslope[i] = Math.hypot(xp-xm, zp-zm) / (2*CELL);
+  }
+  // --- pass 3: detail + final height ------------------------------------
+  const H = new Float32Array(N);
+  for(let i=0;i<N;i++) H[i] = base[i] + terrainDetailFrom(xs[i], zs[i], base[i], bslope[i]);
+  // --- pass 4: slope + curvature (cheap AO) -----------------------------
+  const slope = new Float32Array(N), curv = new Float32Array(N);
+  for(let iz=0; iz<ROW; iz++) for(let ix=0; ix<ROW; ix++){
+    const i = iz*ROW+ix;
+    const l = H[iz*ROW+Math.max(0,ix-1)],      r = H[iz*ROW+Math.min(TSEG,ix+1)];
+    const d = H[Math.max(0,iz-1)*ROW+ix],      u = H[Math.min(TSEG,iz+1)*ROW+ix];
+    slope[i] = Math.hypot(r-l, u-d) / (2*CELL);
+    curv[i]  = H[i] - (l+r+d+u)/4;             // <0 = hollow, >0 = crest
+  }
+
+  // --- pass 5: colours + rockiness --------------------------------------
+  const colors = new Float32Array(N*3), rockiness = new Float32Array(N);
+  const sandg = new Float32Array(N);
+  const c = new THREE.Color(), tmp = new THREE.Color();
+  for(let i=0;i<N;i++){
+    const x = xs[i], z = zs[i], h = H[i], s = slope[i];
+    pos.setY(i, h);
+
+    // turf: two greens by noise, drying out on sunny convex ground
+    const n = fbm2(x*0.052 + 5, z*0.052 - 2, 3);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    c.lerp(cGrassDry, sstep(0.45, 0.85, fbm2(x*0.031 - 12, z*0.031 + 7, 2)) * 0.55);
+    c.lerp(cMoss, clamp(-curv[i]*0.8, 0, 1) * 0.45);            // damp hollows go mossy
+
+    // exposed rock: steep faces and high ground, with STRATA banding so the
+    // cliff terraces read as bedded stone rather than grey paint
+    const tr = clamp(Math.max(sstep(0.52, 0.95, s), sstep(8.0, 12.5, h)), 0, 1);
+    const band = 0.5 + 0.5*Math.sin(h*1.9 + fbm2(x*0.09, z*0.09, 2)*3.2);
+    tmp.copy(cRock).lerp(cRockHi, band*0.75).lerp(cRockDk, sstep(0.75, 1.35, s)*0.6);
+    c.lerp(tmp, tr);
+    rockiness[i] = tr;
+
+    // the sand ring — the game's exact formula, plus a wet band at the water
+    const sw = sandWidth(x, z);
+    const ts = (1 - sstep(sw, sw + 1.1, h)) * (1 - tr*0.75);
+    c.lerp(cSand, ts);
+    c.lerp(cWetSand, ts * (1 - sstep(0.15, 1.5, h)) * 0.85);
+    sandg[i] = ts;
+    if(h < 0) c.lerp(cDeep, clamp(-h/5, 0, 1)*0.8);
+
+    const pd = pathDist(x, z);
+    if(pd < 3 && h > 0.5) c.lerp(cPath, (1 - pd/3)*0.8);
+
+    const vd = Math.hypot(x - VOLC.x, z - VOLC.z);
+    if(vd < 13*WS) c.lerp(cBasalt, (1 - vd/(13*WS)) * 0.9);
+    else if(vd < 26*WS) c.lerp(cBasalt, (1 - (vd-13*WS)/(13*WS)) * 0.42);
+
+    // crevice shading: hollows sit in their own shadow
+    const ao = 1 - clamp(-curv[i]*1.6, 0, 0.42);
+    colors[i*3]=c.r*ao; colors[i*3+1]=c.g*ao; colors[i*3+2]=c.b*ao;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('rockiness', new THREE.BufferAttribute(rockiness, 1));
+  geo.computeVertexNormals();               // smooth normals first
+
+  gH = H; gSlope = slope; gRock = rockiness; gSand = sandg;
+
+  // --- pass 6: HYBRID normals -------------------------------------------
+  // split into faces, then blend each vertex normal toward its FACE normal by
+  // how rocky it is. Turf stays velvet-smooth; cliffs and outcrops facet.
+  const flat = geo.toNonIndexed();
+  const fp = flat.attributes.position, fn = flat.attributes.normal, fr = flat.attributes.rockiness;
+  const a = new THREE.Vector3(), b2 = new THREE.Vector3(), c2 = new THREE.Vector3();
+  const ab = new THREE.Vector3(), cb = new THREE.Vector3(), face = new THREE.Vector3();
+  const sm = new THREE.Vector3();
+  for(let t=0; t<fp.count; t+=3){
+    a.fromBufferAttribute(fp, t); b2.fromBufferAttribute(fp, t+1); c2.fromBufferAttribute(fp, t+2);
+    cb.subVectors(c2, b2); ab.subVectors(a, b2); face.crossVectors(cb, ab).normalize();
+    for(let k=0;k<3;k++){
+      const w = clamp(fr.getX(t+k)*1.15, 0, 1);
+      sm.fromBufferAttribute(fn, t+k).lerp(face, w).normalize();
+      fn.setXYZ(t+k, sm.x, sm.y, sm.z);
+    }
+  }
+  flat.deleteAttribute('rockiness');
+  flat.deleteAttribute('uv');
+  geo.dispose();
+  return flat;
+}
+
+const matTerrain = new THREE.MeshLambertMaterial({ vertexColors:true });
+let terrainMesh = null;
+function makeTerrain(){
+  if(terrainMesh){ scene.remove(terrainMesh); terrainMesh.geometry.dispose(); }
+  terrainMesh = new THREE.Mesh(buildTerrainGeometry(), matTerrain);
+  terrainMesh.receiveShadow = true;
+  terrainMesh.castShadow = true;
+  scene.add(terrainMesh);
+}
+
+// sea + seabed, matching the game
+{
+  const deep = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400),
+    new THREE.MeshBasicMaterial({ color:0x1d7fa0 }));
+  deep.rotation.x = -Math.PI/2; deep.position.y = -5.5;
+  scene.add(deep);
+}
+const wGeo = new THREE.PlaneGeometry(760, 760, 44, 44);
+wGeo.rotateX(-Math.PI/2);
+const wBase = wGeo.attributes.position.array.slice();
+const water = new THREE.Mesh(wGeo, new THREE.MeshPhongMaterial({
+  color:0x3ec6e0, transparent:true, opacity:0.82, flatShading:true,
+  shininess:90, specular:0x9adfff }));
+scene.add(water);
+
+// ======================================================================
+// 5. REAL ROCKS — procedural, eroded, cleaved. Seven variants, instanced.
+//    Displacement is a pure function of the undisplaced vertex position, so
+//    duplicated (non-indexed) vertices move together and the shell stays
+//    watertight. Cleave planes shear off flat faces — that's what makes a
+//    lump of noise read as STONE instead of a potato.
+// ======================================================================
+function makeRockGeo(seed, { detail=1, rough=0.34, cleaves=3, squash=[1,0.85,1], flatBase=-0.55 }={}){
+  srand(seed);
+  const ox = rand(0,60), oy = rand(0,60), oz = rand(0,60);
+  const planes = [];
+  for(let i=0;i<cleaves;i++) planes.push({
+    n: new THREE.Vector3(rand(-1,1), rand(-0.55,1), rand(-1,1)).normalize(),
+    d: rand(0.60, 0.86)
+  });
+  const sq = new THREE.Vector3(squash[0], squash[1], squash[2]);
+  const g = new THREE.IcosahedronGeometry(1, detail);   // non-indexed already
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i);
+    const n1 = fbm3(v.x*1.55 + ox, v.y*1.55 + oy, v.z*1.55 + oz, 3);
+    const n2 = fbm3(v.x*4.1 + oy, v.y*4.1 + oz, v.z*4.1 + ox, 2);
+    v.multiplyScalar(1 + (n1-0.5)*rough*2 + (n2-0.5)*rough*0.55);
+    v.multiply(sq);
+    for(const pl of planes){ const dd = v.dot(pl.n); if(dd > pl.d) v.addScaledVector(pl.n, pl.d - dd); }
+    if(v.y < flatBase) v.y = flatBase + (v.y - flatBase)*0.22;   // sits flat
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  g.deleteAttribute('uv');
+  g.deleteAttribute('normal');       // flatShading recomputes per-face anyway
+  return g;
+}
+
+const ROCK_VARIANTS = [
+  makeRockGeo(101, { detail:1, rough:0.30, cleaves:3, squash:[1.00,0.82,0.95] }),  // 0 boulder
+  makeRockGeo(202, { detail:1, rough:0.40, cleaves:4, squash:[1.15,0.70,0.90] }),  // 1 flat boulder
+  makeRockGeo(303, { detail:2, rough:0.26, cleaves:5, squash:[0.95,1.05,1.00] }),  // 2 blocky big
+  makeRockGeo(404, { detail:2, rough:0.22, cleaves:6, squash:[0.80,1.30,0.70] }),  // 3 CRAG slab
+  makeRockGeo(505, { detail:2, rough:0.30, cleaves:4, squash:[1.35,0.95,0.62] }),  // 4 ledge / strata
+  makeRockGeo(606, { detail:0, rough:0.42, cleaves:2, squash:[1.00,0.72,1.00] }),  // 5 scree chip
+  makeRockGeo(707, { detail:0, rough:0.36, cleaves:3, squash:[1.10,0.60,0.95] }),  // 6 pebble
+];
+const rockMat = new THREE.MeshLambertMaterial({ flatShading:true, vertexColors:false });
+const PLACED = ROCK_VARIANTS.map(()=>[]);     // per-variant instance list
+const OBSTACLES = [];                         // {x,z,r} — hand these to the game
+
+const _q = new THREE.Quaternion(), _up = new THREE.Vector3(0,1,0);
+const _m = new THREE.Matrix4(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
+
+// one dial for the whole rock population — the first pass read as boulder
+// fields dropped on a model railway, because stone was competing with the
+// landforms instead of decorating them
+const ROCK_SCALE = 0.55;
+
+function placeRock(variant, x, z, size, opt={}){
+  size *= ROCK_SCALE;
+  const h = terrainH(x, z);
+  const sink = opt.sink !== undefined ? opt.sink : rand(0.22, 0.46);
+  const nrm = normalAt(x, z, size*0.9);
+  // stand mostly upright, but lean with the hillside — bedrock follows the bed
+  _q.setFromUnitVectors(_up, nrm.lerp(_up, 1 - (opt.align !== undefined ? opt.align : 0.55)).normalize());
+  const spin = new THREE.Quaternion().setFromAxisAngle(_up, rand(0, Math.PI*2));
+  _q.multiply(spin);
+  const sx = size * rand(0.82, 1.2), sy = size * rand(0.72, 1.15) * (opt.tall || 1), sz = size * rand(0.82, 1.2);
+  _p.set(x, h - size*sink*(opt.tall ? 0.5 : 1), z);
+  _s.set(sx, sy, sz);
+  _m.compose(_p, _q, _s);
+  const col = opt.color || 0x968a7c;
+  const tint = rand(0.86, 1.12);
+  const cc = new THREE.Color(col).multiplyScalar(tint);
+  cc.offsetHSL(rand(-0.02,0.02), rand(-0.05,0.04), 0);
+  PLACED[variant].push({ m: _m.clone(), c: cc });
+  if(size > 0.85) OBSTACLES.push({ x, z, r: Math.max(sx, sz)*0.72 });
+}
+
+// --- placement RULES ---------------------------------------------------
+// Every rock below is here because the geology puts it here. Nothing is
+// scattered uniformly across the island (that was the old look).
+function scatterRocks(){
+  for(const a of PLACED) a.length = 0;
+  OBSTACLES.length = 0;
+  srand(778899);
+
+  // (1) SHORELINE — boulders where the coast is ROCKY (thin sand ribbon), none
+  //     on the broad landing beach or the surf bay's sand.
+  let tries = 0, made = 0;
+  while(made < 46 && tries++ < 6000){
+    const ang = rand(0, Math.PI*2);
+    // walk out from the middle until we cross the waterline at this bearing
+    let r = 55, hh;
+    for(let k=0;k<90;k++){ hh = terrainBase(Math.cos(ang)*r, Math.sin(ang)*r); if(hh < 0.4) break; r += 1.6; }
+    const cx = Math.cos(ang)*r, cz = Math.sin(ang)*r;
+    if(sandWidth(cx, cz) > 2.3) continue;              // sandy stretch: leave it clean
+    if(fbm2(cx*0.05, cz*0.05, 2) < 0.42) continue;     // clumps, not a necklace
+    made++;
+    // a headland cluster: one anchor boulder, a few satellites, a wash of chips
+    const big = rand(1.5, 3.1);
+    placeRock(rand()<0.5?0:2, cx, cz, big, { color:0x8b8378, sink:0.5, align:0.35 });
+    for(let k=0;k<3+Math.floor(rand(0,5));k++){
+      const a2 = rand(0, Math.PI*2), d2 = rand(1.6, 7.5);
+      const x = cx + Math.cos(a2)*d2, z = cz + Math.sin(a2)*d2;
+      if(terrainBase(x, z) < -1.6) continue;
+      placeRock(rand()<0.6?1:0, x, z, rand(0.5, 1.6), { color:0x8f877b, sink:0.55, align:0.3 });
+    }
+    for(let k=0;k<7;k++){
+      const a2 = rand(0, Math.PI*2), d2 = rand(2, 11);
+      const x = cx + Math.cos(a2)*d2, z = cz + Math.sin(a2)*d2;
+      if(terrainBase(x, z) < -1.2) continue;
+      placeRock(6, x, z, rand(0.18, 0.42), { color:0x9b9285, sink:0.6 });
+    }
+  }
+
+  // (2) HILL OUTCROPS + CLIFF-BASE TALUS — bedrock breaks out of the steepest
+  //     shoulders of the three hills, and its debris fans out downslope.
+  const HILLS = [
+    { x:26*WS,  z:34*WS,  r:16*WS, n:26, col:0x9a9082 },   // king's hill
+    { x:-24*WS, z:-12*WS, r:11*WS, n:15, col:0x968c7e },   // twin A
+    { x:-15*WS, z:-5*WS,  r:10*WS, n:13, col:0x968c7e },   // twin B
+  ];
+  for(const H of HILLS){
+    let t2 = 0, n = 0;
+    while(n < H.n && t2++ < 4000){
+      const a = rand(0, Math.PI*2), d = rand(H.r*0.30, H.r*1.05);
+      const x = H.x + Math.cos(a)*d, z = H.z + Math.sin(a)*d;
+      const s = slopeAt(x, z), h = terrainH(x, z);
+      if(h < 3.2 || s < 0.34) continue;                    // only the steep shoulders
+      if(fbm2(x*0.09 + 40, z*0.09 - 20, 2) < 0.46) continue;
+      n++;
+      // the outcrop: a LEDGE slab plus attendant blocks
+      placeRock(4, x, z, rand(1.5, 3.0), { color:H.col, sink:0.42, align:0.8 });
+      for(let k=0;k<2+Math.floor(rand(0,4));k++){
+        const a2 = rand(0,Math.PI*2), d2 = rand(1.2, 4.2);
+        placeRock(rand()<0.5?2:0, x+Math.cos(a2)*d2, z+Math.sin(a2)*d2,
+          rand(0.7, 1.9), { color:H.col, sink:0.4, align:0.65 });
+      }
+      // talus: walk downhill from the outcrop, dropping ever-smaller scree
+      let [tx, tz] = [x, z];
+      for(let k=0;k<9;k++){
+        [tx, tz] = downhill(tx, tz, rand(1.4, 3.0));
+        if(terrainH(tx, tz) < 1.6) break;
+        for(let j=0;j<2;j++){
+          placeRock(5, tx + rand(-2.2,2.2), tz + rand(-2.2,2.2),
+            rand(0.22, 0.85) * (1 - k/11), { color:0x8e8578, sink:0.5 });
+        }
+      }
+    }
+  }
+
+  // (3) THE CRAGS — tall slabs standing along the hill RIMS and the crater lip,
+  //     so no hilltop reads as a bald dome any more.
+  const RIMS = [
+    { x:26*WS,  z:34*WS,  r:9.6*WS,  n:22, col:0x8f8676, size:[2.2,4.4] },
+    { x:-24*WS, z:-12*WS, r:6.6*WS,  n:14, col:0x8a8172, size:[1.7,3.3] },
+    { x:-15*WS, z:-5*WS,  r:5.4*WS,  n:11, col:0x8a8172, size:[1.5,2.9] },
+    { x:VOLC.x, z:VOLC.z, r:10.4*WS, n:18, col:0x5f5346, size:[1.9,3.4] },   // crater lip
+  ];
+  for(const R of RIMS){
+    for(let i=0;i<R.n;i++){
+      const a = (i/R.n)*Math.PI*2 + rand(-0.14, 0.14);
+      const d = R.r * rand(0.86, 1.16);
+      const x = R.x + Math.cos(a)*d, z = R.z + Math.sin(a)*d;
+      if(fbm2(x*0.11 + 3, z*0.11 + 9, 2) < 0.36) continue;   // broken rim, not a fence
+      placeRock(3, x, z, rand(R.size[0], R.size[1]),
+        { color:R.col, sink:0.30, align:0.42, tall:rand(1.0, 1.45) });
+      for(let k=0;k<2;k++){
+        const a2 = rand(0,Math.PI*2), d2 = rand(1.4, 4.0);
+        placeRock(rand()<0.5?4:2, x+Math.cos(a2)*d2, z+Math.sin(a2)*d2,
+          rand(0.6, 1.7), { color:R.col, sink:0.4, align:0.7 });
+      }
+    }
+  }
+
+  // (4) THE VOLCANO — a basalt boulder field on the flanks, thinning outward,
+  //     with bombs flung further out onto the burnt ground.
+  {
+    let n = 0, t3 = 0;
+    while(n < 78 && t3++ < 5000){
+      const a = rand(0, Math.PI*2), d = rand(11*WS, 34*WS);
+      const x = VOLC.x + Math.cos(a)*d, z = VOLC.z + Math.sin(a)*d;
+      if(terrainH(x, z) < 2.5) continue;
+      const near = 1 - sstep(11*WS, 34*WS, d);
+      if(rand() > 0.25 + near*0.75) continue;
+      n++;
+      const dark = new THREE.Color(0x554a3f).lerp(new THREE.Color(0x7a6e60), 1-near).getHex();
+      placeRock(rand()<0.4?2:(rand()<0.5?0:1), x, z, rand(0.4, 1.5)*(0.6+near*0.8),
+        { color:dark, sink:0.38, align:0.6 });
+      if(rand() < 0.7) for(let k=0;k<3;k++)
+        placeRock(5, x+rand(-3.5,3.5), z+rand(-3.5,3.5), rand(0.2,0.7), { color:dark, sink:0.5 });
+    }
+  }
+
+  // (5) THE RIDGE SPINE — the old game scattered 12 lone dodecahedra along
+  //     z≈-8. Same territory, but now as weathered outcrop clusters ON the
+  //     ridge's exposed crest, which is where stone actually surfaces.
+  {
+    let n = 0, t4 = 0;
+    while(n < 16 && t4++ < 3000){
+      const x = rand(-52, 52)*WS, z = (-8 + rand(-7, 7))*WS;
+      if(terrainH(x, z) < 5.5 || slopeAt(x, z) < 0.22) continue;
+      if(pathDist(x, z) < 5) continue;
+      n++;
+      placeRock(4, x, z, rand(1.2, 2.6), { color:0x9c9284, sink:0.45, align:0.75 });
+      for(let k=0;k<2+Math.floor(rand(0,3));k++){
+        const a2 = rand(0,Math.PI*2), d2 = rand(1.2, 4.5);
+        placeRock(rand()<0.5?0:5, x+Math.cos(a2)*d2, z+Math.sin(a2)*d2,
+          rand(0.35, 1.3), { color:0x958b7d, sink:0.5, align:0.6 });
+      }
+    }
+  }
+}
+
+const rockGroup = new THREE.Group();
+scene.add(rockGroup);
+function buildRockMeshes(){
+  rockGroup.clear();
+  let total = 0;
+  PLACED.forEach((list, vi) => {
+    if(!list.length) return;
+    const im = new THREE.InstancedMesh(ROCK_VARIANTS[vi], rockMat, list.length);
+    im.castShadow = true; im.receiveShadow = true;
+    for(let i=0;i<list.length;i++){ im.setMatrixAt(i, list[i].m); im.setColorAt(i, list[i].c); }
+    im.instanceMatrix.needsUpdate = true;
+    if(im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.frustumCulled = false;
+    rockGroup.add(im);
+    total += list.length;
+  });
+  return total;
+}
+
+// ======================================================================
+// 6. GRASS + WEEDS — real blade geometry (no billboards), instanced, with a
+//    world-space wind shader and a camera-distance LOD that shrinks far tufts
+//    to nothing. One draw call for the whole island's turf.
+// ======================================================================
+const uTime = { value: 0 };
+const uWind = { value: 0.85 };
+const uFar0 = { value: 250 }, uFar1 = { value: 380 };
+
+// a tuft: `blades` tapered, curved strips. aBend = 0 at the root, 1 at the tip.
+function makeTuft({ blades=3, segs=2, h=[0.34,0.62], w=0.10, lean=0.35, tipDark=0.55, seed=1 }){
+  srand(seed);
+  const pos = [], col = [], bend = [], idx = [];
+  const cBase = new THREE.Color(0x3f6b34), cTip = new THREE.Color(0xa8d264);
+  const c = new THREE.Color();
+  for(let b=0; b<blades; b++){
+    const ang = rand(0, Math.PI*2), height = rand(h[0], h[1]);
+    const lx = Math.cos(ang)*lean*height, lz = Math.sin(ang)*lean*height;
+    const wid = w * rand(0.75, 1.3);
+    const perp = [Math.cos(ang+Math.PI/2), Math.sin(ang+Math.PI/2)];
+    const start = pos.length/3;
+    for(let s=0; s<=segs; s++){
+      const t = s/segs;
+      const y = height * Math.sin(t*Math.PI*0.5);          // arcs over at the tip
+      const px = lx*t*t, pz = lz*t*t;
+      const ww = wid * (1 - t*0.88);
+      c.copy(cBase).lerp(cTip, Math.pow(t, tipDark));
+      for(const sgn of [-1, 1]){
+        pos.push(px + perp[0]*ww*sgn, y, pz + perp[1]*ww*sgn);
+        col.push(c.r, c.g, c.b);
+        bend.push(t*t);                                     // bend grows toward the tip
+      }
+    }
+    for(let s=0; s<segs; s++){
+      const a = start + s*2;
+      idx.push(a, a+1, a+2,  a+1, a+3, a+2);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('aBend', new THREE.Float32BufferAttribute(bend, 1));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+// a weed: taller olive stems, some carrying a pale seed head
+function makeWeed(seed){
+  const g = makeTuft({ blades:4, segs:2, h:[0.75,1.30], w:0.055, lean:0.22, tipDark:0.9, seed });
+  const col = g.attributes.color;
+  const dry = new THREE.Color(0x9fa758), stem = new THREE.Color(0x53703a), c = new THREE.Color();
+  for(let i=0;i<col.count;i++){
+    c.fromBufferAttribute(col, i);
+    const t = clamp(g.attributes.aBend.getX(i), 0, 1);
+    c.copy(stem).lerp(dry, Math.pow(t, 0.6));
+    col.setXYZ(i, c.r, c.g, c.b);
+  }
+  return g;
+}
+
+function windMaterial(){
+  const m = new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = uTime; sh.uniforms.uWind = uWind;
+    sh.uniforms.uFar0 = uFar0; sh.uniforms.uFar1 = uFar1;
+    sh.vertexShader = `
+      uniform float uTime; uniform float uWind; uniform float uFar0; uniform float uFar1;
+      attribute float aBend;
+      float vBend; vec3 vOrigin;
+    ` + sh.vertexShader;
+    // LOD: shrink tufts to nothing past the fade band (cheap, no CPU work)
+    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `
+      vec3 transformed = vec3( position );
+      #ifdef USE_INSTANCING
+        vOrigin = vec3( instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2] );
+        float iScale = length( vec3(instanceMatrix[0][0], instanceMatrix[0][1], instanceMatrix[0][2]) );
+      #else
+        vOrigin = vec3(0.0); float iScale = 1.0;
+      #endif
+      float dCam = distance( cameraPosition, vOrigin );
+      transformed *= 1.0 - smoothstep( uFar0, uFar1, dCam );
+      vBend = aBend * iScale;
+    `);
+    // wind in MODEL space (== world here) so the whole hillside leans together
+    sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `
+      vec4 mvPosition = vec4( transformed, 1.0 );
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      float ph = vOrigin.x * 0.085 + vOrigin.z * 0.062;
+      float gust = 0.62 + 0.38 * sin( uTime * 0.43 + ph * 0.55 );
+      float sway = ( sin( uTime * 1.75 + ph ) * 0.55 + sin( uTime * 3.1 + ph * 1.9 ) * 0.24 ) * uWind * gust;
+      mvPosition.x += sway * vBend * 0.55;
+      mvPosition.z += sway * vBend * 0.30;
+      mvPosition = modelViewMatrix * mvPosition;
+      gl_Position = projectionMatrix * mvPosition;
+    `);
+  };
+  return m;
+}
+const grassMat = windMaterial();
+
+const GRASS_MAX = 32000, WEED_MAX = 6000;
+const grassGroup = new THREE.Group();
+scene.add(grassGroup);
+let grassIM = null, weedIM = null, grassN = 0, weedN = 0;
+
+// how green is this spot? (drives grass density) — a pure placement rule:
+// no sand, no bare rock, no basalt, no path, and patchy by noise.
+function turfWeight(x, z){
+  const h = gridSample(gH, x, z);
+  if(h < 2.4 || h > 30) return 0;
+  if(gridSample(gSand, x, z) > 0.18) return 0;            // never on the beach
+  if(gridSample(gRock, x, z) > 0.30) return 0;            // never on bare rock
+  const s = gridSample(gSlope, x, z);
+  if(s > 0.62) return 0;                                  // never on a cliff face
+  const vd = Math.hypot(x - VOLC.x, z - VOLC.z);
+  if(vd < 17*WS) return 0;                                // never on the basalt
+  let w = 1;
+  w *= 1 - sstep(0.34, 0.62, s);                          // thins out as it steepens
+  w *= sstep(2.4, 4.2, h) * (1 - sstep(19, 27, h));       // and up near the tops
+  w *= sstep(17*WS, 24*WS, vd);                           // fades in off the burnt ground
+  w *= 0.30 + 0.70*sstep(0.28, 0.60, fbm2(x*0.036 + 17, z*0.036 - 9, 3));  // MEADOWS, not carpet
+  w *= 0.55 + 0.45*sstep(0.35, 0.75, fbm2(x*0.12 - 4, z*0.12 + 6, 2));
+  const pd = pathDist(x, z);
+  w *= sstep(1.2, 4.0, pd);                               // the path stays trodden bare
+  return clamp(w, 0, 1);
+}
+
+function scatterTurf(){
+  srand(424242);
+  const dummy = new THREE.Object3D();
+  const gm = [], wm = [], gc = [], wc = [];
+  const cc = new THREE.Color();
+  const R = TSIZE*0.42;
+  for(let i=0; i<260000 && gm.length < GRASS_MAX; i++){
+    const x = rand(-R, R), z = rand(-R, R);
+    const w = turfWeight(x, z);
+    if(w <= 0 || rand() > w) continue;
+    const h = gridSample(gH, x, z);
+    const n = normalAt(x, z, 1.0);
+    dummy.position.set(x, h - 0.06, z);
+    dummy.quaternion.setFromUnitVectors(_up, n.lerp(_up, 0.45).normalize());
+    dummy.rotateY(rand(0, Math.PI*2));
+    const sc = rand(0.85, 1.45) * (0.75 + 0.25*w);
+    dummy.scale.set(sc, sc*rand(0.85, 1.35), sc);
+    dummy.updateMatrix();
+    gm.push(dummy.matrix.clone());
+    // tint: lusher in hollows, drier on the tops
+    cc.setHSL(0.24 + rand(-0.035, 0.045), 0.42 + rand(-0.1, 0.16),
+              0.42 + rand(-0.09, 0.13) - sstep(9, 20, h)*0.06);
+    gc.push(cc.clone());
+  }
+  for(let i=0; i<70000 && wm.length < WEED_MAX; i++){
+    const x = rand(-R, R), z = rand(-R, R);
+    let w = turfWeight(x, z);
+    if(w <= 0) continue;
+    // weeds like the damp: hollows, hill feet, gully bottoms — and rough ground
+    const hollow = clamp((gridSample(gH, x, z) -
+      (gridSample(gH, x+3, z) + gridSample(gH, x-3, z) +
+       gridSample(gH, x, z+3) + gridSample(gH, x, z-3))/4), -3, 3);
+    w *= 0.25 + clamp(-hollow*0.9, 0, 1)*1.5;
+    w *= 0.5 + 0.5*sstep(0.45, 0.85, fbm2(x*0.07 + 31, z*0.07 + 12, 2));
+    if(rand() > w*0.55) continue;
+    const h = gridSample(gH, x, z);
+    dummy.position.set(x, h - 0.05, z);
+    const n = normalAt(x, z, 1.0);
+    dummy.quaternion.setFromUnitVectors(_up, n.lerp(_up, 0.6).normalize());
+    dummy.rotateY(rand(0, Math.PI*2));
+    const sc = rand(0.6, 1.25);
+    dummy.scale.set(sc, sc*rand(0.8, 1.5), sc);
+    dummy.updateMatrix();
+    wm.push(dummy.matrix.clone());
+    cc.setHSL(0.19 + rand(-0.03, 0.05), 0.34 + rand(-0.1, 0.16), 0.40 + rand(-0.08, 0.14));
+    wc.push(cc.clone());
+  }
+
+  grassGroup.clear();
+  grassN = gm.length; weedN = wm.length;
+  grassIM = new THREE.InstancedMesh(makeTuft({ blades:3, segs:2, seed:9 }), grassMat, Math.max(1, grassN));
+  weedIM  = new THREE.InstancedMesh(makeWeed(77), grassMat, Math.max(1, weedN));
+  for(let i=0;i<grassN;i++){ grassIM.setMatrixAt(i, gm[i]); grassIM.setColorAt(i, gc[i]); }
+  for(let i=0;i<weedN;i++){  weedIM.setMatrixAt(i, wm[i]);  weedIM.setColorAt(i, wc[i]); }
+  for(const im of [grassIM, weedIM]){
+    im.instanceMatrix.needsUpdate = true;
+    if(im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.frustumCulled = false;
+    im.receiveShadow = true;
+    grassGroup.add(im);
+  }
+  applyGrassDensity();
+}
+function applyGrassDensity(){
+  const f = parseFloat(document.getElementById('gdens').value);
+  if(grassIM) grassIM.count = Math.floor(grassN * f);
+  if(weedIM)  weedIM.count  = Math.floor(weedN  * f);
+}
+
+// ======================================================================
+// 7. build it all
+// ======================================================================
+let stats = { verts:0, rocks:0, ms:0 };
+function buildAll(){
+  const t0 = performance.now();
+  makeTerrain();
+  scatterRocks();
+  stats.rocks = buildRockMeshes();
+  scatterTurf();
+  stats.verts = terrainMesh.geometry.attributes.position.count;
+  stats.ms = Math.round(performance.now() - t0);
+  renderer.shadowMap.needsUpdate = true;   // one shadow pass per rebuild
+  updateStats();
+}
+function updateStats(){
+  document.getElementById('stats').textContent =
+    `terrain ${(stats.verts/3/1000).toFixed(0)}k tris · rocks ${stats.rocks}\n` +
+    `grass ${(grassIM?grassIM.count:0)} · weeds ${(weedIM?weedIM.count:0)}\n` +
+    `built in ${stats.ms} ms · ${fps.toFixed(0)} fps`;
+}
+
+// ======================================================================
+// 8. camera presets — the six angles worth photographing
+// ======================================================================
+const VIEWS = {
+  1: { pos:[-118, 96, 168],           tgt:[6, 4, 10] },     // overview
+  2: { pos:[26*WS+42, 34, 34*WS+46],  tgt:[26*WS, 12, 34*WS] }, // king's hill
+  3: { pos:[-24*WS-40, 30, -12*WS+44],tgt:[-20*WS, 8, -9*WS] }, // twin hills
+  4: { pos:[VOLC.x+70, 52, VOLC.z+74],tgt:[VOLC.x, 20, VOLC.z] },// volcano
+  5: { pos:[-96, 16, 92],             tgt:[-52, 1, 62] },   // shoreline
+  6: { pos:[-40, 0, 26], tgt:[-30, 0, -14], eye:2.4, aim:5.0 },  // ground level, in the meadow
+};
+function setView(k){
+  const v = VIEWS[k]; if(!v) return;
+  // 'eye'/'aim' views ride ON the ground — solve their height from the terrain
+  // so a preset never ends up buried in a hill or under the sea
+  const py = v.eye !== undefined ? terrainH(v.pos[0], v.pos[2]) + v.eye : v.pos[1];
+  const ty = v.aim !== undefined ? terrainH(v.tgt[0], v.tgt[2]) + v.aim : v.tgt[1];
+  camera.position.set(v.pos[0], py, v.pos[2]);
+  controls.target.set(v.tgt[0], ty, v.tgt[2]);
+  controls.update();
+}
+addEventListener('keydown', e => { if(VIEWS[e.key]) setView(e.key); });
+document.querySelectorAll('.btns button').forEach(b =>
+  b.addEventListener('click', () => setView(b.dataset.v)));
+
+// ======================================================================
+// 9. UI wiring
+// ======================================================================
+const $ = id => document.getElementById(id);
+$('tGrass').addEventListener('change', e => grassGroup.visible = e.target.checked);
+$('tRocks').addEventListener('change', e => rockGroup.visible = e.target.checked);
+$('tWire').addEventListener('change', e => { matTerrain.wireframe = e.target.checked; });
+$('wind').addEventListener('input', e => uWind.value = parseFloat(e.target.value));
+$('gdens').addEventListener('input', () => { applyGrassDensity(); updateStats(); });
+$('tDetail').addEventListener('change', e => {
+  DETAIL_ON = e.target.checked;
+  $('busy').style.display = 'flex';
+  $('busy').textContent = DETAIL_ON ? 'carving cliffs…' : 'reverting to the base island…';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    buildAll(); $('busy').style.display = 'none';
+  }));
+});
+
+// ======================================================================
+// 10. loop
+// ======================================================================
+let fps = 0, lastT = performance.now(), frames = 0, fpsT = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta(), t = clock.elapsedTime;
+  uTime.value = t;
+
+  // sea: two crossing swells, flat-shaded like the game's
+  const p = wGeo.attributes.position.array;
+  for(let i=0;i<p.length;i+=3){
+    const x = wBase[i], z = wBase[i+2];
+    p[i+1] = Math.sin(x*0.055 + t*1.05)*0.42 + Math.sin(z*0.075 - t*0.85)*0.34
+           + Math.sin((x+z)*0.028 + t*0.5)*0.3;
+  }
+  wGeo.attributes.position.needsUpdate = true;
+  // no computeVertexNormals: the sea is flatShading, so normals come from
+  // screen-space derivatives in the shader — recomputing them in JS every
+  // frame was pure waste.
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  frames++; fpsT += dt;
+  if(fpsT > 0.5){ fps = frames/fpsT; frames = 0; fpsT = 0; updateStats(); }
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ======================================================================
+// 11. the module surface the game lifts
+// ======================================================================
+window.TERRAIN = {
+  terrainH, terrainBase, terrainDetailFrom, slopeAt, normalAt, sandWidth,
+  WS, VOLC, TSIZE, TSEG,
+  get obstacles(){ return OBSTACLES; },
+  groups: { get terrain(){ return terrainMesh; }, rocks: rockGroup, turf: grassGroup },
+  tick(t){ uTime.value = t; },
+  rebuild: buildAll,
+};
+
+setView(1);
+buildAll();
+$('busy').style.display = 'none';
+animate();
+</script>
+</body>
+</html>
