@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.66</title>
+<title>George World v0.67</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -372,7 +372,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.66</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.67</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -8930,6 +8930,7 @@ function cancelAdo(){
   // rate here (an applySlider() would recurse restore → cancelAdo → restore)
   pendingDemo = null; cinematic = 0; adoboxEl.style.display = 'none';
   demoSeq = null; demoClamp = 0;
+  pendingCardTech = null;   // v0.67: a killed story takes its waiting card with it
   for(const v of VITAS) v.demoSlow = false;
   if(basketHold){ basketHold = false; refreshBaskets(); }   // v0.62: a killed weaving scene still delivers the baskets
 }
@@ -8938,6 +8939,9 @@ adoboxEl.addEventListener('click', endAdo);
 // ---- demo sequences: timed steps so a discovery has room to BREATHE.
 // while one runs, sim speed is clamped to 1× so the before→after reads.
 let demoSeq = null, demoClamp = 0;
+// v0.67: the tech whose DISCOVERY CARD is waiting for its story to finish —
+// the zoom-in watch-it-being-MADE scene plays FIRST, the card caps it
+let pendingCardTech = null;
 function runDemo(steps){
   demoSeq = { steps, t:0, i:0 };
   demoClamp = steps[steps.length - 1].at + 5;
@@ -8958,7 +8962,15 @@ function stepDemo(dt){
     demoSeq.steps[demoSeq.i].fn();
     demoSeq.i++;
   }
-  if(demoSeq.i >= demoSeq.steps.length) demoSeq = null;
+  if(demoSeq.i >= demoSeq.steps.length){
+    demoSeq = null;
+    // v0.67: the story is told — NOW the card sums the art up
+    if(pendingCardTech !== null){
+      const ci = pendingCardTech;
+      pendingCardTech = null;
+      showAdo('DISCOVERY', TECHS[ci].name, techCardBody(ci), 8);
+    }
+  }
 }
 function sendToHarvest(w){
   releaseClaim(w);
@@ -9153,7 +9165,15 @@ function unlockTech(i){
   applyTechVisuals();
   recordEvent('tech', `discovered ${TECHS[i].name}`);
   if(i === T_TRADE) landLeverLockText();
-  showAdo('DISCOVERY', TECHS[i].name, techCardBody(i), 8, ()=>techDemo(i));
+  // v0.67 (DESIGN 08-31: the ZOOM scene comes BEFORE the card): play the
+  // watch-it-being-MADE story first — camera on the maker — and the card
+  // arrives as the capping summary when the story ends
+  pendingCardTech = i;
+  techDemo(i);
+  if(!demoSeq){   // no story to carry it (no eligible star) — the card stands alone
+    pendingCardTech = null;
+    showAdo('DISCOVERY', TECHS[i].name, techCardBody(i), 8);
+  }
 }
 // which rungs the ladder walks past: parked MINING, removed LAW
 function techSkipped(i){ return (i === T_MINE && !GOLD_ENABLED) || i === T_LAW; }
