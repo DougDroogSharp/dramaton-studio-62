@@ -1,6 +1,6 @@
 // George World — dialogue pool (v1, 2026-08-30). ~100 short scene lines, keyed by relationship/context.
 // "Doesn't have to be Shakespeare" — quantity + variety so nothing repeats. Tone is keyed by the connector.
-// Tokens: {A} = speaker, {B} = other Vita, {THING} = fruit/dates/figs, {TECH} = discovery name.
+// Tokens: {A} = speaker, {B} = other Vita, {THING} = fruit/berries, {TECH} = discovery name.
 // Structure is deliberately flat + data-shaped so it can later become editable Dramaton scenes.
 // Integration: pick a random line from the matching category, never repeat the last few; two-line exchanges use [A-line, B-line].
 
@@ -27,7 +27,7 @@ window.GW_DIALOGUE = {
     ["Little one's fed. Sleep now.", "*a small contented sound*"],
     ["Nobody starves while I've got a full basket.", "If only everyone thought like you."],
     ["Take mine. I ate at the beach.", "You're a better sort than most, {A}."],
-    ["Come on, up you get. There's figs at camp.", "Figs. My favorite word."],
+    ["Come on, up you get. There's berries at camp.", "Berries. My favorite word."],
     ["I don't count what I give away.", "That's exactly why people love you."],
   ],
 
@@ -53,11 +53,11 @@ window.GW_DIALOGUE = {
 
   // Peer trade (no spring). Easy, sometimes funny.
   trade: [
-    ["Three figs for two dates? Robbery, but fine.", "You'll thank me when the figs run out."],
+    ["Three green for two ripe? Robbery, but fine.", "You'll thank me when the red ones run out."],
     ["I've got more than I can eat. Want some?", "Only if you take my extra reeds."],
     ["Even split, and we both walk away smiling.", "Now THAT'S an economy."],
     ["You bring the fish, I'll bring the fire.", "Deal. Best kind of deal — nobody loses."],
-    ["Trade you a date for a good story.", "Ha — the story's worth two dates, at least."],
+    ["Trade you a berry for a good story.", "Ha — the story's worth two berries, at least."],
   ],
 
   // NIGHT SNORE — at night one Vita snores and wakes a neighbor, who shushes them.
@@ -116,7 +116,7 @@ window.GW_DIALOGUE = {
     ["Think it'll rain?", "Clouds say maybe. My knee says definitely."],
     ["Nine of us on one little island.", "Plenty, if we share it right."],
     ["I heard the turtles are laying tonight.", "Now THAT'S a rare treat."],
-    ["Do we know what's over the ridge?", "Dates. And a very long walk."],
+    ["Do we know what's over the ridge?", "Berries. And a very long walk."],
     ["Quiet day.", "The best kind."],
     ["Smell that? Rain's coming.", "Or someone's cooking. Hard to say."],
     ["I could sleep for a week.", "Couldn't we all."],
@@ -135,7 +135,7 @@ window.GW_DIALOGUE = {
     ["Sea's calm today.", "Won't last. Nothing does."],
     ["My knees ache. Storm on the way.", "Your knees are never wrong."],
     ["I counted the stars till I lost count.", "That's the only way to count them."],
-    ["Someone's been at my date store.", "Wasn't me. Probably."],
+    ["Someone's been at my berry store.", "Wasn't me. Probably."],
     ["Feels like a long week already.", "It's Tuesday."],
     ["My shadow's longer than I am tonight.", "That's the island telling you to rest."],
     ["I forget what quiet feels like.", "Stand by the water at dawn. It comes back."],
@@ -146,7 +146,7 @@ window.GW_DIALOGUE = {
     ["Some nights the stars feel close enough to pick.", "Leave a few for the rest of us."],
     ["My mother said this island would be paradise.", "Your mother never met a Duke."],
     ["I've decided to be cheerful today.", "Bold. Let me know how it goes."],
-    ["The fig tree by the ridge is fruiting early.", "Don't tell anyone. Let's keep one thing ours."],
+    ["The big grove past the ridge is reddening early.", "Don't tell anyone. Let's keep one thing ours."],
     ["Do fish dream, do you think?", "If they do, it's about bigger water."],
     ["I mended the net twice this week.", "Nets and backs. Always something to mend."],
   ],
@@ -173,7 +173,7 @@ window.GW_DIALOGUE = {
     ["With {TECH}, this took half the morning. Half!", "I'd forgotten what free time felt like."],
     ["Look — the tool does the hard part now.", "We should've thought of this ages ago."],
     ["Whole harvest, no aching back. Imagine.", "Progress, {A}. Actual progress."],
-    ["{TECH} changes everything about the ridge climb.", "Everything except who gets the dates."],
+    ["{TECH} changes everything about the ridge climb.", "Everything except who gets the berries."],
     ["Easier work. Same old question of who keeps it.", "One miracle at a time, friend."],
   ],
 
@@ -292,7 +292,7 @@ window.GW_DIALOGUE = {
   meeting_praise: [
     "Good work this week. See what we build together?",
     "You made me proud. And rich.",
-    "Keep it up and there might be extra figs. Might.",
+    "Keep it up and there might be extra berries. Might.",
     "This is what loyalty earns you: my approval.",
     "The finest workers on the island. Mine.",
     "Together we built something. Well — I built something.",
@@ -304,7 +304,7 @@ window.GW_DIALOGUE = {
     "Look at that pile. Have you ever seen the like?",
     "Every fruit up there is a monument to my genius.",
     "They'll sing about this hoard one day.",
-    "A crown, a castle, a mountain of dates — and you helped!",
+    "A crown, a castle, a mountain of berries — and you helped!",
     "You lot could only dream of a pile like mine.",
     "This is what winning looks like. Take a good long look.",
     "I don't even count it anymore. Too much to count.",
@@ -489,15 +489,15 @@ window.GW_DIALOGUE = {
     ["Another wall, another day of my back.", "Put your name in the mortar. No one else will."],
   ],
 
-  // BUILD LABOR — workers fell palms and raise the bosses' houses while they sleep under a lean-to.
+  // BUILD LABOR — workers fell firs and raise the bosses' houses while they sleep under a lean-to.
   build_labor: [
     ["Another wall for his house. And I sleep under leaves.", "The fronds keep the rain off. Mostly."],
     "Cut it down. He wants a bigger room.",
     "My arms for his roof. Same as it ever was.",
     ["Why do we build the houses we'll never sleep in?", "Ask the hat. I just carry the wood."],
-    "Twelve palms felled this week. For one manor.",
+    "Twelve firs felled this week. For one manor.",
     "The lean-to leaks. The manor does not.",
-    ["Timber! …mind the dates, they're the only supper we get.", "Down it comes. Shade and all."],
+    ["Timber! …mind the bushes, they're the only supper we get.", "Down it comes. Shade and all."],
     "Hungry work, hauling someone else's walls.",
   ],
 
