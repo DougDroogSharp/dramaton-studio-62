@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FOOD-BERRY BUSH STUDY — six gnarled Joshua-tree-style bushes and the
+     star-fruit-shaped food berry (green + ripe red), for George World.
+     Filed 2026-08-30 16:26. Standalone: nothing touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game. Everything is vertex-colored merged geometry: ONE mesh (one draw
+     call) per bush, so a field of them can be instanced 6 ways.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Berry Bush Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.72); color:#eaf4f8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🫐 Berry Bush Study</b> — v1<br>
+  <span class="hint">six gnarled variants · star-berry green + ripe<br>
+  drag to orbit · scroll to zoom</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 555111;
+function srand(s){ seed = (s|0) || 555111; }
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+
+// ---------- renderer / scene / light (the palm-study rig) -----------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2f0f6), 70, 330);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(0, 5.5, 21);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 60;
+controls.maxPolarAngle = 1.53;
+
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4);
+  const below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const hh = pos.getY(i)/400;
+    if(hh >= 0) c.copy(horizon).lerp(zenith, Math.pow(hh, 0.55));
+    else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.05));
+const sun = new THREE.DirectionalLight(0xffe8c8, 2.6);
+sun.position.set(30, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -24; sun.shadow.camera.right = 24;
+sun.shadow.camera.top = 18;  sun.shadow.camera.bottom = -4;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd8ecff, 0.5);
+fill.position.set(-20, 12, -16);
+scene.add(fill);
+
+{
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1024;
+  const g = cv.getContext('2d');
+  const grad = g.createRadialGradient(512,512,40, 512,512,512);
+  grad.addColorStop(0, '#ead9b0'); grad.addColorStop(0.55, '#e0cba0');
+  grad.addColorStop(1, '#e2f0f6');
+  g.fillStyle = grad; g.fillRect(0,0,1024,1024);
+  for(let i=0;i<9000;i++){
+    const x = rand(1024), y = rand(1024);
+    if(Math.hypot(x-512,y-512) > 470) continue;
+    g.fillStyle = rand()<0.5 ? 'rgba(160,135,90,0.16)' : 'rgba(255,250,235,0.18)';
+    g.fillRect(x, y, rand(1,2.4), rand(1,2.4));
+  }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(300, 64),
+    new THREE.MeshStandardMaterial({ map:t, roughness:1 }));
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// ==========================================================================
+//  GEOMETRY POOL — everything for one bush merges into one vertex-colored
+//  geometry: gnarled tubes + spiky tufts + shaggy dead skirts.
+// ==========================================================================
+function makePool(){ return { pos:[], col:[], idx:[] }; }
+function mergePool(pool){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pool.pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(pool.col, 3));
+  geo.setIndex(pool.idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const BARK1 = new THREE.Color(0x8d7d67), BARK2 = new THREE.Color(0x6e5f4d);
+const LEAF1 = new THREE.Color(0x51702a), LEAF2 = new THREE.Color(0x93aa47);
+const SKIRT = new THREE.Color(0x77654c);
+const _c = new THREE.Color();
+
+// ---- a gnarled tapering tube along a kinked spine ------------------------
+function tube(pool, spine, r0, r1){
+  const N = spine.length - 1, RAD = 7;
+  const base = pool.pos.length/3;
+  const tang = new THREE.Vector3(), nrm = new THREE.Vector3(), bin = new THREE.Vector3();
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    const p = spine[i];
+    tang.copy(spine[Math.min(N,i+1)]).sub(spine[Math.max(0,i-1)]).normalize();
+    // stable-ish frame
+    bin.set(0.31, 0.05, 0.95).cross(tang).normalize();
+    nrm.crossVectors(tang, bin).normalize();
+    const r = (r0 + (r1-r0)*t) * (1 + 0.10*Math.sin(t*17 + p.x*3));   // knobbly
+    _c.copy(BARK1).lerp(BARK2, 0.5 + 0.5*Math.sin(t*23 + p.z*5)).multiplyScalar(rand(0.92,1.05));
+    for(let j=0;j<=RAD;j++){
+      const a = j/RAD*Math.PI*2;
+      const rr = r*(1 + 0.09*Math.sin(a*3 + t*9));                    // fluted bark
+      pool.pos.push(p.x + (nrm.x*Math.cos(a) + bin.x*Math.sin(a))*rr,
+                    p.y + (nrm.y*Math.cos(a) + bin.y*Math.sin(a))*rr,
+                    p.z + (nrm.z*Math.cos(a) + bin.z*Math.sin(a))*rr);
+      pool.col.push(_c.r, _c.g, _c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RAD;j++){
+    const a = base + i*(RAD+1)+j, b = a+RAD+1;
+    pool.idx.push(a, b, a+1, b, b+1, a+1);
+  }
+}
+
+// ---- one spiky blade (bent, tapering to a point) -------------------------
+function blade(pool, origin, dir, len, w, c0, c1){
+  const base = pool.pos.length/3;
+  const d = dir.clone().normalize();
+  const e = new THREE.Vector3().crossVectors(d, new THREE.Vector3(0,1,0));
+  if(e.lengthSq() < 0.01) e.set(1,0,0); else e.normalize();
+  const p = origin.clone();
+  const rows = [[w, 0], [w*0.55, 0.55], [0.001, 1]];
+  const droop = dir.y > 0 ? 0.22 : 0.5;              // dead blades sag harder
+  for(let k=0;k<rows.length;k++){
+    const [wk, u] = rows[k];
+    const pt = p.clone().addScaledVector(d, len*u);
+    pt.y -= droop*len*u*u;
+    _c.copy(c0).lerp(c1, u);
+    pool.pos.push(pt.x - e.x*wk, pt.y, pt.z - e.z*wk);
+    pool.col.push(_c.r*0.85, _c.g*0.85, _c.b*0.85);
+    pool.pos.push(pt.x + e.x*wk, pt.y, pt.z + e.z*wk);
+    pool.col.push(_c.r, _c.g, _c.b);
+  }
+  for(let k=0;k<2;k++){
+    const a = base + k*2;
+    pool.idx.push(a, a+1, a+2, a+1, a+3, a+2);
+  }
+}
+
+// ---- a tuft: spiky live rosette + shaggy dead skirt ----------------------
+function tuft(pool, pos, size){
+  const up = new THREE.Vector3(0,1,0), d = new THREE.Vector3();
+  const n = 22 + (rand(8)|0);
+  for(let i=0;i<n;i++){                              // live spikes, upper fan
+    const az = rand(Math.PI*2), el = rand(0.15, 1.35);
+    d.set(Math.cos(az)*Math.cos(el), Math.sin(el), Math.sin(az)*Math.cos(el));
+    blade(pool, pos, d, size*rand(0.75,1.2), size*rand(0.045,0.075), LEAF1, LEAF2);
+  }
+  for(let i=0;i<13;i++){                             // dead skirt hanging below
+    const az = rand(Math.PI*2), el = rand(-0.9, -0.25);
+    d.set(Math.cos(az)*Math.cos(el), Math.sin(el), Math.sin(az)*Math.cos(el));
+    blade(pool, pos, d, size*rand(0.5,0.8), size*rand(0.04,0.06), SKIRT, SKIRT);
+  }
+}
+
+// ---- recursive gnarled growth -------------------------------------------
+// Joshua-tree logic: branches kink at hard elbows, curl upward at the tips,
+// fork into 2-3 arms, and every arm ends in a spiky tuft.
+function grow(pool, tufts, start, dir, len, rad, depth){
+  const NSEG = 7;
+  const spine = [start.clone()];
+  const d = dir.clone().normalize();
+  const kinkAt = 2 + (rand(3)|0);
+  const axis = new THREE.Vector3();
+  for(let i=1;i<=NSEG;i++){
+    if(i === kinkAt){                                // the hard elbow
+      axis.set(rand(-1,1), rand(-0.3,0.3), rand(-1,1)).normalize();
+      d.applyAxisAngle(axis, rand(0.35, 0.75)*(rand()<0.5?-1:1));
+    }
+    d.y += 0.10 * (i/NSEG);                          // tips curl upward
+    d.normalize();
+    spine.push(spine[i-1].clone().addScaledVector(d, len/NSEG));
+  }
+  tube(pool, spine, rad, rad*0.7);
+  const end = spine[NSEG];
+  if(depth <= 0 || rad < 0.05){
+    tufts.push({ pos:end, size: rad*6 + 0.35 });
+    return end;
+  }
+  const nChild = rand() < 0.4 ? 3 : 2;
+  const ends = [];
+  for(let c=0;c<nChild;c++){
+    const cd = d.clone();
+    axis.set(rand(-1,1), rand(-0.2,0.2), rand(-1,1)).normalize();
+    cd.applyAxisAngle(axis, rand(0.45, 1.0));
+    if(cd.y < -0.1) cd.y = Math.abs(cd.y)*0.4;       // never dive at the ground
+    ends.push(grow(pool, tufts, end, cd.normalize(), len*rand(0.6,0.8), rad*0.62, depth-1));
+  }
+  return ends[0];
+}
+
+// ==========================================================================
+//  THE FOOD BERRY — carambola: five sharp ridges, rounded ends
+// ==========================================================================
+function berryGeo(crest, valley){
+  const RAD = 40, L = 18, len = 1.18, R = 0.38;
+  const pos = [], col = [], idx = [];
+  const cCrest = new THREE.Color(crest), cValley = new THREE.Color(valley);
+  for(let i=0;i<=L;i++){
+    const t = i/L;
+    const prof = Math.pow(Math.sin(Math.PI*clamp(t, 0.001, 0.999)), 0.55);
+    const y = (t - 0.5)*len;
+    for(let j=0;j<=RAD;j++){
+      const a = j/RAD*Math.PI*2;
+      const ridge = Math.pow(0.5 + 0.5*Math.cos(a*5), 2.4);     // 5 narrow fins,
+      const r = R*prof*(0.42 + 0.58*ridge);                     // deep valleys
+      pos.push(Math.cos(a)*r, y, Math.sin(a)*r);
+      _c.copy(cValley).lerp(cCrest, ridge);
+      col.push(_c.r, _c.g, _c.b);
+    }
+  }
+  for(let i=0;i<L;i++) for(let j=0;j<RAD;j++){
+    const a = i*(RAD+1)+j, b = a+RAD+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+const greenBerryGeo = berryGeo(0xa9d155, 0x5c8f2e);       // waxy unripe green
+const redBerryGeo   = berryGeo(0xf27f35, 0xc03418);       // ripe red-amber
+const berryMat = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.32, metalness:0 });
+const stemMat = new THREE.MeshStandardMaterial({ color:0x6e5f42, roughness:0.9 });
+const stemGeo = new THREE.CylinderGeometry(0.02, 0.025, 0.3, 5);
+
+const swayBerries = [];
+function hangBerry(parent, x, y, z, ripe, scale=1){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  const stem = new THREE.Mesh(stemGeo, stemMat);
+  stem.position.y = -0.15*scale;
+  stem.scale.setScalar(scale);
+  const berry = new THREE.Mesh(ripe ? redBerryGeo : greenBerryGeo, berryMat);
+  berry.position.y = -0.3*scale - 0.5*scale;
+  berry.scale.setScalar(scale);
+  berry.rotation.y = rand(Math.PI*2);
+  berry.castShadow = true;
+  grp.add(stem, berry);
+  parent.add(grp);
+  swayBerries.push({ grp, phase: rand(7) });
+  return grp;
+}
+
+// ==========================================================================
+//  SIX VARIANTS
+// ==========================================================================
+const VARIANTS = [
+  { seed:101, h:1.6, rad:0.20, depth:2, lean:0.10 },   // young, two-armed
+  { seed:202, h:2.2, rad:0.24, depth:3, lean:0.22 },   // classic gnarl
+  { seed:317, h:1.2, rad:0.28, depth:3, lean:0.05 },   // squat and wide
+  { seed:404, h:2.8, rad:0.22, depth:2, lean:0.30 },   // tall drunk lean
+  { seed:555, h:1.9, rad:0.26, depth:3, lean:0.15 },   // busy candelabra
+  { seed:606, h:1.0, rad:0.17, depth:2, lean:0.02 },   // dwarf
+];
+const bushes = [];
+for(let vi=0; vi<6; vi++){
+  const V = VARIANTS[vi];
+  srand(V.seed);
+  const pool = makePool(), tufts = [];
+  const dir = new THREE.Vector3(V.lean*rand(-1,1), 1, V.lean*rand(-1,1)).normalize();
+  grow(pool, tufts, new THREE.Vector3(0,0,0), dir, V.h, V.rad, V.depth);
+  for(const tf of tufts) tuft(pool, tf.pos, tf.size);
+  const mesh = new THREE.Mesh(mergePool(pool), new THREE.MeshStandardMaterial({
+    vertexColors:true, roughness:0.85, metalness:0 }));
+  mesh.castShadow = mesh.receiveShadow = true;
+  const grp = new THREE.Group();
+  grp.add(mesh);
+  // 1-3 berries hanging under tufts, mixed ripeness
+  const nBerry = 1 + (rand(3)|0);
+  for(let b=0; b<nBerry && b<tufts.length; b++){
+    const tf = tufts[(rand(tufts.length)|0)];
+    hangBerry(grp, tf.pos.x + rand(-0.1,0.1), tf.pos.y - 0.05, tf.pos.z + rand(-0.1,0.1),
+              rand() < 0.5, 0.55);
+  }
+  // arc layout
+  const a = (vi/6)*Math.PI*1.25 - Math.PI*0.625 + Math.PI/2;
+  grp.position.set(Math.cos(a)*9 * (vi%2 ? 1 : 0.75), 0, -Math.sin(a)*7 + 2);
+  grp.rotation.y = rand(Math.PI*2);
+  scene.add(grp);
+  bushes.push(grp);
+}
+
+// ---- hero berries front and center: green vs ripe ------------------------
+const heroes = [];
+for(const [x, geo] of [[-2.2, greenBerryGeo], [2.2, redBerryGeo]]){
+  const mound = new THREE.Mesh(new THREE.SphereGeometry(0.9, 20, 12),
+    new THREE.MeshStandardMaterial({ color:0xd9c69a, roughness:1 }));
+  mound.scale.set(1, 0.25, 1);
+  mound.position.set(x, 0, 7.5);
+  mound.receiveShadow = true;
+  scene.add(mound);
+  const berry = new THREE.Mesh(geo, berryMat);
+  berry.scale.setScalar(2.6);
+  berry.position.set(x, 1.75, 7.5);
+  berry.castShadow = true;
+  scene.add(berry);
+  heroes.push(berry);
+}
+
+// ---------- loop ----------------------------------------------------------
+const clock = new THREE.Clock();
+let simT = 0;
+function update(dt){
+  simT += dt;
+  for(const b of swayBerries)
+    b.grp.rotation.z = 0.07*Math.sin(simT*1.3 + b.phase);
+  for(const h of heroes) h.rotation.y += dt*0.45;
+}
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+
+window.BUSH = {
+  renderer, scene, camera, controls, bushes, heroes,
+  step(sec){ const n = Math.max(1, Math.round(sec*60));
+             for(let i=0;i<n;i++) update(1/60);
+             renderer.render(scene, camera); },
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

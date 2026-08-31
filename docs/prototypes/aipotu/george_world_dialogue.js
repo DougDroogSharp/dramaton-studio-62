@@ -31,6 +31,18 @@ window.GW_DIALOGUE = {
     ["I don't count what I give away.", "That's exactly why people love you."],
   ],
 
+  // FUNERAL — solemn, at a dead serf's grave. Only serfs attend; the betters never come.
+  funeral: [
+    "One less of us. One more grave.",
+    "He carried more than his share. Rest now.",
+    "The hill won't miss him. We will.",
+    "No hat, no hall, no fuss. Just us, and the wind.",
+    "Sleep, friend. You've earned the only rest they ever gave you.",
+    "*heads bowed, a long silence*",
+    "The Dukes won't come. They never do.",
+    "We bury our own. It's always been us.",
+  ],
+
   // Rescue (a collapsed Vita helped back up).
   rescue: [
     ["Easy — I've got you. Small sips.", "…the ground came up so fast."],
@@ -48,6 +60,14 @@ window.GW_DIALOGUE = {
     ["Trade you a date for a good story.", "Ha — the story's worth two dates, at least."],
   ],
 
+  // NIGHT SNORE — at night one Vita snores and wakes a neighbor, who shushes them.
+  night_snore: [
+    ["*a loud, rattling snore*", "Shhh! Some of us are trying to sleep."],
+    ["*SNORK—snore*", "Roll over, {A}, for pity's sake."],
+    ["*rumbling snore*", "…how does anyone sleep next to that."],
+    ["*whistling snore*", "One more and I'm dragging your mat to the beach."],
+  ],
+
   // BABY — baby Vitas speak in baby talk.
   baby: [
     "Ga! Ga-ga!",
@@ -60,6 +80,21 @@ window.GW_DIALOGUE = {
     "Mine! Mine-mine!",
     "Boo!",
     "*happy squeal*",
+  ],
+
+  // MORNING — on waking: good-mornings, weather speculation, memories of recent events. {B}=a recent actor.
+  morning: [
+    ["Morning. Sleep any better than me?", "Nobody sleeps well on this island."],
+    "Good morning. Still here, still hungry.",
+    "Look at that sky — rain by midday, mark me.",
+    "Clear morning. Good day for the ridge.",
+    "Cooler than yesterday. Winter's testing us.",
+    "Smell the smoke? Someone's up early.",
+    ["Did you see them crown {B} yesterday?", "Hard to miss. All that bowing."],
+    ["They raised another wall on the hall.", "Our backs raised it, more like."],
+    ["{B} and their neighbor were at each other's throats last night.", "Over a handful of berries. As if there weren't bigger thieves about."],
+    "Another morning. Let's see what they take from us today.",
+    ["Remember when we all shared one fire?", "…I remember. Feels like a different island."],
   ],
 
   // GREETING — a quick wave-hello when two Vitas happen to pass close, if the mood is good.
@@ -102,6 +137,18 @@ window.GW_DIALOGUE = {
     ["I counted the stars till I lost count.", "That's the only way to count them."],
     ["Someone's been at my date store.", "Wasn't me. Probably."],
     ["Feels like a long week already.", "It's Tuesday."],
+    ["My shadow's longer than I am tonight.", "That's the island telling you to rest."],
+    ["I forget what quiet feels like.", "Stand by the water at dawn. It comes back."],
+    ["You ever count the waves?", "I get to seven and something distracts me. Always seven."],
+    ["The little crabs are marching again.", "Off to their own kingdom, lucky things."],
+    ["Smells like rain and woodsmoke.", "The two best smells there are."],
+    ["I traded my good sandal for a song.", "Was it a good song?", ],
+    ["Some nights the stars feel close enough to pick.", "Leave a few for the rest of us."],
+    ["My mother said this island would be paradise.", "Your mother never met a Duke."],
+    ["I've decided to be cheerful today.", "Bold. Let me know how it goes."],
+    ["The fig tree by the ridge is fruiting early.", "Don't tell anyone. Let's keep one thing ours."],
+    ["Do fish dream, do you think?", "If they do, it's about bigger water."],
+    ["I mended the net twice this week.", "Nets and backs. Always something to mend."],
   ],
 
   // BERRY DISCOVERY — near the start, a Vita finds the ripe red food berries are edible.
@@ -138,6 +185,35 @@ window.GW_DIALOGUE = {
     ["{B} works like the sun'll never come up again.", "And somebody up top loves that about him."],
     ["Watch {B}. That one's always counting.", "Counting everything but people."],
     ["{B} used to be one of us, you know.", "Then the hat went to their head."],
+  ],
+
+  // FORMING GOSSIP — early, as hierarchy emerges: who's getting bossy / gathering a following.
+  forming_gossip: [
+    ["Watch {B} — always gathering folk around him lately.", "For what, though? Nobody made him chief."],
+    ["{B}'s got that look. Like he fancies himself in charge.", "Give it a week. He'll be handing out orders."],
+    ["First it's favors, then it's orders. That's {B}'s game.", "And we'll all be too tired to notice when it flips."],
+    ["Have you seen? {B} doesn't carry his own basket anymore.", "Somebody's carrying it for him. That's how it starts."],
+    ["Someone's going to end up on top of this heap.", "My money's on {B}. He's collecting friends like firewood."],
+  ],
+
+  // SERF DEFERENCE — a serf speaking TO their Duke or King directly. Submissive, careful.
+  serf_deference: [
+    "Yes, my lord. Right away.",
+    "As you wish. Of course.",
+    "Whatever you say, {A}. Whatever you say.",
+    "I live to serve, my lord.",
+    "Forgive me — it won't happen again.",
+    "You honor me by asking.",
+    "Of course, of course. Anything.",
+  ],
+
+  // LEADER GOSSIP — serfs talking ABOUT the king/dukes among themselves, behind their backs.
+  leader_gossip: [
+    ["Bowing to his face, grumbling behind his back. Same as us all.", "It's the only freedom we've got left."],
+    ["He calls it a hoard. We call it our harvest.", "Say it quieter. Walls have ears, and ears have Dukes."],
+    ["The crown eats pineapple. We eat what's left of what we grew.", "Funny how that works out, every single time."],
+    ["He wasn't always king, you know. He was one of us.", "That's the part that stings the most."],
+    ["One day someone braver than me does something about him.", "…don't look at me."],
   ],
 
   // Recruiting / leaning on someone to join under you.
@@ -400,6 +476,17 @@ window.GW_DIALOGUE = {
     "So generous of you, to return what I gave you.",
     "The pile is whole again. All is right.",
     "Thank him for the gift. Then hand him the gift.",
+  ],
+
+  // BUILDING SCENE — the big communal raising of a structure (esp. all serfs raising the King's Hall).
+  building_scene: [
+    ["Heave! Up she goes!", "Mind your fingers — that beam's a monster."],
+    ["All hands on the hall today.", "The whole island, raising one roof. For one man."],
+    ["Straight and true — he'll want it grand.", "He wants everything grand. That's rather the trouble."],
+    ["The king's hall, and not one of us will sleep in it.", "Lift anyway. The sooner up, the sooner rest."],
+    ["Sing while you lift — it goes faster.", "Nothing goes faster. But it hurts less."],
+    ["When it's done, they'll say the KING built it.", "We'll know better. Small comfort, but ours."],
+    ["Another wall, another day of my back.", "Put your name in the mortar. No one else will."],
   ],
 
   // BUILD LABOR — workers fell palms and raise the bosses' houses while they sleep under a lean-to.

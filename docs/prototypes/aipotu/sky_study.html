@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SKY STUDY — clouds, sunsets, overcast, storms for George World.
+     Filed 2026-08-30 14:48. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so the whole sky rig can drop in later.
+     States: clear / fair-weather cumulus / cirrus sunset / full overcast
+     (textured deck, sun glowing through, god-rays) / thunderhead + rain.
+     All cloud puffs render as ONE instanced draw call; the puffs light
+     themselves against the sun with a faked sphere normal, so they read
+     as volume, not flat billboards.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0a0e18; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.72); color:#eaf4f8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:270px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:6px 6px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4d8ab8; }
+  #chip button.on { background:#e8963c; }
+  #chip label { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; }
+  #chip input[type=range] { flex:1; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>☁️ Sky Study</b> — v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <span id="btns"></span>
+  <label>time <input id="tod" type="range" min="0" max="24" step="0.05" value="13">
+    <span id="todLbl">13:00</span></label>
+  <label>moon <input id="moonph" type="range" min="0" max="1" step="0.005" value="0.5">
+    <span id="moonLbl">full</span></label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 777123;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer ------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.5, 1200);
+camera.position.set(0, 7, 92);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 38, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 220;
+controls.maxPolarAngle = 1.6;
+
+// ---------- shared state --------------------------------------------------
+const sunDir = new THREE.Vector3(0.3, 0.8, 0.2).normalize();
+const P = { cumulus:1, cirrus:0.25, overcast:0, storm:0, day:1, dusk:0 };
+let simT = 0;
+
+// ==========================================================================
+//  SKY DOME — gradient, sun disc + glow, dusk warmth, storm gloom, stars
+// ==========================================================================
+const domeUniforms = {
+  uSun:      { value: sunDir },
+  uOvercast: { value: 0 },
+  uStorm:    { value: 0 },
+};
+const dome = new THREE.Mesh(
+  new THREE.SphereGeometry(520, 32, 20),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: domeUniforms,
+    vertexShader: `
+      varying vec3 vDir;
+      void main(){
+        vDir = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying vec3 vDir;
+      uniform vec3 uSun;
+      uniform float uOvercast;
+      uniform float uStorm;
+      float hash3(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
+      void main(){
+        vec3 dir = normalize(vDir);
+        float sunH = uSun.y;
+        float day  = smoothstep(-0.12, 0.14, sunH);
+        float dusk = (1.0 - smoothstep(0.02, 0.38, abs(sunH))) * smoothstep(-0.22, 0.0, sunH);
+        float t = pow(clamp(dir.y, 0.0, 1.0), 0.55);
+
+        vec3 zen = mix(vec3(0.015,0.025,0.06), vec3(0.19,0.46,0.79), day);
+        vec3 hor = mix(vec3(0.05,0.07,0.13),  vec3(0.80,0.90,0.97), day);
+
+        // dusk: warm wall of color around the sun's azimuth, violet zenith
+        float azim = max(dot(normalize(vec3(dir.x,0.0,dir.z)), normalize(vec3(uSun.x,0.0001,uSun.z))), 0.0);
+        vec3 warm = mix(vec3(1.0,0.32,0.10), vec3(1.0,0.62,0.22), azim*azim);
+        hor = mix(hor, warm, dusk * pow(azim, 1.5));
+        hor = mix(hor, vec3(0.85,0.45,0.45), dusk * 0.25 * (1.0-azim));   // pink counterglow
+        zen = mix(zen, vec3(0.30,0.22,0.42), dusk*0.55);
+
+        vec3 col = mix(hor, zen, t);
+
+        // the sun: disc + tight glow + wide haze
+        float cosA = dot(dir, uSun);
+        float disc = smoothstep(0.99955, 0.99985, cosA);
+        float glow = pow(max(cosA,0.0), 350.0)*0.85 + pow(max(cosA,0.0), 12.0)*0.10;
+        vec3 sunCol = mix(vec3(1.0,0.45,0.15), vec3(1.0,0.97,0.90), smoothstep(0.0,0.3,sunH));
+        float sunVis = smoothstep(-0.06, 0.02, sunH) * (1.0 - uOvercast*0.92) * (1.0 - uStorm*0.85);
+        col += sunCol * (disc*1.6 + glow) * sunVis;
+
+        // overcast flattens everything grey; storm broods darker
+        vec3 ovc = mix(vec3(0.42,0.45,0.50), vec3(0.66,0.69,0.73), t*0.6+0.2) * (0.25+0.75*day);
+        col = mix(col, ovc, uOvercast*0.85);
+        vec3 stormCol = mix(vec3(0.13,0.15,0.19), vec3(0.30,0.33,0.38), t) * (0.3+0.7*day);
+        col = mix(col, stormCol, uStorm*0.8);
+
+        // stars fade in at night
+        float night = 1.0 - day;
+        if(night > 0.05 && dir.y > 0.0){
+          vec3 cell = floor(dir*260.0);
+          float h = hash3(cell);
+          if(h > 0.998){
+            float b = (h - 0.998)/0.002;
+            float deep = smoothstep(0.6, 0.95, night);
+            col += vec3(0.9,0.95,1.0) * b * deep * (1.0-uOvercast) * (1.0-uStorm) * 0.85;
+          }
+        }
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  }));
+dome.renderOrder = -10;
+scene.add(dome);
+
+// ==========================================================================
+//  THE MOON — phase terminator shader, silvery night light
+// ==========================================================================
+function moonTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#dad9d0'; g.fillRect(0,0,256,256);
+  // maria: the big dark blotches
+  for(const [x,y,r,al] of [[95,85,52,0.28],[150,70,34,0.22],[170,120,40,0.25],
+                           [80,150,30,0.18],[130,170,24,0.15],[190,180,18,0.12]]){
+    const gr = g.createRadialGradient(x,y,r*0.2, x,y,r);
+    gr.addColorStop(0, `rgba(120,122,128,${al})`);
+    gr.addColorStop(1, 'rgba(120,122,128,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+  }
+  // craters: darker ring, brighter floor
+  for(let i=0;i<70;i++){
+    const x = rand(256), y = rand(256), r = rand(2,9);
+    g.strokeStyle = `rgba(105,105,110,${rand(0.10,0.3)})`;
+    g.lineWidth = rand(0.8, 2);
+    g.beginPath(); g.arc(x,y,r,0,7); g.stroke();
+    g.fillStyle = `rgba(238,238,232,${rand(0.05,0.16)})`;
+    g.beginPath(); g.arc(x,y,r*0.65,0,7); g.fill();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const moonUniforms = {
+  uTex: { value: moonTexture() },
+  uPhaseDir: { value: new THREE.Vector3(0,0,1) },
+};
+const moon = new THREE.Mesh(
+  new THREE.SphereGeometry(19, 36, 26),
+  new THREE.ShaderMaterial({
+    fog:false,
+    uniforms: moonUniforms,
+    vertexShader: `
+      varying vec3 vN; varying vec2 vUv;
+      void main(){
+        vN = normal; vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying vec3 vN; varying vec2 vUv;
+      uniform sampler2D uTex;
+      uniform vec3 uPhaseDir;
+      void main(){
+        vec3 n = normalize(vN);
+        float l = dot(n, uPhaseDir);
+        float lit = smoothstep(-0.06, 0.16, l);       // the soft terminator
+        lit *= 0.75 + 0.25*smoothstep(0.0, 0.6, l);   // gentle limb falloff
+        vec3 tex = texture2D(uTex, vUv).rgb;
+        vec3 col = tex * (0.055 + 1.15*lit);          // 0.055 = earthshine
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  }));
+moon.renderOrder = -9;
+scene.add(moon);
+// halo for the bright phases
+const moonGlowMat = new THREE.SpriteMaterial({ transparent:true, depthWrite:false,
+  blending:THREE.AdditiveBlending, opacity:0, color:0xcdd6ea, fog:false });
+{
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(64,64,6, 64,64,64);
+  gr.addColorStop(0, 'rgba(255,255,255,0.5)');
+  gr.addColorStop(0.35, 'rgba(255,255,255,0.12)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0,0,128,128);
+  moonGlowMat.map = new THREE.CanvasTexture(cv);
+}
+const moonGlow = new THREE.Sprite(moonGlowMat);
+moonGlow.scale.set(95, 95, 1);
+moonGlow.renderOrder = -8;
+scene.add(moonGlow);
+
+const moonLight = new THREE.DirectionalLight(0xbdc9e6, 0);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.set(1024, 1024);
+moonLight.shadow.camera.left = -30; moonLight.shadow.camera.right = 30;
+moonLight.shadow.camera.top = 30;  moonLight.shadow.camera.bottom = -30;
+moonLight.shadow.camera.near = 10; moonLight.shadow.camera.far = 220;
+scene.add(moonLight);
+const moonDir = new THREE.Vector3(0,1,0);
+
+// ---------- lights --------------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.0);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;  sun.shadow.camera.bottom = -30;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 220;
+scene.add(sun);
+
+// ---------- ground context: sea, island, two palms ------------------------
+{
+  const sea = new THREE.Mesh(new THREE.CircleGeometry(500, 48),
+    new THREE.MeshStandardMaterial({ color:0x3f7fa8, roughness:0.55, metalness:0.05 }));
+  sea.rotation.x = -Math.PI/2; sea.position.y = -0.08;
+  scene.add(sea);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#e2cda2'; g.fillRect(0,0,256,256);
+  for(let i=0;i<1600;i++){
+    g.fillStyle = rand()<0.5 ? 'rgba(160,135,90,0.15)' : 'rgba(255,250,235,0.16)';
+    g.fillRect(rand(256), rand(256), rand(1,2), rand(1,2));
+  }
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(22, 40),
+    new THREE.MeshStandardMaterial({ map:tx, roughness:1 }));
+  sand.rotation.x = -Math.PI/2; sand.receiveShadow = true;
+  scene.add(sand);
+  // two quick palms for scale — stand-ins, not the hero palm
+  const matT = new THREE.MeshStandardMaterial({ color:0xb0a48c, roughness:0.95 });
+  const matL = new THREE.MeshStandardMaterial({ color:0x4e7c2e, roughness:0.7 });
+  for(const [px,pz,s] of [[-6,2,1],[8,-4,0.8]]){
+    const grp = new THREE.Group();
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.22*s, 0.34*s, 8*s, 7), matT);
+    tr.position.y = 4*s; tr.rotation.z = 0.09; tr.castShadow = true;
+    grp.add(tr);
+    const frGeo = new THREE.CapsuleGeometry(0.22*s, 3.4*s, 3, 6);
+    frGeo.translate(0, 1.9*s, 0);              // pivot at the frond base
+    for(let i=0;i<7;i++){
+      const fr = new THREE.Mesh(frGeo, matL);
+      fr.castShadow = true;
+      fr.position.set(0.75*s, 8*s, 0);
+      fr.rotation.order = 'YZX';
+      fr.rotation.y = i/7*Math.PI*2;
+      fr.rotation.z = 1.55 + (i%3)*0.22;       // arch out and droop
+      grp.add(fr);
+    }
+    grp.position.set(px, 0, pz);
+    scene.add(grp);
+  }
+}
+
+// ==========================================================================
+//  PUFF CLOUDS — cumulus + thunderhead, one instanced draw call
+// ==========================================================================
+function puffTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.clearRect(0,0,128,128);
+  for(let i=0;i<9;i++){                       // lumpy union of soft blobs
+    const x = 64 + rand(-20,20), y = 64 + rand(-20,20), r = rand(24,44);
+    const gr = g.createRadialGradient(x,y,0, x,y,r);
+    gr.addColorStop(0, 'rgba(255,255,255,0.55)');
+    gr.addColorStop(0.7, 'rgba(255,255,255,0.20)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  return t;
+}
+
+const NCLOUD = 14;                 // 0..11 cumulus, 12 = thunderhead
+const cloudPos = [], cloudAlpha = new Float32Array(NCLOUD), cloudDark = new Float32Array(NCLOUD);
+for(let i=0;i<NCLOUD;i++) cloudPos.push(new THREE.Vector3(0,-500,0));
+
+const puffData = { pos:[], scale:[], rot:[], cloud:[] };
+function addPuff(ci, x, y, z, s){
+  puffData.pos.push(x, y, z);
+  puffData.scale.push(s);
+  puffData.rot.push(rand(Math.PI*2));
+  puffData.cloud.push(ci);
+}
+// -- cumulus: flat-bottomed lumpy heaps
+for(let ci=0; ci<12; ci++){
+  const rx = rand(14,26), rz = rand(9,16), ry = rand(6,11);
+  const n = 11 + (rand(7)|0);
+  for(let i=0;i<n;i++){
+    const a = rand(Math.PI*2), r = Math.pow(rand(), 0.6);
+    const x = Math.cos(a)*rx*r, z = Math.sin(a)*rz*r;
+    const y = (1 - r*0.55) * ry * rand(0.25, 1);
+    addPuff(ci, x, y, z, rand(7, 12)*(1.25 - r*0.45));
+  }
+}
+// -- the thunderhead: wide dark base, towering column, spreading anvil
+{
+  const ci = 12;
+  for(let i=0;i<16;i++){ const a=rand(6.3), r=rand(8,26);
+    addPuff(ci, Math.cos(a)*r, rand(0,6), Math.sin(a)*r*0.8, rand(11,16)); }
+  for(let i=0;i<22;i++){ const a=rand(6.3), r=rand(0,13);
+    addPuff(ci, Math.cos(a)*r, rand(6,34), Math.sin(a)*r, rand(9,14)); }
+  for(let i=0;i<20;i++){ const a=rand(6.3), r=rand(6,36);
+    addPuff(ci, Math.cos(a)*r*1.25 + 6, rand(33,42), Math.sin(a)*r*0.7, rand(9,15)); }
+}
+
+const NPUFF = puffData.scale.length;
+const puffGeoBase = new THREE.PlaneGeometry(2, 2);
+const puffGeo = new THREE.InstancedBufferGeometry();
+puffGeo.index = puffGeoBase.index;
+puffGeo.setAttribute('position', puffGeoBase.attributes.position);
+puffGeo.setAttribute('uv', puffGeoBase.attributes.uv);
+puffGeo.setAttribute('iPos', new THREE.InstancedBufferAttribute(new Float32Array(puffData.pos), 3));
+puffGeo.setAttribute('iScale', new THREE.InstancedBufferAttribute(new Float32Array(puffData.scale), 1));
+puffGeo.setAttribute('iRot', new THREE.InstancedBufferAttribute(new Float32Array(puffData.rot), 1));
+puffGeo.setAttribute('iCloud', new THREE.InstancedBufferAttribute(new Float32Array(puffData.cloud), 1));
+puffGeo.instanceCount = NPUFF;
+
+const puffUniforms = {
+  uTex:     { value: puffTexture() },
+  uSun:     { value: sunDir },
+  uSunView: { value: new THREE.Vector3(0,1,0) },
+  uLit:     { value: new THREE.Color(1,1,1) },
+  uShad:    { value: new THREE.Color(0.55,0.6,0.7) },
+  uStormTint:{ value: new THREE.Color(0.22,0.24,0.3) },
+  uCloudPos:  { value: cloudPos },
+  uCloudAlpha:{ value: cloudAlpha },
+  uCloudDark: { value: cloudDark },
+};
+const puffMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: puffUniforms,
+  vertexShader: `
+    attribute vec3 iPos;
+    attribute float iScale;
+    attribute float iRot;
+    attribute float iCloud;
+    uniform vec3 uCloudPos[${NCLOUD}];
+    uniform float uCloudAlpha[${NCLOUD}];
+    uniform float uCloudDark[${NCLOUD}];
+    uniform vec3 uSun;
+    varying vec2 vUv;
+    varying float vShade;
+    varying float vAlpha;
+    varying float vDark;
+    varying float vRelY;
+    void main(){
+      int ci = int(iCloud + 0.5);
+      vec3 world = uCloudPos[ci] + iPos;
+      vec4 mv = viewMatrix * vec4(world, 1.0);
+      float c = cos(iRot), s = sin(iRot);
+      vec2 corner = mat2(c,-s,s,c) * position.xy * iScale;
+      mv.xy += corner;
+      gl_Position = projectionMatrix * mv;
+      vUv = uv;
+      float sd = dot(normalize(iPos + vec3(0.0,0.01,0.0)), uSun)*0.5+0.5;
+      vShade = 0.45 + 0.75*sd;
+      vRelY = clamp(iPos.y/40.0, 0.0, 1.0);
+      vAlpha = uCloudAlpha[ci];
+      vDark = uCloudDark[ci];
+    }`,
+  fragmentShader: `
+    varying vec2 vUv;
+    varying float vShade;
+    varying float vAlpha;
+    varying float vDark;
+    varying float vRelY;
+    uniform sampler2D uTex;
+    uniform vec3 uLit;
+    uniform vec3 uShad;
+    uniform vec3 uStormTint;
+    uniform vec3 uSunView;
+    void main(){
+      float a = texture2D(uTex, vUv).a;
+      if(a * vAlpha < 0.012) discard;
+      vec2 p = vUv*2.0 - 1.0;
+      float z = sqrt(max(1.0 - dot(p,p)*0.8, 0.0));
+      vec3 n = normalize(vec3(p.x, p.y, z));
+      float ndl = dot(n, uSunView)*0.5 + 0.5;
+      float light = clamp(vShade * (0.5 + 0.7*ndl), 0.0, 1.35);
+      vec3 col = mix(uShad, uLit, light);
+      col = mix(col, uStormTint, vDark * (1.0 - vRelY*0.85));
+      // silver lining: when the sun is behind the cloud, only the thinnest
+      // edges glow — kept subtle so the sprite discs never read as circles
+      float back = clamp(-uSunView.z, 0.0, 1.0);
+      col += uLit * back * pow(1.0 - a, 3.0) * 0.25 * (1.0 - vDark);
+      gl_FragColor = vec4(col, a * vAlpha);
+    }`,
+});
+const puffMesh = new THREE.Mesh(puffGeo, puffMat);
+puffMesh.frustumCulled = false;
+puffMesh.renderOrder = 3;
+scene.add(puffMesh);
+
+// cumulus drift state
+const cumulus = [];
+for(let i=0;i<12;i++){
+  cumulus.push({
+    x: rand(-260, 260), z: rand(-170, 170), y: rand(58, 84),
+    vx: rand(1.6, 3.4),
+  });
+}
+const storm = { x:-320, z: rand(-30,30), y:52, vx:7.5, active:false };
+
+// ==========================================================================
+//  CIRRUS — high wispy sheets that catch the sunset
+// ==========================================================================
+function cirrusTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.clearRect(0,0,256,128);
+  for(let i=0;i<38;i++){
+    const y = rand(20,108), len = rand(60,200), x = rand(-30, 130);
+    const grd = g.createLinearGradient(x, y, x+len, y+rand(-14,14));
+    grd.addColorStop(0, 'rgba(255,255,255,0)');
+    grd.addColorStop(0.5, `rgba(255,255,255,${rand(0.05,0.18)})`);
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = grd;
+    g.lineWidth = rand(1.5, 7);
+    g.beginPath(); g.moveTo(x, y);
+    g.quadraticCurveTo(x+len*0.5, y+rand(-10,10), x+len, y+rand(-14,14));
+    g.stroke();
+  }
+  return new THREE.CanvasTexture(cv);
+}
+const cirrusMat = new THREE.MeshBasicMaterial({
+  map: cirrusTexture(), transparent: true, depthWrite: false,
+  side: THREE.DoubleSide, opacity: 0.0, fog: false });
+const cirrus = [];
+for(let i=0;i<8;i++){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(rand(120,220), rand(50,90)), cirrusMat);
+  m.rotation.x = -Math.PI/2;
+  m.rotation.z = rand(Math.PI*2);
+  m.position.set(rand(-240,240), rand(140,175), rand(-240,240));
+  m.renderOrder = 2;
+  scene.add(m);
+  cirrus.push({ m, vx: rand(0.5, 1.1) });
+}
+
+// ==========================================================================
+//  OVERCAST DECK — fbm detail, the sun glowing through
+// ==========================================================================
+const deckUniforms = {
+  uTime:  { value: 0 },
+  uCover: { value: 0 },
+  uDay:   { value: 1 },
+  uSun:   { value: sunDir },
+  uCam:   { value: camera.position },
+};
+const deck = new THREE.Mesh(
+  new THREE.PlaneGeometry(1000, 1000, 1, 1),
+  new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+    uniforms: deckUniforms,
+    vertexShader: `
+      varying vec3 vW;
+      void main(){
+        vW = (modelMatrix * vec4(position,1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+      }`,
+    fragmentShader: `
+      varying vec3 vW;
+      uniform float uTime;
+      uniform float uCover;
+      uniform float uDay;
+      uniform vec3 uSun;
+      uniform vec3 uCam;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        f = f*f*(3.0-2.0*f);
+        return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
+                   mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+      }
+      float fbm(vec2 p){
+        float v = 0.0, a = 0.5;
+        for(int i=0;i<5;i++){ v += a*noise(p); p *= 2.03; a *= 0.5; }
+        return v;
+      }
+      void main(){
+        vec2 p = vW.xz*0.014 + vec2(uTime*0.010, uTime*0.004);
+        float n  = fbm(p);
+        float n2 = fbm(p*3.3 + 17.7 + vec2(uTime*0.02, 0.0));
+        float d = n*0.75 + n2*0.25;
+        float lum = 0.25 + 0.75*uDay;
+        vec3 dark  = vec3(0.34,0.36,0.41)*lum;
+        vec3 light = vec3(0.74,0.76,0.80)*lum;
+        vec3 col = mix(dark, light, d);
+        // the sun burning through the deck
+        vec3 vd = normalize(vW - uCam);
+        float ca = max(dot(vd, uSun), 0.0);
+        float g  = pow(ca, 30.0);
+        float gw = pow(ca, 6.0);
+        col += (vec3(1.0,0.90,0.72)*g*1.1 + vec3(1.0,0.94,0.82)*gw*0.20)
+               * uDay * (0.45 + 0.55*d) * step(0.02, uSun.y);
+        float edge = 1.0 - smoothstep(300.0, 480.0, length(vW.xz - uCam.xz));
+        gl_FragColor = vec4(col, uCover * edge);
+      }`,
+  }));
+deck.rotation.x = -Math.PI/2;
+deck.position.y = 95;
+deck.renderOrder = 1;
+scene.add(deck);
+
+// ---------- god rays under the deck ---------------------------------------
+function rayTexture(){
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 256;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0,0,0,256);
+  grd.addColorStop(0, 'rgba(255,244,214,0)');
+  grd.addColorStop(0.14, 'rgba(255,244,214,0.5)');
+  grd.addColorStop(0.55, 'rgba(255,244,214,0.16)');
+  grd.addColorStop(1, 'rgba(255,244,214,0)');
+  g.fillStyle = grd; g.fillRect(0,0,64,256);
+  // soften the sides
+  const side = g.createLinearGradient(0,0,64,0);
+  side.addColorStop(0, 'rgba(0,0,0,1)');
+  side.addColorStop(0.25, 'rgba(0,0,0,0)');
+  side.addColorStop(0.75, 'rgba(0,0,0,0)');
+  side.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = side; g.fillRect(0,0,64,256);
+  return new THREE.CanvasTexture(cv);
+}
+const rayMat = new THREE.MeshBasicMaterial({
+  map: rayTexture(), transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  opacity: 0, fog: false });
+const rayGroup = new THREE.Group();
+for(let i=0;i<3;i++){
+  const w = [18, 11, 24][i];
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 110), rayMat);
+  m.rotation.y = i*Math.PI/3;
+  m.position.x = [0, 14, -18][i];
+  rayGroup.add(m);
+}
+rayGroup.renderOrder = 4;
+scene.add(rayGroup);
+
+// ==========================================================================
+//  RAIN — streak points + a grey curtain under the thunderhead
+// ==========================================================================
+function rainTexture(){
+  const cv = document.createElement('canvas'); cv.width = 8; cv.height = 32;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0,0,0,32);
+  grd.addColorStop(0, 'rgba(210,225,240,0)');
+  grd.addColorStop(0.5, 'rgba(210,225,240,0.9)');
+  grd.addColorStop(1, 'rgba(210,225,240,0)');
+  g.fillStyle = grd; g.fillRect(2,0,4,32);
+  return new THREE.CanvasTexture(cv);
+}
+const NRAIN = 1400;
+const rainGeo = new THREE.BufferGeometry();
+{
+  const pos = new Float32Array(NRAIN*3);
+  for(let i=0;i<NRAIN;i++){
+    const a = rand(Math.PI*2), r = Math.sqrt(rand())*26;
+    pos[i*3] = Math.cos(a)*r; pos[i*3+1] = rand(50); pos[i*3+2] = Math.sin(a)*r;
+  }
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+}
+const rainMat = new THREE.PointsMaterial({
+  map: rainTexture(), size: 1.6, transparent: true, opacity: 0,
+  depthWrite: false, color: 0xbccadb });
+const rainPts = new THREE.Points(rainGeo, rainMat);
+const rainGroup = new THREE.Group();
+rainGroup.add(rainPts);
+rainGroup.rotation.z = 0.06;
+{
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 128;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0,0,0,128);
+  grd.addColorStop(0, 'rgba(150,165,185,0.55)');
+  grd.addColorStop(1, 'rgba(150,165,185,0.05)');
+  g.fillStyle = grd; g.fillRect(0,0,16,128);
+  const t = new THREE.CanvasTexture(cv);
+  const curtain = new THREE.Mesh(new THREE.CylinderGeometry(24, 26, 50, 20, 1, true),
+    new THREE.MeshBasicMaterial({ map:t, transparent:true, opacity:0,
+      depthWrite:false, side:THREE.DoubleSide, fog:false }));
+  curtain.position.y = 25;
+  rainGroup.add(curtain);
+  rainGroup.userData.curtain = curtain;
+}
+rainGroup.renderOrder = 5;
+rainGroup.visible = false;
+scene.add(rainGroup);
+
+// ==========================================================================
+//  STATE MACHINE + TIME OF DAY
+// ==========================================================================
+const STATES = {
+  clear:    { cumulus:0.10, cirrus:0.05, overcast:0, storm:0 },
+  fair:     { cumulus:1.00, cirrus:0.20, overcast:0, storm:0 },
+  sunset:   { cumulus:0.30, cirrus:1.00, overcast:0, storm:0 },
+  overcast: { cumulus:0,    cirrus:0,    overcast:1, storm:0 },
+  storm:    { cumulus:0.30, cirrus:0,    overcast:0.30, storm:1 },
+};
+const cur = { cumulus:1, cirrus:0.2, overcast:0, storm:0 };
+let stateName = 'fair';
+function setState(name){
+  stateName = name;
+  if(name === 'sunset') todEl.value = 17.85;
+  if(name === 'storm' && !storm.active){ storm.x = -300; storm.active = true; }
+  for(const b of document.querySelectorAll('#btns button'))
+    b.classList.toggle('on', b.dataset.s === name);
+}
+
+const btnsEl = document.getElementById('btns');
+for(const [key, label] of [['clear','Clear'], ['fair','Puffy day'], ['sunset','Sunset'],
+                           ['overcast','Overcast'], ['storm','Storm']]){
+  const b = document.createElement('button');
+  b.textContent = label; b.dataset.s = key;
+  b.addEventListener('click', () => setState(key));
+  btnsEl.appendChild(b);
+}
+const todEl = document.getElementById('tod');
+const todLbl = document.getElementById('todLbl');
+const moonEl = document.getElementById('moonph');
+const moonLbl = document.getElementById('moonLbl');
+setState('fair');
+
+const _sunView = new THREE.Vector3();
+const litCol = new THREE.Color(), shadCol = new THREE.Color(), tmpCol = new THREE.Color();
+
+function update(dt){
+  simT += dt;
+  // ---- sun from time of day ----
+  const h = parseFloat(todEl.value);
+  todLbl.textContent = `${Math.floor(h)}:${String(Math.floor((h%1)*60)).padStart(2,'0')}`;
+  const dayFrac = (h - 6)/12;                        // 0 at 6h, 1 at 18h
+  const elev = Math.sin(Math.PI*dayFrac) * 1.15;
+  const az = Math.PI*(1 - dayFrac);
+  sunDir.set(Math.cos(az)*Math.cos(Math.max(elev,-0.5)),
+             Math.sin(Math.max(elev,-0.5)),
+             Math.sin(az)*0.35*Math.cos(Math.max(elev,-0.5))).normalize();
+  const day  = clamp((sunDir.y + 0.12)/0.26, 0, 1);
+  const dusk = (1 - clamp((Math.abs(sunDir.y)-0.02)/0.36, 0, 1)) * clamp((sunDir.y+0.22)/0.22, 0, 1);
+  P.day = day; P.dusk = dusk;
+
+  // ---- the moon: opposite arc from the sun, phase from its slider ----
+  const h2 = (h + 12) % 24;
+  const mFrac = (h2 - 6)/12;
+  const mElev = Math.sin(Math.PI*mFrac) * 1.05;
+  const mAz = Math.PI*(1 - mFrac);
+  moonDir.set(Math.cos(mAz)*Math.cos(Math.max(mElev,-0.5)),
+              Math.sin(Math.max(mElev,-0.5)),
+              Math.sin(mAz)*0.35*Math.cos(Math.max(mElev,-0.5))).normalize();
+  moon.position.copy(moonDir).multiplyScalar(465);
+  moon.lookAt(0, 0, 0);
+  moonGlow.position.copy(moonDir).multiplyScalar(455);
+  const mp = parseFloat(moonEl.value);
+  const phi = Math.PI*(1 - 2*mp);                  // 0 & 1 = new, 0.5 = full
+  moonUniforms.uPhaseDir.value.set(Math.sin(phi), 0, Math.cos(phi));
+  const fullness = (1 + Math.cos(phi))/2;
+  moonLbl.textContent = fullness > 0.96 ? 'full' : fullness < 0.04 ? 'new'
+    : (fullness > 0.6 ? 'gibbous' : fullness > 0.4 ? 'half' : 'crescent')
+      + (mp < 0.5 ? ' (waxing)' : ' (waning)');
+  const moonUp = clamp(moonDir.y*4, 0, 1);
+  const night = 1 - day;
+  const clearNight = night * (1 - cur.overcast*0.9) * (1 - cur.storm*0.9);
+  moon.visible = moonDir.y > -0.05;
+  const moonLum = fullness * moonUp * clearNight;
+  moonGlowMat.opacity = moonLum * 0.5;
+  moonLight.position.copy(moonDir).multiplyScalar(120);
+  moonLight.intensity = moonLum * 0.55;
+
+  // ---- ease the state mix ----
+  const tgt = STATES[stateName];
+  for(const k of ['cumulus','cirrus','overcast','storm'])
+    cur[k] += (tgt[k] - cur[k])*Math.min(1, dt*0.5);
+
+  // ---- lights ----
+  const stormDim = 1 - cur.overcast*0.72 - cur.storm*0.8;
+  sun.position.copy(sunDir).multiplyScalar(120);
+  sun.intensity = Math.max(0, Math.pow(Math.max(sunDir.y,0), 0.7)) * 2.7 * Math.max(stormDim, 0.12);
+  tmpCol.setRGB(1, 0.55+0.42*clamp(sunDir.y*3,0,1), 0.35+0.55*clamp(sunDir.y*3,0,1));
+  sun.color.copy(tmpCol);
+  hemi.intensity = 0.12 + day*(0.95 - cur.overcast*0.35 - cur.storm*0.55);
+  hemi.color.setRGB(lerp(0.35,0.81,day), lerp(0.38,0.90,day), lerp(0.5,0.96,day));
+  hemi.color.lerp(tmpCol.setRGB(0.58,0.60,0.63), clamp(cur.overcast*0.75 + cur.storm*0.6, 0, 1));
+  hemi.intensity += moonLum * 0.13;
+  hemi.color.lerp(tmpCol.setRGB(0.62,0.68,0.85), moonLum*0.6);
+
+  // ---- dome ----
+  domeUniforms.uOvercast.value = cur.overcast;
+  domeUniforms.uStorm.value = cur.storm;
+
+  // ---- cloud colors: white by day, fire at dusk, slate at night ----
+  litCol.setRGB(1,1,1).lerp(tmpCol.setRGB(1.0,0.55,0.34), dusk*0.85)
+        .multiplyScalar(0.25 + 0.75*day);
+  shadCol.setRGB(0.55,0.60,0.70).lerp(tmpCol.setRGB(0.62,0.36,0.40), dusk*0.75)
+         .multiplyScalar(0.22 + 0.78*day);
+  // clouds silvered by a bright moon at night
+  litCol.add(tmpCol.setRGB(0.30,0.34,0.44).multiplyScalar(moonLum*0.8));
+  shadCol.add(tmpCol.setRGB(0.10,0.12,0.17).multiplyScalar(moonLum*0.8));
+  puffUniforms.uLit.value.copy(litCol);
+  puffUniforms.uShad.value.copy(shadCol);
+  _sunView.copy(sunDir).transformDirection(camera.matrixWorldInverse);
+  puffUniforms.uSunView.value.copy(_sunView);
+
+  // ---- cumulus drift ----
+  for(let i=0;i<12;i++){
+    const c = cumulus[i];
+    c.x += c.vx*dt;
+    if(c.x > 300){ c.x = -300; c.z = rand(-200,200); }
+    cloudPos[i].set(c.x, c.y, c.z);
+    cloudAlpha[i] = cur.cumulus * 0.92;
+    cloudDark[i] = cur.storm*0.35;              // fair clouds sour a little in a storm
+  }
+  // ---- the thunderhead crosses the sky ----
+  if(cur.storm > 0.01){
+    storm.x += storm.vx*dt;
+    if(storm.x > 330){ storm.x = -330; storm.z = rand(-40,40); }
+    cloudPos[12].set(storm.x, storm.y, storm.z);
+    cloudAlpha[12] = cur.storm;
+    cloudDark[12] = 0.95;
+    rainGroup.visible = true;
+    rainGroup.position.set(storm.x - 2, 0, storm.z);
+    const overhead = clamp(1 - Math.abs(storm.x)/180, 0, 1);
+    rainMat.opacity = cur.storm * 0.55;
+    rainGroup.userData.curtain.material.opacity = cur.storm * 0.07;
+    const pos = rainGeo.attributes.position;
+    for(let i=0;i<NRAIN;i++){
+      let y = pos.getY(i) - 42*dt;
+      if(y < 0) y += 50;
+      pos.setY(i, y);
+    }
+    pos.needsUpdate = true;
+  } else {
+    cloudAlpha[12] = 0;
+    rainGroup.visible = false;
+    storm.active = false;
+  }
+
+  // ---- cirrus ----
+  cirrusMat.opacity = cur.cirrus * (0.34 + 0.55*dusk) * (0.3+0.7*day);
+  cirrusMat.color.setRGB(1,1,1)
+    .lerp(tmpCol.setRGB(1.0,0.45,0.30), dusk*0.9);
+  for(const c of cirrus){
+    c.m.position.x += c.vx*dt;
+    if(c.m.position.x > 280) c.m.position.x = -280;
+  }
+
+  // ---- overcast deck + god rays ----
+  deckUniforms.uTime.value = simT;
+  deckUniforms.uCover.value = cur.overcast + cur.storm*0.25;
+  deckUniforms.uDay.value = day;
+  const azFlat = Math.hypot(sunDir.x, sunDir.z);
+  rayGroup.position.set(sunDir.x/Math.max(azFlat,0.05)*46, 42, sunDir.z/Math.max(azFlat,0.05)*46);
+  rayGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), sunDir);
+  rayMat.opacity = cur.overcast * day * clamp(sunDir.y*2.4, 0, 1)
+                 * (0.30 + 0.16*Math.sin(simT*0.35) + 0.10*Math.sin(simT*0.13+2));
+}
+
+// ---------- loop + debug/capture ------------------------------------------
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+
+window.SKY = {
+  renderer, scene, camera, controls, setState, storm, cur, P, sunDir,
+  setTime(h){ todEl.value = h; },
+  setMoon(p){ moonEl.value = p; },
+  step(sec){ const n = Math.max(1, Math.round(sec*60));
+             for(let i=0;i<n;i++) update(1/60);
+             renderer.render(scene, camera); },
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

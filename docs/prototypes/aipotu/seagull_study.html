@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SEAGULL STUDY — a herring-gull at real detail, for George World.
+     Filed 2026-08-30 14:27. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeGull()/updateGull() can drop straight in later.
+     Animations: flap cycle (asymmetric down/upstroke with wrist lag),
+     glide + banked circling with flap bursts, and the DIVE-SNATCH attack
+     (line up -> tuck dive -> flare + grab the fish -> heavy climb-out).
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seagull Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.72); color:#eaf4f8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:6px 6px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d8ec9; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4da3e0; }
+  #chip label { font-size:12px; opacity:0.85; margin-left:2px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🕊️ Seagull Study</b> — herring gull, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button id="btnDive">Dive for the fish</button>
+  <label><input id="autoAtk" type="checkbox" checked> auto-attack loop</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 24681357;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = (t) => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOGC = new THREE.Color(0xe2f0f6);
+scene.fog = new THREE.Fog(FOGC, 70, 330);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(11, 6.5, 13);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.5;
+controls.maxDistance = 50;
+controls.maxPolarAngle = 1.53;
+
+// ---------- sky dome ------------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4);
+  const below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/400;
+    if(h >= 0) c.copy(horizon).lerp(zenith, Math.pow(h, 0.55));
+    else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+
+// ---------- light ---------------------------------------------------------
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.05));
+const sun = new THREE.DirectionalLight(0xffe8c8, 2.6);
+sun.position.set(34, 26, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 16;  sun.shadow.camera.bottom = -16;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 100;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd8ecff, 0.5);
+fill.position.set(-20, 12, -16);
+scene.add(fill);
+
+// ---------- beach + sea ---------------------------------------------------
+{
+  const sea = new THREE.Mesh(new THREE.CircleGeometry(320, 48),
+    new THREE.MeshStandardMaterial({ color:0x3f8bb5, roughness:0.6, metalness:0.05 }));
+  sea.rotation.x = -Math.PI/2; sea.position.y = -0.06;
+  scene.add(sea);
+
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  const g = cv.getContext('2d');
+  const grad = g.createRadialGradient(256,256,30, 256,256,256);
+  grad.addColorStop(0, '#ead9b0'); grad.addColorStop(0.75, '#e0cba0');
+  grad.addColorStop(0.92, '#e6d9b8'); grad.addColorStop(1, '#f0ead2');
+  g.fillStyle = grad; g.fillRect(0,0,512,512);
+  for(let i=0;i<3500;i++){
+    g.fillStyle = rand() < 0.5 ? 'rgba(160,135,90,0.15)' : 'rgba(255,250,235,0.16)';
+    g.fillRect(rand(512), rand(512), rand(1,2), rand(1,2));
+  }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(16, 48),
+    new THREE.MeshStandardMaterial({ map:tex, roughness:1 }));
+  sand.rotation.x = -Math.PI/2; sand.position.y = 0;
+  sand.receiveShadow = true;
+  scene.add(sand);
+}
+
+// ==========================================================================
+//  THE GULL — body length 1.0, wingspan ~2.2. Forward = +X, up = +Y.
+// ==========================================================================
+const COL = {
+  white: new THREE.Color(0xf6f7f9),
+  grey:  new THREE.Color(0x87929c),
+  black: new THREE.Color(0x24272b),
+  blackU:new THREE.Color(0x3a3e43),   // underside of the black tip
+  beak:  new THREE.Color(0xe2b23a),
+  leg:   new THREE.Color(0xe09a55),
+};
+const matBird = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.62, metalness:0 });
+const matWingTop = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.62, metalness:0, side:THREE.FrontSide });
+const matWingBot = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.7, metalness:0, side:THREE.FrontSide });
+const matLeg = new THREE.MeshStandardMaterial({ color:COL.leg, roughness:0.7 });
+const matEye = new THREE.MeshStandardMaterial({ color:0x101114, roughness:0.35 });
+
+// ---- body: one continuous loft, beak tip -> head -> chest -> tail --------
+function buildBodyGeo(){
+  // control points: x (fwd), radius, y-offset of the centerline
+  const P = [
+    [ 0.560, 0.006, 0.100],   // beak tip
+    [ 0.480, 0.030, 0.104],   // beak base
+    [ 0.415, 0.062, 0.110],   // forehead
+    [ 0.330, 0.072, 0.113],   // crown
+    [ 0.250, 0.057, 0.088],   // neck
+    [ 0.120, 0.094, 0.028],   // chest rise
+    [-0.050, 0.104, 0.000],   // body max
+    [-0.250, 0.080, 0.002],
+    [-0.400, 0.044, 0.012],
+    [-0.500, 0.018, 0.022],
+    [-0.560, 0.006, 0.026],   // tail point
+  ];
+  const curve = new THREE.CatmullRomCurve3(P.map(p => new THREE.Vector3(...p)));
+  const N = 64, RAD = 14;
+  const pts = curve.getPoints(N);
+  const posA = [], colA = [], idx = [];
+  const c = new THREE.Color();
+  for(let i=0;i<=N;i++){
+    const x = pts[i].x, r = Math.max(0.004, pts[i].y), yO = pts[i].z;
+    // grey saddle: starts behind the neck, fades before the (white) tail
+    const backZone = smooth(clamp((0.27 - x)/0.10, 0, 1)) * smooth(clamp((x + 0.46)/0.10, 0, 1));
+    const beakZone = smooth(clamp((x - 0.44)/0.03, 0, 1));
+    for(let j=0;j<=RAD;j++){
+      const a = (j/RAD)*Math.PI*2;
+      const ny = Math.cos(a);                       // 1 = top of the section
+      posA.push(x, yO + ny*r, Math.sin(a)*r*0.92);
+      const g = backZone * smooth(clamp((ny + 0.30)/0.75, 0, 1));
+      c.copy(COL.white).lerp(COL.grey, g).lerp(COL.beak, beakZone);
+      colA.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RAD;j++){
+    const a = i*(RAD+1)+j, b = a+RAD+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+const bodyGeo = buildBodyGeo();
+
+// ---- wing panels ---------------------------------------------------------
+// Grid geometry in the joint's local frame: span grows along +Z (right wing;
+// mirrored for left), chord along X (leading edge forward). `kind` is
+// 'inner' (arm: shoulder->wrist) or 'outer' (hand: wrist->tip).
+function buildWingGeo(kind, side, isTop){
+  const SP = 8, CH = 4;
+  const posA = [], colA = [], idx = [];
+  const c = new THREE.Color();
+  const span = kind === 'inner' ? 0.50 : 0.56;
+  for(let i=0;i<=SP;i++){
+    const s = i/SP;
+    let xLE, chord;
+    if(kind === 'inner'){
+      xLE = 0.14 - 0.02*s;
+      chord = 0.34 - 0.03*s;
+      chord -= 0.020*Math.abs(Math.sin(s*Math.PI*4.5));      // secondary scallops
+    } else {
+      xLE = 0.12 - 0.16*s*s;                                  // swept-back hand
+      chord = (0.30 - 0.045*Math.abs(Math.sin(s*Math.PI*5))) * (1 - Math.pow(s, 1.7)*0.94);
+    }
+    for(let j=0;j<=CH;j++){
+      const cf = j/CH;                                        // 0 = LE, 1 = TE
+      const x = xLE - cf*chord;
+      const y = 0.035*Math.sin(cf*Math.PI)                    // camber
+              - (kind==='outer' ? 0.05*s*s : 0);              // hand droops a touch
+      posA.push(x, y, side*(kind==='outer' ? s*span - 0.02 : s*span));  // outer root tucks under the wrist
+      // color: grey top / white bottom, black hand-tip with white mirror spots
+      let col;
+      if(kind === 'outer'){
+        const tip = smooth(clamp((s - 0.48)/0.30, 0, 1));
+        col = c.copy(isTop ? COL.grey : COL.white).lerp(isTop ? COL.black : COL.blackU, tip);
+        const spot = Math.hypot((s-0.80)*1.3, cf-0.45) < 0.10 || Math.hypot((s-0.94)*1.3, cf-0.40) < 0.07;
+        if(spot && tip > 0.5) col = c.copy(COL.white);
+      } else {
+        col = c.copy(isTop ? COL.grey : COL.white);
+        if(isTop && cf > 0.85) col = c.clone().lerp(COL.white, 0.5);  // pale trailing edge
+      }
+      colA.push(col.r, col.g, col.b);
+    }
+  }
+  for(let i=0;i<SP;i++) for(let j=0;j<CH;j++){
+    const a = i*(CH+1)+j, b = a+CH+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  // orient the panel: top layers must face +Y, bottom layers -Y — measured,
+  // not assumed, because the mirrored side flips the winding.
+  geo.computeVertexNormals();
+  {
+    let ny = 0; const na = geo.attributes.normal.array;
+    for(let i=1;i<na.length;i+=3) ny += na[i];
+    if((ny > 0 ? 1 : -1) !== (isTop ? 1 : -1)){
+      const ia = geo.index.array;
+      for(let i=0;i<ia.length;i+=3){ const t = ia[i+1]; ia[i+1] = ia[i+2]; ia[i+2] = t; }
+      geo.computeVertexNormals();
+    }
+  }
+  return geo;
+}
+
+// ---- tail fan ------------------------------------------------------------
+function buildTailGeo(){
+  const SP = 6, posA = [], colA = [], idx = [];
+  for(let i=0;i<=SP;i++){
+    const s = i/SP, z = (s - 0.5)*0.34;
+    const len = 0.27*(1 - Math.abs(s-0.5)*0.55) - 0.012*Math.abs(Math.sin(s*Math.PI*6));
+    posA.push(0, 0, z*0.25,  -len, 0.01, z);
+    colA.push(COL.white.r, COL.white.g, COL.white.b,
+              COL.white.r*0.96, COL.white.g*0.96, COL.white.b*0.97);
+  }
+  for(let i=0;i<SP;i++){
+    const a = i*2;
+    idx.push(a, a+1, a+2, a+1, a+3, a+2);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+const tailGeo = buildTailGeo();
+
+// ---- assemble one gull ---------------------------------------------------
+// detail 'hero' = double-layer wings + eyes + legs; 'low' = single layer.
+function makeGull(detail = 'hero'){
+  const g = new THREE.Group();          // world transform (position + yaw/pitch/roll)
+  g.rotation.order = 'YZX';             // yaw, pitch, roll
+  const body = new THREE.Group();       // flap bob lives here
+  g.add(body);
+
+  const bodyMesh = new THREE.Mesh(bodyGeo, matBird);
+  bodyMesh.castShadow = true;
+  body.add(bodyMesh);
+
+  if(detail === 'hero'){
+    const eyeGeo = new THREE.SphereGeometry(0.018, 8, 6);
+    for(const s of [-1, 1]){
+      const eye = new THREE.Mesh(eyeGeo, matEye);
+      eye.position.set(0.40, 0.145, s*0.045);
+      body.add(eye);
+    }
+  }
+
+  const wings = {};
+  for(const s of [1, -1]){              // 1 = right (+Z), -1 = left
+    const shoulder = new THREE.Group();
+    shoulder.position.set(0.08, 0.075, s*0.055);
+    body.add(shoulder);
+    const wrist = new THREE.Group();
+    wrist.position.set(0, 0, s*0.50);
+    shoulder.add(wrist);
+    if(detail === 'hero'){
+      for(const [kind, parent] of [['inner', shoulder], ['outer', wrist]]){
+        const top = new THREE.Mesh(buildWingGeo(kind, s, true), matWingTop);
+        const bot = new THREE.Mesh(buildWingGeo(kind, s, false), matWingBot);
+        top.castShadow = true;
+        parent.add(top, bot);
+      }
+    } else {
+      const inner = new THREE.Mesh(buildWingGeo('inner', s, true),
+        new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.65, side:THREE.DoubleSide }));
+      const outer = new THREE.Mesh(buildWingGeo('outer', s, true), inner.material);
+      inner.castShadow = outer.castShadow = true;
+      shoulder.add(inner); wrist.add(outer);
+    }
+    wings[s] = { shoulder, wrist };
+  }
+
+  const tail = new THREE.Mesh(tailGeo, new THREE.MeshStandardMaterial({
+    vertexColors:true, roughness:0.65, side:THREE.DoubleSide }));
+  tail.position.set(-0.46, 0.03, 0);
+  tail.castShadow = true;
+  body.add(tail);
+
+  let legs = null;
+  if(detail === 'hero'){
+    legs = new THREE.Group();
+    legs.position.set(-0.10, -0.075, 0);
+    const legGeo = new THREE.CylinderGeometry(0.010, 0.009, 0.16, 5);
+    const footGeo = new THREE.ConeGeometry(0.032, 0.08, 3);
+    for(const s of [-1, 1]){
+      const leg = new THREE.Mesh(legGeo, matLeg);
+      leg.position.set(0, -0.07, s*0.045);
+      const foot = new THREE.Mesh(footGeo, matLeg);
+      foot.rotation.x = Math.PI/2; foot.rotation.z = -0.2;
+      foot.scale.set(1, 1, 0.35);
+      foot.position.set(0.02, -0.15, s*0.045);
+      legs.add(leg, foot);
+    }
+    legs.rotation.z = 1.5;               // tucked flat under the tail in flight
+    body.add(legs);
+  }
+
+  return { g, body, wings, tail, legs,
+    // animation state
+    flapPhase: rand(1), pose:{ flap:1, dihedral:0.1, sweep:0, fold:0, tailFan:0.7, legsOut:0 } };
+}
+
+// asymmetric flap wave: fast powerful downstroke, longer upstroke.
+// returns 1 at wings-up, -1 at wings-down.
+function flapWave(p){
+  p = ((p % 1) + 1) % 1;
+  const d = 0.42;
+  return p < d ? Math.cos(Math.PI*p/d) : -Math.cos(Math.PI*(p-d)/(1-d));
+}
+
+// apply the pose + flap to the joint hierarchy
+function applyWings(bird){
+  const { pose } = bird;
+  const w  = flapWave(bird.flapPhase);
+  const wl = flapWave(bird.flapPhase - 0.13);     // wrist lags the shoulder
+  for(const s of [1, -1]){
+    const { shoulder, wrist } = bird.wings[s];
+    const lift = pose.dihedral + pose.flap*(w*0.62 - 0.06);
+    shoulder.rotation.x = -s * lift;
+    shoulder.rotation.y = -s * pose.sweep;
+    // wrist: follows with lag, flexes on the upstroke, folds when swept
+    wrist.rotation.x = -s * (pose.flap*wl*0.42 - pose.dihedral*1.6);
+    wrist.rotation.y = -s * (pose.fold + pose.flap*Math.max(0, wl)*0.30);
+  }
+  bird.body.position.y = pose.flap*0.030*flapWave(bird.flapPhase + 0.22);
+  bird.tail.scale.z = 0.55 + pose.tailFan*0.75;
+  bird.tail.rotation.z = 0.10 + pose.tailFan*0.12 + pose.flap*w*0.05;
+  if(bird.legs) bird.legs.rotation.z = 1.5 - pose.legsOut*1.35;
+}
+
+// ---------- the fish (attack target) --------------------------------------
+const FOOD_POS = new THREE.Vector3(2.2, 0.06, 1.0);
+const fish = new THREE.Group();
+{
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8),
+    new THREE.MeshStandardMaterial({ color:0xb9c6cc, roughness:0.35, metalness:0.45 }));
+  b.scale.set(1.9, 0.55, 0.7);
+  const t = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.16, 4),
+    b.material);
+  t.rotation.z = Math.PI/2; t.scale.z = 0.3; t.position.x = -0.3;
+  b.castShadow = t.castShadow = true;
+  fish.add(b, t);
+  fish.position.copy(FOOD_POS);
+  fish.rotation.y = 0.7;
+  scene.add(fish);
+}
+
+// ==========================================================================
+//  FLIGHT — circling with glide/flap bursts, and the dive-snatch attack
+// ==========================================================================
+const CIRCLE = { c:new THREE.Vector3(0, 5.2, 0), r:5.6, w:0.62 };  // speed ~3.5
+const hero = makeGull('hero');
+scene.add(hero.g);
+
+// the carried fish (shown in the beak during the climb-out)
+const carried = fish.clone();
+carried.scale.setScalar(0.7);
+carried.position.set(0.55, 0.06, 0);
+carried.rotation.set(0, 0, 0.3);
+carried.visible = false;
+hero.body.add(carried);
+
+const flock = [];
+for(let i=0;i<3;i++){
+  const b = makeGull('low');
+  b.circle = { c:new THREE.Vector3(rand(-3,3), rand(7.5,10.5), rand(-3,3)),
+               r:rand(4,7), w:rand(0.45,0.7)*(i%2 ? 1 : -1), a0:rand(6.3) };
+  b.burst = { t:rand(2,5), on:i%2===0 };
+  scene.add(b.g);
+  flock.push(b);
+}
+
+// hermite path helper for the attack
+function hermite(p0, m0, p1, m1, t, out, outV){
+  const t2 = t*t, t3 = t2*t;
+  out.set(0,0,0)
+    .addScaledVector(p0, 2*t3 - 3*t2 + 1)
+    .addScaledVector(m0, t3 - 2*t2 + t)
+    .addScaledVector(p1, -2*t3 + 3*t2)
+    .addScaledVector(m1, t3 - t2);
+  if(outV) outV.set(0,0,0)
+    .addScaledVector(p0, 6*t2 - 6*t)
+    .addScaledVector(m0, 3*t2 - 4*t + 1)
+    .addScaledVector(p1, -6*t2 + 6*t)
+    .addScaledVector(m1, 3*t2 - 2*t);
+  return out;
+}
+
+const S = {                              // hero state machine
+  mode:'circle', angle:0, burstT:2.5, bursting:true,
+  atk:null, autoT:7,                     // auto-attack countdown
+  rollS:0.18, pitchS:0,                  // smoothed roll/pitch
+};
+const _pos = new THREE.Vector3(), _vel = new THREE.Vector3();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+
+function circlePos(angle, out, outV){
+  out.set(CIRCLE.c.x + Math.cos(angle)*CIRCLE.r,
+          CIRCLE.c.y + Math.sin(angle*0.7)*0.5,
+          CIRCLE.c.z + Math.sin(angle)*CIRCLE.r);
+  if(outV) outV.set(-Math.sin(angle)*CIRCLE.r*CIRCLE.w,
+                    Math.cos(angle*0.7)*0.35*CIRCLE.w,
+                    Math.cos(angle)*CIRCLE.r*CIRCLE.w);
+  return out;
+}
+
+function startAttack(){
+  if(S.mode !== 'circle') return;
+  circlePos(S.angle, _pos, _vel);
+  // entry point: opposite side of the fish, high; then swoop THROUGH the fish
+  const away = _v1.set(_pos.x - FOOD_POS.x, 0, _pos.z - FOOD_POS.z).normalize();
+  const E = new THREE.Vector3(FOOD_POS.x + away.x*7, 5.6, FOOD_POS.z + away.z*7);
+  const G = new THREE.Vector3(FOOD_POS.x, FOOD_POS.y + 0.24, FOOD_POS.z);
+  const thru = _v2.set(-away.x, 0, -away.z);
+  const X = new THREE.Vector3(FOOD_POS.x + thru.x*6, 5.0, FOOD_POS.z + thru.z*6);
+  S.atk = {
+    t:0,
+    A:{ p0:_pos.clone(), m0:_vel.clone().multiplyScalar(2.2),
+        p1:E, m1:thru.clone().multiplyScalar(5), dur:1.5 },
+    B:{ p0:E, m0:thru.clone().multiplyScalar(5),
+        p1:G, m1:thru.clone().multiplyScalar(9).setY(-0.5), dur:1.05 },
+    C:{ p0:G, m0:thru.clone().multiplyScalar(9).setY(0.4),
+        p1:X, m1:thru.clone().multiplyScalar(3).setY(1.2), dur:1.9 },
+    grabbed:false, dropped:false,
+  };
+  S.mode = 'attack';
+}
+
+let fishRespawn = 0;
+function update(dt){
+  const P = hero.pose;
+  if(S.mode === 'circle'){
+    S.angle += CIRCLE.w*dt;
+    circlePos(S.angle, _pos, _vel);
+    // glide with flap bursts
+    S.burstT -= dt;
+    if(S.burstT <= 0){ S.bursting = !S.bursting; S.burstT = S.bursting ? rand(1.6,2.6) : rand(2.5,5); }
+    const want = S.bursting ? 1 : 0;
+    P.flap += (want - P.flap)*Math.min(1, dt*3.5);
+    P.dihedral += ((S.bursting ? 0.10 : 0.16) - P.dihedral)*Math.min(1, dt*3);
+    P.sweep += (0.06 - P.sweep)*Math.min(1, dt*4);
+    P.fold += (0.05 - P.fold)*Math.min(1, dt*4);
+    P.tailFan += (0.55 - P.tailFan)*Math.min(1, dt*4);
+    P.legsOut += (0 - P.legsOut)*Math.min(1, dt*5);
+    hero.flapPhase += dt*(2.9*Math.max(0.05, P.flap));
+    // banked into the circle
+    const rollT = 0.30 + P.flap*0.04;
+    S.rollS += (rollT - S.rollS)*Math.min(1, dt*3);
+    if(document.getElementById('autoAtk').checked){
+      S.autoT -= dt;
+      if(S.autoT <= 0){ S.autoT = rand(9, 14); startAttack(); }
+    }
+  } else {                                // attack
+    const a = S.atk; a.t += dt;
+    let ph, lt;
+    if(a.t < a.A.dur){ ph = a.A; lt = a.t/a.A.dur; }
+    else if(a.t < a.A.dur + a.B.dur){ ph = a.B; lt = (a.t - a.A.dur)/a.B.dur; }
+    else if(a.t < a.A.dur + a.B.dur + a.C.dur){ ph = a.C; lt = (a.t - a.A.dur - a.B.dur)/a.C.dur; }
+    else {
+      // re-enter the circle at the angle nearest our exit point
+      S.angle = Math.atan2(a.C.p1.z - CIRCLE.c.z, a.C.p1.x - CIRCLE.c.x);
+      S.mode = 'circle'; S.bursting = true; S.burstT = 2; S.atk = null;
+      return update(dt);
+    }
+    hermite(ph.p0, ph.m0, ph.p1, ph.m1, lt, _pos, _vel);
+    _vel.multiplyScalar(1/ph.dur);
+
+    if(ph === a.A){                       // line up: shallow glide toward entry
+      P.flap += (0.35 - P.flap)*Math.min(1, dt*4);
+      P.sweep += (0.08 - P.sweep)*Math.min(1, dt*4);
+      P.fold += (0.06 - P.fold)*Math.min(1, dt*4);
+      P.tailFan += (0.5 - P.tailFan)*Math.min(1, dt*4);
+      P.legsOut += (0 - P.legsOut)*Math.min(1, dt*6);
+      hero.flapPhase += dt*2.9*Math.max(0.05, P.flap);
+    } else if(ph === a.B){                // the dive: wings tucked, accelerating
+      const k = smooth(lt);
+      P.flap += (0 - P.flap)*Math.min(1, dt*6);
+      P.sweep += (0.55*k + 0.1 - P.sweep)*Math.min(1, dt*7);
+      P.fold += (0.75*k - P.fold)*Math.min(1, dt*7);
+      P.dihedral += (-0.04 - P.dihedral)*Math.min(1, dt*6);
+      P.tailFan += (0.25 - P.tailFan)*Math.min(1, dt*5);
+      P.legsOut += ((lt > 0.75 ? 0.8 : 0) - P.legsOut)*Math.min(1, dt*8);
+    } else {                              // snatch + heavy climb-out
+      if(!a.grabbed && lt > 0.02){
+        a.grabbed = true;
+        fish.visible = false; carried.visible = true;
+        fishRespawn = 3.0;
+      }
+      if(lt < 0.16){                      // the FLARE: everything spread wide
+        P.flap += (0 - P.flap)*Math.min(1, dt*8);
+        P.sweep += (-0.10 - P.sweep)*Math.min(1, dt*10);
+        P.fold += (0 - P.fold)*Math.min(1, dt*10);
+        P.dihedral += (0.30 - P.dihedral)*Math.min(1, dt*10);
+        P.tailFan += (1.0 - P.tailFan)*Math.min(1, dt*10);
+        P.legsOut += (1.0 - P.legsOut)*Math.min(1, dt*10);
+      } else {                            // power climb, fish in beak
+        P.flap += (1 - P.flap)*Math.min(1, dt*6);
+        P.dihedral += (0.10 - P.dihedral)*Math.min(1, dt*4);
+        P.tailFan += (0.6 - P.tailFan)*Math.min(1, dt*3);
+        P.legsOut += (0 - P.legsOut)*Math.min(1, dt*4);
+        hero.flapPhase += dt*3.6*P.flap;
+        if(!a.dropped && lt > 0.8){       // gulp — the fish goes down
+          a.dropped = true; carried.visible = false;
+        }
+      }
+    }
+  }
+
+  // ---- orientation from velocity ----
+  const hspeed = Math.hypot(_vel.x, _vel.z);
+  const yaw = Math.atan2(-_vel.z, _vel.x);
+  const pitch = clamp(Math.atan2(_vel.y, Math.max(0.4, hspeed)), -1.1, 0.8);
+  S.pitchS += (pitch - S.pitchS)*Math.min(1, dt*8);
+  if(S.mode === 'attack'){
+    // bank from yaw-rate during the curved parts
+    const yawPrev = hero.g.rotation.y;
+    let dy = yaw - yawPrev;
+    while(dy > Math.PI) dy -= Math.PI*2;
+    while(dy < -Math.PI) dy += Math.PI*2;
+    const rollT = clamp(dy/Math.max(dt,1e-3)*0.22, -0.7, 0.7);
+    S.rollS += (rollT - S.rollS)*Math.min(1, dt*5);
+  }
+  hero.g.position.copy(_pos);
+  hero.g.rotation.y = yaw;
+  hero.g.rotation.z = S.pitchS;
+  hero.g.rotation.x = S.rollS;
+  applyWings(hero);
+
+  // ---- fish respawn ----
+  if(fishRespawn > 0){
+    fishRespawn -= dt;
+    if(fishRespawn <= 0){ fish.visible = true; }
+  }
+
+  // ---- background flock: simple circling with their own bursts ----
+  for(const b of flock){
+    b.circle.a0 += b.circle.w*dt;
+    const a = b.circle.a0;
+    const px = b.circle.c.x + Math.cos(a)*b.circle.r;
+    const pz = b.circle.c.z + Math.sin(a)*b.circle.r;
+    const py = b.circle.c.y + Math.sin(a*0.6)*0.4;
+    b.g.position.set(px, py, pz);
+    b.g.rotation.y = Math.atan2(-(Math.cos(a)*b.circle.w), -Math.sin(a)*b.circle.w);
+    b.g.rotation.x = 0.26*Math.sign(b.circle.w);
+    b.burst.t -= dt;
+    if(b.burst.t <= 0){ b.burst.on = !b.burst.on; b.burst.t = b.burst.on ? rand(1.5,2.5) : rand(2,5); }
+    const want = b.burst.on ? 1 : 0;
+    b.pose.flap += (want - b.pose.flap)*Math.min(1, dt*3);
+    b.pose.dihedral = 0.15; b.pose.tailFan = 0.5;
+    b.flapPhase += dt*2.8*Math.max(0.05, b.pose.flap);
+    applyWings(b);
+  }
+}
+
+document.getElementById('btnDive').addEventListener('click', startAttack);
+
+// ---------- loop + debug/capture handle -----------------------------------
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+
+// step(seconds) advances the sim deterministically and renders — the pane
+// throttles rAF when hidden, so captures must drive time manually.
+window.GULL = {
+  renderer, scene, camera, controls, hero, flock, S, startAttack,
+  step(sec){ const n = Math.max(1, Math.round(sec*60));
+             for(let i=0;i<n;i++) update(1/60);
+             renderer.render(scene, camera); },
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ORCA STUDY — a pod of distinct killer whales with real animations,
+     for George World. Filed 2026-08-30 16:33. Standalone page: nothing
+     here touches georgeworld.html. Three.js VENDORED locally (vendor/three,
+     r160) — same importmap as the game.
+     Individual variation is research-based (Center for Whale Research /
+     Orca Research Trust photo-ID): males carry tall straight dorsal fins
+     (to ~1.8m), females and juveniles falcate (curved) ones; fins collect
+     nicks and notches on the trailing edge; the grey saddle patch behind
+     the fin is per-individual (open vs closed types, scratches); eye
+     patches vary in shape and angle. Each orca here gets its own painted
+     texture + its own fin geometry.
+     Animations: tail-driven swimming (skinned spine, vertical undulation),
+     porpoising dives, and a full BREACH with splash + foam ring.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orca Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.72); color:#eaf4f8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:6px 6px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4d8ab8; }
+  #chip label { font-size:12px; opacity:0.85; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐋 Orca Study</b> — v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button id="btnBreach">Breach!</button>
+  <button id="btnParade">Parade (judge the pod)</button>
+  <button id="btnSwim">Swim</button><br>
+  <label><input id="autoBr" type="checkbox" checked> auto-breach</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 424242;
+function srand(s){ seed = (s|0) || 424242; }
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2f0f6), 90, 380);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(16, 7, 24);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, -0.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 90;
+controls.maxPolarAngle = 1.62;
+
+{
+  const geo = new THREE.SphereGeometry(420, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4);
+  const below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/420;
+    if(h >= 0) c.copy(horizon).lerp(zenith, Math.pow(h, 0.55));
+    else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0x9fb4bb, 1.0));
+const sun = new THREE.DirectionalLight(0xffe8c8, 2.5);
+sun.position.set(34, 28, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40;  sun.shadow.camera.bottom = -40;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 140;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd8ecff, 0.45);
+fill.position.set(-20, 12, -16);
+scene.add(fill);
+
+// ---------- the sea: translucent surface over a deep floor ----------------
+{
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(320, 48),
+    new THREE.MeshStandardMaterial({ color:0x0d2940, roughness:1 }));
+  floor.rotation.x = -Math.PI/2; floor.position.y = -9;
+  scene.add(floor);
+}
+const seaMat = new THREE.MeshStandardMaterial({
+  color:0x2f7093, roughness:0.34, metalness:0.05,
+  transparent:true, opacity:0.72, side:THREE.DoubleSide, depthWrite:false });
+const sea = new THREE.Mesh(new THREE.CircleGeometry(320, 48), seaMat);
+sea.rotation.x = -Math.PI/2;
+sea.renderOrder = 2;
+scene.add(sea);
+{ // a corner of the island for scale
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#e2cda2'; g.fillRect(0,0,256,256);
+  for(let i=0;i<1500;i++){
+    g.fillStyle = rand()<0.5 ? 'rgba(160,135,90,0.15)' : 'rgba(255,250,235,0.16)';
+    g.fillRect(rand(256), rand(256), rand(1,2), rand(1,2));
+  }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sand = new THREE.Mesh(new THREE.SphereGeometry(16, 32, 16),
+    new THREE.MeshStandardMaterial({ map:t, roughness:1 }));
+  sand.scale.set(1.6, 0.12, 1.2);
+  sand.position.set(-52, -0.4, -26);
+  sand.receiveShadow = true;
+  scene.add(sand);
+}
+
+// ==========================================================================
+//  ORCA BUILDER
+//  Body: skinned loft (nose +X), 6-bone spine, vertical undulation.
+//  Skin: per-individual canvas texture — belly, eye patch, saddle, nicks.
+// ==========================================================================
+const BODY_L = 5.3, NOSE_X = 2.8;
+
+// ---- per-individual paint job -------------------------------------------
+// u (canvas y): 0 = dorsal ridge, 0.5 = belly midline, wraps at 1.
+function orcaTexture(I){
+  const W = 512, H = 512;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#171a20'; g.fillRect(0, 0, W, H);
+
+  // ---- the white ventral field: chin -> belly -> flank lobes ----
+  g.fillStyle = '#eef2f5';
+  g.beginPath();
+  const bw = v => {                       // belly half-width in u at position v
+    if(v < 0.10) return 0.16*Math.pow(v/0.10, 0.5);          // chin start
+    if(v < 0.30) return 0.16;                                 // chin/chest
+    if(v < 0.55) return 0.13;                                 // belly
+    if(v < 0.74) return 0.13 + I.lobe*Math.pow(Math.sin((v-0.55)/0.19*Math.PI), 1.6); // flank lobes
+    return 0.07*Math.max(0, (0.97-v)/0.25);                   // tail stock
+  };
+  const steps = 60;
+  for(let i=0;i<=steps;i++){ const v = i/steps;
+    const y = (0.5 - bw(v))*H;
+    i===0 ? g.moveTo(v*W, y) : g.lineTo(v*W, y); }
+  for(let i=steps;i>=0;i--){ const v = i/steps;
+    g.lineTo(v*W, (0.5 + bw(v))*H); }
+  g.closePath(); g.fill();
+
+  // ---- eye patches (both sides): angle + size vary per individual ----
+  for(const s of [-1, 1]){
+    g.save();
+    g.translate(0.155*W, (0.5 + s*0.30)*H);
+    g.rotate(s * I.eyeAngle);
+    g.fillStyle = '#eef2f5';
+    g.beginPath();
+    g.ellipse(0, 0, 0.052*W*I.eyeLen, 0.023*H, 0, 0, 7);
+    g.fill();
+    g.restore();
+  }
+
+  // ---- the saddle patch behind the dorsal fin ----
+  const sc = `rgba(${I.saddleRGB},0.95)`;
+  for(const s of [-1, 1]){
+    g.save();
+    g.translate(0.55*W, (0.5 + s*0.40)*H);
+    g.fillStyle = sc;
+    g.beginPath();
+    g.ellipse(0, 0, 0.078*W*I.saddleLen, 0.062*H*I.saddleTall, s*0.25, 0, 7);
+    g.fill();
+    if(I.openSaddle){                     // "open" type: black finger intrudes
+      g.fillStyle = '#171a20';
+      g.beginPath();
+      g.ellipse(-0.035*W, s*0.012*H, 0.045*W, 0.022*H, s*0.5, 0, 7);
+      g.fill();
+    }
+    // scratches / rake marks
+    g.strokeStyle = 'rgba(23,26,32,0.8)';
+    g.lineWidth = 1.4;
+    for(let k=0;k<I.scratches;k++){
+      const x0 = rand(-0.05,0.05)*W, y0 = rand(-0.03,0.03)*H;
+      g.beginPath(); g.moveTo(x0, y0);
+      g.lineTo(x0 + rand(0.03,0.06)*W, y0 + rand(-0.01,0.01)*H);
+      g.stroke();
+    }
+    g.restore();
+  }
+
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.RepeatWrapping;         // u wraps over the dorsal ridge
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---- lofted skinned body -------------------------------------------------
+const bodyProfile = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(2.80, 0.05, 0), new THREE.Vector3(2.52, 0.40, 0),
+  new THREE.Vector3(2.05, 0.70, 0), new THREE.Vector3(1.35, 0.90, 0),
+  new THREE.Vector3(0.40, 1.00, 0), new THREE.Vector3(-0.65, 0.90, 0),
+  new THREE.Vector3(-1.55, 0.58, 0), new THREE.Vector3(-2.10, 0.30, 0),
+  new THREE.Vector3(-2.50, 0.14, 0),
+]);
+const BONE_X = [2.0, 1.0, 0.0, -1.0, -1.8, -2.5];
+
+function buildBodyGeo(){
+  const N = 56, RAD = 22;
+  const pts = bodyProfile.getPoints(N);
+  const pos = [], uv = [], idx = [], skinIdx = [], skinWt = [];
+  for(let i=0;i<=N;i++){
+    const x = pts[i].x, r = Math.max(0.03, pts[i].y);
+    const v = (NOSE_X - x)/BODY_L;
+    const squeeze = 1 - 0.30*clamp((-x - 1.0)/1.5, 0, 1);   // tail stock compresses
+    // skin weights: blend the two nearest spine bones
+    let bi = 0;
+    while(bi < BONE_X.length-1 && x < BONE_X[bi+1]) bi++;
+    let w = 0;
+    if(bi < BONE_X.length-1){
+      w = clamp((BONE_X[bi] - x)/(BONE_X[bi] - BONE_X[bi+1]), 0, 1);
+      w = w*w*(3-2*w);
+    }
+    for(let j=0;j<=RAD;j++){
+      const a = (j/RAD)*Math.PI*2;               // 0 = top, π = belly
+      pos.push(x, Math.cos(a)*r, Math.sin(a)*r*0.86*squeeze);
+      uv.push(v, a/(Math.PI*2));
+      skinIdx.push(bi, Math.min(bi+1, BONE_X.length-1), 0, 0);
+      skinWt.push(1-w, w, 0, 0);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RAD;j++){
+    const a = i*(RAD+1)+j, b = a+RAD+1;
+    idx.push(a, a+1, b, b, a+1, b+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIdx, 4));
+  geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWt, 4));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+const bodyGeo = buildBodyGeo();
+
+const matBlack = new THREE.MeshStandardMaterial({ color:0x14171c, roughness:0.42, metalness:0.05 });
+const matWhite = new THREE.MeshStandardMaterial({ color:0xe8edf1, roughness:0.42, side:THREE.DoubleSide });
+
+// ---- dorsal fin: male (tall straight), female (falcate), bent, notched ---
+function dorsalGeo(I){
+  const H = I.finH, male = I.finH > 1.1;
+  const s = new THREE.Shape();
+  s.moveTo(0.42, 0);
+  if(male){                                     // tall near-isoceles triangle
+    s.quadraticCurveTo(0.40, H*0.55, 0.10, H*0.97);
+    s.quadraticCurveTo(0.04, H*1.0, 0.0, H*0.97);
+  } else {                                      // falcate: swept-back hook
+    s.quadraticCurveTo(0.34, H*0.7, -0.02, H*0.96);
+    s.quadraticCurveTo(-0.10, H*1.0, -0.16, H*0.92);
+  }
+  // trailing edge with photo-ID nicks
+  const teTop = male ? {x:0.0, y:H*0.97} : {x:-0.16, y:H*0.92};
+  const teBot = {x:-0.42, y:0};
+  let prev = 1.0;
+  const cuts = I.nicks.slice().sort((a,b)=>b-a);
+  for(const nh of cuts){
+    const px = lerp(teBot.x, teTop.x, nh), py = lerp(teBot.y, teTop.y, nh);
+    s.lineTo(px + 0.02, py + H*0.02);
+    s.lineTo(px + 0.055, py);                   // the notch bite
+    s.lineTo(px + 0.02, py - H*0.02);
+  }
+  s.lineTo(teBot.x, teBot.y);
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth:0.07, bevelEnabled:true,
+    bevelThickness:0.02, bevelSize:0.02, bevelSegments:1, curveSegments:10 });
+  geo.translate(0, 0, -0.035);
+  if(I.bent){                                   // the flopped-over fin
+    const p = geo.attributes.position;
+    for(let i=0;i<p.count;i++){
+      const y = p.getY(i);
+      const k = Math.pow(Math.max(y,0)/H, 2);
+      p.setZ(i, p.getZ(i) + I.bent*k*H*0.55);
+      p.setY(i, y*(1 - 0.3*k));
+    }
+    geo.computeVertexNormals();
+  }
+  return geo;
+}
+function pecGeo(scale){
+  const s = new THREE.Shape();
+  s.moveTo(0, 0.1);
+  s.quadraticCurveTo(0.45*scale, 0.05, 0.55*scale, -0.45*scale);
+  s.quadraticCurveTo(0.5*scale, -0.62*scale, 0.28*scale, -0.55*scale);
+  s.quadraticCurveTo(-0.12*scale, -0.28*scale, -0.14*scale, 0);
+  s.closePath();
+  return new THREE.ExtrudeGeometry(s, { depth:0.05, bevelEnabled:true,
+    bevelThickness:0.015, bevelSize:0.015, bevelSegments:1, curveSegments:8 });
+}
+function flukeGeo(span){
+  const s = new THREE.Shape();                  // drawn in x (fwd) / y (side)
+  s.moveTo(0.30, 0);
+  s.quadraticCurveTo(0.28, span*0.5, 0.05, span);       // right lobe out
+  s.quadraticCurveTo(-0.18, span*0.62, -0.06, span*0.12);
+  s.lineTo(-0.14, 0.02);                                 // center notch
+  s.lineTo(-0.06, -span*0.12);
+  s.quadraticCurveTo(-0.18, -span*0.62, 0.05, -span);
+  s.quadraticCurveTo(0.28, -span*0.5, 0.30, 0);
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth:0.05, bevelEnabled:true,
+    bevelThickness:0.02, bevelSize:0.02, bevelSegments:1, curveSegments:8 });
+  geo.rotateX(Math.PI/2);                       // lie flat (extrude was in z)
+  return geo;
+}
+
+// ---- assemble one orca ---------------------------------------------------
+function makeOrca(I){
+  const g = new THREE.Group();                  // world transform
+  g.rotation.order = 'YZX';
+  const bones = [];
+  for(let i=0;i<BONE_X.length;i++){
+    const b = new THREE.Bone();
+    b.position.x = i===0 ? BONE_X[0] : BONE_X[i]-BONE_X[i-1];
+    if(i>0) bones[i-1].add(b);
+    bones.push(b);
+  }
+  const mesh = new THREE.SkinnedMesh(bodyGeo, new THREE.MeshStandardMaterial({
+    map:orcaTexture(I), roughness:0.3, metalness:0.05 }));
+  mesh.castShadow = true;
+  mesh.add(bones[0]);
+  mesh.bind(new THREE.Skeleton(bones));
+  mesh.frustumCulled = false;
+  g.add(mesh);
+
+  const dorsal = new THREE.Mesh(dorsalGeo(I), matBlack);
+  dorsal.position.set(0.35, 0.92, 0);           // extrude already: chord=X, height=Y
+  dorsal.castShadow = true;
+  bones[2].add(dorsal);
+
+  for(const side of [-1, 1]){
+    const pec = new THREE.Mesh(pecGeo(I.pecScale*1.4), matBlack);
+    pec.castShadow = true;
+    pec.position.set(0.35, -0.55, side*0.62);
+    pec.rotation.set(side*0.55, side*-0.35, -0.25);
+    bones[1].add(pec);
+  }
+  const flukes = new THREE.Mesh(flukeGeo(I.flukeSpan), matBlack);
+  flukes.castShadow = true;
+  flukes.position.set(-0.30, 0.02, 0);
+  bones[5].add(flukes);
+
+  g.scale.setScalar(I.scale);
+  return { g, mesh, bones, I, tailPhase: rand(7),
+           swim:{ theta: rand(Math.PI*2) }, breach:null, blend:0 };
+}
+
+// ==========================================================================
+//  THE POD — five distinct individuals (photo-ID style variation)
+// ==========================================================================
+const POD_DEFS = [
+  { name:'Big male — tall straight fin, closed saddle',
+    seed:11, scale:1.15, finH:1.55, bent:0, nicks:[],        pecScale:1.25,
+    flukeSpan:1.15, eyeAngle:0.10, eyeLen:1.0, lobe:0.14,
+    saddleRGB:'150,160,168', saddleLen:1.0, saddleTall:1.0, openSaddle:false, scratches:2 },
+  { name:'Female — falcate fin, open saddle',
+    seed:22, scale:0.92, finH:0.85, bent:0, nicks:[],        pecScale:0.95,
+    flukeSpan:0.95, eyeAngle:-0.06, eyeLen:1.15, lobe:0.16,
+    saddleRGB:'158,168,176', saddleLen:1.15, saddleTall:0.9, openSaddle:true, scratches:1 },
+  { name:'Female — notched trailing edge, scratched saddle',
+    seed:33, scale:0.95, finH:0.92, bent:0, nicks:[0.35,0.6], pecScale:0.95,
+    flukeSpan:0.95, eyeAngle:0.22, eyeLen:0.9, lobe:0.12,
+    saddleRGB:'170,178,184', saddleLen:0.9, saddleTall:1.1, openSaddle:false, scratches:6 },
+  { name:'Male — bent (flopped) fin, one nick',
+    seed:44, scale:1.08, finH:1.4, bent:1, nicks:[0.5],      pecScale:1.15,
+    flukeSpan:1.1, eyeAngle:0.05, eyeLen:1.05, lobe:0.15,
+    saddleRGB:'146,156,164', saddleLen:1.05, saddleTall:0.95, openSaddle:true, scratches:3 },
+  { name:'Juvenile — small curved fin, faint saddle',
+    seed:55, scale:0.62, finH:0.72, bent:0, nicks:[],        pecScale:0.85,
+    flukeSpan:0.85, eyeAngle:0.0, eyeLen:0.95, lobe:0.13,
+    saddleRGB:'120,130,140', saddleLen:0.75, saddleTall:0.75, openSaddle:false, scratches:0 },
+];
+const pod = [];
+for(const def of POD_DEFS){
+  srand(def.seed);
+  const o = makeOrca(def);
+  scene.add(o.g);
+  pod.push(o);
+}
+
+// circuits: staggered ellipses in the bay
+const CIRCUITS = [
+  { cx:0,  cz:0,   rx:16, rz:11, w:0.28 },
+  { cx:2,  cz:3,   rx:13, rz:9,  w:0.31 },
+  { cx:-2, cz:-2,  rx:18, rz:13, w:0.25 },
+  { cx:4,  cz:-4,  rx:15, rz:10, w:0.29 },
+  { cx:-4, cz:5,   rx:12, rz:8,  w:0.34 },
+];
+
+// ==========================================================================
+//  SPLASH — particle burst + expanding foam ring
+// ==========================================================================
+const NSPL = 500;
+const splGeo = new THREE.BufferGeometry();
+const splPos = new Float32Array(NSPL*3);
+for(let i=0;i<NSPL;i++) splPos[i*3+1] = -999;    // park unused particles
+const splVel = new Float32Array(NSPL*3);
+const splLife = new Float32Array(NSPL).fill(-1);
+splGeo.setAttribute('position', new THREE.BufferAttribute(splPos, 3));
+const splTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 32;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(16,16,1, 16,16,16);
+  gr.addColorStop(0, 'rgba(255,255,255,0.95)');
+  gr.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0,0,32,32);
+  return new THREE.CanvasTexture(cv);
+})();
+const splMat = new THREE.PointsMaterial({ color:0xf2f7fa, size:0.42, map:splTex,
+  transparent:true, opacity:0.85, depthWrite:false });
+const splPts = new THREE.Points(splGeo, splMat);
+splPts.frustumCulled = false;
+splPts.renderOrder = 3;
+scene.add(splPts);
+let splCursor = 0;
+function splash(x, z, power){
+  for(let i=0;i<120*power;i++){
+    const k = splCursor = (splCursor+1)%NSPL;
+    const a = rand(Math.PI*2), r = rand(0.2, 1.4)*power;
+    splPos[k*3] = x + Math.cos(a)*r*0.4;
+    splPos[k*3+1] = 0.1;
+    splPos[k*3+2] = z + Math.sin(a)*r*0.4;
+    splVel[k*3] = Math.cos(a)*r*2.4;
+    splVel[k*3+1] = rand(3, 7.5)*power;
+    splVel[k*3+2] = Math.sin(a)*r*2.4;
+    splLife[k] = rand(0.7, 1.25);
+  }
+  const ring = ringPool.find(r => !r.active);
+  if(ring){
+    ring.active = true; ring.t = 0;
+    ring.m.position.set(x, 0.06, z);
+    ring.m.visible = true;
+    ring.power = power;
+  }
+}
+const ringPool = [];
+{
+  const rg = new THREE.RingGeometry(0.7, 1.0, 32);
+  for(let i=0;i<4;i++){
+    const m = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({
+      color:0xffffff, transparent:true, opacity:0, side:THREE.DoubleSide,
+      depthWrite:false }));
+    m.rotation.x = -Math.PI/2;
+    m.visible = false;
+    m.renderOrder = 4;
+    scene.add(m);
+    ringPool.push({ m, active:false, t:0, power:1 });
+  }
+}
+
+// ==========================================================================
+//  BEHAVIOR
+// ==========================================================================
+let mode = 'swim';         // 'swim' | 'parade'
+let simT = 0, autoT = 14;
+const _pos = new THREE.Vector3(), _vel = new THREE.Vector3();
+
+function startBreach(o){
+  if(o.breach || mode !== 'swim') return;
+  o.breach = { t:0, phase:'dive' };
+}
+
+function update(dt){
+  simT += dt;
+
+  // splash particles
+  let any = false;
+  for(let k=0;k<NSPL;k++){
+    if(splLife[k] <= 0) continue;
+    any = true;
+    splLife[k] -= dt;
+    splVel[k*3+1] -= 14*dt;
+    splPos[k*3] += splVel[k*3]*dt;
+    splPos[k*3+1] += splVel[k*3+1]*dt;
+    splPos[k*3+2] += splVel[k*3+2]*dt;
+    if(splPos[k*3+1] < 0 || splLife[k] <= 0){ splLife[k] = -1; splPos[k*3+1] = -999; }
+  }
+  if(any) splGeo.attributes.position.needsUpdate = true;
+  for(const r of ringPool){
+    if(!r.active) continue;
+    r.t += dt;
+    const s = 1 + r.t*6*r.power;
+    r.m.scale.setScalar(s);
+    r.m.material.opacity = Math.max(0, 0.55*(1 - r.t/1.4));
+    if(r.t > 1.4){ r.active = false; r.m.visible = false; }
+  }
+
+  if(mode === 'swim' && document.getElementById('autoBr').checked){
+    autoT -= dt;
+    if(autoT <= 0){ autoT = 14 + rand(12); startBreach(pod[(rand(pod.length)|0)]); }
+  }
+
+  for(let oi=0; oi<pod.length; oi++){
+    const o = pod[oi], C = CIRCUITS[oi];
+    let speed = 1;
+
+    if(mode === 'parade'){
+      // the judging line-up: surfaced, side-on, slow idle
+      const px = (oi - 2)*7.5;
+      o.g.position.lerp(_pos.set(px, -0.38*o.I.scale, oi%2 ? 2 : -2), Math.min(1, dt*2));
+      o.g.rotation.y += (0 - o.g.rotation.y)*Math.min(1, dt*2);
+      o.g.rotation.z *= 1 - Math.min(1, dt*3);
+      o.g.rotation.x *= 1 - Math.min(1, dt*3);
+      speed = 0.25;
+    } else if(o.breach){
+      const B = o.breach; B.t += dt;
+      if(B.phase === 'dive'){
+        // power dive, then turn up
+        o.swim.theta += C.w*dt;
+        circuitPos(C, o.swim.theta, o.I.scale, _pos, _vel);
+        const k = Math.min(1, B.t/1.1);
+        _pos.y = lerp(_pos.y, -4.2, k);
+        o.g.position.lerp(_pos, Math.min(1, dt*4));
+        speed = 2.2;
+        if(B.t > 1.1){
+          B.phase = 'fly';
+          B.t = 0;
+          const yaw = o.g.rotation.y;
+          B.vx = Math.cos(yaw)*6.5; B.vz = -Math.sin(yaw)*6.5;
+          B.vy = 12.6;
+          B.roll = 0;
+          o.g.position.y = -2.5;
+        }
+      } else if(B.phase === 'fly'){
+        B.vy -= 13.5*dt;
+        o.g.position.x += B.vx*dt;
+        o.g.position.y += B.vy*dt;
+        o.g.position.z += B.vz*dt;
+        if(o.g.position.y > -0.3 && o.g.position.y - B.vy*dt <= -0.3 && B.vy > 0)
+          splash(o.g.position.x, o.g.position.z, 1.1*o.I.scale);   // exit spray
+        const hs = Math.hypot(B.vx, B.vz);
+        o.g.rotation.z = clamp(Math.atan2(B.vy, hs), -1.2, 1.2);
+        B.roll += dt*2.2;
+        o.g.rotation.x = Math.sin(B.roll)*0.9;                     // the twist
+        speed = 0.3;                                               // fins glide
+        if(o.g.position.y < -1.2 && B.vy < 0){
+          splash(o.g.position.x, o.g.position.z, 1.7*o.I.scale);   // the big one
+          B.phase = 'recover'; B.t = 0;
+        }
+      } else {                       // recover: sink, level out, rejoin circuit
+        o.g.position.y += (-1.8 - o.g.position.y)*Math.min(1, dt*2);
+        o.g.rotation.z *= 1 - Math.min(1, dt*2.5);
+        o.g.rotation.x *= 1 - Math.min(1, dt*2.5);
+        // snap the circuit to wherever we ended up
+        o.swim.theta = Math.atan2((o.g.position.z - C.cz)/C.rz, (o.g.position.x - C.cx)/C.rx);
+        if(B.t > 1.6) o.breach = null;
+        speed = 1.4;
+      }
+    } else {
+      // ---- porpoising circuit swim ----
+      o.swim.theta += C.w*dt;
+      circuitPos(C, o.swim.theta, o.I.scale, _pos, _vel);
+      o.g.position.lerp(_pos, Math.min(1, dt*5));
+      const yaw = Math.atan2(-_vel.z, _vel.x);
+      o.g.rotation.y = yaw;
+      o.g.rotation.z = clamp(Math.atan2(_vel.y, Math.hypot(_vel.x,_vel.z)), -0.6, 0.6);
+      o.g.rotation.x = 0.15*Math.sign(C.w);
+      speed = 1;
+    }
+
+    // ---- the tail: vertical undulation down the spine ----
+    o.tailPhase += dt*(3.2*speed + 1.2);
+    const A = [0.015, 0.03, 0.05, 0.09, 0.15, 0.24];
+    for(let bi=1; bi<o.bones.length; bi++){
+      o.bones[bi].rotation.z = A[bi]*Math.sin(o.tailPhase - bi*0.6);
+    }
+    o.bones[0].rotation.z = A[0]*Math.sin(o.tailPhase);
+  }
+}
+
+function circuitPos(C, th, scale, outP, outV){
+  outP.set(C.cx + Math.cos(th)*C.rx,
+           -1.5 - 0.4*scale + 1.30*Math.sin(th*3),
+           C.cz + Math.sin(th)*C.rz);
+  outV.set(-Math.sin(th)*C.rx*C.w,
+           1.30*3*Math.cos(th*3)*C.w,
+           Math.cos(th)*C.rz*C.w);
+}
+
+document.getElementById('btnBreach').addEventListener('click',
+  () => startBreach(pod[(Math.random()*pod.length)|0]));
+document.getElementById('btnParade').addEventListener('click', () => { mode = 'parade'; });
+document.getElementById('btnSwim').addEventListener('click', () => { mode = 'swim'; });
+
+// ---------- loop + debug --------------------------------------------------
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+
+window.ORCA = {
+  renderer, scene, camera, controls, pod, startBreach,
+  setMode(m){ mode = m; },
+  step(sec){ const n = Math.max(1, Math.round(sec*60));
+             for(let i=0;i<n;i++) update(1/60);
+             renderer.render(scene, camera); },
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

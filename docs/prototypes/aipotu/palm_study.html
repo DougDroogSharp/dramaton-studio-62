@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PALM STUDY — a hero coconut palm at real detail, for George World.
+     Filed 2026-08-30. Standalone page: nothing here touches georgeworld.html.
+     Three.js is VENDORED locally (vendor/three, r160) — same importmap as the
+     game so the whole makeRealPalm() builder can drop straight in later.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palm Study — coconut palm</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.72); color:#eaf4f8;
+    font:13px/1.45 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip label { display:flex; align-items:center; gap:8px; margin-top:6px; }
+  #chip input[type=range] { width:120px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌴 Palm Study</b> — coconut palm, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span>
+  <label>wind <input id="wind" type="range" min="0" max="2" step="0.05" value="1"></label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- deterministic rand so the tree is the same on every reload ----
+let seed = 1234567;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOGC = new THREE.Color(0xe2f0f6);
+scene.fog = new THREE.Fog(FOGC, 70, 330);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(9.5, 6.2, 14.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0.8, 6.4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 45;
+controls.maxPolarAngle = 1.53;   // don't dive under the sand
+
+// ---------- sky dome (vertex-colored gradient) ----------------------------
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4);
+  const below = new THREE.Color(0xd7e8ee);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/400;
+    if(h >= 0) c.copy(horizon).lerp(zenith, Math.pow(h, 0.55));
+    else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+
+// ---------- light ---------------------------------------------------------
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.05));
+const sun = new THREE.DirectionalLight(0xffe8c8, 2.6);
+sun.position.set(34, 22, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 16;  sun.shadow.camera.bottom = -4;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd8ecff, 0.5);
+fill.position.set(-20, 12, -16);
+scene.add(fill);
+
+// ---------- sand ----------------------------------------------------------
+function sandTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1024;
+  const g = cv.getContext('2d');
+  const grad = g.createRadialGradient(512,512,40, 512,512,512);
+  grad.addColorStop(0, '#ead9b0');
+  grad.addColorStop(0.55, '#e0cba0');
+  grad.addColorStop(1, '#e2f0f6');       // fade to fog at the rim
+  g.fillStyle = grad; g.fillRect(0,0,1024,1024);
+  for(let i=0;i<9000;i++){                // speckle
+    const x = rand(1024), y = rand(1024);
+    const d = Math.hypot(x-512, y-512)/512;
+    if(d > 0.9) continue;
+    g.fillStyle = rand() < 0.5 ? 'rgba(160,135,90,0.16)' : 'rgba(255,250,235,0.18)';
+    g.fillRect(x, y, rand(1,2.4), rand(1,2.4));
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+{
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(300, 64),
+    new THREE.MeshStandardMaterial({ map:sandTexture(), roughness:1 }));
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// ==========================================================================
+//  THE PALM
+// ==========================================================================
+
+// ---------- trunk texture: one tile = one internode ----------------------
+function trunkTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#cdc2aa'; g.fillRect(0,0,256,128);
+  // vertical fiber streaks
+  for(let i=0;i<130;i++){
+    const x = rand(256);
+    g.strokeStyle = rand() < 0.5
+      ? `rgba(90,75,55,${rand(0.04,0.11)})`
+      : `rgba(240,230,205,${rand(0.05,0.14)})`;
+    g.lineWidth = rand(0.6, 2.2);
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + rand(-6,6), 128); g.stroke();
+  }
+  // the leaf-scar band along the bottom of the tile
+  const band = g.createLinearGradient(0, 96, 0, 128);
+  band.addColorStop(0, 'rgba(0,0,0,0)');
+  band.addColorStop(0.55, 'rgba(70,58,40,0.2)');
+  band.addColorStop(0.75, 'rgba(52,42,28,0.32)');
+  band.addColorStop(1, 'rgba(40,32,20,0.16)');
+  g.fillStyle = band; g.fillRect(0, 96, 256, 32);
+  // a bright ridge right above the scar (the ledge catches light)
+  g.fillStyle = 'rgba(235,220,190,0.22)'; g.fillRect(0, 92, 256, 5);
+  // speckles / lichen
+  for(let i=0;i<160;i++){
+    g.fillStyle = rand() < 0.7 ? `rgba(80,66,46,${rand(0.05,0.15)})`
+                               : `rgba(205,208,185,${rand(0.05,0.14)})`;
+    g.fillRect(rand(256), rand(128), rand(1,4), rand(1,3));
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---------- curved, tapered, ring-bumped trunk ---------------------------
+// Returns { mesh, top, tiltZ } — top is the crown attach point.
+function buildTrunk({ height = 9.2, lean = 0.16, rBase = 0.30, rTop = 0.145 }){
+  const N = 110, RADIAL = 16, RINGS = 26;
+  const spine = [];
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    spine.push(new THREE.Vector3(
+      lean*height*Math.pow(t,1.65) + 0.06*Math.sin(t*6.2 + 1.4)*t,
+      t*height,
+      0.05*Math.sin(t*4.7)*t));
+  }
+  const ringAmp = [];   // per-ring bump strength, subtly varied
+  for(let r=0;r<=RINGS;r++) ringAmp.push(rand(0.014, 0.032));
+
+  const posA = [], uvA = [], colA = [], idx = [];
+  const tang = new THREE.Vector3(), nrm = new THREE.Vector3(), bin = new THREE.Vector3();
+  const cGray = new THREE.Color(0xffffff), cTop = new THREE.Color(0xd9ddb8), c = new THREE.Color();
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    // taper + base flare + ring bumps
+    let r = rBase + (rTop - rBase)*Math.pow(t, 0.85);
+    r += 0.17*Math.exp(-t*9);
+    const ringPh = t*RINGS, ringI = Math.min(RINGS, Math.floor(ringPh));
+    r *= 1 + ringAmp[ringI]*(0.5 + 0.5*Math.cos(ringPh*Math.PI*2));
+    // frame (curve stays near-vertical, so a fixed reference is fine)
+    const p = spine[i];
+    tang.copy(spine[Math.min(N,i+1)]).sub(spine[Math.max(0,i-1)]).normalize();
+    bin.set(0,0,1);
+    nrm.crossVectors(bin, tang).normalize();
+    bin.crossVectors(tang, nrm).normalize();
+    c.copy(cGray).lerp(cTop, Math.max(0, (t-0.86)/0.14));  // greenish just under the crown
+    for(let j=0;j<=RADIAL;j++){
+      const a = (j/RADIAL)*Math.PI*2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const rr = r*(1 + 0.012*Math.sin(a*7 + ringI*2.4));   // faint vertical fluting
+      posA.push(p.x + (nrm.x*ca + bin.x*sa)*rr,
+                p.y + (nrm.y*ca + bin.y*sa)*rr,
+                p.z + (nrm.z*ca + bin.z*sa)*rr);
+      uvA.push(j/RADIAL*2, ringPh);
+      colA.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RADIAL;j++){
+    const a = i*(RADIAL+1)+j, b = a+RADIAL+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const trunkMat = new THREE.MeshStandardMaterial({
+    map:trunkTexture(), vertexColors:true, roughness:0.94, metalness:0 });
+  const mesh = new THREE.Mesh(geo, trunkMat);
+  window.PALM_TRUNK_MAT = trunkMat;   // debug handle
+  mesh.castShadow = mesh.receiveShadow = true;
+  const top = spine[N].clone();
+  const tv = spine[N].clone().sub(spine[N-4]).normalize();
+  return { mesh, top, tiltZ: Math.atan2(tv.x, tv.y) };
+}
+
+// ---------- one frond as ONE merged mesh (rachis + all leaflets) ---------
+// Local frame: frond grows toward +X, up is +Y; azimuth is applied on the mesh.
+function buildFrond({
+  length = 4.0, elev = 0.5, droop = 1.5,
+  nLeaf = 46, leafMax = 0.88, leafW = 0.056,
+  cInner = 0x3e6b25, cOuter = 0x74a742,
+  collapsed = 0            // 1 = dead frond, leaflets folded against the rachis
+}){
+  const NSEG = 26, MSEG = 3;
+  const posA = [], colA = [], idx = [];
+  const colorIn = new THREE.Color(cInner), colorOut = new THREE.Color(cOuter);
+  const cc = new THREE.Color();
+
+  // --- rachis spine: elevation angle bleeds off toward the tip
+  const spine = [], angs = [];
+  {
+    let p = new THREE.Vector3(0,0,0);
+    const step = length/NSEG;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG;
+      const a = elev - droop*Math.pow(t, 1.6);
+      spine.push(p.clone()); angs.push(a);
+      p.x += Math.cos(a)*step; p.y += Math.sin(a)*step;
+    }
+  }
+
+  // --- rachis tube (6 radial segs, tapering)
+  {
+    const RAD = 6, base = posA.length/3;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG, p = spine[i], a = angs[i];
+      const r = 0.045*(1-t) + 0.006;
+      const nx = -Math.sin(a), ny = Math.cos(a);       // in-plane "up"
+      cc.copy(colorIn).lerp(colorOut, t*0.6);
+      if(collapsed) cc.multiplyScalar(0.9);
+      for(let j=0;j<=RAD;j++){
+        const th = (j/RAD)*Math.PI*2, ct = Math.cos(th), st = Math.sin(th);
+        posA.push(p.x + nx*ct*r, p.y + ny*ct*r, p.z + st*r);
+        colA.push(cc.r, cc.g, cc.b);
+      }
+    }
+    for(let i=0;i<NSEG;i++) for(let j=0;j<RAD;j++){
+      const a2 = base + i*(RAD+1)+j, b2 = a2+RAD+1;
+      idx.push(a2, b2, a2+1, b2, b2+1, a2+1);
+    }
+  }
+
+  // --- leaflets, both sides, merged in
+  const T = new THREE.Vector3(), U = new THREE.Vector3(), S = new THREE.Vector3();
+  const d = new THREE.Vector3(), e = new THREE.Vector3(), n = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  for(let side = -1; side <= 1; side += 2){
+    for(let i=0;i<nLeaf;i++){
+      const tt = (i + 0.5)/nLeaf;                       // 0..1 along the leaflet run
+      const t = 0.13 + 0.87*tt + rand(-0.006, 0.006);   // position on the rachis
+      const si = Math.min(NSEG-1, Math.floor(t*NSEG));
+      const f = t*NSEG - si;
+      const p0 = q.copy(spine[si]).lerp(spine[si+1], f).clone();
+      const a = angs[si] + (angs[si+1]-angs[si])*f;
+      T.set(Math.cos(a), Math.sin(a), 0);
+      U.set(-Math.sin(a), Math.cos(a), 0);
+      S.set(0, 0, side);
+
+      // leaflet length: longest just before the middle, short at both ends
+      const len = leafMax * (0.22 + 0.78*Math.pow(Math.sin(Math.PI*(0.08 + 0.88*tt)), 0.7))
+                  * rand(0.92, 1.08);
+      // initial direction: out to the side, swept toward the tip, angled up
+      // near the base (the living V), flattening and drooping toward the tip
+      const sweep = 0.5 + 0.35*tt + collapsed*0.75;
+      const upAmt = (0.55 - 0.75*tt) * (1 - collapsed*0.9) - collapsed*0.25;
+      d.copy(S).multiplyScalar(Math.cos(sweep))
+       .addScaledVector(T, Math.sin(sweep))
+       .addScaledVector(U, upAmt).normalize();
+
+      // gravity droop along the leaflet, heavier toward the frond tip
+      const droopL = (0.30 + 1.15*tt + collapsed*0.8) / MSEG;
+      const w0 = leafW*(1 - collapsed*0.55)*rand(0.85,1.15);
+
+      const base = posA.length/3;
+      const pp = p0.clone(), dd = d.clone();
+      for(let m=0;m<=MSEG;m++){
+        const u = m/MSEG;
+        e.crossVectors(dd, T).normalize();               // blade width direction
+        n.crossVectors(e, dd).normalize();
+        if(n.y < 0){ n.negate(); e.negate(); }
+        const w = w0*(1 - u*u*0.96) * Math.min(1, 0.35 + u*3);
+        const foldDrop = w*0.45;                          // V-crease: edges below midrib
+        cc.copy(colorIn).lerp(colorOut, Math.min(1, tt*0.5 + u*0.65))
+          .multiplyScalar(rand(0.94, 1.03));
+        // left edge, midrib, right edge
+        posA.push(pp.x - e.x*w + n.x*-foldDrop, pp.y - e.y*w + n.y*-foldDrop, pp.z - e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        posA.push(pp.x, pp.y, pp.z);
+        colA.push(cc.r, cc.g, cc.b);
+        posA.push(pp.x + e.x*w + n.x*-foldDrop, pp.y + e.y*w + n.y*-foldDrop, pp.z + e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        // advance the leaflet spine with droop
+        pp.addScaledVector(dd, len/MSEG);
+        dd.y -= droopL; dd.normalize();
+      }
+      for(let m=0;m<MSEG;m++){
+        const r0 = base + m*3, r1 = r0 + 3;
+        idx.push(r0, r1, r0+1,  r1, r1+1, r0+1,
+                 r0+1, r1+1, r0+2,  r1+1, r1+2, r0+2);
+      }
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const frondMat = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.55, metalness:0, side:THREE.DoubleSide });
+const deadMat = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.9, metalness:0, side:THREE.DoubleSide });
+
+// ---------- assemble the tree --------------------------------------------
+const tree = new THREE.Group();
+scene.add(tree);
+
+const trunk = buildTrunk({});
+tree.add(trunk.mesh);
+
+const crown = new THREE.Group();
+crown.position.copy(trunk.top);
+crown.rotation.z = -trunk.tiltZ*0.55;    // crown follows the trunk's lean a bit
+tree.add(crown);
+
+// the bulb where the frond bases wrap the growing tip
+{
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10),
+    new THREE.MeshStandardMaterial({ color:0x74804a, roughness:0.9 }));
+  bulb.scale.set(1, 1.4, 1); bulb.position.y = 0.04;
+  bulb.castShadow = true;
+  crown.add(bulb);
+}
+
+// frond rings: young & upright on top, oldest drooping low, dead skirt below
+const FROND_RINGS = [
+  { n:3, elev:1.12, droop:0.95, len:0.52, amp:0.45, y: 0.30 },
+  { n:5, elev:0.72, droop:1.30, len:0.86, amp:0.75, y: 0.16 },
+  { n:6, elev:0.34, droop:1.55, len:1.00, amp:1.00, y: 0.04 },
+  { n:5, elev:0.02, droop:1.72, len:0.94, amp:1.15, y:-0.06 },
+  { n:3, elev:-0.5, droop:1.25, len:0.72, amp:0.55, y:-0.14, dead:true },
+];
+const swayFronds = [];
+{
+  let ringOfs = rand(Math.PI*2);
+  for(const ring of FROND_RINGS){
+    ringOfs += 2.399963;                     // golden angle between rings
+    for(let i=0;i<ring.n;i++){
+      const geo = buildFrond({
+        length: 4.1*ring.len*rand(0.94,1.06),
+        elev:  ring.elev + rand(-0.07, 0.07),
+        droop: ring.droop*rand(0.92, 1.08),
+        leafMax: 0.88*Math.sqrt(ring.len),
+        collapsed: ring.dead ? 0.85 : 0,
+        cInner: ring.dead ? 0x6b512e : 0x3e6b25,
+        cOuter: ring.dead ? 0xa8854e : 0x74a742,
+      });
+      const m = new THREE.Mesh(geo, ring.dead ? deadMat : frondMat);
+      // only ~2/3 of fronds cast — dappled light on the trunk, not a blackout
+      m.castShadow = ring.dead || (i % 3 !== 1);
+      m.rotation.order = 'YZX';
+      m.rotation.y = ringOfs + (i/ring.n)*Math.PI*2 + rand(-0.18, 0.18);
+      m.rotation.x = rand(-0.1, 0.1);
+      m.position.y = ring.y;
+      crown.add(m);
+      swayFronds.push({ m, amp:0.028*ring.amp, phase:rand(9), freq:rand(0.75,1.05) });
+    }
+  }
+}
+
+// coconuts nestled under the crown, plus a couple fallen in the sand
+{
+  const nutGeo = new THREE.SphereGeometry(0.17, 14, 11);
+  const green = new THREE.MeshStandardMaterial({ color:0x7d8b3c, roughness:0.6 });
+  const brown = new THREE.MeshStandardMaterial({ color:0x6b5432, roughness:0.85 });
+  for(let i=0;i<6;i++){
+    const nut = new THREE.Mesh(nutGeo, i%3 ? green : brown);
+    const a = rand(Math.PI*2);
+    nut.position.set(Math.cos(a)*rand(0.24,0.42), rand(-0.34,-0.14), Math.sin(a)*rand(0.24,0.42));
+    nut.scale.set(1, 1.18, 1);
+    nut.rotation.set(rand(1), rand(1), rand(1));
+    nut.castShadow = true;
+    crown.add(nut);
+  }
+  for(const [fx,fz] of [[2.1,1.4],[-1.3,2.3],[2.8,-0.9]]){
+    const nut = new THREE.Mesh(nutGeo, brown);
+    nut.position.set(fx, 0.15, fz);
+    nut.scale.set(1, 1.18, 1);
+    nut.rotation.set(rand(3), rand(3), rand(3));
+    nut.castShadow = true;
+    scene.add(nut);
+  }
+}
+
+// ---------- animate -------------------------------------------------------
+const clock = new THREE.Clock();
+const windEl = document.getElementById('wind');
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const wind = parseFloat(windEl.value);
+  for(const f of swayFronds){
+    f.m.rotation.z = f.amp*wind*(Math.sin(t*f.freq + f.phase)
+                   + 0.45*Math.sin(t*f.freq*2.3 + f.phase*1.7));
+  }
+  crown.rotation.x = 0.008*wind*Math.sin(t*0.7 + 2);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+window.PALM = { renderer, scene, camera, controls };   // debug / capture handle
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
