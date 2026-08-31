@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.69</title>
+<title>George World v0.70</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -379,7 +379,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.69</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.70</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -2877,7 +2877,10 @@ function dressColorFor(v){
   // a claimed serf wears the color of the house that holds him
   const boss = dukeAbove(v);
   if(boss) return tierOf(boss) === 2 ? ROYAL_PURPLE : houseColorOf(boss);
-  return SERF_BROWN;
+  // v0.70 (Doug): the UNCLAIMED wear their OWN shirt color — individuals
+  // first; it's the CLAIM that dyes everyone into a house uniform, which
+  // makes the domination spread read even louder
+  return v.dressColor ?? SERF_BROWN;
 }
 function applyTier(v){
   if(v.isBaby || !v.dressMat) return;
@@ -3258,10 +3261,10 @@ function makeVita(opts){
   const skinHex = opts.skin ?? 0xeab98f;
   v.skinCSS = '#' + new THREE.Color(skinHex).getHexString();
   const matSkin = new THREE.MeshLambertMaterial({ color: skinHex });
-  // clothing signals TIER: every adult STARTS in serf brown; promotion dyes
-  // the shirt to the house color / royal purple. Babies keep their own color.
+  // clothing: everyone starts in their OWN shirt color (v0.70 — individuals
+  // first); a claim or promotion dyes it to the house color / royal purple
   const matDress = new THREE.MeshLambertMaterial({
-    color: opts.isBaby ? (opts.dress ?? 0xffe066) : 0x8a6a4a });
+    color: opts.dress ?? (opts.isBaby ? 0xffe066 : 0x8a6a4a) });
   v.dressMat = matDress;
   v.tier = 0;
   const matHair = new THREE.MeshLambertMaterial({ color: opts.hair ?? 0x54402e });
@@ -3562,16 +3565,20 @@ const ARCH_ROLLS = {
     ? { industry: rand(0.55, 0.9), greed: rand(0.7, 0.95) }
     : { industry: rand(0.35, 0.9), greed: rand(0.02, 0.45) }),          // random
 };
+// v0.70 (Doug): every Vita gets its OWN hair color — nine distinct heads,
+// black through chestnut, auburn, sandy, blond, ginger and silver — and the
+// dress colors below actually SHOW now (see dressColorFor: the unclaimed
+// wear their own shirt; a claim dyes it to the house)
 const CAST_LOOKS = [
-  { x:-28, z:52, dress:0x7d3bd4, hair:0x2e2620, skin:0xecc9a2 },
-  { x:-18, z:57, dress:0xa03636, hair:0x1d1a16, skin:0xf2c299, buns:true },
+  { x:-28, z:52, dress:0x7d3bd4, hair:0x1d1a16, skin:0xecc9a2 },
+  { x:-18, z:57, dress:0xa03636, hair:0xd9a441, skin:0xf2c299, buns:true },
   { x:-8,  z:52, dress:0x8fbf50, hair:0x7a4a20, skin:0xffe0c2 },
-  { x:2,   z:57, dress:0x4f9fd8, hair:0x2e2620, skin:0xf2c299, buns:true },
+  { x:2,   z:57, dress:0x4f9fd8, hair:0x9e3b24, skin:0xf2c299, buns:true },
   { x:10,  z:50, dress:0xc9a85c, hair:0x5b3a29, skin:0xffd9b3 },
-  { x:18,  z:54, dress:0x6b8e9e, hair:0x1d1a16, skin:0xecc9a2 },
-  { x:6,   z:26, dress:0x9a7b5a, hair:0x7a4a20, skin:0xffd9b3, buns:true },
+  { x:18,  z:54, dress:0x6b8e9e, hair:0x8d8d94, skin:0xecc9a2 },
+  { x:6,   z:26, dress:0x9a7b5a, hair:0xc4842e, skin:0xffd9b3, buns:true },
   { x:30,  z:32, dress:0x7aa06a, hair:0x2e2620, skin:0xf2c299 },
-  { x:-2,  z:40, dress:0xff7a5c, hair:0x5b3a29, skin:0xffd9b3 },
+  { x:-2,  z:40, dress:0xff7a5c, hair:0xa8622a, skin:0xffd9b3 },
 ];
 let mia = null, boss = null;
 if(CAST){
