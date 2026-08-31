@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.65</title>
+<title>George World v0.66</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -372,7 +372,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.65</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.66</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -5272,7 +5272,7 @@ function finishHarvest(v, h){
   }
   // the chronicle keeps the small history too (sparse — never spam)
   if(Math.random() < 0.035) recordEvent('fun', [
-    `🫐 ${v.name} picks the ${h.far ? 'thick grove over the ridge' : 'shore bushes'} clean of red`,
+    `🫐 ${v.name} picks the ${h.far ? 'thick grove over the ridge' : 'near hill bushes'} clean of red`,
     basketsWoven ? `🧺 ${v.name} fills the basket under a climbing sun`
                  : `🫐 ${v.name} heaps the pick on the sand beside the fire`,
     `🫐 a good pick — ${v.name} comes away with ${units} berr${units > 1 ? 'ies' : 'y'}`,
@@ -11353,7 +11353,7 @@ function updateOpening(simDt){
     const target = harvestables.find(h => h.far && h.isBush);
     releaseClaim(sc);
     sc.state.task = { kind:'scout', tx: target ? target.pos.x : -2*WS, tz: target ? target.pos.z : -33*WS, phase:'out' };
-    recordEvent('fun', `🧭 ${sc.name} sets out over the ridge — the shore pickings are thin, and someone has to look`);
+    recordEvent('fun', `🧭 ${sc.name} sets out over the ridge — the near pickings are thin, and someone has to look`);
     const ln = pickLine('grove_discovery', sc.name, '');
     if(ln && !sc.bubble.visible){ drawBubbleText(sc, ln[0]); sc.bubble.visible = true; mutters.push({ v: sc, t: 3.6 }); }
     dirPOI = { kind:'vita', v: sc, d: 20, dwell: 24 };   // the camera rides the scout out
