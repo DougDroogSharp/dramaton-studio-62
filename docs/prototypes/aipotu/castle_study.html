@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CASTLE STUDY — a NORMAN castle fit for the king, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160), same importmap.
+
+     Doug's brief: a castle fit for a king, NORMAN in character, large
+     enough for 15 Vitas. Norman means: a great SQUARE KEEP (the donjon)
+     in pale ashlar with flat PILASTER BUTTRESSES up every face, corner
+     turrets, few and SMALL ROUND-ARCHED windows (they built for war),
+     a crenellated CURTAIN WALL with a proper GATEHOUSE — round arch,
+     portcullis, twin drum towers — corner wall-towers, and the whole
+     thing sized so the courtyard + keep swallow a 15-Vita court with
+     room to feast. Two stand-in Vitas at the gate give the scale.
+     Banners flutter; the brazier by the gate burns.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castle Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e3ded2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,24,18,0.78); color:#f2eee2;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🏰 Castle Study</b> — the Norman keep, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · two Vitas at the gate for scale</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 10666;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe1dcce), 70, 380);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(28, 17, 36);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 6;
+controls.maxDistance = 110;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(420, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2eeda), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8d3c2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/420;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdce8f0, 0xa89878, 0.95));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(45, 55, 25);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40;  sun.shadow.camera.bottom = -40;
+sun.shadow.camera.near = 12; sun.shadow.camera.far = 160;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+// ---------- ground ---------------------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(380, 48),
+    new THREE.MeshLambertMaterial({ color:0xb2b581 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+  // the courtyard: packed earth inside the walls
+  const yard = new THREE.Mesh(new THREE.BoxGeometry(30, 0.14, 30),
+    new THREE.MeshLambertMaterial({ color:0xc0ab7c }));
+  yard.position.y = 0.07;
+  yard.receiveShadow = true;
+  scene.add(yard);
+}
+
+// ---------- materials: pale Caen ashlar + accents --------------------------
+const matStone = new THREE.MeshLambertMaterial({ color:0xd0c5ac, flatShading:true });
+const matStoneDk = new THREE.MeshLambertMaterial({ color:0xb8ac92, flatShading:true });
+const matQuoin = new THREE.MeshLambertMaterial({ color:0xc4b898, flatShading:true });
+const matRoof = new THREE.MeshLambertMaterial({ color:0x6e6252, flatShading:true });
+const matWoodDk = new THREE.MeshLambertMaterial({ color:0x4a3520, flatShading:true });
+const matIron = new THREE.MeshLambertMaterial({ color:0x3a3733, flatShading:true });
+const matBanner = new THREE.MeshLambertMaterial({ color:0x9a3fd8, side:THREE.DoubleSide });
+const matDoor = new THREE.MeshLambertMaterial({ color:0x1c1610 });
+
+// crenellations along a run
+function crenellate(parent, x0, x1, y, z, alongX, depth){
+  const len = alongX ? x1 - x0 : depth;
+  const n = Math.floor(Math.abs(alongX ? x1 - x0 : z) / 1.1);
+  for(let i = 0; i <= n; i++){
+    if(i % 2) continue;
+    const merlon = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.62 : 0.5, 0.62, alongX ? 0.5 : 0.62), matStoneDk);
+    if(alongX) merlon.position.set(x0 + (i/n)*(x1-x0), y, z);
+    else merlon.position.set(x0, y, x1 + (i/n)*(z - x1));
+    merlon.castShadow = true;
+    parent.add(merlon);
+  }
+}
+// a small round-arched Norman window (they were few, and high)
+function normanWindow(parent, x, y, z, ry){
+  const g = new THREE.Group();
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.9, 0.1), matDoor);
+  g.add(slot);
+  const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.1, 10, 1, false, 0, Math.PI), matDoor);
+  arch.rotation.z = Math.PI/2; arch.rotation.y = Math.PI/2;
+  arch.position.y = 0.45;
+  g.add(arch);
+  const surround = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.15, 0.04), matQuoin);
+  surround.position.z = -0.04;
+  g.add(surround);
+  g.position.set(x, y, z);
+  g.rotation.y = ry;
+  parent.add(g);
+}
+
+// ==========================================================================
+//  THE KEEP — the great square donjon, 13×13 footprint, 14 high: room for
+//  the whole 15-Vita court to feast on the hall floor. Pilaster buttresses
+//  up every face, corner turrets (one taller — the watch turret), paired
+//  round-arched windows high up, the forebuilding stair to a first-floor
+//  door (ground doors were for sieges to regret).
+// ==========================================================================
+const castle = new THREE.Group();
+scene.add(castle);
+const banners = [];
+{
+  const K = 13, KH = 14;
+  const keep = new THREE.Mesh(new THREE.BoxGeometry(K, KH, K), matStone);
+  keep.position.y = KH/2;
+  keep.castShadow = true; keep.receiveShadow = true;
+  castle.add(keep);
+  // pilaster buttresses: flat strips up each face, Norman signature
+  for(const s of [-1, 1]){
+    for(const off of [-K/2 + 1.4, 0, K/2 - 1.4]){
+      for(const face of ['x', 'z']){
+        const p = new THREE.Mesh(new THREE.BoxGeometry(
+          face === 'x' ? 0.5 : 1.1, KH, face === 'x' ? 1.1 : 0.5), matQuoin);
+        if(face === 'x') p.position.set(s*(K/2 + 0.2), KH/2, off);
+        else p.position.set(off, KH/2, s*(K/2 + 0.2));
+        p.castShadow = true;
+        castle.add(p);
+      }
+    }
+  }
+  // corner turrets — the SW one taller: the watch turret
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const tall = sx < 0 && sz > 0;
+    const th = tall ? KH + 4.5 : KH + 2;
+    const tur = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.4, th, 10), matStoneDk);
+    tur.position.set(sx*(K/2), th/2, sz*(K/2));
+    tur.castShadow = true;
+    castle.add(tur);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(1.5, 1.6, 10), matRoof);
+    cap.position.set(sx*(K/2), th + 0.8, sz*(K/2));
+    cap.castShadow = true;
+    castle.add(cap);
+    // the tall turret flies the royal banner
+    if(tall){
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6), matWoodDk);
+      pole.position.set(sx*(K/2), th + 2.6, sz*(K/2));
+      castle.add(pole);
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.05), matBanner);
+      b.position.set(sx*(K/2) + 0.98, th + 3.2, sz*(K/2));
+      castle.add(b);
+      banners.push(b);
+    }
+  }
+  // keep battlements
+  crenellate(castle, -K/2 + 0.6, K/2 - 0.6, KH + 0.31, -K/2, true, 0);
+  crenellate(castle, -K/2 + 0.6, K/2 - 0.6, KH + 0.31,  K/2, true, 0);
+  crenellate(castle, -K/2, -K/2 + 0.6, KH + 0.31, K/2 - 0.6, false, 0);
+  crenellate(castle,  K/2, -K/2 + 0.6, KH + 0.31, K/2 - 0.6, false, 0);
+  // paired round-arched windows, high on each face (few — built for war)
+  for(const s of [-1, 1]){
+    normanWindow(castle, -1.1, KH - 3, s*(K/2 + 0.06), s > 0 ? 0 : Math.PI);
+    normanWindow(castle,  1.1, KH - 3, s*(K/2 + 0.06), s > 0 ? 0 : Math.PI);
+    normanWindow(castle, s*(K/2 + 0.06), KH - 3, -1.1, s > 0 ? Math.PI/2 : -Math.PI/2);
+    normanWindow(castle, s*(K/2 + 0.06), KH - 3,  1.1, s > 0 ? Math.PI/2 : -Math.PI/2);
+    normanWindow(castle, 0, KH - 6, s*(K/2 + 0.06), s > 0 ? 0 : Math.PI);
+  }
+  // THE FOREBUILDING: the covered stair up to the first-floor door
+  const fb = new THREE.Mesh(new THREE.BoxGeometry(3, 6.5, 4.5), matStoneDk);
+  fb.position.set(K/2 + 1.5, 3.25, 2.4);
+  fb.castShadow = true;
+  castle.add(fb);
+  const fbRoof = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.4, 4.9), matRoof);
+  fbRoof.position.set(K/2 + 1.5, 6.7, 2.4);
+  castle.add(fbRoof);
+  const stair = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 7), matStoneDk);
+  stair.rotation.x = -0.32;
+  stair.position.set(K/2 + 1.5, 1.0, 7.2);
+  stair.castShadow = true;
+  castle.add(stair);
+  const keepDoor = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.4, 0.15), matDoor);
+  keepDoor.position.set(K/2 + 1.5, 4.6, 4.62);
+  castle.add(keepDoor);
+}
+
+// ==========================================================================
+//  THE CURTAIN WALL — 32×32, wall-walk + battlements, corner towers, and
+//  the GATEHOUSE: twin drum towers, round arch, portcullis, banner poles.
+// ==========================================================================
+{
+  const W = 32, WH = 5.4, WT = 1.4;
+  // four wall runs (the south run leaves a gate gap)
+  const runs = [
+    { x:0, z:-W/2, lx:W, lz:WT },
+    { x:-W/2, z:0, lx:WT, lz:W },
+    { x: W/2, z:0, lx:WT, lz:W },
+    { x:-W/2 + 5.4, z: W/2, lx:W - 10.8 - 5.2, lz:WT, gate:true },  // west of the gate
+    { x: W/2 - 5.4, z: W/2, lx:W - 10.8 - 5.2, lz:WT, gate:true },  // east of the gate
+  ];
+  for(const r of runs){
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(r.lx, WH, r.lz), matStone);
+    wall.position.set(r.x, WH/2, r.z);
+    wall.castShadow = true; wall.receiveShadow = true;
+    castle.add(wall);
+    const walk = new THREE.Mesh(new THREE.BoxGeometry(r.lx + 0.3, 0.3, r.lz + 0.3), matStoneDk);
+    walk.position.set(r.x, WH + 0.15, r.z);
+    castle.add(walk);
+  }
+  // battlements along the four sides
+  crenellate(castle, -W/2, W/2, WH + 0.6, -W/2, true, 0);
+  crenellate(castle, -W/2, -W/2 + 0.5, WH + 0.6, W/2 - 0.5, false, 0);
+  crenellate(castle,  W/2, -W/2 + 0.5, WH + 0.6, W/2 - 0.5, false, 0);
+  crenellate(castle, -W/2, -3.2, WH + 0.6, W/2, true, 0);
+  crenellate(castle, 3.2, W/2, WH + 0.6, W/2, true, 0);
+  // corner drum towers
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const tw = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.3, WH + 2.6, 10), matStoneDk);
+    tw.position.set(sx*W/2, (WH + 2.6)/2, sz*W/2);
+    tw.castShadow = true;
+    castle.add(tw);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(2.35, 1.9, 10), matRoof);
+    cap.position.set(sx*W/2, WH + 3.55, sz*W/2);
+    cap.castShadow = true;
+    castle.add(cap);
+  }
+  // THE GATEHOUSE: twin drums + arch + portcullis, facing the viewer (+z)
+  for(const s of [-1, 1]){
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.95, WH + 3.4, 10), matStone);
+    drum.position.set(s*3.2, (WH + 3.4)/2, W/2);
+    drum.castShadow = true;
+    castle.add(drum);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(2.0, 1.7, 10), matRoof);
+    cap.position.set(s*3.2, WH + 4.25, W/2);
+    cap.castShadow = true;
+    castle.add(cap);
+    // gate banners
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), matWoodDk);
+    pole.position.set(s*3.2, WH + 5.6, W/2);
+    castle.add(pole);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.85), matBanner);
+    b.position.set(s*3.2 + 0.78, WH + 6.0, W/2);
+    castle.add(b);
+    banners.push(b);
+  }
+  // the gate passage: lintel wall + ROUND Norman arch + portcullis
+  const over = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.2, 1.6), matStone);
+  over.position.set(0, WH + 3.4 - 1.6, W/2);
+  over.castShadow = true;
+  castle.add(over);
+  crenellate(castle, -1.8, 1.8, WH + 3.6 - 0.7, W/2, true, 0);
+  const archRing = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.3, 8, 14, Math.PI), matQuoin);
+  archRing.position.set(0, 3.5, W/2 + 0.75);
+  castle.add(archRing);
+  // portcullis: an iron grid, half-lowered
+  const grid = new THREE.Group();
+  for(let i = 0; i < 5; i++){
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.09, 3.4, 0.09), matIron);
+    bar.position.x = -1.35 + i*0.675;
+    grid.add(bar);
+  }
+  for(let i = 0; i < 4; i++){
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(3, 0.09, 0.09), matIron);
+    bar.position.y = -1.3 + i*0.9;
+    grid.add(bar);
+  }
+  grid.position.set(0, 3.4, W/2);
+  castle.add(grid);
+  // wooden gates standing open inward
+  for(const s of [-1, 1]){
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.65, 3.4, 0.14), matWoodDk);
+    leaf.position.set(s*1.55, 1.7, W/2 - 1.15);
+    leaf.rotation.y = s*0.85;
+    leaf.castShadow = true;
+    castle.add(leaf);
+  }
+  // the great hall lean-to + stables against the inner walls (court living)
+  const hall = new THREE.Mesh(new THREE.BoxGeometry(10, 3.4, 4), matStoneDk);
+  hall.position.set(-10, 1.7, -13.4);
+  hall.castShadow = true;
+  castle.add(hall);
+  const hallRoof = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.3, 4.8), matRoof);
+  hallRoof.rotation.x = 0.12;
+  hallRoof.position.set(-10, 3.6, -13.2);
+  castle.add(hallRoof);
+  const stable = new THREE.Mesh(new THREE.BoxGeometry(4, 2.6, 9), matWoodDk);
+  stable.position.set(14.2, 1.3, -8);
+  stable.castShadow = true;
+  castle.add(stable);
+}
+
+// ---------- two Vitas at the gate, for scale -------------------------------
+for(const [vx, col] of [[-1.2, 0x8a6a4a], [1.4, 0x4f9fd8]]){
+  const v = new THREE.Group();
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 6, 12),
+    new THREE.MeshLambertMaterial({ color: col }));
+  barrel.position.y = 0.75; barrel.castShadow = true; v.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12),
+    new THREE.MeshLambertMaterial({ color:0xf2c299 }));
+  head.position.y = 1.5; head.castShadow = true; v.add(head);
+  v.position.set(vx, 0.1, 19.5);
+  scene.add(v);
+}
+// a brazier by the gate
+const flames = [];
+{
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 1.4, 8), matIron);
+  stand.position.set(3.4, 0.8, 18.5);
+  scene.add(stand);
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.14, 0.22, 10), matIron);
+  bowl.position.set(3.4, 1.55, 18.5);
+  scene.add(bowl);
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 7),
+    new THREE.MeshBasicMaterial({ color:0xffa626, transparent:true, opacity:0.92 }));
+  flame.position.set(3.4, 1.95, 18.5);
+  scene.add(flame);
+  const glow = new THREE.PointLight(0xff9c3c, 5, 8);
+  glow.position.set(3.4, 2, 18.5);
+  scene.add(glow);
+  flames.push({ flame, glow });
+}
+
+// ---------- the flutter -----------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.elapsedTime;
+  for(let i = 0; i < banners.length; i++){
+    const b = banners[i];
+    b.rotation.y = Math.sin(t*3.1 + i*2) * 0.45;
+    b.rotation.z = Math.sin(t*4.3 + i) * 0.08;
+  }
+  for(const f of flames){
+    const s = 1 + 0.15*Math.sin(t*11);
+    f.flame.scale.set(s, 1 + 0.22*Math.sin(t*13), s);
+    f.glow.intensity = 4.4 + Math.sin(t*9)*1.2;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
