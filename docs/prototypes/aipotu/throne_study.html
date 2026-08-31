@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THRONE STUDY — an ORNATE throne for the Vita king, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as
+     the game so makeThrone() can drop straight in later.
+
+     Doug's brief: an ornate, ORNATE throne a Vita king can sit on.
+     Delivered ornate: carved dark wood, gold trim everywhere it can
+     cling, crimson velvet seat + backrest, a high back crowned with a
+     sunburst finial and orb-topped side posts, scrolled armrests, lion-
+     paw feet, a two-step gilded dais, and standing braziers either side.
+     The stand-in KING (royal purple, gold crown) walks up the dais,
+     turns, SITS — settles in with a little royal shuffle — and STANDS.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Throne Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4ddd0; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,20,14,0.8); color:#f2ecdc;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a6a22; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#a8842e; }
+  #chip button.on { background:#ffd94a; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>👑 Throne Study</b> — the king's seat, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="sit">The king SITS</button><button data-m="stand">The king STANDS</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1701;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2dbcd), 50, 280);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(4.6, 3.2, 6.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 36;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf3edda), zenith = new THREE.Color(0x86b6dc),
+        below = new THREE.Color(0xd8d1c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xe0e4d8, 0xa89878, 0.95));
+const sun = new THREE.DirectionalLight(0xfff0d0, 2.2);
+sun.position.set(18, 26, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10;  sun.shadow.camera.bottom = -10;
+sun.shadow.camera.near = 6; sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground: the hall floor ----------------------------------------
+{
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xcbb98e }));
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  // a long crimson runner up to the dais
+  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 9),
+    new THREE.MeshLambertMaterial({ color:0x8e2f36 }));
+  runner.rotation.x = -Math.PI/2;
+  runner.position.set(0, 0.012, 5.2);
+  runner.receiveShadow = true;
+  scene.add(runner);
+}
+
+// ---------- materials ------------------------------------------------------
+const matWood = new THREE.MeshLambertMaterial({ color:0x4a2f1c, flatShading:true });
+const matWoodDk = new THREE.MeshLambertMaterial({ color:0x38220f, flatShading:true });
+const matGold = new THREE.MeshStandardMaterial({ color:0xd9a929, metalness:0.75, roughness:0.35 });
+const matVelvet = new THREE.MeshLambertMaterial({ color:0x9c2430 });
+const matVelvetDk = new THREE.MeshLambertMaterial({ color:0x7d1b26 });
+
+// ==========================================================================
+//  THE THRONE — ornate is the requirement. Seat height 0.95 (a Vita sits
+//  with feet on the dais); the back towers to ~3.4.
+// ==========================================================================
+const throne = new THREE.Group();
+scene.add(throne);
+{
+  // the two-step GILDED DAIS
+  for(let i = 0; i < 2; i++){
+    const step = new THREE.Mesh(new THREE.BoxGeometry(3.4 - i*0.8, 0.22, 2.8 - i*0.7), matWoodDk);
+    step.position.set(0, 0.11 + i*0.22, -0.1);
+    step.castShadow = true; step.receiveShadow = true;
+    throne.add(step);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(3.44 - i*0.8, 0.05, 2.84 - i*0.7), matGold);
+    trim.position.set(0, 0.235 + i*0.22, -0.1);
+    throne.add(trim);
+  }
+  const DAIS = 0.44;   // top of the dais
+
+  // the SEAT BOX with crimson cushion
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 1.05), matWood);
+  seat.position.set(0, DAIS + 0.26, -0.35);
+  seat.castShadow = true;
+  throne.add(seat);
+  const cushion = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.16, 0.95), matVelvet);
+  cushion.position.set(0, DAIS + 0.56, -0.35);
+  cushion.castShadow = true;
+  throne.add(cushion);
+  // cushion piping + buttons
+  const pipe = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.035, 0.99), matGold);
+  pipe.position.set(0, DAIS + 0.49, -0.35);
+  throne.add(pipe);
+  for(const [bx, bz] of [[-0.3,-0.55],[0.3,-0.55],[-0.3,-0.15],[0.3,-0.15]]){
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), matGold);
+    btn.position.set(bx, DAIS + 0.645, bz);
+    throne.add(btn);
+  }
+
+  // the HIGH BACK: carved panel + velvet inset + gold frame
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.5, 0.18), matWood);
+  back.position.set(0, DAIS + 1.75, -0.85);
+  back.castShadow = true;
+  throne.add(back);
+  const inset = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.1, 0.05), matVelvetDk);
+  inset.position.set(0, DAIS + 1.72, -0.75);
+  throne.add(inset);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.2, 0.02), matGold);
+  frame.position.set(0, DAIS + 1.72, -0.78);
+  throne.add(frame);
+  // arched top + SUNBURST finial
+  const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.18, 16, 1, false, 0, Math.PI), matWood);
+  arch.rotation.z = Math.PI/2;
+  arch.rotation.y = Math.PI/2;
+  arch.position.set(0, DAIS + 3.0, -0.85);
+  arch.castShadow = true;
+  throne.add(arch);
+  const sunburst = new THREE.Group();
+  sunburst.position.set(0, DAIS + 3.35, -0.85);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), matGold);
+  sunburst.add(core);
+  for(let i = 0; i < 10; i++){
+    const ray = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.3, 5), matGold);
+    const a = (i/10) * Math.PI*2;
+    ray.position.set(Math.cos(a)*0.24, Math.sin(a)*0.24, 0);
+    ray.rotation.z = a - Math.PI/2;
+    sunburst.add(ray);
+  }
+  throne.add(sunburst);
+  // orb-topped SIDE POSTS
+  for(const s of [-1, 1]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.9, 9), matWood);
+    post.position.set(s*0.72, DAIS + 1.6, -0.85);
+    post.castShadow = true;
+    throne.add(post);
+    for(let r = 0; r < 3; r++){
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.02, 6, 12), matGold);
+      ring.rotation.x = Math.PI/2;
+      ring.position.set(s*0.72, DAIS + 0.7 + r*0.9, -0.85);
+      throne.add(ring);
+    }
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), matGold);
+    orb.position.set(s*0.72, DAIS + 3.12, -0.85);
+    throne.add(orb);
+  }
+
+  // SCROLLED ARMRESTS on turned columns
+  for(const s of [-1, 1]){
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.95), matWood);
+    arm.position.set(s*0.66, DAIS + 1.02, -0.32);
+    arm.castShadow = true;
+    throne.add(arm);
+    const scroll = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.045, 8, 14), matGold);
+    scroll.rotation.y = Math.PI/2;
+    scroll.position.set(s*0.66, DAIS + 1.06, 0.14);
+    throne.add(scroll);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 0.44, 8), matWood);
+    col.position.set(s*0.66, DAIS + 0.76, 0.08);
+    throne.add(col);
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 7), matGold);
+    knee.position.set(s*0.66, DAIS + 0.54, 0.08);
+    throne.add(knee);
+  }
+
+  // LION-PAW feet at the seat corners
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 7), matGold);
+    paw.scale.set(1, 0.7, 1.35);
+    paw.position.set(sx*0.55, DAIS + 0.05, -0.35 + sz*0.42);
+    throne.add(paw);
+  }
+
+  // standing BRAZIERS flanking the dais, with living flames
+  window.__flames = [];
+  for(const s of [-1, 1]){
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.09, 1.5, 8), matWoodDk);
+    stand.position.set(s*2.1, 0.75, 0.6);
+    stand.castShadow = true;
+    throne.add(stand);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.12, 0.2, 10), matGold);
+    bowl.position.set(s*2.1, 1.55, 0.6);
+    throne.add(bowl);
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 7),
+      new THREE.MeshBasicMaterial({ color:0xffa626, transparent:true, opacity:0.92 }));
+    flame.position.set(s*2.1, 1.9, 0.6);
+    throne.add(flame);
+    const glow = new THREE.PointLight(0xff9c3c, 6, 7);
+    glow.position.set(s*2.1, 1.95, 0.6);
+    throne.add(glow);
+    window.__flames.push({ flame, glow, ph: rand(0, 9) });
+  }
+}
+
+// ==========================================================================
+//  THE KING — stand-in Vita in royal purple with the gold crown
+// ==========================================================================
+const king = new THREE.Group();
+const K = {};
+{
+  const purple = new THREE.MeshLambertMaterial({ color:0x9a3fd8 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  K.hips = new THREE.Group();
+  king.add(K.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), purple);
+  barrel.position.y = 0.62; barrel.castShadow = true; K.hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; K.hips.add(head);
+  // the crown: gold band + points + jewels
+  const crown = new THREE.Group();
+  crown.position.y = 1.53;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.21, 0.1, 10, 1, true), matGold);
+  crown.add(band);
+  for(let i = 0; i < 6; i++){
+    const pt = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.12, 5), matGold);
+    const a = (i/6)*Math.PI*2;
+    pt.position.set(Math.cos(a)*0.19, 0.1, Math.sin(a)*0.19);
+    crown.add(pt);
+    if(i % 2 === 0){
+      const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5),
+        new THREE.MeshStandardMaterial({ color:0xd8433c, metalness:0.2, roughness:0.2 }));
+      jewel.position.set(Math.cos(a)*0.205, 0.02, Math.sin(a)*0.205);
+      crown.add(jewel);
+    }
+  }
+  K.hips.add(crown);
+  K.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0.42, 0.02);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x3c3050 }));
+    shin.position.y = -0.24; shin.castShadow = true;
+    leg.add(shin);
+    K.hips.add(leg);
+    K.legs.push(leg);
+  }
+  K.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.95, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.36, 4, 8), purple);
+    limb.position.y = -0.22;
+    arm.add(limb);
+    K.hips.add(arm);
+    K.arms.push(arm);
+  }
+  scene.add(king);
+}
+
+// ==========================================================================
+//  THE SITTING — walk the runner, mount the dais, turn, lower onto the
+//  cushion (arms briefly on the armrests), a little royal settle-shuffle.
+//  Standing runs it backwards, with a push off the arms.
+// ==========================================================================
+let mode = 'sit', phase = 0, seated = false;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === mode) return;
+  mode = m; phase = 0;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+chipBtns[0].classList.add('on');
+
+const SEAT = new THREE.Vector3(0, 1.06, -0.28);   // hips, seated on the cushion
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // brazier flames breathe
+  for(const f of window.__flames){
+    const s = 1 + 0.16*Math.sin(t*11 + f.ph);
+    f.flame.scale.set(s, 1 + 0.24*Math.sin(t*13 + f.ph), s);
+    f.glow.intensity = 5 + Math.sin(t*9 + f.ph)*1.4;
+  }
+
+  phase += dt;
+  if(mode === 'sit'){
+    if(phase < 2.4){                       // the approach up the crimson runner
+      const f = phase / 2.4;
+      seated = false;
+      king.position.set(0, 0, lerp(4.6, 1.1, f));
+      king.rotation.y = Math.PI;           // walking toward the throne (-z)
+      const ph = f * 16;
+      K.legs[0].rotation.x = Math.sin(ph)*0.5;
+      K.legs[1].rotation.x = -Math.sin(ph)*0.5;
+      K.hips.position.y = Math.abs(Math.cos(ph))*0.03;
+      K.hips.rotation.x = 0;
+    } else if(phase < 3.6){                // mounting the two steps
+      const f = smooth((phase - 2.4) / 1.2);
+      king.position.z = lerp(1.1, 0.15, f);
+      king.position.y = lerp(0, 0.44, f);
+      const ph = f * 7;
+      K.legs[0].rotation.x = Math.sin(ph)*0.6;
+      K.legs[1].rotation.x = -Math.sin(ph)*0.6;
+      K.hips.position.y = Math.abs(Math.cos(ph))*0.045;
+    } else if(phase < 4.4){                // the turn to face the hall
+      const f = smooth((phase - 3.6) / 0.8);
+      king.rotation.y = Math.PI + f * Math.PI;
+      king.position.z = lerp(0.15, SEAT.z + 0.34, f);
+      K.legs[0].rotation.x = 0; K.legs[1].rotation.x = 0;
+    } else if(phase < 5.4){                // LOWERING onto the cushion
+      const f = smooth((phase - 4.4) / 1.0);
+      seated = true;
+      king.rotation.y = 2*Math.PI;
+      king.position.y = lerp(0.44, SEAT.y - 0.42, f);
+      king.position.z = lerp(SEAT.z + 0.34, SEAT.z, f);
+      K.legs[0].rotation.x = lerp(0, -1.35, f);
+      K.legs[1].rotation.x = lerp(0, -1.35, f);
+      K.arms[0].rotation.x = lerp(0, -0.5, f);   // hands to the armrests
+      K.arms[1].rotation.x = lerp(0, -0.5, f);
+      K.hips.rotation.x = Math.sin(f*Math.PI) * 0.18;   // the lean-forward of a real sit
+    } else {                               // seated: the royal settle + idle
+      const s2 = Math.min(1, (phase - 5.4) / 0.8);
+      king.position.y = SEAT.y - 0.42 + Math.sin(s2*Math.PI*2)*0.015*(1-s2);  // settle shuffle
+      K.hips.rotation.x = 0;
+      K.hips.position.y = Math.sin(t*1.7)*0.006;        // breathing
+      K.arms[0].rotation.x = -0.5; K.arms[1].rotation.x = -0.5;
+      K.legs[0].rotation.x = -1.35 + Math.sin(t*0.7)*0.02;
+      K.legs[1].rotation.x = -1.35 - Math.sin(t*0.9)*0.02;
+    }
+  } else {   // STAND
+    if(seated && phase < 1.0){             // push up off the arms
+      const f = smooth(phase / 1.0);
+      king.position.y = lerp(SEAT.y - 0.42, 0.44, f);
+      king.position.z = lerp(SEAT.z, SEAT.z + 0.34, f);
+      K.legs[0].rotation.x = lerp(-1.35, 0, f);
+      K.legs[1].rotation.x = lerp(-1.35, 0, f);
+      K.arms[0].rotation.x = lerp(-0.5, 0.25, f);       // the push
+      K.arms[1].rotation.x = lerp(-0.5, 0.25, f);
+      K.hips.rotation.x = Math.sin(f*Math.PI) * 0.2;
+    } else if(phase < 1.8){                // step down the dais
+      seated = false;
+      const f = smooth((phase - 1.0) / 0.8);
+      king.rotation.y = 2*Math.PI;
+      king.position.y = lerp(0.44, 0, f);
+      king.position.z = lerp(SEAT.z + 0.34, 1.2, f);
+      const ph = f * 6;
+      K.legs[0].rotation.x = Math.sin(ph)*0.55;
+      K.legs[1].rotation.x = -Math.sin(ph)*0.55;
+      K.arms[0].rotation.x = 0; K.arms[1].rotation.x = 0;
+    } else if(phase < 4.2){                // and away down the runner
+      const f = (phase - 1.8) / 2.4;
+      king.position.z = lerp(1.2, 4.8, f);
+      const ph = f * 16;
+      K.legs[0].rotation.x = Math.sin(ph)*0.5;
+      K.legs[1].rotation.x = -Math.sin(ph)*0.5;
+      K.hips.position.y = Math.abs(Math.cos(ph))*0.03;
+    } else setMode('sit');                 // …and returns; the loop breathes
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
