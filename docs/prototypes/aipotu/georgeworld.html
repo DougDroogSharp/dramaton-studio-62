@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.73</title>
+<title>George World v0.74</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -299,6 +299,14 @@
   #adobox .conf { position:absolute; top:-16px; width:9px; height:15px; border-radius:2px;
     opacity:.95; pointer-events:none; animation:conffall linear infinite; }
   @keyframes conffall { to { transform:translateY(400px) rotate(720deg); } }
+  /* v0.74 the OBIT CARD — the discovery card's somber twin: dark, quiet,
+     no confetti, no tilt. A death is a big deal too. */
+  #adobox.sad { background:linear-gradient(165deg,#3a4250 0%,#2a3140 55%,#232936 100%);
+    border-color:#8b95a0; box-shadow:0 16px 64px rgba(0,0,0,.6); }
+  #adobox.sad .adokick { color:#c7d0da; text-shadow:none; }
+  #adobox.sad h2 { transform:none; color:#e8eef3; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  #adobox.sad p { color:#cfd6de; text-shadow:none; }
+  #adobox.sad .adosub { color:#9aa4b0; }
   .lever.pulse { animation:levpulse .5s ease 4; }
   @keyframes levpulse { 50% { box-shadow:0 0 18px rgba(95,227,216,.95); } }
   /* ---- NEW GAME / scenario picker ---- */
@@ -376,7 +384,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.73</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.74</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -6021,19 +6029,36 @@ function makeGrave(v){
   const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), matDate);
   bloom.position.set(0.4, 0.72, 0.4);
   g.add(bloom);
-  g.rotation.y = rand(0, Math.PI*2);
+  // v0.74: stones stand in ALIGNED rows now (a whisker of hand-dug jitter),
+  // and a grave is SOLID — walkers steer around it, never through
+  g.rotation.y = Math.PI + rand(-0.05, 0.05);
+  const ob = { x: 0, z: 0, r: 1.35, gate: ()=> !!(v.grave && v.grave.visible) };
+  OBSTACLES.push(ob);
+  v.graveOb = ob;
   scene.add(g);
   v.grave = g;
 }
+// v0.74 THE GRAVEYARD (Doug): the dead lie in NEAT ROWS on one quiet slope,
+// not wherever they fell — first workable spot from the candidate anchors
+const GRAVEYARD = (()=>{
+  for(const [ax, az] of [[-33, 30], [-36, 24], [-28, 36], [-38, 34], [-30, 22]]){
+    const x = ax*WS, z = az*WS;
+    if(terrainH(x, z) > 1.4 && pathDist(x, z) > 5) return { x, z };
+  }
+  return { x: -33*WS, z: 30*WS };
+})();
 // one switch for the whole look of being dead / alive again (restore uses it too)
 function setDeadVisual(v, dead){
   v.group.visible = !dead;
   if(dead){
     makeGrave(v);
-    let gx = v.group.position.x, gz = v.group.position.z;
-    if(terrainH(gx, gz) < 0.3){ gx = v.camp.x; gz = v.camp.z; }   // nobody is buried at sea
+    // v0.74: the next free row slot in the graveyard (a scrub that revives
+    // someone just re-deals the rows — cosmetic, and they stay tidy)
+    const slot = VITAS.filter(w => w !== v && w.state.dead && w.grave && w.grave.visible).length;
+    const gx = GRAVEYARD.x + (slot % 4) * 3.0, gz = GRAVEYARD.z + Math.floor(slot / 4) * 3.4;
     v.grave.position.set(gx, terrainH(gx, gz), gz);
     v.grave.visible = true;
+    if(v.graveOb){ v.graveOb.x = gx; v.graveOb.z = gz; }
   } else if(v.grave) v.grave.visible = false;
   if(v.fire) v.fire.dead = dead;   // the hearth goes cold
   if(v.bubble) v.bubble.visible = v.bubble.visible && !dead;
@@ -6085,6 +6110,21 @@ function die(v){
   if(!v.isBaby && tierOf(v) === 0) funeralQueue.push(v);
   resortRoster();   // the board mourns at once — the name sinks to the bottom
   recordEvent('death', `☠ ${v.name} DIES of starvation`);
+  // v0.74 THE BIG TO-DO (Doug): a death stops the island the way a discovery
+  // does — the somber card, with a little of who they were
+  {
+    const label = (v.tierLabel || 'VITA');
+    const bossN = dukeAbove(v);
+    const days = Math.max(1, dayNow());
+    const bits = [`${label.charAt(0) + label.slice(1).toLowerCase()} of the island, gone on day ${days}.`];
+    if((v.state.totalGained || 0) >= 1) bits.push(`Gathered ${Math.round(v.state.totalGained)} berries in a working life.`);
+    if(bossN) bits.push(`Served under ${bossN.name} to the last.`);
+    bits.push(v.traits.industry > 0.65 ? 'Never once stopped working.'
+      : v.traits.greed > 0.6 ? 'Wanted more than the island ever gave.'
+      : 'Took the days as they came.');
+    if(!v.isBaby && tierOf(v) === 0) bits.push('The serfs will gather at the grave.');
+    showAdo('A DEATH ON THE ISLAND', `${v.name} ✝`, bits.join(' '), 7, null, true);
+  }
   setHint(`☠ ${v.name} has DIED — starved to nothing. The island is smaller tonight`, 9);
   for(const o of VITAS)
     if(o !== v && !o.isBaby && !o.state.dead && !o.state.collapsed &&
@@ -8943,21 +8983,22 @@ function applyTechState(mask){   // scrub/restore path: fold the tree to this mo
 }
 // ---- the ADO: pause the world, superimpose the moment, then play the benefit ----
 const adoboxEl = document.getElementById('adobox');
-function showAdo(kick, title, body, secs, demo){
+function showAdo(kick, title, body, secs, demo, sad){
   cinematic = secs;
   pendingDemo = demo || null;
-  // festive confetti raining down behind the type
+  adoboxEl.className = sad ? 'sad' : '';   // v0.74: the somber twin skips the party
+  // festive confetti raining down behind the type (joyful cards only)
   const CC = ['#ffe066','#7ed957','#5fe3d8','#ff9ad5','#ffffff','#ffb340'];
   let conf = '';
-  for(let i=0;i<18;i++){
+  if(!sad) for(let i=0;i<18;i++){
     conf += `<i class="conf" style="left:${(2+Math.random()*95).toFixed(1)}%;`
       + `background:${CC[i%CC.length]};`
       + `animation-duration:${(2.2+Math.random()*1.9).toFixed(2)}s;`
       + `animation-delay:${(Math.random()*2.4).toFixed(2)}s"></i>`;
   }
   adoboxEl.innerHTML = conf
-    + `<div class="adokick">✦ ${kick} ✦</div><h2>${title}</h2><p>${body}</p>`
-    + `<div class="adosub">🎉 time is paused — tap to continue</div>`;
+    + `<div class="adokick">${sad ? '🕯' : '✦'} ${kick} ${sad ? '🕯' : '✦'}</div><h2>${title}</h2><p>${body}</p>`
+    + `<div class="adosub">${sad ? '🕊' : '🎉'} time is paused — tap to continue</div>`;
   adoboxEl.style.display = 'block';
 }
 function endAdo(){
