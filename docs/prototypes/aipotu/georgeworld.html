@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.64</title>
+<title>George World v0.65</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -372,7 +372,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.64</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.65</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -4388,11 +4388,31 @@ function syncHouseGrandeur(){
     }
   }
 }
+// v0.65 WHO BUILDS WHAT (Doug: building is a BIG DEAL): a duke's projects are
+// raised by HIS OWN serfs — his retinue, nobody else's; the KING'S HALL is
+// raised by ALL serfs, the whole island bending its back for the crown; and
+// the communal lean-to by the unclaimed serfs it will shelter.
+function mayBuild(v, pr){
+  if(pr.kind === 'hall') return true;
+  if(pr.owner) return dukeAbove(v) === pr.owner;
+  return !dukeAbove(v);
+}
+// v0.65: is the signature communal RAISING underway? (the hall has eaten its
+// timber and serf hands are on it) — the scene bar and the director both watch
+function hallRaising(){
+  const hb = buildings.find(b => b.kind === 'hall' && !b.done && b.consumed);
+  if(!hb) return null;
+  return VITAS.some(v => !v.state.dead && v.state.task &&
+    v.state.task.kind === 'construct' && v.state.task.b === hb) ? hb : null;
+}
 // serial construction, bosses first: the duke's house and the king's hall rise
 // while the serfs still sleep on open sand — the extraction, in architecture
 function activeProject(){
   const order = { house:0, hall:1, leanto:2 };
-  return buildings.filter(b => !b.done)
+  // v0.65: a project NOBODY may build (a duke whose retinue emptied) must not
+  // jam the queue — skip it until hands that answer to it exist again
+  return buildings.filter(b => !b.done && VITAS.some(v => !v.isBaby && !v.state.dead &&
+      tierOf(v) === 0 && mayBuild(v, b)))
     .sort((a, b2) => order[a.kind] - order[b2.kind])[0] || null;
 }
 function buildCrew(){
@@ -4460,6 +4480,15 @@ function finishBuilding(b, v){
     ? `🏠 the serfs raise DUKE ${b.owner.name}'s timber house — none of them will sleep in it`
     : `🌿 the serfs raise a palm-frond LEAN-TO — leaky, open-sided, shared, and theirs`);
   if(b.kind === 'leanto') burst(new THREE.Vector3(b.x, terrainH(b.x, b.z) + 2, b.z), 10, 3);
+  // v0.65: the RAISING ends with the whole crew's arms in the air — the one
+  // moment the king's hall belongs to everybody who lifted it
+  if(b.kind === 'hall'){
+    burst(new THREE.Vector3(b.x, terrainH(b.x, b.z) + 5, b.z), 22, 5);
+    for(const w of VITAS)
+      if(!w.state.dead && !w.isBaby && tierOf(w) === 0 &&
+         w.group.position.distanceTo(new THREE.Vector3(b.x, w.group.position.y, b.z)) < 28)
+        setMood(w, 'exult', 3.5);
+  }
   setHint(b.kind === 'hall'
     ? '🏛 the MEAD HALL stands — built by serf hands, for one throne. The weekly COURT can now convene'
     : b.kind === 'house'
@@ -5143,16 +5172,25 @@ function decide(v){
   // your own stomach doing it. Bosses never lift a beam.
   if(hasTech(T_BUILD) && !nightNow && tierOf(v) === 0 && s.hunger < 62 && s.energy > 30){
     const pr = activeProject();
-    if(pr && buildCrew() < 2){
+    // v0.65: only the RIGHT serfs answer a project's call (mayBuild), and the
+    // hall takes EVERY willing hand — the crew cap applies to lesser builds
+    if(pr && mayBuild(v, pr)){
       if(!pr.consumed && lumber < pr.cost){
-        const f = nearestFellable(v);
-        if(f){ f.claim = v; s.task = { kind:'fell', f }; s.prog = null; return; }
-        // v0.63: the depletion bites — a project stands waiting and there is
-        // not a fir left on the island to feed it
-        if(!firsGoneNoted){ firsGoneNoted = true;
-          recordEvent('build', '🪓 a project waits for timber — but not a FIR is left standing. The island\'s wood is spent'); }
-      } else {
-        s.task = { kind:'construct', b: pr }; s.prog = null; return;
+        if(buildCrew() < 2){
+          const f = nearestFellable(v);
+          if(f){ f.claim = v; s.task = { kind:'fell', f }; s.prog = null; return; }
+          // v0.63: the depletion bites — a project stands waiting and there is
+          // not a fir left on the island to feed it
+          if(!firsGoneNoted){ firsGoneNoted = true;
+            recordEvent('build', '🪓 a project waits for timber — but not a FIR is left standing. The island\'s wood is spent'); }
+        }
+      } else if(pr.kind === 'hall' || buildCrew() < 2){
+        if(pr.kind === 'hall' && !pr.raisingAnnounced){
+          pr.raisingAnnounced = true;
+          announce("🏛 THE RAISING — every serf to the king's hill!");
+          recordEvent('build', "🏛 THE RAISING begins — every serf on the island bends a back to lift the KING'S HALL");
+        }
+        s.task = { kind:'construct', b: pr, slot: rand(0, Math.PI*2) }; s.prog = null; return;
       }
     }
   }
@@ -7620,7 +7658,10 @@ function updateVita(v, dt, t){
           b.consumed = true;
           updateLogPile();
         }
-        if(walkToward(v, b.x, b.z + 3.5, dt, t, 3.4)){
+        // v0.65: each builder takes a SLOT on a ring around the site — a hall
+        // crew of everyone reads as a crowd raising one roof, not a dogpile
+        const ra = task.slot ?? (task.slot = rand(0, Math.PI * 2));
+        if(walkToward(v, b.x + Math.cos(ra) * 3.8, b.z + Math.sin(ra) * 3.8, dt, t, 1.6)){
           harvestingPose = true;
           g.rotation.y = Math.atan2(b.x - g.position.x, b.z - g.position.z);
           b.progress = Math.min(1, b.progress + dt / (b.cost * 5));
@@ -8280,6 +8321,7 @@ function updateSceneBar(){
     ? '♛ A PROMOTION CEREMONY — oaths are sworn'
     : meeting.kind === 'squeezed' ? '⛓ THE SQUEEZE COMES DOWN — the duke berates his serfs'
     : '📣 A MEETING — the boss holds forth';
+  else if(hallRaising()) label = "🏛 THE RAISING — the whole island lifts the KING'S HALL";
   else if(drama) label = '⟡ ' + (drama.title || 'A SCENE').toUpperCase();
   else if(expedition) label = "🍍 THE KING'S ERRAND — two serfs climb for the pineapple";
   else if(opening.phase === 'tasting') label = '🫐 THE FIRST TASTE — is it food?';
@@ -10850,6 +10892,8 @@ function pickPOI(prevWasSea){
   if(eruption)   // the sacrifice climb: the island's rarest drama
     return { kind:'vita', v:eruption.duke, d:24, dwell:18 };
   if(meeting) return { kind:'vita', v:meeting.boss, d:19, dwell:15 };   // court in session
+  const hr = hallRaising();   // v0.65: the signature communal raising — hold the shot on the hill
+  if(hr) return { kind:'pos', p0: new THREE.Vector3(hr.x, terrainH(hr.x, hr.z) + 4, hr.z), d:30, dwell:18 };
   if(expedition) return { kind:'pair', a:expedition.w1, b:expedition.w2, d:24, dwell:14 };   // the king's errand
   if(drama) return { kind:'pair', a:drama.a, b:drama.b, d:20 };
   if(poppy.linger > 0)   // the island stopping for its dog is always worth a look
