@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FISH STUDY — the jumping fish of George World's waters.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so the schools can drop into the island's bays.
+
+     Doug's brief: animated JUMPING fish — some SMALL, a FLYING FISH,
+     and MULLET jumping out of the water and swimming under it.
+     Delivered: · a school of little SILVERSIDES that pop in sparkly
+     scatter-jumps · a FLYING FISH that bursts out, spreads its wing-fins
+     and GLIDES a long low arc before slipping back in · fat grey MULLET
+     that porpoise in clumsy belly-flop arcs (the real mullet way) and
+     cruise as a loose school under the surface, visible through the
+     water, tails sculling.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fish Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#cfe6ef; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(14,30,40,0.78); color:#e8f4fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐟 Fish Study</b> — silversides · flying fish · mullet, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · dip BELOW the surface to watch the school</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 41263;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd2e6ee), 60, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(8, 4.5, 12);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 50;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xecf5f8), zenith = new THREE.Color(0x5cabdd),
+        below = new THREE.Color(0x9dc4cf), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf8, 0x5f8fa0, 1.05));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(24, 30, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 20;  sun.shadow.camera.bottom = -20;
+scene.add(sun);
+
+// ---------- the water: translucent surface + a sandy floor ----------------
+let seaSurf;
+{
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(300, 40),
+    new THREE.MeshLambertMaterial({ color:0x8ba892 }));
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -4.5;
+  scene.add(floor);
+  const geo = new THREE.PlaneGeometry(400, 400, 64, 64);
+  geo.rotateX(-Math.PI/2);
+  seaSurf = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color:0x3f8bb5, transparent:true, opacity:0.62, side:THREE.DoubleSide }));
+  scene.add(seaSurf);
+}
+
+// ---------- splash rings ---------------------------------------------------
+const rings = [];
+{
+  for(let i = 0; i < 14; i++){
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.28, 18),
+      new THREE.MeshBasicMaterial({ color:0xeaf6fa, transparent:true, opacity:0, side:THREE.DoubleSide }));
+    m.rotation.x = -Math.PI/2;
+    m.position.y = 0.03;
+    scene.add(m);
+    rings.push({ m, t: 9 });
+  }
+}
+function splash(x, z, big){
+  const r = rings.find(r => r.t > 1.2);
+  if(!r) return;
+  r.t = 0;
+  r.m.position.x = x; r.m.position.z = z;
+  r.m.scale.setScalar(big ? 1.6 : 1);
+}
+
+// ==========================================================================
+//  FISH MAKERS — one lofted body shape, three dressings.
+// ==========================================================================
+function makeFishBody(len, girth, colTop, colBelly, finCol){
+  const g = new THREE.Group();
+  const bodyG = new THREE.SphereGeometry(girth, 10, 8);
+  bodyG.scale(len/girth * 0.5, 0.75, 1);
+  const pos = bodyG.attributes.position, col = [];
+  const top = new THREE.Color(colTop), belly = new THREE.Color(colBelly), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    c.copy(pos.getY(i) > 0 ? top : belly);
+    col.push(c.r, c.g, c.b);
+  }
+  bodyG.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const body = new THREE.Mesh(bodyG, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  body.castShadow = true;
+  g.add(body);
+  // tail fin on its own pivot (sculling)
+  const tail = new THREE.Group();
+  tail.position.x = -len*0.5;
+  const tf = new THREE.Mesh(new THREE.ConeGeometry(girth*0.85, len*0.34, 2),
+    new THREE.MeshLambertMaterial({ color:finCol, side:THREE.DoubleSide }));
+  tf.rotation.z = Math.PI/2;
+  tf.scale.set(1, 1, 0.22);
+  tf.position.x = -len*0.16;
+  tail.add(tf);
+  g.add(tail);
+  const dorsal = new THREE.Mesh(new THREE.ConeGeometry(girth*0.5, len*0.26, 2),
+    new THREE.MeshLambertMaterial({ color:finCol, side:THREE.DoubleSide }));
+  dorsal.scale.set(0.22, 1, 1);
+  dorsal.position.set(-len*0.05, girth*0.7, 0);
+  g.add(dorsal);
+  return { g, tail };
+}
+
+// ---------- the SILVERSIDES: a pool of little sparkly jumpers -------------
+const smalls = [];
+for(let i = 0; i < 12; i++){
+  const f = makeFishBody(0.34, 0.07, 0x9fb8c4, 0xe8f2f4, 0xb7c9d2);
+  f.g.visible = false;
+  scene.add(f.g);
+  smalls.push({ ...f, t: 99, x0:0, z0:0, dx:0, dz:0, h:0, dur:1 });
+}
+let shoalT = 2;   // scatter-jump events come in little showers
+
+// ---------- the FLYING FISH -----------------------------------------------
+const flyer = (() => {
+  const f = makeFishBody(0.62, 0.1, 0x4a7ea8, 0xdceef4, 0x9fc4d8);
+  // the WING fins: long pectorals on pivots, folded in the water
+  const wings = [];
+  for(const s of [-1, 1]){
+    const w = new THREE.Group();
+    w.position.set(0.12, 0, s*0.08);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.72, 2),
+      new THREE.MeshLambertMaterial({ color:0xbfe0ee, transparent:true, opacity:0.85, side:THREE.DoubleSide }));
+    fin.rotation.x = s * Math.PI/2;
+    fin.scale.set(0.16, 1, 1);
+    fin.position.z = s*0.3;
+    w.add(fin);
+    f.g.add(w);
+    wings.push(w);
+  }
+  f.g.visible = false;
+  scene.add(f.g);
+  return { ...f, wings, t: 99, x0:0, z0:0, dirA:0 };
+})();
+let flyerT = 5;
+
+// ---------- the MULLET: fat grey porpoisers + the underwater school -------
+const mullet = [];
+for(let i = 0; i < 7; i++){
+  const f = makeFishBody(0.85, 0.16, 0x6d7d80, 0xcfd8d6, 0x8c9ca0);
+  scene.add(f.g);
+  // school state: cruising positions in a loose ellipse under the surface
+  mullet.push({ ...f, mode:'swim', t: rand(0, 20), jumpT: rand(4, 18),
+    orbA: rand(0, Math.PI*2), orbR: rand(2.2, 4.2), depth: rand(-1.6, -0.7),
+    speed: rand(0.25, 0.4), jx:0, jz:0, jdx:0, jdz:0, jdur:1 });
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ---------- water surface ----------
+  {
+    const pos = seaSurf.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, Math.sin(x*0.45 + t*1.15)*0.06 + Math.sin(z*0.6 + t*0.9)*0.05
+        + Math.sin((x+z)*0.3 + t*1.6)*0.03);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // ---------- splash rings ----------
+  for(const r of rings){
+    if(r.t > 1.2){ r.m.material.opacity = 0; continue; }
+    r.t += dt;
+    r.m.scale.setScalar(r.m.scale.x + dt*3.2);
+    r.m.material.opacity = clamp(0.65 * (1 - r.t/1.2), 0, 1);
+  }
+
+  // ---------- SILVERSIDES: scatter-jump showers ----------
+  shoalT -= dt;
+  if(shoalT <= 0){
+    shoalT = rand(3, 7);
+    // a shower: several littles pop within half a second of each other
+    const cx = rand(-6, 6), cz = rand(-6, 6), n = 3 + Math.floor(rand(0, 5));
+    let launched = 0;
+    for(const s of smalls){
+      if(launched >= n) break;
+      if(s.t < s.dur + 1) continue;
+      launched++;
+      s.t = -rand(0, 0.5);              // staggered pops
+      s.x0 = cx + rand(-1.2, 1.2); s.z0 = cz + rand(-1.2, 1.2);
+      const a = rand(0, Math.PI*2), d = rand(0.6, 1.6);
+      s.dx = Math.cos(a)*d; s.dz = Math.sin(a)*d;
+      s.h = rand(0.5, 1.1);
+      s.dur = rand(0.5, 0.75);
+    }
+  }
+  for(const s of smalls){
+    if(s.t > s.dur){ s.g.visible = false; continue; }
+    s.t += dt;
+    if(s.t < 0) continue;
+    s.g.visible = true;
+    const f = s.t / s.dur;
+    const x = s.x0 + s.dx*f, z = s.z0 + s.dz*f;
+    const y = Math.sin(f*Math.PI) * s.h;
+    s.g.position.set(x, y, z);
+    s.g.rotation.y = Math.atan2(s.dx, s.dz) - Math.PI/2;
+    s.g.rotation.z = lerp(0.9, -0.9, f);          // nose up out, nose down in
+    s.tail.rotation.y = Math.sin(t*30)*0.5;       // frantic little tail
+    if(f > 0.97) splash(x, z, false);
+    if(f < 0.06 && s.t < dt*2) splash(s.x0, s.z0, false);
+  }
+
+  // ---------- the FLYING FISH: burst → long GLIDE → slip back in ----------
+  flyerT -= dt;
+  if(flyerT <= 0 && flyer.t > 9){
+    flyerT = rand(9, 16);
+    flyer.t = 0;
+    flyer.dirA = rand(0, Math.PI*2);
+    flyer.x0 = rand(-5, 5); flyer.z0 = rand(-5, 5);
+    splash(flyer.x0, flyer.z0, true);
+  }
+  if(flyer.t < 9){
+    flyer.t += dt;
+    const T = flyer.t, GLIDE = 4.2;
+    if(T < GLIDE + 0.6){
+      flyer.g.visible = true;
+      const d = T * 3.4;                                   // fast and flat
+      const x = flyer.x0 + Math.cos(flyer.dirA)*d;
+      const z = flyer.z0 + Math.sin(flyer.dirA)*d;
+      // exit climb → skimming glide with two grazing dips → the slip-in
+      let y;
+      if(T < 0.5) y = Math.sin(T/0.5 * Math.PI/2) * 0.9;
+      else if(T < GLIDE) y = 0.9 - (T-0.5)*0.12 + Math.sin((T-0.5)*2.6)*0.12;
+      else y = Math.max(-0.4, 0.5 - (T-GLIDE)*2.2);
+      flyer.g.position.set(x, y, z);
+      flyer.g.rotation.y = Math.atan2(Math.cos(flyer.dirA), Math.sin(flyer.dirA)) - Math.PI/2;
+      flyer.g.rotation.z = T < 0.5 ? 0.55 : T > GLIDE ? -0.5 : 0.04;
+      // wings: folded in the burst, SNAP open for the glide, banking gently
+      const spread = clamp((T - 0.35) / 0.25, 0, 1) * clamp((GLIDE + 0.3 - T) / 0.3, 0, 1);
+      flyer.wings[0].rotation.x = lerp(1.2, 0.12 + Math.sin(t*3)*0.06, spread);
+      flyer.wings[1].rotation.x = lerp(-1.2, -0.12 - Math.sin(t*3)*0.06, spread);
+      flyer.tail.rotation.y = T < 0.5 || T > GLIDE ? Math.sin(t*34)*0.6 : Math.sin(t*2)*0.08;
+      if(T > GLIDE + 0.45){ splash(x, z, true); flyer.t = 99; flyer.g.visible = false; }
+    }
+  }
+
+  // ---------- the MULLET: underwater cruising + clumsy belly-flop arcs ----
+  for(const m of mullet){
+    if(m.mode === 'swim'){
+      m.orbA += dt * m.speed;
+      const x = Math.cos(m.orbA) * m.orbR;
+      const z = Math.sin(m.orbA) * m.orbR * 0.72;
+      m.g.position.set(x, m.depth + Math.sin(t*0.9 + m.orbA*3)*0.12, z);
+      m.g.rotation.y = Math.atan2(-Math.sin(m.orbA), Math.cos(m.orbA)*0.72) - Math.PI/2 + Math.PI;
+      m.g.rotation.z = 0;
+      m.tail.rotation.y = Math.sin(t*7 + m.orbA*5)*0.4;   // the steady scull
+      m.jumpT -= dt;
+      if(m.jumpT <= 0){
+        m.mode = 'jump'; m.t = 0;
+        m.jx = x; m.jz = z;
+        const a = m.orbA + Math.PI/2 + rand(-0.4, 0.4);
+        const d = rand(1.2, 2.2);
+        m.jdx = Math.cos(a)*d; m.jdz = Math.sin(a)*d;
+        m.jdur = rand(0.85, 1.1);
+        splash(x, z, true);
+      }
+    } else {
+      m.t += dt;
+      const f = m.t / m.jdur;
+      if(f >= 1){
+        m.mode = 'swim';
+        m.jumpT = rand(6, 22);
+        splash(m.g.position.x, m.g.position.z, true);   // the famous SMACK
+        m.orbA = Math.atan2(m.g.position.z / 0.72, m.g.position.x);
+        continue;
+      }
+      const x = m.jx + m.jdx*f, z = m.jz + m.jdz*f;
+      const y = Math.sin(f*Math.PI) * 1.15 + m.depth * (1 - Math.sin(f*Math.PI));
+      m.g.position.set(x, Math.max(y, m.depth), z);
+      m.g.rotation.y = Math.atan2(m.jdx, m.jdz) - Math.PI/2;
+      // the mullet way: launches clean, then FLOPS — rolls half onto a side
+      m.g.rotation.z = lerp(0.8, -1.1, f);
+      m.g.rotation.x = Math.sin(f*Math.PI) * 0.5;       // the sideways lean-over
+      m.tail.rotation.y = Math.sin(t*26)*0.45;          // wagging all the way
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
