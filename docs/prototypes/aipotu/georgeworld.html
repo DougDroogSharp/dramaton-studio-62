@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.75</title>
+<title>George World v0.76</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -384,7 +384,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.75</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.76</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -7866,20 +7866,37 @@ function updateVita(v, dt, t){
     const f = harvestingPose ? 1.1 : v.walking ? 0.6 : 0.22;
     s.energy = Math.max(0, s.energy - (dt / cycleLen) * 100 * f * (1 - 0.3 * frail));
   }
-  // lie down to sleep, rise when it ends
+  // lie down to sleep, rise when it ends.
+  // v0.76 REAL SLEEP POSES (Doug): a sleeper goes all the way DOWN — most lie
+  // FLAT on one side (either side), some flat on their BACKS. Pose assigned
+  // on falling asleep, cleared (and limbs tidied) on rising.
   if(!v.isBaby && !s.collapsed){
-    const targZ = v.sleeping ? 1.35 : 0;
+    if(v.sleeping && !v.sleepPose)
+      v.sleepPose = Math.random() < 0.3 ? 'back' : (Math.random() < 0.5 ? 'sideL' : 'sideR');
+    if(!v.sleeping && v.sleepPose){
+      v.sleepPose = null;
+      parts.armL.rotation.z = -0.12; parts.armR.rotation.z = 0.12;
+      parts.legL.rotation.z = parts.legR.rotation.z = 0;
+    }
+    const targZ = !v.sleeping ? 0 : v.sleepPose === 'back' ? 0 : v.sleepPose === 'sideL' ? 1.52 : -1.52;
     if(Math.abs(g.rotation.z - targZ) > 0.01)
       g.rotation.z += (targZ - g.rotation.z) * Math.min(1, dt*3);
   }
   // the BOW: a real bend from the waist — pitch forward, hold, rise.
   // Used by the promotion ceremony oaths and the weekly court cascade.
+  // (v0.76: rotation.x is shared with the on-the-back sleeper — the bow wins
+  // when active, the sleep pose otherwise, and it eases back to upright.)
   if(v.bow){
     v.bow.t += dt;
     const f = v.bow.t / v.bow.dur;
     if(f >= 1){ v.bow = null; g.rotation.x = 0; }
     else g.rotation.x = Math.pow(Math.sin(Math.min(1, f) * Math.PI), 0.7) * 0.62;
-  } else if(g.rotation.x !== 0) g.rotation.x = 0;
+  } else if(v.sleeping && v.sleepPose === 'back'){
+    g.rotation.x += (-1.5 - g.rotation.x) * Math.min(1, dt*3);
+  } else if(g.rotation.x !== 0){
+    g.rotation.x = Math.abs(g.rotation.x) < 0.02 ? 0
+      : g.rotation.x - g.rotation.x * Math.min(1, dt*3);
+  }
 
   if(v.surfing){
     g.position.y = 0.55 + Math.sin(simT*9 + g.position.x) * 0.16;   // riding the face of the wave
@@ -7888,7 +7905,10 @@ function updateVita(v, dt, t){
     // INTO the analytic height so the soles meet the rendered ground even
     // where the terrain mesh's triangles dip under terrainH() on a slope
     g.position.y = terrainH(g.position.x, g.position.z) - 0.09;
-    g.position.y += 0.4 * Math.min(1, Math.abs(g.rotation.z) / 1.4);   // lying down (sleep/collapse)
+    // v0.76: a lying body rests its SIDE (or back) against the ground — the
+    // old +0.4 hover is gone; just enough lift for the body's half-depth
+    g.position.y += 0.30 * Math.min(1, Math.abs(g.rotation.z) / 1.5);
+    if(v.sleepPose === 'back') g.position.y += 0.26 * Math.min(1, Math.abs(g.rotation.x) / 1.5);
   }
   if(s.mood && s.mood.state === 'exult' && v.moodJump)
     g.position.y += Math.abs(Math.sin(s.mood.t * 9)) * 1.1;
@@ -7934,6 +7954,28 @@ function updateVita(v, dt, t){
     parts.legL.rotation.x = parts.legR.rotation.x = 0;
     parts.hips.position.y = 0.55; parts.hips.rotation.z = 0;
     parts.dress.rotation.x = 0.06;
+    parts.headGrp.rotation.y = 0; parts.headGrp.rotation.z = 0;
+  } else if(v.sleeping && v.sleepPose){
+    // v0.76 the SLEEPER'S LIMBS: legs staggered (top knee drawn up, bottom leg
+    // long — never stacked parallel), arms out in FRONT of the body (never
+    // slept on), back-sleepers sprawled open. A slow breath moves the chest.
+    const br = Math.sin(t*1.6 + g.position.x) * 0.03;
+    if(v.sleepPose === 'back'){
+      parts.legL.rotation.x = 0.28; parts.legR.rotation.x = 0.08;
+      parts.legL.rotation.z = 0.16; parts.legR.rotation.z = -0.14;
+      parts.armL.rotation.x = 0.12; parts.armR.rotation.x = 0.18;
+      parts.armL.rotation.z = -0.6; parts.armR.rotation.z = 0.55;
+    } else {
+      const top = v.sleepPose === 'sideL' ? 1 : -1;   // which leg is uppermost
+      parts.legL.rotation.x = top > 0 ? 0.62 : 0.12;
+      parts.legR.rotation.x = top > 0 ? 0.12 : 0.62;
+      parts.legL.rotation.z = parts.legR.rotation.z = 0;
+      parts.armL.rotation.x = -0.85; parts.armR.rotation.x = -0.5;
+      parts.armL.rotation.z = -0.08; parts.armR.rotation.z = 0.12;
+    }
+    parts.elL.rotation.x = parts.elR.rotation.x = -0.5;
+    parts.hips.position.y = 0.55; parts.hips.rotation.z = 0;
+    parts.dress.rotation.x = br;
     parts.headGrp.rotation.y = 0; parts.headGrp.rotation.z = 0;
   } else {
     // idle — the friendly breathing bob, a wandering gaze
