@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     HORSE STUDY — an APPALOOSA, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeHorse()/updateHorse() can drop straight in later.
+
+     The breed, done properly: BLANKET APPALOOSA — warm bay body with a
+     WHITE BLANKET over croup and hindquarters carrying dark egg-spots
+     (painted canvas), thin sparse mane and tail (a breed trait), STRIPED
+     HOOVES (another), narrow white face blaze, white sclera at the eye.
+
+     GAITS + BEATS (Doug's brief): WALK (4-beat), CANTER (3-beat rock with
+     a lead), GALLOP (flat-out, stretched, streaming tail), REAR-UP on the
+     hind legs, and the TREAT DIP — head reaches forward-and-down to lip a
+     berry off a stand-in Vita's open hand.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horse Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e8e6d4; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,24,18,0.78); color:#f2eee2;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#7a5434; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#976a42; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+  #chip label { font-size:12px; opacity:0.85; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐴 Horse Study</b> — blanket Appaloosa, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="walk">Walk</button><button data-m="canter">Canter</button><button
+    data-m="gallop">Gallop</button><button data-m="rear">Rear up</button><button
+    data-m="treat">Treat</button><br>
+  <label><input id="tour" type="checkbox" checked> auto-tour</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 86753091;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe6e4d1), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(7.5, 4, 10);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.3, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 46;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f1e0), zenith = new THREE.Color(0x76b2e0),
+        below = new THREE.Color(0xdcd9c4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb4a67e, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(26, 32, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 16;  sun.shadow.camera.bottom = -16;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 100;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground: a dry-grass paddock -----------------------------------
+{
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xc9c084 }));
+  grass.rotation.x = -Math.PI/2;
+  grass.receiveShadow = true;
+  scene.add(grass);
+  const track = new THREE.Mesh(new THREE.RingGeometry(6.4, 8.6, 48),
+    new THREE.MeshLambertMaterial({ color:0xbfae74 }));
+  track.rotation.x = -Math.PI/2;
+  track.position.y = 0.01;
+  scene.add(track);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+  for(let i=0;i<24;i++){
+    const a = rand(0, Math.PI*2), r = rand(10, 32);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.14,0.22), rand(0.4,0.8), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.2, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ---------- the stand-in Vita, holding out the TREAT ----------------------
+const vita = new THREE.Group();
+let treatHand, treatBerry;
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0xc9a85c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xffd9b3 });
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 6, 12), dress);
+  barrel.position.y = 0.75; barrel.castShadow = true; vita.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), skin);
+  head.position.y = 1.5; head.castShadow = true; vita.add(head);
+  for(const s of [-1,1]){
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    leg.position.set(s*0.15, 0.28, 0);
+    vita.add(leg);
+  }
+  // the offered hand, palm up, berry on it
+  treatHand = new THREE.Group();
+  treatHand.position.set(0, 1.0, 0.3);
+  const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.44, 4, 8), skin);
+  arm.rotation.x = 1.35;
+  arm.position.z = 0.2;
+  treatHand.add(arm);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 7), skin);
+  palm.scale.set(1.2, 0.5, 1.2);
+  palm.position.z = 0.44;
+  treatHand.add(palm);
+  treatBerry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 7),
+    new THREE.MeshLambertMaterial({ color:0xd8433c }));
+  treatBerry.position.set(0, 0.07, 0.44);
+  treatHand.add(treatBerry);
+  vita.add(treatHand);
+  vita.position.set(3.2, 0, 2.2);
+  scene.add(vita);
+}
+
+// ==========================================================================
+//  THE COAT — blanket appaloosa: warm bay everywhere, and over the croup a
+//  WHITE BLANKET carrying dark egg-spots (painted canvas on the rump mesh).
+// ==========================================================================
+function blanketTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#f2ede2'; g.fillRect(0, 0, 256, 256);
+  for(let i = 0; i < 26; i++){
+    const x = rand(15, 241), y = rand(15, 241), r = rand(6, 17);
+    g.fillStyle = Math.random() < 0.6 ? '#4a3020' : '#63402a';
+    g.beginPath();
+    g.ellipse(x, y, r, r*rand(0.75, 1.1), rand(0, 3), 0, Math.PI*2);
+    g.fill();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const BAY = 0x77492a, BAY_DK = 0x5d3820, POINTS = 0x2c1c10;   // dark mane/tail/lower legs
+const matBay = new THREE.MeshLambertMaterial({ color:BAY });
+const matBayDk = new THREE.MeshLambertMaterial({ color:BAY_DK });
+const matPoints = new THREE.MeshLambertMaterial({ color:POINTS });
+const matBlanket = new THREE.MeshLambertMaterial({ map: blanketTexture() });
+const matWhite = new THREE.MeshLambertMaterial({ color:0xf2ede2 });
+const matDark = new THREE.MeshLambertMaterial({ color:0x1a140e });
+
+// ==========================================================================
+//  THE HORSE — withers ~2.1 high. Nose = +Z. Three-joint legs.
+// ==========================================================================
+const horse = new THREE.Group();
+scene.add(horse);
+const H = {};
+
+// body: barrel + chest + the spotted croup
+{
+  H.body = new THREE.Group();
+  H.body.position.y = 1.62;
+  horse.add(H.body);
+  const barrelG = new THREE.CapsuleGeometry(0.52, 1.15, 10, 16);
+  barrelG.rotateX(Math.PI/2);
+  barrelG.scale(0.9, 1, 1);
+  const barrel = new THREE.Mesh(barrelG, matBay);
+  barrel.castShadow = true;
+  H.body.add(barrel);
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.48, 12, 10), matBayDk);
+  chest.scale.set(0.85, 1.05, 1);
+  chest.position.set(0, -0.06, 0.62);
+  chest.castShadow = true;
+  H.body.add(chest);
+  // the CROUP — rounded hindquarters wearing the spotted white blanket
+  const croupG = new THREE.SphereGeometry(0.52, 14, 12);
+  croupG.scale(0.92, 0.98, 1.25);
+  const croup = new THREE.Mesh(croupG, matBlanket);
+  croup.position.set(0, 0.05, -0.62);
+  croup.castShadow = true;
+  H.body.add(croup);
+}
+
+// neck + head
+{
+  H.neck = new THREE.Group();
+  H.neck.position.set(0, 0.32, 0.85);
+  H.body.add(H.neck);
+  const neckG = new THREE.CylinderGeometry(0.17, 0.30, 0.95, 10);
+  neckG.rotateX(0.75);
+  neckG.translate(0, 0.38, 0.14);
+  const neck = new THREE.Mesh(neckG, matBay);
+  neck.castShadow = true;
+  H.neck.add(neck);
+
+  H.head = new THREE.Group();
+  H.head.position.set(0, 0.78, 0.36);
+  H.neck.add(H.head);
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.38), matBay);
+  skull.castShadow = true;
+  H.head.add(skull);
+  const muzzleG = new THREE.CylinderGeometry(0.10, 0.14, 0.42, 8);
+  muzzleG.rotateX(Math.PI/2 - 0.35);
+  const muzzle = new THREE.Mesh(muzzleG, matBayDk);
+  muzzle.position.set(0, -0.14, 0.32);
+  muzzle.castShadow = true;
+  H.head.add(muzzle);
+  // narrow white BLAZE down the face
+  const blaze = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.32, 0.05), matWhite);
+  blaze.position.set(0, -0.03, 0.21);
+  blaze.rotation.x = -0.5;
+  H.head.add(blaze);
+  // soft dark nose + nostrils
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), matDark);
+  nose.scale.set(1.1, 0.8, 0.7);
+  nose.position.set(0, -0.26, 0.5);
+  H.head.add(nose);
+  // eyes with the appaloosa's visible WHITE SCLERA
+  for(const s of [-1, 1]){
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 7), matWhite);
+    sclera.position.set(s*0.16, 0.05, 0.11);
+    H.head.add(sclera);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.034, 8, 6),
+      new THREE.MeshLambertMaterial({ color:0x33231a }));
+    iris.position.set(s*0.185, 0.05, 0.13);
+    H.head.add(iris);
+  }
+  // small mobile ears
+  H.ears = [];
+  for(const s of [-1, 1]){
+    const ear = new THREE.Group();
+    ear.position.set(s*0.12, 0.22, -0.05);
+    const eG = new THREE.ConeGeometry(0.055, 0.18, 6);
+    eG.translate(0, 0.09, 0);
+    ear.add(new THREE.Mesh(eG, matBay));
+    ear.rotation.z = s * -0.15;
+    H.head.add(ear);
+    H.ears.push(ear);
+  }
+  // the THIN appaloosa mane: a sparse row of dark wisps along the crest
+  for(let i = 0; i < 7; i++){
+    const wisp = new THREE.Mesh(new THREE.ConeGeometry(0.045, rand(0.2, 0.3), 5), matPoints);
+    wisp.position.set(rand(-0.02, 0.02), 0.42 + i*0.09, 0.3 - i*0.115);
+    wisp.rotation.x = 2.6;
+    H.neck.add(wisp);
+  }
+  const forelock = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 5), matPoints);
+  forelock.position.set(0, 0.16, 0.16);
+  forelock.rotation.x = 2.4;
+  H.head.add(forelock);
+}
+
+// the thin TAIL: 3-segment chain, dark
+{
+  H.tail = [];
+  let parent = H.body, py = 0.28, pz = -1.05;
+  for(let i = 0; i < 3; i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gG = new THREE.CapsuleGeometry(0.05 - i*0.012, 0.3, 4, 7);
+    gG.translate(0, -0.18, 0);
+    const m = new THREE.Mesh(gG, matPoints);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    H.tail.push(seg);
+    parent = seg; py = -0.34; pz = 0;
+  }
+  H.tail[0].rotation.x = 0.5;
+}
+
+// legs: shoulder/hip → knee/hock → fetlock+STRIPED hoof
+H.legs = [];
+function makeHorseLeg(x, z, isFront){
+  const hip = new THREE.Group();
+  hip.position.set(x, -0.28, z);
+  H.body.add(hip);
+  const upG = new THREE.CylinderGeometry(0.12, 0.09, 0.55, 8);
+  upG.translate(0, -0.26, 0);
+  const up = new THREE.Mesh(upG, matBayDk);
+  up.castShadow = true;
+  hip.add(up);
+  const knee = new THREE.Group();
+  knee.position.y = -0.54;
+  hip.add(knee);
+  const lowG = new THREE.CylinderGeometry(0.07, 0.055, 0.5, 8);
+  lowG.translate(0, -0.24, 0);
+  const low = new THREE.Mesh(lowG, matPoints);   // dark points, breed-true
+  low.castShadow = true;
+  knee.add(low);
+  const foot = new THREE.Group();
+  foot.position.y = -0.5;
+  knee.add(foot);
+  // the STRIPED appaloosa hoof: alternating light/dark rings
+  for(let i = 0; i < 3; i++){
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.082, 0.045, 8),
+      i % 2 ? matWhite : matDark);
+    ring.position.y = -0.05 - i * 0.045;
+    ring.castShadow = true;
+    foot.add(ring);
+  }
+  const leg = { hip, knee, foot, isFront };
+  H.legs.push(leg);
+  return leg;
+}
+makeHorseLeg(-0.3,  0.62, true);
+makeHorseLeg( 0.3,  0.62, true);
+makeHorseLeg(-0.32, -0.68, false);
+makeHorseLeg( 0.32, -0.68, false);
+
+// ==========================================================================
+//  GAITS — footfall phase offsets per gait (fractions of the cycle):
+//  WALK   4-beat: LH, LF, RH, RF evenly spaced. Steady, head nods.
+//  CANTER 3-beat + suspension: outside hind · inside hind + outside fore
+//         together · inside fore (the lead). The body ROCKS.
+//  GALLOP 4-beat, flat and fast: hinds together-ish then fores, big air,
+//         neck stretched, tail streaming.
+// ==========================================================================
+// leg order: [FL, FR, BL, BR]
+const GAITS = {
+  walk:   { freq: 2.4,  speed: 1.3, amp: 0.42, off: [0.5, 0.0, 0.75, 0.25], bob: 0.03, rock: 0.02, stretch: 0 },
+  canter: { freq: 3.4,  speed: 3.2, amp: 0.62, off: [0.6, 0.3, 0.9, 0.6], bob: 0.07, rock: 0.09, stretch: 0.2 },
+  gallop: { freq: 4.6,  speed: 5.4, amp: 0.78, off: [0.55, 0.4, 0.05, 0.92], bob: 0.1, rock: 0.13, stretch: 0.55 },
+};
+
+let mode = 'walk';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  document.getElementById('tour').checked = false;
+  setMode(b.dataset.m);
+}));
+setMode('walk');
+const TOUR = ['walk', 'canter', 'gallop', 'walk', 'treat', 'rear'];
+let tourI = 0, tourT = 8;
+
+const TRACK_R = 7.5;
+let trackA = 0, dist = 0, speed = 0, rearF = 0, treatF = 0, gaitF = 0;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if(document.getElementById('tour').checked){
+    tourT -= dt;
+    if(tourT <= 0){
+      tourI = (tourI + 1) % TOUR.length;
+      setMode(TOUR[tourI]);
+      tourT = TOUR[tourI] === 'gallop' ? 9 : TOUR[tourI] === 'treat' ? 8 : 7;
+    }
+  }
+
+  const gait = GAITS[mode];
+  const wantSpeed = gait ? gait.speed : 0;
+  speed = lerp(speed, wantSpeed, Math.min(1, dt*1.6));
+  rearF = lerp(rearF, mode === 'rear' ? 1 : 0, Math.min(1, dt*2.6));
+  treatF = lerp(treatF, mode === 'treat' ? 1 : 0, Math.min(1, dt*2.4));
+  gaitF = lerp(gaitF, gait ? 1 : 0, Math.min(1, dt*3));
+
+  // ---------- travel ----------
+  dist += speed * dt;
+  if(gait){
+    trackA += speed * dt / TRACK_R;
+    horse.position.set(Math.cos(trackA)*TRACK_R, 0, -Math.sin(trackA)*TRACK_R);
+    horse.rotation.y = trackA;
+    // a lean into the bend at speed
+    horse.rotation.z = -speed * 0.02;
+  } else if(mode === 'treat'){
+    // walk up to the Vita's open hand, then stand
+    const stand = new THREE.Vector3(vita.position.x - 2.05, 0, vita.position.z - 0.4);
+    horse.position.lerp(stand, Math.min(1, dt*1.6));
+    const want = Math.atan2(vita.position.x - horse.position.x, vita.position.z - horse.position.z);
+    horse.rotation.y += (want - horse.rotation.y) * Math.min(1, dt*2.5);
+    horse.rotation.z = lerp(horse.rotation.z, 0, dt*3);
+  } else {
+    horse.rotation.z = lerp(horse.rotation.z, 0, dt*3);
+  }
+
+  // ---------- gait cycle ----------
+  const cyc = dist * (gait ? gait.freq : 3) / Math.max(0.4, speed || 1);
+  const air = gait ? Math.max(0, Math.sin(cyc*Math.PI*2*0.5)) * gait.bob * (speed/ (gait.speed||1)) : 0;
+
+  // body: bob + canter/gallop rock + rear pitch
+  H.body.position.y = 1.62 + air - rearF*0.12 + rearF*0.75;
+  H.body.rotation.x = (gait ? Math.sin(cyc*Math.PI*2)*gait.rock : 0) - rearF*1.05;
+  // neck: gait stretch, rear toss, treat dip
+  H.neck.rotation.x = (gait ? gait.stretch*0.5 * (speed/gait.speed) : 0)
+    - rearF*0.35
+    + treatF*0.85;
+  H.head.rotation.x = (gait ? -gait.stretch*0.3 : 0)
+    + rearF*0.15
+    + treatF*0.55
+    + (mode === 'walk' ? Math.sin(cyc*Math.PI*2)*0.06 : 0)   // the walking nod
+    + (mode === 'treat' ? Math.sin(t*7)*0.04*treatF : 0);    // nibbling lips
+  // ears: forward at the treat, flicking otherwise
+  H.ears[0].rotation.x = treatF*0.35 + Math.sin(t*1.3)*0.08;
+  H.ears[1].rotation.x = treatF*0.35 + Math.sin(t*1.7 + 2)*0.08;
+
+  // the berry disappears while the muzzle is down on the hand
+  treatBerry.visible = treatF < 0.85;
+
+  // tail: streams at speed, swishes at rest, lifts in the rear
+  const stream = gait ? clamp(speed/5, 0, 1)*gait.stretch : 0;
+  H.tail[0].rotation.x = 0.5 + stream*0.9 + rearF*0.3;
+  H.tail[1].rotation.x = -0.25 + stream*0.5;
+  H.tail[2].rotation.x = -0.2 + stream*0.35;
+  H.tail[0].rotation.y = Math.sin(t*1.9)*0.18*(1-stream);
+  H.tail[1].rotation.y = Math.sin(t*1.9 + 1)*0.25*(1-stream);
+
+  // ---------- legs ----------
+  H.legs.forEach((leg, i) => {
+    let hip = 0, knee = 0, foot = 0;
+    if(gait && gaitF > 0.05){
+      const ph = (cyc + gait.off[i]) * Math.PI*2;
+      const swing = Math.sin(ph);
+      const liftPh = Math.max(0, -Math.sin(ph));   // protraction half
+      hip = swing * gait.amp * (leg.isFront ? 1 : 0.85);
+      knee = leg.isFront ? liftPh * 1.1 : -liftPh * 0.95;   // knees fold forward, hocks fold back
+      foot = leg.isFront ? liftPh * 0.5 : liftPh * 0.4;
+    }
+    if(rearF > 0.02){
+      if(leg.isFront){
+        // forelegs tucked and PADDLING in the rear
+        hip = -1.5*rearF + Math.sin(t*6.5 + i*2.4)*0.3*rearF;
+        knee = 1.5*rearF;
+      } else {
+        hip = 0.8*rearF;
+        knee = -0.55*rearF;
+      }
+    }
+    if(treatF > 0.02 && !leg.isFront){
+      hip += 0.06*treatF;   // weight shifts back a touch as the head goes down
+    }
+    leg.hip.rotation.x = lerp(leg.hip.rotation.x, hip, Math.min(1, dt*(gait?26:6)));
+    leg.knee.rotation.x = lerp(leg.knee.rotation.x, knee, Math.min(1, dt*(gait?26:6)));
+    leg.foot.rotation.x = lerp(leg.foot.rotation.x, foot, Math.min(1, dt*(gait?26:6)));
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
