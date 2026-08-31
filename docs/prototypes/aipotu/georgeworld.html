@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.63</title>
+<title>George World v0.64</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -372,7 +372,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.63</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.64</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -6023,6 +6023,8 @@ function die(v){
   if(v.elitePlot !== null && v.elitePlot !== undefined){ plotOwners[v.elitePlot] = null; v.elitePlot = null; }
   v.bubble.visible = false;
   setDeadVisual(v, true);
+  // v0.64: a dead SERF gets a funeral — the serfs will gather come daylight
+  if(!v.isBaby && tierOf(v) === 0) funeralQueue.push(v);
   resortRoster();   // the board mourns at once — the name sinks to the bottom
   recordEvent('death', `☠ ${v.name} DIES of starvation`);
   setHint(`☠ ${v.name} has DIED — starved to nothing. The island is smaller tonight`, 9);
@@ -6042,6 +6044,42 @@ function die(v){
 // proclaimed and each subordinate swears the oath — obedience made ritual.
 let meeting = null;   // {type:'meeting'|'ceremony', boss, kind, subs, subs0, phase, t, total, bi, beatDur, lastSpeaker}
 const ceremonyQueue = [];
+// ---- v0.64 THE FUNERAL (serfs-only, DESIGN 08-31): when a serf dies, the
+// serfs gather at the grave — heads bowed, a few quiet words — and the
+// Dukes and the King NEVER come. One rite at a time; a night death waits
+// for dawn. Transient state: a rewind simply dissolves or repeats the rite.
+const funeralQueue = [];
+let funeral = null;   // { dead, attendees, t }
+function updateFuneral(simDt){
+  if(funeral){
+    funeral.t -= simDt;
+    const live = funeral.attendees.some(w => !w.state.dead && w.state.task && w.state.task.kind === 'funeral');
+    if(funeral.t <= 0 || !live){
+      for(const w of funeral.attendees)
+        if(w.state.task && w.state.task.kind === 'funeral') w.state.task = { kind:'idle', t: rand(1, 2.5) };
+      funeral = null;
+    }
+    return;
+  }
+  if(!funeralQueue.length || nightNow) return;
+  const dead = funeralQueue.shift();
+  if(!dead.state.dead || !dead.grave || !dead.grave.visible) return;   // rewound past the death — no rite
+  const gp = dead.grave.position;
+  const mourners = VITAS.filter(w => !w.isBaby && !w.state.dead && !w.state.collapsed &&
+    tierOf(w) === 0 && !w.inMeeting && !w.sleeping &&
+    (!w.state.task || ['idle', 'harvest', 'chore'].includes(w.state.task.kind)))
+    .sort((p, q) => p.group.position.distanceTo(gp) - q.group.position.distanceTo(gp))
+    .slice(0, 4);
+  if(mourners.length < 2) return;   // not enough serfs left to mourn — the grimmest quiet
+  mourners.forEach((w, i) => {
+    const a2 = (i / mourners.length) * Math.PI * 2 + 0.7;
+    w.state.task = { kind:'funeral', gx: gp.x + Math.cos(a2)*2.6, gz: gp.z + Math.sin(a2)*2.6,
+      fx: gp.x, fz: gp.z, t: rand(14, 20), spoke: false, bowed: false };
+    w.state.prog = null;
+  });
+  funeral = { dead, attendees: mourners, t: 45 };
+  recordEvent('death', `🕊 the serfs gather at ${dead.name}'s grave — the Dukes do not come. They never do`);
+}
 function setBow(v, dur){
   if(v.state.dead || v.state.collapsed || v.sleeping) return;
   v.bow = { t: 0, dur: dur || 2.4 };
@@ -6385,6 +6423,17 @@ function poolBeats(cat, a, b, faces, first = 'a', subjectB){
   return beats;
 }
 
+// v0.64: who's on the rise? The talked-about Vita of the forming_gossip —
+// most claims held, greed breaking ties, never one of the two talkers
+function risingVita(a, b){
+  let best = null;
+  for(const x of VITAS){
+    if(x === a || x === b || x.isBaby || x.state.dead || !x.links.springing.length) continue;
+    if(!best || x.links.springing.length > best.links.springing.length ||
+       (x.links.springing.length === best.links.springing.length && x.traits.greed > best.traits.greed)) best = x;
+  }
+  return best;
+}
 const SCENE_DEFS = {
   squeeze: {
     title: 'THE SQUEEZE', cd: 35,
@@ -6423,6 +6472,43 @@ const SCENE_DEFS = {
   // ---- AMBIENT scenes: no link needed — nearby Vitas just TALK, everything
   // drawn from the GW_DIALOGUE pool: small talk, gossip about a third Vita,
   // and the benefit of a fresh discovery narrated out loud.
+  // v0.64: the specific social scenes come FIRST in the literal — AMBIENT_IDS
+  // keeps insertion order and the first match wins, so deference/grumbling/
+  // forming-talk outrank generic smalltalk when their conditions hold.
+  serf_deference: {
+    title: 'THE DEFERENCE', cd: 90, ambient: true,
+    why(a, b){ return `KEYED BY · ${a.name} (serf) within earshot of ${b.name} (hat ${b.hatLevel}) — submission is the safe voice`; },
+    script(a, b){ return poolBeats('serf_deference', a, b, ['working', 'smug']); },
+    match(a, b){ return tierOf(a) === 0 && tierOf(b) >= 1; },
+  },
+  leader_gossip: {
+    title: 'THE GRUMBLE', cd: 130, ambient: true,
+    why(a, b){ return `KEYED BY · two serfs out of their betters' earshot — the only free speech on the island`; },
+    script(a, b){
+      const lords = VITAS.filter(x => !x.state.dead && tierOf(x) >= 1)
+        .sort((p, q) => q.hatLevel - p.hatLevel);
+      return lords.length ? poolBeats('leader_gossip', a, b, ['peckish', 'working'], 'a', lords[0].name) : [];
+    },
+    match(a, b){
+      if(tierOf(a) !== 0 || tierOf(b) !== 0) return false;
+      if(!VITAS.some(x => !x.state.dead && tierOf(x) >= 1)) return false;
+      // BEHIND THEIR BACKS: no duke or king close enough to hear
+      return !VITAS.some(x => !x.state.dead && tierOf(x) >= 1 &&
+        x.group.position.distanceTo(a.group.position) < 16);
+    },
+  },
+  forming_gossip: {
+    title: 'THE FORMING', cd: 120, ambient: true,
+    why(a, b){ return `KEYED BY · claims accumulating while no crown exists — the society's shape still soft, and everyone can feel it`; },
+    script(a, b){
+      const r = risingVita(a, b);
+      return r ? poolBeats('forming_gossip', a, b, ['peckish', 'content'], 'a', r.name) : [];
+    },
+    match(a, b){
+      // only while the hierarchy is FORMING: nobody crowned yet, someone rising
+      return !VITAS.some(x => !x.state.dead && tierOf(x) === 2) && !!risingVita(a, b);
+    },
+  },
   smalltalk: {
     title: 'SMALL TALK', cd: 70, ambient: true,
     why(a, b){ return `KEYED BY · ${a.name} and ${b.name} idle near each other — no machine state required`; },
@@ -6540,10 +6626,59 @@ function nightSnoreTick(){
   if(Math.random() < 0.35)
     recordEvent('fun', `💤 ${s.name}'s snoring wakes ${nb.name} — "shhh!"`);
 }
+// v0.64 MORNING TALK: for the first stretch after dawn the island wakes up
+// TALKING — good-mornings, weather speculation, and memories of yesterday's
+// real events. Runs on the ambient cadence inside the morning window; the
+// window owns the airwaves (regular chatter waits its turn).
+let wasNightAmb = false, morningT = 0, morningGapT = 0;
+function morningTick(){
+  morningGapT -= 0.7;
+  if(morningGapT > 0) return;
+  morningGapT = rand(9, 16);
+  const awake = VITAS.filter(v => !v.isBaby && !v.state.dead && !v.state.collapsed && !v.sleeping &&
+    !v.inScene && !v.inMeeting && !v.bubble.visible);
+  if(awake.length < 2) return;
+  const v = awake[Math.floor(Math.random() * awake.length)];
+  let nb = null, bd = 1e9;
+  for(const o of awake){
+    if(o === v) continue;
+    const d = o.group.position.distanceTo(v.group.position);
+    if(d < bd){ bd = d; nb = o; }
+  }
+  if(!nb || bd > 12) return;   // morning talk needs a neighbor to aim it at
+  const ln = pickMorningLine(v, nb);
+  if(!ln) return;
+  drawBubbleText(v, ln[0]);
+  v.bubble.visible = true;
+  mutters.push({ v, t: 3.4 });
+  if(ln[1]) pendingReplies.push({ who: nb, text: ln[1], t: 2.4 });
+}
+function pickMorningLine(v, nb){
+  // MEMORY lines must match real history — no crown talk without a king, no
+  // hall talk before a wall has risen, no one-fire nostalgia before any split
+  const king = VITAS.find(x => !x.state.dead && tierOf(x) === 2);
+  const dukes = VITAS.some(x => !x.state.dead && tierOf(x) >= 1);
+  const built = buildings.some(b => b.progress > 0 || b.done);
+  for(let tries = 0; tries < 4; tries++){
+    const others = VITAS.filter(x => x !== v && x !== nb && !x.isBaby && !x.state.dead);
+    const B = king ? king.name : (others.length ? others[Math.floor(Math.random()*others.length)].name : nb.name);
+    const ln = pickLine('morning', v.name, B);
+    if(!ln) return null;
+    const txt = ln.join(' ');
+    if(/crown/i.test(txt) && !king) continue;
+    if(/hall|wall/i.test(txt) && !built) continue;
+    if(/shared one fire/i.test(txt) && !dukes) continue;
+    return ln;
+  }
+  return null;
+}
 // SOLO MUTTERS: one-liners to nobody — a boss lounging smugly (boss_smug),
 // a sprung worker sighing at the sky (worker_weary). Bubble only, no scene.
 let mutterT = 40, babyBabbleT = 25;
 const mutters = [];
+// v0.64: the SECOND voice of a two-line ambient exchange (morning replies,
+// a build-mate answering across the beam) — delivered after a beat's delay
+const pendingReplies = [];   // {who, text, t}
 const AMBIENT_IDS = [];   // filled after SCENE_DEFS exists
 for(const id in SCENE_DEFS) if(SCENE_DEFS[id].ambient) AMBIENT_IDS.push(id);
 function updateDrama(dt){
@@ -6558,6 +6693,17 @@ function updateDrama(dt){
       mutters.splice(i, 1);
     }
   }
+  for(let i = pendingReplies.length - 1; i >= 0; i--){
+    const r = pendingReplies[i];
+    r.t -= dt;
+    if(r.t > 0) continue;
+    pendingReplies.splice(i, 1);
+    if(!r.who.state.dead && !r.who.inScene && !r.who.bubble.visible){
+      drawBubbleText(r.who, r.text);
+      r.who.bubble.visible = true;
+      mutters.push({ v: r.who, t: 3.4 });
+    }
+  }
   mutterT -= dt;
   if(drama){
     drama.t -= dt;
@@ -6570,7 +6716,11 @@ function updateDrama(dt){
   ambientT = 0.7;
   // v0.61 NIGHT QUIET: no mutters, babble, hellos or chats after dark — the
   // one exception is the snore-and-shush beat
-  if(nightNow){ nightSnoreTick(); return; }
+  if(nightNow){ nightSnoreTick(); wasNightAmb = true; return; }
+  // v0.64 MORNING: dawn opens a window where waking talk — good-mornings,
+  // weather guesses, memories of yesterday — comes BEFORE regular chatter
+  if(wasNightAmb){ wasNightAmb = false; morningT = 55; morningGapT = 3; }
+  if(morningT > 0){ morningT -= 0.7; morningTick(); return; }
   const camDist = camera.position.distanceTo(controls.target);
   // solo mutters, when the camera is close enough to read them
   if(mutterT <= 0 && camDist <= 45){
@@ -7430,6 +7580,21 @@ function updateVita(v, dt, t){
         }
         break;
       }
+      case 'funeral': {   // stand at the graveside — bowed, quiet, brief
+        if(nightNow || v.inMeeting){ s.task = null; break; }
+        if(walkToward(v, task.gx, task.gz, dt, t, 1.1)){
+          g.rotation.y = Math.atan2(task.fx - g.position.x, task.fz - g.position.z);
+          if(!task.bowed){ task.bowed = true; setBow(v, 3.2); setMood(v, 'wail', 4); }
+          task.t -= dt;
+          if(!task.spoke && !v.bubble.visible && Math.random() < dt * 0.08){
+            task.spoke = true;
+            const ln = pickLine('funeral', v.name, funeral && funeral.dead ? funeral.dead.name : '');
+            if(ln){ drawBubbleText(v, ln[0]); v.bubble.visible = true; mutters.push({ v, t: 3.8 }); }
+          }
+          if(task.t <= 0) s.task = { kind:'idle', t: rand(1.5, 3) };
+        }
+        break;
+      }
       case 'fell': {   // the axe work: bring a palm down for the boss's beams
         const f = task.f;
         const busy = f.claim && f.claim !== v && !f.claim.state.dead &&
@@ -7461,6 +7626,19 @@ function updateVita(v, dt, t){
           b.progress = Math.min(1, b.progress + dt / (b.cost * 5));
           s.work = Math.min(100, s.work + 9 * dt);
           s.hunger = Math.min(100, s.hunger + dt * 0.4);   // building HIS house costs YOUR fullness
+          // v0.64: the crew TALKS while it lifts — the building_scene pool;
+          // a mate on the same site answers across the beam
+          if(!v.bubble.visible && Math.random() < dt * 0.022){
+            const mate = VITAS.find(o => o !== v && !o.state.dead && o.state.task &&
+              o.state.task.kind === 'construct' && o.group.position.distanceTo(g.position) < 14);
+            const ln = pickLine('building_scene', v.name, mate ? mate.name : '');
+            if(ln){
+              drawBubbleText(v, ln[0]);
+              v.bubble.visible = true;
+              mutters.push({ v, t: 3.4 });
+              if(ln[1] && mate && !mate.bubble.visible) pendingReplies.push({ who: mate, text: ln[1], t: 2.6 });
+            }
+          }
           if(b.progress >= 1) finishBuilding(b, v);
         }
         break;
@@ -11480,6 +11658,7 @@ function frame(forceDt){
     updateSkyBirds(simDt);
     updateFlock(simDt);
     updateGullRaid(simDt);   // the opportunist: unguarded baskets get swooped
+  updateFuneral(simDt);    // v0.64: the serfs bury their own
     U_SWAY_T.value = t;   // the palms' shared wind clock (per-frond sway in the vertex shader)
     for(const s of swayCrowns){   // (non-palm sway nodes, if any ever register)
       s.node.rotation.z = s.baseZ + Math.sin(t*1.6 + s.phase) * s.amp;
