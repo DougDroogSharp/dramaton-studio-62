@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.68</title>
+<title>George World v0.69</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -379,7 +379,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.68</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.69</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -10686,6 +10686,12 @@ const poppy = (()=>{
     favorite:null, repickT:0, heart, heartT:0 };
 })();
 function poppyWaypoint(){
+  // v0.69: mid-PESTER every waypoint orbits the playmate — she circles and
+  // bounces at them till the play urge passes
+  if(poppy.playmate && !poppy.playmate.state.dead){
+    const pp = poppy.playmate.group.position;
+    return { x: pp.x + rand(-3.5, 3.5), z: pp.z + rand(-3.5, 3.5) };
+  }
   const spots = [
     { x: rand(-20, 12)*WS, z: rand(48, 60)*WS },                  // the beach
     { x: commons.pos.x + rand(-4, 4), z: commons.pos.z + rand(-4, 4) },
@@ -10771,8 +10777,9 @@ function updatePoppy(simDt, t){
     return;
   }
   if(poppy.sleeping){ poppy.sleeping = false; g.rotation.z = 0; }
-  const wagSpeed = poppy.linger > 0 ? 22 : 9;
-  poppy.tail.rotation.z = Math.sin(t * wagSpeed) * (poppy.linger > 0 ? 0.8 : 0.4);
+  const wagHard = poppy.linger > 0 || poppy.playmate;   // v0.69: pestering = full wag
+  const wagSpeed = wagHard ? 22 : 9;
+  poppy.tail.rotation.z = Math.sin(t * wagSpeed) * (wagHard ? 0.8 : 0.4);
   if(poppy.linger > 0){
     poppy.linger -= simDt;
     // THE SCRATCH (v0.36): mid-greeting she may get a good scratch — she FLOPS
@@ -10845,7 +10852,10 @@ function updatePoppy(simDt, t){
     if(poppy.jump.t >= 1) poppy.jump = null;
     else hopY = Math.sin(poppy.jump.t * Math.PI) * 1.5;
   }
-  g.position.y = terrainH(g.position.x, g.position.z) + hopY;
+  // v0.69: a dog demanding a game BOUNCES — constant little play-hops while
+  // she's pestering, on top of any vault
+  g.position.y = terrainH(g.position.x, g.position.z) + hopY +
+    (poppy.playmate ? Math.abs(Math.sin(t*9)) * 0.35 : 0);
   g.rotation.y = Math.atan2(dx, dz);
   // legs trot ONLY while she's actually covering ground; standing = resting
   // paws; mid-jump = paws tucked
@@ -10889,6 +10899,32 @@ function updatePoppy(simDt, t){
         setHint('🐕 POPPY! The island\'s sweetheart trots by — every rank stops to fuss over her, crown to helmet', 7);
       } else if(Math.random() < 0.12)
         recordEvent('fun', `🐕 Poppy visits ${near[0].name}'s corner of the island`);
+    }
+  }
+  // v0.69 SHE'S NOT ALWAYS TRAILING HER OWNER (Doug's call): now and then the
+  // play urge takes her — she RUNS OFF and PESTERS somebody else to play,
+  // bouncing circles around them till it passes. The favorite is the bond;
+  // the whole island is the playground.
+  if(poppy.playmate){
+    poppy.playT -= simDt;
+    if(poppy.playT <= 0 || poppy.playmate.state.dead || nightNow){
+      poppy.playmate = null;
+      poppy.target = null;   // shake it off, pick a fresh line
+    }
+  } else if(simDt > 0 && !nightNow){
+    poppy.playCd = (poppy.playCd ?? rand(180, 360)) - simDt;
+    if(poppy.playCd <= 0){
+      poppy.playCd = rand(240, 460);
+      const marks = VITAS.filter(v => !v.isBaby && !v.state.dead && !v.state.collapsed &&
+        !v.sleeping && !v.inMeeting && v !== poppy.favorite);
+      if(marks.length){
+        const m = marks[Math.floor(Math.random()*marks.length)];
+        poppy.playmate = m;
+        poppy.playT = rand(18, 30);
+        poppy.target = null;   // drop everything — new mission
+        setMood(m, 'exult', 3);
+        recordEvent('fun', `🐕 the play urge strikes — Poppy runs off to pester ${m.name}, bouncing circles and demanding a game`);
+      }
     }
   }
 }
