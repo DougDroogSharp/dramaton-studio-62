@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     POPPY STUDY — an accurate model of the real Poppy, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makePoppy()/updatePoppy() can drop straight in later.
+
+     THE REAL POPPY (from Doug's four photos, spec in POPPY_MODEL_SPEC.md):
+     stocky husky/staffy mix · BRINDLE coat (fawn base, dark tiger stripes,
+     strongest over back/shoulders/haunches) · white bib, chin and four
+     socks · cream belly · GREYING muzzle, black nose · pale ICE-BLUE eyes
+     with dark rims · wide-set semi-pricked ears, top third tipping forward
+     · tapered brindle tail, lighter underside · royal-blue H-harness with
+     a back handle + thin dark collar · dignified senior.
+
+     ANIMATION SET (Doug's brief, all in earnest):
+     1 WALK trot  2 SIT  3 LIE-DOWN → side-sprawl SLEEP (slow breathing)
+     4 PAW-UP for a scratch (head tilt, eye contact at the stand-in Vita)
+     5 EXCITED REAR-UP on hind legs  6 TAIL-CHASE spin  7 HAPPY idle
+     (fast wag, EARS UP, tongue)  8 SAD idle (tail tucked, head drooping).
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poppy Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6efdf; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,30,24,0.78); color:#eef6ea;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3f7040; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#529253; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+  #chip label { font-size:12px; opacity:0.85; margin-left:2px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐕 Poppy Study</b> — the real girl, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="walk">Walk</button><button data-m="sit">Sit</button><button
+    data-m="sleep">Sleep</button><button data-m="pawup">Paw-up</button><button
+    data-m="rearup">Rear-up</button><button data-m="tailchase">Tail-chase</button><button
+    data-m="happy">Happy</button><button data-m="sad">Sad</button><br>
+  <label><input id="tour" type="checkbox" checked> auto-tour the set</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 47114711;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4eedd), 60, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(5.2, 3.1, 7.4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky -----------------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f6e8), zenith = new THREE.Color(0x77b8e6),
+        below = new THREE.Color(0xdde8d2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    if(h >= 0) c.copy(horizon).lerp(zenith, Math.pow(h, 0.6));
+    else c.copy(below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+
+// ---------- light ---------------------------------------------------------
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb9ab84, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(26, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12;  sun.shadow.camera.bottom = -12;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xd6e8ff, 0.45);
+fill.position.set(-18, 10, -14);
+scene.add(fill);
+
+// ---------- ground: a sandy clearing with grass tufts ---------------------
+{
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xd9c791 }));
+  sand.rotation.x = -Math.PI/2;
+  sand.receiveShadow = true;
+  scene.add(sand);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x7d9a4e, flatShading:true });
+  for(let i=0;i<26;i++){
+    const a = rand(0, Math.PI*2), r = rand(7, 30);
+    const t = new THREE.Mesh(new THREE.ConeGeometry(rand(0.12,0.2), rand(0.35,0.7), 5), tuftMat);
+    t.position.set(Math.cos(a)*r, 0.18, Math.sin(a)*r);
+    t.rotation.z = rand(-0.2, 0.2);
+    scene.add(t);
+  }
+}
+
+// ---------- the STAND-IN VITA (for the paw-up eye-contact beat) -----------
+const vita = new THREE.Group();
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x8a6a4a });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 6, 12), dress);
+  barrel.position.y = 0.75; barrel.castShadow = true; vita.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), skin);
+  head.position.y = 1.5; head.castShadow = true; vita.add(head);
+  for(const s of [-1,1]){
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    leg.position.set(s*0.15, 0.28, 0); vita.add(leg);
+  }
+  vita.position.set(2.6, 0, 1.4);
+  vita.lookAt(0, 0, 0);
+  scene.add(vita);
+}
+
+// ==========================================================================
+//  THE COAT — brindle by construction: a stripe TEXTURE (dark tiger strokes
+//  on a neutral field) multiplied by baked VERTEX COLOR (dark-fawn back →
+//  cream belly), so every body part shades dorsal→ventral correctly no
+//  matter how its UVs run. The white bib / chin / socks are their own
+//  meshes — crisp patches, the way real white is.
+// ==========================================================================
+function stripeTexture(density){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 512, 512);
+  for(let i = 0; i < density; i++){
+    const x = rand(0, 512), y0 = rand(-40, 200), len = rand(120, 340);
+    g.strokeStyle = Math.random() < 0.5 ? 'rgba(30,20,12,0.78)' : 'rgba(56,38,22,0.66)';
+    g.lineWidth = rand(5, 15);
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(x, y0);
+    g.bezierCurveTo(x + rand(-30,30), y0 + len*0.33,
+                    x + rand(-30,30), y0 + len*0.66,
+                    x + rand(-22,22), y0 + len);
+    g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const TEX_BODY = stripeTexture(64);   // heavy tiger striping (back/shoulders/haunches)
+const TEX_LIGHT = stripeTexture(26);  // sparser (head, tail, upper legs)
+
+const FAWN_BACK = new THREE.Color(0x7d5f38);   // dark warm fawn along the spine
+const FAWN_MID  = new THREE.Color(0xc0955c);   // flank fawn
+const CREAM     = new THREE.Color(0xf0e3c2);   // pale cream belly
+
+// bake dorsal→ventral vertex color into a geometry (after its transform)
+function bakeCoat(geo, yTop, yBot){
+  const pos = geo.attributes.position, col = [];
+  const c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const f = clamp((yTop - pos.getY(i)) / (yTop - yBot), 0, 1);
+    if(f < 0.55) c.copy(FAWN_BACK).lerp(FAWN_MID, f / 0.55);
+    else c.copy(FAWN_MID).lerp(CREAM, (f - 0.55) / 0.45);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return geo;
+}
+const matBrindle = new THREE.MeshLambertMaterial({ map:TEX_BODY, vertexColors:true });
+const matBrindleLt = new THREE.MeshLambertMaterial({ map:TEX_LIGHT, vertexColors:true });
+const matWhite  = new THREE.MeshLambertMaterial({ color:0xf3efe4 });
+const matGrey   = new THREE.MeshLambertMaterial({ color:0xb6afa4 });   // the silvered senior muzzle
+const matBlack  = new THREE.MeshLambertMaterial({ color:0x17130f });
+const matBlue   = new THREE.MeshLambertMaterial({ color:0x2c50c8 });   // the royal-blue harness
+const matDarkStrap = new THREE.MeshLambertMaterial({ color:0x2a2622 });
+const matIce    = new THREE.MeshLambertMaterial({ color:0xa9d2e8 });   // husky ice-blue
+const matRim    = new THREE.MeshLambertMaterial({ color:0x241d16 });   // dark eye rims
+const matTongue = new THREE.MeshLambertMaterial({ color:0xe08a96 });
+
+// ==========================================================================
+//  THE BODY — stocky and deep-chested. Shoulder height ~1.15.
+// ==========================================================================
+const poppy = new THREE.Group();
+scene.add(poppy);
+const P = {};   // named parts for animation
+
+// trunk: capsule along Z, chest end deeper than the waist
+{
+  const geo = new THREE.CapsuleGeometry(0.42, 1.05, 8, 16);
+  geo.rotateX(Math.PI/2);              // length along Z (nose = +Z)
+  geo.scale(1, 1.08, 1);               // a hair deeper than wide
+  bakeCoat(geo, 0.5, -0.45);
+  const trunk = new THREE.Mesh(geo, matBrindle);
+  trunk.castShadow = true;
+  P.trunk = trunk;
+  P.chest = new THREE.Group();         // breathing scale rides this
+  P.chest.add(trunk);
+  // the deep chest: a keel sphere under the front of the trunk
+  const keelG = new THREE.SphereGeometry(0.36, 12, 10);
+  keelG.scale(0.92, 1.05, 1.2);
+  keelG.translate(0, -0.16, 0.42);
+  bakeCoat(keelG, 0.2, -0.6);
+  const keel = new THREE.Mesh(keelG, matBrindle);
+  keel.castShadow = true;
+  P.chest.add(keel);
+  // WHITE BIB down the front of the chest
+  const bibG = new THREE.SphereGeometry(0.24, 10, 8);
+  bibG.scale(0.8, 1.35, 0.62);
+  bibG.translate(0, -0.18, 0.78);
+  P.chest.add(new THREE.Mesh(bibG, matWhite));
+  // pale cream belly pad
+  const bellyG = new THREE.SphereGeometry(0.34, 10, 8);
+  bellyG.scale(1.0, 0.5, 1.5);
+  bellyG.translate(0, -0.34, -0.05);
+  P.chest.add(new THREE.Mesh(bellyG, new THREE.MeshLambertMaterial({ color:0xefe2c2 })));
+  P.chest.position.y = 0.78;           // spine height
+  poppy.add(P.chest);
+}
+
+// ---------- head ----------------------------------------------------------
+{
+  P.neck = new THREE.Group();
+  P.neck.position.set(0, 0.16, 0.72);  // on the chest group
+  P.chest.add(P.neck);
+  const neckG = new THREE.CylinderGeometry(0.21, 0.27, 0.42, 10);
+  neckG.rotateX(1.05);
+  neckG.translate(0, 0.1, 0.08);
+  bakeCoat(neckG, 0.35, -0.2);
+  const neck = new THREE.Mesh(neckG, matBrindleLt);
+  neck.castShadow = true;
+  P.neck.add(neck);
+
+  P.head = new THREE.Group();
+  P.head.position.set(0, 0.34, 0.26);
+  P.neck.add(P.head);
+
+  // broad, slightly domed skull with strong cheeks
+  const skullG = new THREE.SphereGeometry(0.30, 16, 13);
+  skullG.scale(1.18, 1.0, 1.05);
+  bakeCoat(skullG, 0.28, -0.3);
+  const skull = new THREE.Mesh(skullG, matBrindleLt);
+  skull.castShadow = true;
+  P.head.add(skull);
+  for(const s of [-1, 1]){
+    const cheekG = new THREE.SphereGeometry(0.13, 10, 8);
+    cheekG.translate(s*0.2, -0.09, 0.13);
+    bakeCoat(cheekG, 0.1, -0.25);
+    P.head.add(new THREE.Mesh(cheekG, matBrindleLt));
+  }
+
+  // the greying muzzle + white chin + black nose and lip line
+  const muzG = new THREE.CylinderGeometry(0.125, 0.165, 0.3, 10);
+  muzG.rotateX(Math.PI/2);
+  muzG.scale(1.15, 0.92, 1);
+  const muzzle = new THREE.Mesh(muzG, matGrey);
+  muzzle.position.set(0, -0.075, 0.36);
+  muzzle.castShadow = true;
+  P.head.add(muzzle);
+  const chinG = new THREE.SphereGeometry(0.12, 8, 7);
+  chinG.scale(1.1, 0.62, 1.15);
+  const chin = new THREE.Mesh(chinG, matWhite);
+  chin.position.set(0, -0.17, 0.38);
+  P.head.add(chin);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), matBlack);
+  nose.scale.set(1.15, 0.85, 0.9);
+  nose.position.set(0, -0.025, 0.53);
+  P.head.add(nose);
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.016, 0.2), matBlack);
+  lip.position.set(0, -0.135, 0.42);
+  P.head.add(lip);
+
+  // the TONGUE (happy only)
+  P.tongue = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.12, 4, 8), matTongue);
+  P.tongue.scale.set(1, 1, 0.55);
+  P.tongue.rotation.x = 1.25;
+  P.tongue.position.set(0, -0.19, 0.46);
+  P.tongue.visible = false;
+  P.head.add(P.tongue);
+
+  // ICE-BLUE eyes with dark rims — the startling direct gaze
+  P.eyes = [];
+  for(const s of [-1, 1]){
+    const eg = new THREE.Group();
+    eg.position.set(s*0.145, 0.055, 0.255);
+    const rim = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), matRim);
+    rim.scale.set(1, 1, 0.62);
+    eg.add(rim);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), matIce);
+    iris.position.z = 0.014;
+    iris.scale.set(1, 1, 0.62);
+    eg.add(iris);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.021, 8, 6), matBlack);
+    pupil.position.z = 0.045;
+    eg.add(pupil);
+    eg.rotation.y = s * 0.28;
+    P.head.add(eg);
+    P.eyes.push(eg);
+  }
+
+  // wide-set semi-pricked ears; the top third TIPS forward at rest,
+  // stands fully up when happy/alert, folds out-and-down when sad
+  P.ears = [];
+  for(const s of [-1, 1]){
+    const ear = new THREE.Group();
+    ear.position.set(s*0.21, 0.24, -0.02);
+    const baseG = new THREE.ConeGeometry(0.095, 0.2, 7);
+    baseG.translate(0, 0.1, 0);
+    bakeCoat(baseG, 0.3, -0.05);
+    const base = new THREE.Mesh(baseG, matBrindleLt);
+    base.castShadow = true;
+    ear.add(base);
+    const tip = new THREE.Group();
+    tip.position.y = 0.185;
+    const tipG = new THREE.ConeGeometry(0.062, 0.13, 7);
+    tipG.translate(0, 0.055, 0);
+    bakeCoat(tipG, 0.2, -0.02);
+    tip.add(new THREE.Mesh(tipG, matBrindleLt));
+    ear.add(tip);
+    ear.rotation.z = s * -0.2;
+    P.head.add(ear);
+    P.ears.push({ g: ear, tip, side: s });
+  }
+}
+
+// ---------- legs: brindle upper, WHITE SOCK lower + paw -------------------
+// two-segment (shoulder/hip pivot + knee) so sits, sprawls and paddles read
+P.legs = [];
+function makeLeg(x, z, isFront){
+  const hip = new THREE.Group();
+  hip.position.set(x, -0.18, z);
+  P.chest.add(hip);
+  const upG = new THREE.CapsuleGeometry(0.105, 0.26, 5, 9);
+  upG.translate(0, -0.15, 0);
+  bakeCoat(upG, 0.15, -0.35);
+  const up = new THREE.Mesh(upG, matBrindleLt);
+  up.castShadow = true;
+  hip.add(up);
+  const knee = new THREE.Group();
+  knee.position.y = -0.31;
+  hip.add(knee);
+  const lowG = new THREE.CapsuleGeometry(0.075, 0.2, 5, 9);
+  lowG.translate(0, -0.12, 0);
+  const low = new THREE.Mesh(lowG, matWhite);   // the white sock
+  low.castShadow = true;
+  knee.add(low);
+  const paw = new THREE.Mesh(new THREE.SphereGeometry(0.095, 9, 7), matWhite);
+  paw.scale.set(1, 0.62, 1.35);
+  paw.position.set(0, -0.26, 0.035);
+  paw.castShadow = true;
+  knee.add(paw);
+  const leg = { hip, knee, isFront, x };
+  P.legs.push(leg);
+  return leg;
+}
+const LFL = makeLeg(-0.26,  0.52, true),  LFR = makeLeg(0.26,  0.52, true);
+const LBL = makeLeg(-0.27, -0.5, false),  LBR = makeLeg(0.27, -0.5, false);
+
+// ---------- tail: 3-segment tapered chain, lighter underside --------------
+{
+  P.tail = [];
+  let parent = P.chest, py = 0.12, pz = -0.72;
+  const rads = [0.075, 0.058, 0.04], lens = [0.26, 0.24, 0.22];
+  for(let i = 0; i < 3; i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gG = new THREE.CapsuleGeometry(rads[i], lens[i], 5, 8);
+    gG.rotateX(Math.PI/2);
+    gG.translate(0, 0, -lens[i]/2 - rads[i]*0.5);
+    bakeCoat(gG, 0.06, -0.09);
+    const m = new THREE.Mesh(gG, matBrindleLt);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    P.tail.push(seg);
+    parent = seg; py = 0; pz = -(lens[i] + rads[i]*0.6);
+  }
+}
+
+// ---------- the ROYAL-BLUE H-HARNESS + thin dark collar -------------------
+{
+  const chestBand = new THREE.Mesh(new THREE.TorusGeometry(0.475, 0.035, 8, 22), matBlue);
+  chestBand.rotation.x = Math.PI/2;
+  chestBand.rotation.z = Math.PI/2;
+  chestBand.scale.set(1.08, 1, 1);
+  chestBand.position.set(0, 0.02, 0.3);
+  chestBand.rotation.y = Math.PI/2;
+  P.chest.add(chestBand);
+  const neckBand = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.033, 8, 22), matBlue);
+  neckBand.rotation.x = Math.PI/2 - 0.35;
+  neckBand.position.set(0, 0.13, 0.62);
+  P.chest.add(neckBand);
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.028, 0.4), matBlue);
+  spine.position.set(0, 0.475, 0.45);
+  P.chest.add(spine);
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.028, 0.34), matBlue);
+  belly.position.set(0, -0.485, 0.44);
+  P.chest.add(belly);
+  // the back HANDLE loop
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.026, 7, 16), matBlue);
+  handle.position.set(0, 0.55, 0.44);
+  P.chest.add(handle);
+  // thin dark collar, high on the neck
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.018, 7, 20), matDarkStrap);
+  collar.rotation.x = Math.PI/2 - 0.3;
+  collar.position.set(0, 0.2, 0.2);
+  P.neck.add(collar);
+}
+
+// ==========================================================================
+//  ANIMATION — a mode machine, everything eased so poses FLOW into each
+//  other. Cyclic motion (trot, wag, paddle) is layered on top of the pose.
+// ==========================================================================
+let mode = 'happy';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  mode = m;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  document.getElementById('tour').checked = false;
+  setMode(b.dataset.m);
+}));
+const TOUR = ['happy', 'walk', 'sit', 'pawup', 'rearup', 'tailchase', 'sad', 'sleep'];
+let tourI = 0, tourT = 7;
+setMode('happy');
+
+// eased channels: body pitch/roll/lift, head pitch/tilt/yaw, ear alert(-1 sad
+// .. 0 rest .. 1 up), tail base angle, per-leg [hip, knee] targets
+const ch = { pitch:0, roll:0, lift:0, hPitch:0, hTilt:0, hYaw:0, ear:0, tailUp:0, spin:0 };
+const chT = { ...ch };
+const legT = P.legs.map(() => ({ hip:0, knee:0 }));
+let walkA = 0, walkR = 4.2;    // the wander circle
+let breath = 0, eyesClosed = 0, eyesClosedT = 0;
+
+function ease(cur, targ, dt, k=5){ return cur + (targ - cur) * Math.min(1, dt*k); }
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // auto-tour
+  if(document.getElementById('tour').checked){
+    tourT -= dt;
+    if(tourT <= 0){
+      tourT = mode === 'sleep' ? 9 : 7;
+      tourI = (tourI + 1) % TOUR.length;
+      setMode(TOUR[tourI]);
+    }
+  }
+
+  // ---------- per-mode TARGETS ----------
+  let trot = 0, wag = 1.2, wagAmp = 0.22, moving = false, spinRate = 0;
+  eyesClosedT = 0;
+  P.tongue.visible = false;
+  chT.pitch = 0; chT.roll = 0; chT.lift = 0;
+  chT.hPitch = 0; chT.hTilt = 0; chT.hYaw = 0;
+  chT.ear = 0; chT.tailUp = 0;
+  for(const lt of legT){ lt.hip = 0; lt.knee = 0; }
+
+  if(mode === 'walk'){
+    moving = true; trot = 1; wag = 3, wagAmp = 0.3;
+    chT.ear = 0.35;
+  } else if(mode === 'sit'){
+    chT.pitch = -0.62; chT.lift = -0.18;
+    chT.hPitch = 0.22;
+    legT[0].hip = 0.55; legT[1].hip = 0.55;              // front legs planted
+    legT[2].hip = -1.5; legT[2].knee = 1.9;              // haunches folded
+    legT[3].hip = -1.5; legT[3].knee = 1.9;
+    chT.tailUp = -0.9; wag = 0.8; wagAmp = 0.1;
+    chT.ear = 0.25;
+  } else if(mode === 'sleep'){
+    // the photo pose: flat on her side, sprawled, head to the ground
+    chT.roll = 1.45; chT.lift = -0.42;
+    chT.hPitch = 0.35; chT.hTilt = -0.4;
+    legT[0].hip = 1.15; legT[0].knee = -0.35;            // forelegs reaching
+    legT[1].hip = 0.85; legT[1].knee = -0.5;             // …loosely crossed
+    legT[2].hip = 0.95; legT[2].knee = 0.55;             // hinds sprawled
+    legT[3].hip = 0.65; legT[3].knee = 0.75;
+    chT.tailUp = -0.25; wag = 0.25; wagAmp = 0.04;
+    chT.ear = -0.3;
+    eyesClosedT = 1;
+  } else if(mode === 'pawup'){
+    // sitting close, one forepaw lifted at the Vita, head tilted, eye contact
+    chT.pitch = -0.55; chT.lift = -0.16;
+    legT[1].hip = 0.55;
+    legT[0].hip = -1.35 + Math.sin(t*3.2)*0.12;          // the asking paw, gently pumping
+    legT[0].knee = 0.85;
+    legT[2].hip = -1.5; legT[2].knee = 1.9;
+    legT[3].hip = -1.5; legT[3].knee = 1.9;
+    chT.hTilt = 0.42; chT.hPitch = -0.18;                // head cocked UP at the person
+    chT.hYaw = 0.5;                                      // …turned toward the stand-in
+    chT.tailUp = -0.7; wag = 2.6; wagAmp = 0.3;          // hopeful sweeps
+    chT.ear = 0.7;
+  } else if(mode === 'rearup'){
+    // full excitement: up on the hind legs, forepaws paddling
+    chT.pitch = -1.12; chT.lift = 0.16 + Math.abs(Math.sin(t*5.2))*0.07;
+    chT.hPitch = 0.5;
+    legT[0].hip = -1.7 + Math.sin(t*7)*0.35; legT[0].knee = 1.1;
+    legT[1].hip = -1.7 - Math.sin(t*7)*0.35; legT[1].knee = 1.1;
+    legT[2].hip = 0.75; legT[2].knee = -0.45;
+    legT[3].hip = 0.75; legT[3].knee = -0.45;
+    chT.tailUp = 0.35; wag = 6.5; wagAmp = 0.5;
+    chT.ear = 1;
+  } else if(mode === 'tailchase'){
+    moving = true; trot = 1.6; spinRate = 4.6;
+    chT.hYaw = 1.15; chT.hPitch = 0.15;                  // eyes locked on the tail
+    chT.tailUp = 0.55; wag = 7, wagAmp = 0.45;
+    chT.ear = 1;
+  } else if(mode === 'happy'){
+    chT.ear = 1;                                         // EARS UP
+    chT.hPitch = -0.06;
+    chT.tailUp = 0.3; wag = 6.2; wagAmp = 0.5;           // the full wag
+    P.tongue.visible = true;
+    chT.lift = Math.abs(Math.sin(t*2.4)) * 0.015;        // happy weight-shift
+    legT[0].hip = Math.sin(t*2.4)*0.05; legT[1].hip = -Math.sin(t*2.4)*0.05;
+  } else if(mode === 'sad'){
+    chT.ear = -1;                                        // ears folded down-and-out
+    chT.hPitch = 0.55; chT.lift = -0.05;                 // the drooping head
+    chT.tailUp = -1.25; wag = 0.4; wagAmp = 0.05;        // tail down between the legs
+    legT.forEach(lt => lt.knee = 0.12);                  // a defeated slump
+  }
+
+  // ---------- ease the channels ----------
+  for(const k in ch) ch[k] = ease(ch[k], chT[k], dt, k === 'roll' || k === 'pitch' ? 3.2 : 5);
+  eyesClosed = ease(eyesClosed, eyesClosedT, dt, 3);
+
+  // ---------- locomotion ----------
+  if(mode === 'walk'){
+    walkA += dt * 0.32;
+    poppy.position.set(Math.cos(walkA)*walkR, 0, Math.sin(walkA)*walkR);
+    poppy.rotation.y = -walkA - Math.PI/2 + Math.PI;
+  } else if(mode === 'tailchase'){
+    ch.spin += dt * spinRate;
+    poppy.position.set(Math.cos(ch.spin)*0.55, 0, Math.sin(ch.spin)*0.55);
+    poppy.rotation.y = -ch.spin + Math.PI;
+  } else if(mode === 'pawup'){
+    // settle near the stand-in, facing it
+    const target = new THREE.Vector3(1.35, 0, 0.72);
+    poppy.position.lerp(target, Math.min(1, dt*2));
+    const want = Math.atan2(vita.position.x - poppy.position.x, vita.position.z - poppy.position.z);
+    poppy.rotation.y += (want - poppy.rotation.y) * Math.min(1, dt*3);
+  } else {
+    poppy.position.lerp(new THREE.Vector3(0, 0, 0), Math.min(1, dt*1.4));
+  }
+
+  // ---------- pose the body ----------
+  P.chest.position.y = 0.78 + ch.lift;
+  P.chest.rotation.x = ch.pitch;
+  P.chest.rotation.z = ch.roll;
+  // breathing — slow and deep in sleep, light otherwise
+  breath = Math.sin(t * (mode === 'sleep' ? 1.5 : 3.2));
+  P.chest.scale.setScalar(1 + breath * (mode === 'sleep' ? 0.022 : 0.008));
+
+  // head
+  P.head.rotation.x = ch.hPitch + (mode === 'walk' ? Math.sin(t*8.4)*0.04 : 0);
+  P.head.rotation.z = ch.hTilt;
+  P.neck.rotation.y = ch.hYaw;
+
+  // ears: -1 sad … 0 rest (tip forward) … 1 alert (tip up)
+  for(const e of P.ears){
+    const sadF = clamp(-ch.ear, 0, 1), upF = clamp(ch.ear, 0, 1);
+    e.g.rotation.z = e.side * (-0.2 - sadF * 0.85);
+    e.g.rotation.x = sadF * 0.45;
+    e.tip.rotation.x = lerp(lerp(0.72, 0, upF), 1.15, sadF);   // rest tip-forward → up → folded
+  }
+
+  // eyes: lids via squashing the whole eye group
+  for(const e of P.eyes) e.scale.y = lerp(1, 0.08, eyesClosed);
+
+  // tail: base angle + wag layered along the chain
+  const wagS = Math.sin(t * wag * 2.6) * wagAmp;
+  P.tail[0].rotation.x = ch.tailUp * 0.9;
+  P.tail[0].rotation.y = wagS;
+  P.tail[1].rotation.x = ch.tailUp * 0.45 + (mode === 'tailchase' ? 0.3 : 0);
+  P.tail[1].rotation.y = wagS * 1.4;
+  P.tail[2].rotation.x = ch.tailUp * 0.3;
+  P.tail[2].rotation.y = wagS * 1.8;
+
+  // legs: eased pose + trot cycle on top
+  P.legs.forEach((leg, i) => {
+    let hip = legT[i].hip, knee = legT[i].knee;
+    if(trot > 0){
+      // diagonal pairs: FL+BR vs FR+BL
+      const ph = t * 8.4 * trot + ((i === 0 || i === 3) ? 0 : Math.PI);
+      hip += Math.sin(ph) * 0.5;
+      knee += Math.max(0, -Math.sin(ph)) * 0.65;   // crisp lift, planted stance
+    }
+    leg.hip.rotation.x = ease(leg.hip.rotation.x, hip, dt, trot ? 30 : 5);
+    leg.knee.rotation.x = ease(leg.knee.rotation.x, knee, dt, trot ? 30 : 5);
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
