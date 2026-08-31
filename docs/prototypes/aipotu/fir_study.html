@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FIR STUDY — a variety of REALISTIC fir trees, for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — same importmap as the
+     game so makeFir(spec) can replace the three-cone conifers wholesale.
+
+     Doug's brief: "make a variety of realistic fir trees." The old game
+     pine is three stacked cones; these are built like the real thing:
+     a tapering trunk with visible wood between BRANCH WHORLS, each whorl
+     a ring of individual flattened branch-fans set at their own lengths
+     and angles, drooping more with age, foliage in two greens (deep
+     blue-green inner, fresh yellow-green tips), and honest asymmetry
+     everywhere. SIX SPECIMENS in a row:
+       1 NOBLE — tall, dense, classic spire
+       2 SPRUCE-SLIM — narrow, tight whorls, church-steeple top
+       3 THE ELDER — broad and old, heavy drooping skirts, a bare gap
+       4 SAPLING — small, sparse, optimistic
+       5 THE LEANER — wind-bent trunk, one-sided crown (flag tree)
+       6 THE SNAG — half-dead: bare grey top spike, live low skirts
+     Each idles with a whisper of natural movement (this study is about
+     the TREES; the wind set gets its own study next).
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fir Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e6d8; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,20,0.78); color:#ecf4ea;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:280px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌲 Fir Study</b> — six realistic specimens, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · left to right: noble · spruce-slim · the elder · sapling · the leaner · the snag</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 20301;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e4d6), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(2, 5.5, 21);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3.4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ---------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f4e6), zenith = new THREE.Color(0x7fb2dc),
+        below = new THREE.Color(0xd8dcc8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(24, 32, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+sun.shadow.camera.top = 18;  sun.shadow.camera.bottom = -18;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 100;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground ---------------------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xb9bc86 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+  // fallen needles under each specimen
+  for(let i = 0; i < 6; i++){
+    const duff = new THREE.Mesh(new THREE.CircleGeometry(rand(1.1, 1.6), 14),
+      new THREE.MeshLambertMaterial({ color:0x9a8a5c }));
+    duff.rotation.x = -Math.PI/2;
+    duff.position.set(-11 + i*4.4, 0.01, 0);
+    scene.add(duff);
+  }
+}
+
+// ---------- materials ------------------------------------------------------
+const matBark = new THREE.MeshLambertMaterial({ color:0x5c4632, flatShading:true });
+const matBarkGrey = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+const DEEP = new THREE.Color(0x2c4a34), FRESH = new THREE.Color(0x5d7d3c),
+      DEAD = new THREE.Color(0x7a6a4c);
+
+// ==========================================================================
+//  makeFir(spec) — the real construction:
+//  trunk = tapered segment stack with a touch of wander (+ lean);
+//  whorls = rings of INDIVIDUAL branch-fans (flattened cones pointing out
+//  and DOWN), each fan its own length/angle/droop, foliage vertex-colored
+//  deep-green inner → fresh tips; the crown finishes in a leader spike.
+// ==========================================================================
+function makeFir(spec){
+  const { h, baseR, whorls, perWhorl, spread, droop, sparse = 0,
+          lean = 0, flag = 0, deadTop = 0, jitter = 1 } = spec;
+  const tree = new THREE.Group();
+  const swayers = [];   // branch groups, for the idle whisper
+
+  // trunk: 5 stacked tapering segments that wander a little
+  let tx = 0, tz = 0, ty = 0;
+  const segN = 5;
+  for(let i = 0; i < segN; i++){
+    const f0 = i/segN, f1 = (i+1)/segN;
+    const r0 = baseR * (1 - f0*0.82), r1 = baseR * (1 - f1*0.82);
+    const segH = h / segN;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segH, 8),
+      deadTop && f0 > 0.55 ? matBarkGrey : matBark);
+    const dx = lean * segH * (i+0.5)/segN + rand(-0.04, 0.04)*jitter;
+    const dz = rand(-0.04, 0.04)*jitter;
+    seg.position.set(tx + dx/2, ty + segH/2, tz + dz/2);
+    seg.rotation.z = -Math.atan2(dx, segH);
+    seg.rotation.x = Math.atan2(dz, segH);
+    seg.castShadow = true;
+    tree.add(seg);
+    tx += dx; tz += dz; ty += segH;
+  }
+  // the leader spike at the top
+  if(deadTop){
+    const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.05, h*0.22, 6), matBarkGrey);
+    spike.position.set(tx, ty + h*0.1, tz);
+    spike.castShadow = true;
+    tree.add(spike);
+  } else {
+    const tipG = new THREE.ConeGeometry(0.16, 0.55, 7);
+    paintFoliage(tipG);
+    const tip = new THREE.Mesh(tipG, foliageMat());
+    tip.position.set(tx, ty + 0.24, tz);
+    tip.castShadow = true;
+    tree.add(tip);
+  }
+
+  // branch whorls, bottom-up: long low skirts, short high shoulders
+  const y0 = h * 0.16;   // bare trunk below the first whorl
+  for(let w = 0; w < whorls; w++){
+    const f = w / (whorls - 1);            // 0 low … 1 high
+    if(deadTop && f > 1 - deadTop) continue;              // the snag's bare top
+    const wy = y0 + f * (h - y0 - h*0.14);
+    const wr = spread * (1 - f*0.78);      // skirt long, shoulder short
+    const n = Math.max(3, Math.round(perWhorl * (1 - f*0.3)));
+    const wobble = rand(0, Math.PI*2);
+    for(let b = 0; b < n; b++){
+      if(sparse && Math.random() < sparse) continue;      // missing branches = age
+      let a = wobble + (b/n) * Math.PI*2 + rand(-0.25, 0.25)*jitter;
+      if(flag && Math.cos(a) < -0.1 && Math.random() < flag) continue;   // one-sided flag crown
+      const len = wr * rand(0.75, 1.15);
+      const dr = droop * (0.5 + f*0.2 + rand(0, 0.5)) * (1 + (1-f)*0.6);  // low branches droop most
+      const br = new THREE.Group();
+      // branch anchored at the trunk's wandered position at this height
+      br.position.set(tx * f, wy, tz * f);
+      br.rotation.y = -a;
+      const fanG = new THREE.ConeGeometry(len*0.30, len, 5);
+      fanG.rotateZ(-Math.PI/2);            // point outward along +x
+      fanG.scale(1, 0.26, 1);              // FLAT fans, like layered needle-plates
+      fanG.translate(len*0.52, 0, 0);
+      paintFoliage(fanG, deadTop && f > 0.5 - deadTop);
+      const fan = new THREE.Mesh(fanG, foliageMat());
+      fan.rotation.z = -dr;                // the droop
+      fan.castShadow = true;
+      br.add(fan);
+      // a woody butt where the branch meets the trunk
+      const butt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, len*0.3, 5), matBark);
+      butt.rotation.z = Math.PI/2 + dr*0.5;
+      butt.position.set(len*0.14, 0, 0);
+      br.add(butt);
+      tree.add(br);
+      swayers.push({ g: br, ph: rand(0, Math.PI*2), amp: 0.5 + f*0.8 });
+    }
+  }
+  return { tree, swayers };
+}
+function foliageMat(){
+  return new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+}
+function paintFoliage(geo, dead){
+  const pos = geo.attributes.position, col = [];
+  const c = new THREE.Color();
+  // tips (far x after the rotate/translate) get the fresh green
+  let maxX = 0;
+  for(let i = 0; i < pos.count; i++) maxX = Math.max(maxX, pos.getX(i));
+  for(let i = 0; i < pos.count; i++){
+    const f = clamp(pos.getX(i) / (maxX || 1), 0, 1);
+    if(dead) c.copy(DEAD).lerp(new THREE.Color(0x8a7a58), f);
+    else c.copy(DEEP).lerp(FRESH, Math.pow(f, 1.6)).offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+}
+
+// ---------- the six specimens ----------------------------------------------
+const SPECS = [
+  { name:'noble',   h:7.2, baseR:0.26, whorls:11, perWhorl:8, spread:1.9, droop:0.28 },
+  { name:'slim',    h:6.6, baseR:0.18, whorls:13, perWhorl:6, spread:1.05, droop:0.16 },
+  { name:'elder',   h:5.6, baseR:0.34, whorls:8,  perWhorl:9, spread:2.5, droop:0.55, sparse:0.18 },
+  { name:'sapling', h:2.2, baseR:0.07, whorls:5,  perWhorl:5, spread:0.75, droop:0.1, jitter:1.6 },
+  { name:'leaner',  h:5.8, baseR:0.22, whorls:9,  perWhorl:7, spread:1.6, droop:0.35, lean:0.35, flag:0.75 },
+  { name:'snag',    h:6.4, baseR:0.24, whorls:9,  perWhorl:7, spread:1.8, droop:0.5, sparse:0.3, deadTop:0.45 },
+];
+const allSway = [];
+SPECS.forEach((spec, i) => {
+  const { tree, swayers } = makeFir(spec);
+  tree.position.set(-11 + i*4.4, 0, 0);
+  tree.rotation.y = rand(0, Math.PI*2);
+  scene.add(tree);
+  allSway.push(...swayers);
+});
+
+// ---------- the idle whisper ----------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.elapsedTime;
+  for(const s of allSway){
+    s.g.rotation.x = Math.sin(t*0.9 + s.ph) * 0.008 * s.amp;
+    s.g.rotation.z = Math.sin(t*1.3 + s.ph*1.7) * 0.006 * s.amp;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
