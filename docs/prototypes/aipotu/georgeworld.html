@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.74</title>
+<title>George World v0.75</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -384,7 +384,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.74</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.75</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -3256,6 +3256,7 @@ function makeVita(opts){
   const grp = new THREE.Group();
   v.group = grp;
   v.dressColor = opts.dress ?? 0xff7a5c;   // the mine banner flies the owner's color
+  v.story = opts.story || 'did a bit of everything, none of it well';   // v0.75: the landing-intro tidbit
   v.homeCamp = { x: opts.camp.x, z: opts.camp.z };   // the beach camp is HOME; rank may move you uphill
   v.elitePlot = null;
 
@@ -3576,16 +3577,18 @@ const ARCH_ROLLS = {
 // black through chestnut, auburn, sandy, blond, ginger and silver — and the
 // dress colors below actually SHOW now (see dressColorFor: the unclaimed
 // wear their own shirt; a claim dyes it to the house)
+// v0.75: each Vita carries a little HISTORY TIDBIT (completes "back home I …")
+// — surfaced when strangers introduce themselves on the landing sand
 const CAST_LOOKS = [
-  { x:-28, z:52, dress:0x7d3bd4, hair:0x1d1a16, skin:0xecc9a2 },
-  { x:-18, z:57, dress:0xa03636, hair:0xd9a441, skin:0xf2c299, buns:true },
-  { x:-8,  z:52, dress:0x8fbf50, hair:0x7a4a20, skin:0xffe0c2 },
-  { x:2,   z:57, dress:0x4f9fd8, hair:0x9e3b24, skin:0xf2c299, buns:true },
-  { x:10,  z:50, dress:0xc9a85c, hair:0x5b3a29, skin:0xffd9b3 },
-  { x:18,  z:54, dress:0x6b8e9e, hair:0x8d8d94, skin:0xecc9a2 },
-  { x:6,   z:26, dress:0x9a7b5a, hair:0xc4842e, skin:0xffd9b3, buns:true },
-  { x:30,  z:32, dress:0x7aa06a, hair:0x2e2620, skin:0xf2c299 },
-  { x:-2,  z:40, dress:0xff7a5c, hair:0xa8622a, skin:0xffd9b3 },
+  { x:-28, z:52, dress:0x7d3bd4, hair:0x1d1a16, skin:0xecc9a2, story:'kept bees on a south-facing slope' },
+  { x:-18, z:57, dress:0xa03636, hair:0xd9a441, skin:0xf2c299, buns:true, story:'mended fishing nets, best knots in the harbor' },
+  { x:-8,  z:52, dress:0x8fbf50, hair:0x7a4a20, skin:0xffe0c2, story:'baked bread every morning before light' },
+  { x:2,   z:57, dress:0x4f9fd8, hair:0x9e3b24, skin:0xf2c299, buns:true, story:'sang at weddings — and better at funerals' },
+  { x:10,  z:50, dress:0xc9a85c, hair:0x5b3a29, skin:0xffd9b3, story:'built stone walls that never fell' },
+  { x:18,  z:54, dress:0x6b8e9e, hair:0x8d8d94, skin:0xecc9a2, story:'told fortunes at the autumn fair' },
+  { x:6,   z:26, dress:0x9a7b5a, hair:0xc4842e, skin:0xffd9b3, buns:true, story:'raised six goats and no children' },
+  { x:30,  z:32, dress:0x7aa06a, hair:0x2e2620, skin:0xf2c299, story:'swept a lighthouse nobody visited' },
+  { x:-2,  z:40, dress:0xff7a5c, hair:0xa8622a, skin:0xffd9b3, story:'sold buttons door to door' },
 ];
 let mia = null, boss = null;
 if(CAST){
@@ -3613,13 +3616,13 @@ if(CAST){
   const rollStart = slot => ({ hunger: rand(25, 60),
     hoard: slot === greedySlot ? Math.floor(rand(1, 4)) : (Math.random() < 0.25 ? 1 : 0) });
   const ADULT_LOOKS = [
-    { x:-8,  z:50, buns:true, dress:0xff7a5c, hair:0x5b3a29, skin:0xffd9b3 },
-    { x:2,   z:47, dress:0x4f9fd8, hair:0x2e2620, skin:0xf2c299 },
-    { x:-19, z:45, dress:0x8fbf50, hair:0x7a4a20, skin:0xffe0c2 },
-    { x:26,  z:27, dress:0x9059c9, hair:0x1d1a16, skin:0xecc9a2 },
-    { x:-28, z:54, dress:0xc9a85c, hair:0x2e2620, skin:0xffe0c2 },
-    { x:12,  z:52, buns:true, dress:0x6b8e9e, hair:0x1d1a16, skin:0xecc9a2 },
-    { x:-2,  z:42, dress:0x7aa06a, hair:0x7a4a20, skin:0xf2c299 },
+    { x:-8,  z:50, buns:true, dress:0xff7a5c, hair:0x5b3a29, skin:0xffd9b3, story:'kept a garden the whole street envied' },
+    { x:2,   z:47, dress:0x4f9fd8, hair:0x2e2620, skin:0xf2c299, story:'ferried folk across a river, penny a head' },
+    { x:-19, z:45, dress:0x8fbf50, hair:0xd9a441, skin:0xffe0c2, story:'baked bread every morning before light' },
+    { x:26,  z:27, dress:0x9059c9, hair:0x1d1a16, skin:0xecc9a2, story:'argued prices in a market till dusk' },
+    { x:-28, z:54, dress:0xc9a85c, hair:0xa8622a, skin:0xffe0c2, story:'built stone walls that never fell' },
+    { x:12,  z:52, buns:true, dress:0x6b8e9e, hair:0x8d8d94, skin:0xecc9a2, story:'told fortunes at the autumn fair' },
+    { x:-2,  z:42, dress:0x7aa06a, hair:0x7a4a20, skin:0xf2c299, story:'mended shoes and heard every trouble in town' },
   ];
   ADULT_LOOKS.forEach((look, i) => {
     const jx = look.x*WS + rand(-2.5, 2.5), jz = look.z*WS + rand(-2.5, 2.5);
@@ -6724,6 +6727,40 @@ function nightSnoreTick(){
   if(Math.random() < 0.35)
     recordEvent('fun', `💤 ${s.name}'s snoring wakes ${nb.name} — "shhh!"`);
 }
+// v0.75 THE LANDING BEWILDERMENT: for the first ~3 sim-minutes of a world
+// (histClock < 170 — pure world-age, so it folds under rewind) the cast is
+// CONFUSED: strangers on unknown sand, remarking how weird and scary it is,
+// speculating (heaven? taken by a saucer? a false memory?), and introducing
+// themselves with their little histories. Owns the airwaves like night does.
+let landingGapT = 4;
+function landingTick(){
+  landingGapT -= 0.7;
+  if(landingGapT > 0) return;
+  landingGapT = rand(6, 11);
+  const awake = VITAS.filter(v => !v.isBaby && !v.state.dead && !v.state.collapsed && !v.sleeping &&
+    !v.inScene && !v.inMeeting && !v.bubble.visible);
+  if(awake.length < 2) return;
+  const v = awake[Math.floor(Math.random() * awake.length)];
+  let nb = null, bd = 1e9;
+  for(const o of awake){
+    if(o === v) continue;
+    const d = o.group.position.distanceTo(v.group.position);
+    if(d < bd){ bd = d; nb = o; }
+  }
+  if(!nb || bd > 14) return;
+  // introductions thread through the wonder: each Vita presents itself ONCE
+  let ln;
+  if(!v.introducedSelf && Math.random() < 0.55){
+    v.introducedSelf = true;
+    ln = pickLine('landing_intro', v.name, v.story);   // {B} = the tidbit, by design
+  } else ln = pickLine('landing', v.name, nb.name);
+  if(!ln) return;
+  drawBubbleText(v, ln[0]);
+  v.bubble.visible = true;
+  mutters.push({ v, t: 3.6 });
+  setMood(v, Math.random() < 0.4 ? 'wail' : 'peckish', 3);   // rattled, wide-eyed
+  if(ln[1]) pendingReplies.push({ who: nb, text: ln[1], t: 2.6 });
+}
 // v0.64 MORNING TALK: for the first stretch after dawn the island wakes up
 // TALKING — good-mornings, weather speculation, and memories of yesterday's
 // real events. Runs on the ambient cadence inside the morning window; the
@@ -6815,6 +6852,8 @@ function updateDrama(dt){
   // v0.61 NIGHT QUIET: no mutters, babble, hellos or chats after dark — the
   // one exception is the snore-and-shush beat
   if(nightNow){ nightSnoreTick(); wasNightAmb = true; return; }
+  // v0.75: the first minutes of the WORLD belong to the landing bewilderment
+  if(histClock < 170){ landingTick(); return; }
   // v0.64 MORNING: dawn opens a window where waking talk — good-mornings,
   // weather guesses, memories of yesterday — comes BEFORE regular chatter
   if(wasNightAmb){ wasNightAmb = false; morningT = 55; morningGapT = 3; }

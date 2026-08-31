@@ -6,6 +6,29 @@
 
 window.GW_DIALOGUE = {
 
+  // LANDING — the first minutes after the saucer: confusion, wonder, a little fear.
+  // Are we in heaven? Were we taken? Is home a false memory? Nobody knows anybody.
+  landing: [
+    ["Where… WHERE is this?", "Not home. That's all I know."],
+    ["Is this heaven? It's too sandy for heaven.", "If it's heaven, why am I hungry?"],
+    ["I remember a light. A humming. Then — this beach.", "So it's not just me. The light, then sand."],
+    ["Were we… taken? Kidnapped? A saucer?", "Say it quieter. Saying it loud makes it true."],
+    ["Maybe we've ALWAYS been here and the rest is a false memory.", "My whole life, a false memory? …it did feel real."],
+    ["The sea goes all the way around. I checked.", "An island. An island NOBODY mentioned."],
+    ["I'm frightened. I don't mind saying it.", "We all are. Stand closer."],
+    ["That volcano was NOT there a minute ago.", "NOTHING was here a minute ago. Including us."],
+    "*turning in a slow circle, mouth open*",
+    ["Does anyone know anyone here?", "I don't even know myself, today."],
+  ],
+
+  // LANDING INTRO — strangers introducing themselves on the sand.
+  // NOTE: {B} carries the speaker's own little history tidbit (v.story), not a name.
+  landing_intro: [
+    ["I'm {A}. Back home I {B}. If home was real.", "Good to meet you, {A}. Whoever any of us are."],
+    ["{A}. I {B}, before… whatever this is.", "A useful trade. It might matter here."],
+    ["They call me {A}. I {B}. I remember THAT much.", "Hold on to it. It's more than some of us have."],
+    ["I'm {A} — I {B}. Strange, the things you keep.", "Strange is the whole morning, friend."],
+  ],
   // Boss coercing a worker (coercion spring). Tense, contentious.
   squeeze: [
     ["Faster. The pile doesn't grow itself.", "I'm going as fast as I can."],
