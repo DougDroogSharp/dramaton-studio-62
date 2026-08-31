@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.77</title>
+<title>George World v0.78</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -384,7 +384,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.77</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.78</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -1385,15 +1385,14 @@ for(const [bx0,bz0] of beachPalms){
   OBSTACLES.push(ob);
   FELLABLES.push({ x:px, z:pz, grp, ob, felled:false, claim:null, isDate:false, stump:null, h:null, beach:true });
 }
-// v0.61 BUSHES GROW ON THE HILLSIDES, in little clumps — never down on the
-// beach among the palms. The NEAR side is deliberately SCARCE (Doug's call):
-// just FOUR bushes at the twin hills and THREE in the king's-hill/volcano
-// gap — so the Vitas must take the PATH over the ridge to the BIG GROVE,
-// the thick abundant patch on the other side. The good foraging is over
-// the hill, worth the walk.
-{ // the twin-hills patch: FOUR bushes at the twins' feet (near side, scarce)
+// v0.78 (Doug: more food around the island): EIGHT bushes on the side of the
+// hill FACING the first village (5 at the twin hills + 3 in the king's-hill/
+// volcano gap), and TWENTY over the ridge in LITTLE CLUMPS — five clumps of
+// four, scattered across the far side. Still hillside-only, never on the
+// beach; still worth the walk over.
+{ // the twin-hills patch: FIVE bushes at the twins' feet (village-facing)
   let placed = 0, tries = 0;
-  while(placed < 4 && tries++ < 120){
+  while(placed < 5 && tries++ < 140){
     const a = rand(0, Math.PI*2);
     const gx = -19.5 + Math.cos(a)*rand(7, 11), gz = 8.5 + Math.sin(a)*rand(7, 11);
     const wx = gx*WS, wz = gz*WS;
@@ -1415,16 +1414,21 @@ for(const [bx0,bz0] of beachPalms){
     placed++;
   }
 }
-{ // THE BIG GROVE — over the ridge: a LARGE, THICK patch (the far prize the
-  // scout has to find; rich bushes, fast regrow)
-  let placed = 0, tries = 0;
-  while(placed < 16 && tries++ < 160){
-    const gx = rand(-11, 7), gz = rand(-41, -25);
-    const wx = gx*WS, wz = gz*WS;
-    const hh = terrainH(wx, wz);
-    if(hh < 1.4 || pathDist(wx, wz) < 4) continue;   // the path stays clear
-    makeBerryBush(wx, wz, true);
-    placed++;
+{ // OVER THE RIDGE: five little CLUMPS of four rich bushes each (the far
+  // prize the scout has to find; rich bushes, fast regrow)
+  let clumps = 0, ctries = 0;
+  while(clumps < 5 && ctries++ < 60){
+    const cx = rand(-13, 9), cz = rand(-43, -23);
+    if(terrainH(cx*WS, cz*WS) < 1.4 || pathDist(cx*WS, cz*WS) < 5) continue;
+    let placed = 0, tries = 0;
+    while(placed < 4 && tries++ < 40){
+      const wx = (cx + rand(-2.4, 2.4))*WS, wz = (cz + rand(-2.4, 2.4))*WS;
+      const hh = terrainH(wx, wz);
+      if(hh < 1.3 || pathDist(wx, wz) < 4) continue;   // the path stays clear
+      makeBerryBush(wx, wz, true);
+      placed++;
+    }
+    if(placed) clumps++;
   }
 }
 // v0.61 PALMS ARE A BEACH FEATURE ONLY: the six TALL palms come down from the
