@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WEATHER STUDY — atmospherics for George World.
+     Filed 2026-08-31. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160), same importmap.
+
+     Doug's brief: atmospheric effects. Three states:
+     · PARTLY CLOUDY — friendly drifting cumulus, bright sea
+     · DARK + STIFF WIND — a low DARK deck of RIPPLING clouds, a stiff
+       wind, and RAIN THAT FOLLOWS THE WIND (every drop's streak flies
+       along the wind vector, not straight down)
+     · HURRICANE — gusting violence: racing shredded scud, near-
+       horizontal rain arriving in gust-driven sheets, spray off the sea
+     The SEA SURFACE answers the weather: glassy ripple → wind-rows of
+     chop running downwind → heaving streaked water.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#c8dce8; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(16,24,32,0.78); color:#e8f2fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#48708c; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#58859f; }
+  #chip button.on { background:#e8c531; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌦 Weather Study</b> — sky · wind · rain · sea, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · wind blows left → right</span><br>
+  <button data-m="partly">Partly cloudy</button><button data-m="dark">Dark + wind</button><button data-m="hurricane">Hurricane</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 424242;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xc8dce8), 60, 340);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(4, 6, 26);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 90;
+controls.maxPolarAngle = 1.53;
+
+// ---------- lights + sky dome ---------------------------------------------
+const hemi = new THREE.HemisphereLight(0xd8ecf8, 0x7f8fa0, 1.05);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(30, 40, 18);
+scene.add(sun);
+let skyMat;
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  skyMat = new THREE.MeshBasicMaterial({ color:0x9cc4e0, side:THREE.BackSide, fog:false });
+  scene.add(new THREE.Mesh(geo, skyMat));
+}
+
+// ---------- the SEA + a strip of beach and one wind-telling palm ----------
+let sea;
+{
+  const geo = new THREE.PlaneGeometry(420, 420, 72, 72);
+  geo.rotateX(-Math.PI/2);
+  sea = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color:0x3f8bb5 }));
+  scene.add(sea);
+  const beach = new THREE.Mesh(new THREE.BoxGeometry(26, 0.7, 10),
+    new THREE.MeshLambertMaterial({ color:0xd9c791 }));
+  beach.position.set(0, 0.15, 8);
+  scene.add(beach);
+}
+const palm = { segs: [], fronds: [] };
+{
+  const matT = new THREE.MeshLambertMaterial({ color:0x8a6a4a, flatShading:true });
+  const matF = new THREE.MeshLambertMaterial({ color:0x4a8a3c, flatShading:true, side:THREE.DoubleSide });
+  let parent = new THREE.Group();
+  parent.position.set(0, 0.5, 8);
+  scene.add(parent);
+  for(let i = 0; i < 5; i++){
+    const seg = new THREE.Group();
+    seg.position.y = i === 0 ? 0 : 1.1;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.2*(1-i*0.09), 0.22*(1-i*0.09), 1.1, 8), matT);
+    m.position.y = 0.55;
+    seg.add(m);
+    parent.add(seg);
+    palm.segs.push(seg);
+    parent = seg;
+  }
+  const crown = new THREE.Group();
+  crown.position.y = 1.1;
+  parent.add(crown);
+  for(let i = 0; i < 8; i++){
+    const a = (i/8)*Math.PI*2;
+    const sh = new THREE.Group();
+    sh.rotation.y = -a;
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.3, 2.2, 4), matF);
+    f.rotation.z = -Math.PI/2;
+    f.scale.set(1, 0.15, 1);
+    f.position.x = 1.1;
+    sh.add(f);
+    crown.add(sh);
+    palm.fronds.push({ sh, a, ph: rand(0, 9) });
+  }
+}
+
+// ==========================================================================
+//  CLOUDS — three pools, one per personality:
+//  · CUMULUS: fat friendly stacks drifting on the wind
+//  · THE DECK: a low ceiling of broad dark slabs that RIPPLE — each slab
+//    breathes scale + height on its own phase, rolling downwind
+//  · SCUD: small ragged shreds racing under everything in the hurricane
+// ==========================================================================
+function puffCluster(n, spread, flat, mat){
+  const g = new THREE.Group();
+  for(let i = 0; i < n; i++){
+    const p = new THREE.Mesh(new THREE.SphereGeometry(rand(1.4, 2.6), 9, 7), mat);
+    p.position.set(rand(-spread, spread), rand(-spread*flat, spread*flat), rand(-spread*0.6, spread*0.6));
+    p.scale.y = flat;
+    g.add(p);
+  }
+  return g;
+}
+const cumulus = [], deck = [], scud = [];
+{
+  const matCu = new THREE.MeshLambertMaterial({ color:0xffffff, transparent:true, opacity:0.92 });
+  for(let i = 0; i < 8; i++){
+    const c = puffCluster(6, 3.2, 0.55, matCu);
+    c.position.set(rand(-90, 90), rand(17, 26), rand(-80, 40));
+    scene.add(c);
+    cumulus.push({ g: c, sp: rand(0.5, 0.9) });
+  }
+  const matDk = new THREE.MeshLambertMaterial({ color:0x3e4650, transparent:true, opacity:0.94 });
+  for(let i = 0; i < 22; i++){
+    const c = puffCluster(5, 4.6, 0.32, matDk);
+    c.position.set(rand(-110, 110), rand(12, 15), rand(-90, 50));
+    scene.add(c);
+    deck.push({ g: c, ph: rand(0, Math.PI*2), sp: rand(0.8, 1.3) });
+  }
+  const matSc = new THREE.MeshLambertMaterial({ color:0x59606a, transparent:true, opacity:0.8 });
+  for(let i = 0; i < 12; i++){
+    const c = puffCluster(3, 2.2, 0.28, matSc);
+    c.position.set(rand(-110, 110), rand(6, 10), rand(-70, 40));
+    scene.add(c);
+    scud.push({ g: c, sp: rand(2.2, 3.4) });
+  }
+}
+
+// ==========================================================================
+//  RAIN — LINE SEGMENTS whose direction IS the wind+fall velocity vector,
+//  updated live: the streaks always fly along the way the water is
+//  actually moving. Recycled buffer of 900 drops.
+// ==========================================================================
+const RAIN_N = 900;
+const rainGeo = new THREE.BufferGeometry();
+const rainPos = new Float32Array(RAIN_N * 6);
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rain = new THREE.LineSegments(rainGeo,
+  new THREE.LineBasicMaterial({ color:0xbdd4e4, transparent:true, opacity:0.55 }));
+scene.add(rain);
+const drops = [];
+for(let i = 0; i < RAIN_N; i++)
+  drops.push({ x: rand(-70, 70), y: rand(0, 30), z: rand(-50, 30) });
+
+// ---------- sea SPRAY for the hurricane ------------------------------------
+const spray = [];
+{
+  const mat = new THREE.MeshBasicMaterial({ color:0xe8f4f8, transparent:true, opacity:0.7 });
+  for(let i = 0; i < 30; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(rand(0.1, 0.25), 6, 5), mat);
+    m.visible = false;
+    scene.add(m);
+    spray.push({ m, t: 9 });
+  }
+}
+
+// ==========================================================================
+//  THE STATES
+// ==========================================================================
+const STATES = {
+  partly:    { wind:1.2,  gustA:0.15, rain:0,    sky:0x9cc4e0, fogC:0xc8dce8, sun:2.2, hemi:1.05,
+               cu:0.92, dk:0, sc:0, chop:0.16, seaC:0x3f8bb5 },
+  dark:      { wind:7.5,  gustA:0.3,  rain:0.55, sky:0x55606e, fogC:0x6a7482, sun:0.5, hemi:0.6,
+               cu:0, dk:0.94, sc:0.25, chop:0.5, seaC:0x2e5c78 },
+  hurricane: { wind:19,   gustA:1.0,  rain:1,    sky:0x39414c, fogC:0x4a525c, sun:0.25, hemi:0.42,
+               cu:0, dk:0.9, sc:0.85, chop:1.05, seaC:0x24455c },
+};
+let cur = { ...STATES.partly }, target = STATES.partly;
+const curCol = { sky: new THREE.Color(STATES.partly.sky), fogC: new THREE.Color(STATES.partly.fogC),
+                 seaC: new THREE.Color(STATES.partly.seaC) };
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  target = STATES[b.dataset.m];
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ease scalars + colors
+  for(const k of ['wind','gustA','rain','sun','hemi','cu','dk','sc','chop'])
+    cur[k] = lerp(cur[k], target[k], Math.min(1, dt*0.9));
+  curCol.sky.lerp(new THREE.Color(target.sky), Math.min(1, dt*0.9));
+  curCol.fogC.lerp(new THREE.Color(target.fogC), Math.min(1, dt*0.9));
+  curCol.seaC.lerp(new THREE.Color(target.seaC), Math.min(1, dt*0.9));
+  skyMat.color.copy(curCol.sky);
+  scene.fog.color.copy(curCol.fogC);
+  sea.material.color.copy(curCol.seaC);
+  sun.intensity = cur.sun;
+  hemi.intensity = cur.hemi;
+
+  // THE WIND: base + gusts (hurricane gusts SLAM: sharp attack, ragged release)
+  const gust = 1 + cur.gustA * (0.5*Math.sin(t*0.7) + 0.35*Math.sin(t*1.9 + 1)
+    + (cur.gustA > 0.6 ? Math.pow(Math.max(0, Math.sin(t*1.1 + 3)), 5) * 1.2 : 0));
+  const windX = cur.wind * gust;   // the one true wind, +x
+
+  // ---------- clouds ----------
+  for(const c of cumulus){
+    c.g.position.x += windX * c.sp * 0.12 * dt;
+    if(c.g.position.x > 110) c.g.position.x = -110;
+    c.g.children.forEach(p => p.material.opacity = cur.cu);
+    c.g.visible = cur.cu > 0.03;
+  }
+  for(const d of deck){
+    d.g.position.x += windX * d.sp * 0.18 * dt;
+    if(d.g.position.x > 120) d.g.position.x = -120;
+    // the RIPPLING: each slab breathes height + scale on its own phase
+    d.g.position.y = 13 + Math.sin(t*0.9 + d.ph) * 0.9;
+    const s = 1 + Math.sin(t*0.7 + d.ph*1.7) * 0.16;
+    d.g.scale.set(s, 1, 2 - s);
+    d.g.children.forEach(p => p.material.opacity = cur.dk);
+    d.g.visible = cur.dk > 0.03;
+  }
+  for(const s2 of scud){
+    s2.g.position.x += windX * s2.sp * 0.22 * dt;
+    if(s2.g.position.x > 120) s2.g.position.x = -120;
+    s2.g.children.forEach(p => p.material.opacity = cur.sc);
+    s2.g.visible = cur.sc > 0.03;
+  }
+
+  // ---------- RAIN that FOLLOWS THE WIND ----------
+  rain.visible = cur.rain > 0.03;
+  if(rain.visible){
+    const fall = 14 + cur.rain*8;
+    const vx = windX * 0.85;                    // the drop's actual velocity
+    const streak = 0.05;                        // streak = velocity * streak time
+    const n = Math.floor(RAIN_N * cur.rain);
+    for(let i = 0; i < RAIN_N; i++){
+      const d = drops[i];
+      if(i < n){
+        d.x += vx * dt; d.y -= fall * dt;
+        if(d.y < 0){ d.y = rand(22, 30); d.x = rand(-80, 60); d.z = rand(-50, 30); }
+        if(d.x > 90) d.x -= 170;
+        rainPos[i*6]   = d.x;             rainPos[i*6+1] = d.y;             rainPos[i*6+2] = d.z;
+        rainPos[i*6+3] = d.x - vx*streak; rainPos[i*6+4] = d.y + fall*streak; rainPos[i*6+5] = d.z;
+      } else {
+        rainPos[i*6] = rainPos[i*6+3] = 0;
+        rainPos[i*6+1] = rainPos[i*6+4] = -5;
+        rainPos[i*6+2] = rainPos[i*6+5] = 0;
+      }
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+    rain.material.opacity = 0.3 + cur.rain*0.3;
+  }
+
+  // ---------- the SEA answers the weather ----------
+  {
+    const pos = sea.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), z = pos.getZ(i);
+      // wind-rows: chop waves RUN DOWNWIND, wavelength shrinking with wind
+      let y = Math.sin(x*0.32 - t*(1 + cur.wind*0.22))*cur.chop
+            + Math.sin(x*0.61 - t*(1.4 + cur.wind*0.3) + z*0.2)*cur.chop*0.55
+            + Math.sin(z*0.5 + t*0.9)*cur.chop*0.4;
+      pos.setY(i, y);
+    }
+    pos.needsUpdate = true;
+    sea.geometry.computeVertexNormals();
+  }
+
+  // ---------- hurricane SPRAY off the wave tops ----------
+  if(cur.gustA > 0.55 && Math.random() < dt*18){
+    const s3 = spray.find(s => s.t > 1.1);
+    if(s3){
+      s3.t = 0;
+      s3.m.visible = true;
+      s3.m.position.set(rand(-40, 20), rand(0.4, 1.4), rand(-30, 20));
+    }
+  }
+  for(const s3 of spray){
+    if(s3.t > 1.1){ s3.m.visible = false; continue; }
+    s3.t += dt;
+    s3.m.position.x += windX * 1.1 * dt;
+    s3.m.position.y += (1.6 - s3.t*3) * dt;
+    s3.m.material.opacity = 0.7 * (1 - s3.t/1.1);
+  }
+
+  // ---------- the palm tells the wind ----------
+  const bend = clamp(windX / 22, 0, 1);
+  palm.segs.forEach((seg, i) => {
+    const f = (i+1)/palm.segs.length;
+    seg.rotation.z = -bend * 0.2 * f * f - Math.sin(t*2.2 + i)*0.01*(0.2 + bend);
+  });
+  for(const fr of palm.fronds){
+    fr.sh.rotation.z = -0.3 - bend*0.75*(0.5 - Math.cos(fr.a)*0.5)
+      - Math.sin(t*(6 + bend*12) + fr.ph)*0.06*(0.15 + bend);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
