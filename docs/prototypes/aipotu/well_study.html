@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WELL STUDY — the village well, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     The loop: crank the bucket DOWN (rope pays out, the drum turns),
+     the splash below, haul it UP (crank reverses, arms working), lift
+     it off the hook, CARRY it — sloshing, leaning against the weight —
+     then the over-the-shoulder DRINK, and back for another draw.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Well Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f0f2e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🪣 Well Study</b> — crank, haul, carry, drink, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 8181;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(3.8, 2.8, 6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 30;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f4e4), zenith = new THREE.Color(0x80b2da),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8ab80, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(220, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcb684 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+
+// ---------- THE WELL: stone ring, A-frame, roller drum, rope, bucket -------
+const matStone = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matRoof = new THREE.MeshLambertMaterial({ color:0x6e5a3a, flatShading:true });
+const matWater = new THREE.MeshLambertMaterial({ color:0x3f8bb5 });
+const well = new THREE.Group();
+scene.add(well);
+let drum, hook;
+{
+  // stone ring, staggered blocks
+  for(let row = 0; row < 3; row++){
+    const n = 10;
+    for(let i = 0; i < n; i++){
+      const a = (i/n)*Math.PI*2 + row*0.31;
+      const block = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.26, 0.3), matStone);
+      block.position.set(Math.cos(a)*0.72, 0.14 + row*0.27, Math.sin(a)*0.72);
+      block.rotation.y = -a;
+      block.castShadow = true;
+      well.add(block);
+    }
+  }
+  const waterDisc = new THREE.Mesh(new THREE.CircleGeometry(0.58, 18), matWater);
+  waterDisc.rotation.x = -Math.PI/2;
+  waterDisc.position.y = 0.1;
+  well.add(waterDisc);
+  // A-frame posts + the roller DRUM with its crank handle
+  for(const s of [-1, 1]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 1.7, 7), matWood);
+    post.position.set(s*0.85, 0.85, 0);
+    post.castShadow = true;
+    well.add(post);
+  }
+  drum = new THREE.Group();
+  drum.position.set(0, 1.62, 0);
+  const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.5, 9), matWood);
+  roller.rotation.z = Math.PI/2;
+  roller.castShadow = true;
+  drum.add(roller);
+  // wound rope (a fat ring around the drum)
+  const wound = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.035, 6, 14),
+    new THREE.MeshLambertMaterial({ color:0xc9b48a }));
+  wound.rotation.y = Math.PI/2;
+  wound.position.x = 0.25;
+  drum.add(wound);
+  // the crank handle
+  const crankArm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), matWood);
+  crankArm.position.set(0.82, -0.12, 0);
+  drum.add(crankArm);
+  const crankGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.22, 7), matWood);
+  crankGrip.rotation.z = Math.PI/2;
+  crankGrip.position.set(0.93, -0.26, 0);
+  drum.add(crankGrip);
+  well.add(drum);
+  hook = new THREE.Group();   // where the rope ends; the bucket hangs here or not
+  well.add(hook);
+  // little peaked roof
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.25, 0.6, 4), matRoof);
+  roof.rotation.y = Math.PI/4;
+  roof.position.y = 2.15;
+  roof.castShadow = true;
+  well.add(roof);
+}
+// the ROPE: hand-drawn line drum → bucket bail
+const ropeGeo = new THREE.BufferGeometry();
+ropeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2*3), 3));
+scene.add(new THREE.Line(ropeGeo, new THREE.LineBasicMaterial({ color:0xc9b48a })));
+// THE BUCKET: staved, banded, with a bail and water inside
+const bucket = new THREE.Group();
+let bucketWater;
+{
+  const tub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.24, 9, 1, true), matWood);
+  tub.material = matWood.clone();
+  tub.material.side = THREE.DoubleSide;
+  tub.castShadow = true;
+  bucket.add(tub);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(0.12, 9), matWood);
+  base.rotation.x = -Math.PI/2;
+  base.position.y = -0.12;
+  bucket.add(base);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.012, 5, 12),
+    new THREE.MeshLambertMaterial({ color:0x4a4f55 }));
+  band.rotation.x = Math.PI/2;
+  band.position.y = 0.06;
+  bucket.add(band);
+  const bail = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.014, 5, 12, Math.PI), matWood);
+  bail.position.y = 0.12;
+  bucket.add(bail);
+  bucketWater = new THREE.Mesh(new THREE.CircleGeometry(0.14, 10), matWater);
+  bucketWater.rotation.x = -Math.PI/2;
+  bucketWater.position.y = 0.06;
+  bucketWater.visible = false;
+  bucket.add(bucketWater);
+  scene.add(bucket);
+}
+// splash rings on the well water
+const rings = [];
+for(let i = 0; i < 5; i++){
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.15, 14),
+    new THREE.MeshBasicMaterial({ color:0xd8ecf2, transparent:true, opacity:0, side:THREE.DoubleSide }));
+  m.rotation.x = -Math.PI/2; m.position.y = 0.12;
+  scene.add(m);
+  rings.push({ m, t: 9 });
+}
+function splash(){
+  const r = rings.find(r => r.t > 1);
+  if(!r) return;
+  r.t = 0; r.m.scale.setScalar(1);
+}
+
+// ---------- the DRAWER (the person, not the furniture) ---------------------
+const P = { g: new THREE.Group() };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0xc9a85c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  P.hips = new THREE.Group(); P.hips.position.y = 0.42; P.g.add(P.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; P.hips.add(barrel);
+  P.head = new THREE.Group(); P.head.position.y = 0.8; P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; P.head.add(skull);
+  P.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Group(); hand.position.y = -0.5; arm.add(hand);
+    P.hips.add(arm); P.arms.push({ g: arm, hand });
+  }
+  P.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    P.hips.add(leg); P.legs.push(leg);
+  }
+  P.g.position.set(1.35, 0.1, 0.25);
+  P.g.rotation.y = -1.35;
+  scene.add(P.g);
+}
+
+// ---------- THE LOOP -------------------------------------------------------
+// down(3) → splash+fill(0.8) → up(3.6, heavier) → unhook+carry(3.4) → drink(2.4) → return(2.6)
+let phT = 0;
+const T_DOWN = 3, T_FILL = 0.8, T_UP = 3.6, T_CARRY = 3.4, T_DRINK = 2.4, T_BACK = 2.6;
+const TOTAL = T_DOWN + T_FILL + T_UP + T_CARRY + T_DRINK + T_BACK;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % TOTAL;
+  let f = phT;
+
+  let ropeLen = 0.35, carried = false, crankRate = 0;
+  P.hips.rotation.x = 0; P.g.position.y = 0.1;
+  if(f < T_DOWN){                                   // CRANKING DOWN
+    const p = f / T_DOWN;
+    ropeLen = lerp(0.35, 1.45, p);
+    crankRate = -1;
+    bucketWater.visible = false;
+    atWell();
+  } else if((f -= T_DOWN) < T_FILL){                // the fill
+    ropeLen = 1.45;
+    if(f < dt*2) splash();
+    bucketWater.visible = f > 0.4;
+    atWell(0.3);
+  } else if((f -= T_FILL) < T_UP){                  // HAULING UP — heavier now
+    const p = f / T_UP;
+    ropeLen = lerp(1.45, 0.35, p);
+    crankRate = 0.85;                               // slower against the weight
+    atWell(0.5);
+    P.hips.rotation.x = 0.08 + Math.sin(t*5)*0.03;  // working into it
+  } else if((f -= T_UP) < T_CARRY){                 // UNHOOK + CARRY
+    carried = true;
+    const p = f / T_CARRY;
+    const walkP = smooth(clamp((p - 0.15)/0.85, 0, 1));
+    P.g.position.set(lerp(1.35, 3.1, walkP), 0.1, lerp(0.25, 1.4, walkP));
+    P.g.rotation.y = lerp(-1.35, -0.7, clamp(p*3, 0, 1));
+    if(p > 0.15){
+      const ph = t*8;
+      P.legs[0].rotation.x = Math.sin(ph)*0.42;
+      P.legs[1].rotation.x = -Math.sin(ph)*0.42;
+      P.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.02;
+      P.hips.rotation.z = -0.09;                    // leaning AWAY from the weight
+    }
+    P.arms[1].g.rotation.x = -0.35;                 // the carrying arm, straight down
+    P.arms[1].g.rotation.z = 0.3;
+    P.arms[0].g.rotation.z = -0.55;                 // the counterbalance arm out
+  } else if((f -= T_CARRY) < T_DRINK){              // THE DRINK
+    carried = true;
+    const p = f / T_DRINK;
+    const tip = Math.sin(clamp(p*1.2, 0, 1)*Math.PI);
+    P.hips.rotation.z = 0;
+    P.arms[1].g.rotation.x = lerp(-0.35, -2.5, tip);   // bucket up and over
+    P.arms[1].g.rotation.z = lerp(0.3, 0.05, tip);
+    P.arms[0].g.rotation.x = lerp(0, -2.2, tip);       // both hands to it
+    P.head.rotation.x = -0.55*tip;                     // head back
+    P.legs[0].rotation.x = P.legs[1].rotation.x = 0;
+  } else {                                          // walking back for another
+    const p = (f - T_DRINK) / T_BACK;
+    const wp = smooth(p);
+    P.g.position.set(lerp(3.1, 1.35, wp), 0.1, lerp(1.4, 0.25, wp));
+    P.g.rotation.y = lerp(-0.7, -1.35, wp);
+    const ph = t*8;
+    P.legs[0].rotation.x = Math.sin(ph)*0.42;
+    P.legs[1].rotation.x = -Math.sin(ph)*0.42;
+    P.arms[0].g.rotation.x = lerp(P.arms[0].g.rotation.x, 0, dt*5);
+    P.arms[1].g.rotation.x = lerp(P.arms[1].g.rotation.x, 0, dt*5);
+    P.arms[0].g.rotation.z = lerp(P.arms[0].g.rotation.z, -0.12, dt*5);
+    P.arms[1].g.rotation.z = lerp(P.arms[1].g.rotation.z, 0.12, dt*5);
+    bucketWater.visible = false;                    // spent
+  }
+  function atWell(work = 1){
+    P.legs[0].rotation.x = lerp(P.legs[0].rotation.x, 0, dt*6);
+    P.legs[1].rotation.x = lerp(P.legs[1].rotation.x, 0, dt*6);
+    // both hands on the crank grip, arms circling with it
+    const ca = drum.rotation.x;
+    P.arms[1].g.rotation.x = -0.9 + Math.sin(ca)*0.35*work;
+    P.arms[0].g.rotation.x = -0.75 + Math.sin(ca)*0.3*work;
+    P.arms[0].g.rotation.z = -0.2; P.arms[1].g.rotation.z = 0.15;
+  }
+
+  drum.rotation.x += crankRate * dt * 3.2;
+
+  // bucket placement: hanging from the rope, or in the carrying hand
+  if(!carried){
+    bucket.position.set(0, 1.62 - ropeLen, 0);
+    bucket.rotation.z = Math.sin(t*2.2)*0.05;       // the hang-sway
+    bucket.rotation.x = 0;
+  } else {
+    P.arms[1].hand.getWorldPosition(bucket.position);
+    bucket.position.y -= 0.16;
+    // sloshing on the walk; tipping right over for the drink
+    const drinkTip = clamp(-(P.arms[1].g.rotation.x + 0.35)/2.15, 0, 1);
+    bucket.rotation.z = Math.sin(t*7)*0.09*(1 - drinkTip) + drinkTip*1.9;
+    bucketWater.position.y = 0.06 - drinkTip*0.1;
+  }
+  // the rope line: drum → bail (or slack coil marker when carried)
+  {
+    const pos = ropeGeo.attributes.position;
+    const top = new THREE.Vector3(0, 1.62, 0);
+    const end = carried ? new THREE.Vector3(0, 1.5, 0) : bucket.position.clone().add(new THREE.Vector3(0, 0.24, 0));
+    pos.setXYZ(0, top.x, top.y, top.z);
+    pos.setXYZ(1, end.x, end.y, end.z);
+    pos.needsUpdate = true;
+  }
+  for(const r of rings){
+    if(r.t > 1){ r.m.material.opacity = 0; continue; }
+    r.t += dt;
+    r.m.scale.setScalar(r.m.scale.x + dt*2.2);
+    r.m.material.opacity = 0.6*(1 - r.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
