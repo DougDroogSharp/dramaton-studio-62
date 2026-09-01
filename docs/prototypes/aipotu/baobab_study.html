@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BAOBAB STUDY — Adansonia, the upside-down tree, for George World.
+     Filed 2026-08-31 23:39 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The tree done properly: the swollen BOTTLE TRUNK (lathe, rosy-grey
+     bark with a baked base-to-crown vertex gradient), root flare wedges,
+     and the famous stubby root-like CROWN — thick branches that fork
+     twice and quit. Foliage rides the twig tips and can be toggled OFF
+     (a baobab spends most of the year bare). Velvety seed PODS dangle
+     on long stalks and sway. Wind is the one signal: base + gust
+     envelope + flutter; the baobab sits at the STIFF end of the ladder
+     (high-frequency, tiny amplitude — never a bow). A stand-in Vita
+     looks up at it for scale: crown ~9.5 units to her 1.5.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baobab Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e8e2cc; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(30,26,18,0.78); color:#f2eede; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#7a5c34; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#977442; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌳 Baobab Study</b> — Adansonia, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="leaf">In leaf</button><button data-m="bare">Bare</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 620031;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe6e0ca), 60, 320);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(11, 6.5, 15);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4.5, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf6f0da), zenith = new THREE.Color(0x82b4dc),
+        below = new THREE.Color(0xded6ba), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb8a878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(24, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground: dry savanna --------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xcbbc82 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0xa8a054, flatShading:true });
+  const rockMat = new THREE.MeshLambertMaterial({ color:0x9a9284, flatShading:true });
+  for(let i=0;i<26;i++){
+    const a = rand(0, Math.PI*2), r = rand(5, 34);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.14,0.24), rand(0.35,0.7), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.16, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+  for(let i=0;i<7;i++){
+    const a = rand(0, Math.PI*2), r = rand(6, 26);
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.2, 0.5), 0), rockMat);
+    rock.position.set(Math.cos(a)*r, 0.12, Math.sin(a)*r);
+    rock.rotation.set(rand(3), rand(3), rand(3));
+    rock.castShadow = true;
+    scene.add(rock);
+  }
+}
+
+// ==========================================================================
+//  THE BAOBAB — bottle trunk to ~6, root-like crown to ~9.5.
+// ==========================================================================
+const BARK = new THREE.Color(0xa08a78), BARK_DK = new THREE.Color(0x776254);
+const matBark = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+const matLeafBase = new THREE.Color(0x5c7c38), matLeafTip = new THREE.Color(0x93b258);
+const matPod = new THREE.MeshLambertMaterial({ color:0x6e5232, flatShading:true });
+const matStalk = new THREE.MeshLambertMaterial({ color:0x54432c });
+
+function paintBark(geo, y0, y1){        // dark at y0 → light at y1, baked
+  const pos = geo.attributes.position, col = [], c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = clamp((pos.getY(i) - y0)/(y1 - y0), 0, 1);
+    c.copy(BARK_DK).lerp(BARK, t);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return geo;
+}
+
+const tree = new THREE.Group();
+scene.add(tree);
+const TRUNK_H = 6;
+{
+  // the bottle: fat, barely tapering, then a quick shoulder at the top
+  const prof = [
+    [1.7, 0], [1.62, 0.5], [1.5, 1.4], [1.42, 2.6], [1.36, 3.8],
+    [1.24, 4.7], [1.0, 5.3], [0.72, 5.75], [0.52, TRUNK_H],
+  ].map(([r, y]) => new THREE.Vector2(r, y));
+  const trunk = new THREE.Mesh(paintBark(new THREE.LatheGeometry(prof, 12), -1, TRUNK_H), matBark);
+  trunk.castShadow = true; trunk.receiveShadow = true;
+  tree.add(trunk);
+  const cap = new THREE.Mesh(paintBark(new THREE.SphereGeometry(0.54, 10, 6), 5.4, 6.4), matBark);
+  cap.position.y = TRUNK_H;
+  tree.add(cap);
+  // root flare: wedges leaning into the base
+  for(let i=0;i<7;i++){
+    const a = (i/7)*Math.PI*2 + rand(-0.2, 0.2);
+    const w = new THREE.Mesh(paintBark(new THREE.ConeGeometry(rand(0.26,0.4), rand(1.1,1.7), 5), 0, 1.4), matBark);
+    w.position.set(Math.cos(a)*1.62, 0.4, Math.sin(a)*1.62);
+    w.rotation.set(Math.sin(a)*0.5, 0, -Math.cos(a)*0.5);
+    w.castShadow = true;
+    tree.add(w);
+  }
+}
+
+// the crown: stubby root-branches, each forking into twigs, leaves at tips
+const crown = new THREE.Group();
+crown.position.y = TRUNK_H;
+tree.add(crown);
+const leafClumps = [], pods = [];
+function leafGeo(r){
+  const geo = new THREE.SphereGeometry(r, 7, 5);
+  geo.scale(1, 0.5, 1);
+  const pos = geo.attributes.position, col = [], c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = clamp(pos.getY(i)/(r*0.5)*0.5 + 0.5, 0, 1);
+    c.copy(matLeafBase).lerp(matLeafTip, t);      // tips lighter, baked
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return geo;
+}
+const matLeaf = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+function twigTip(parent, atY){
+  // a leaf clump and, sometimes, a dangling pod on its long stalk
+  const clump = new THREE.Mesh(leafGeo(rand(0.5, 0.75)), matLeaf);
+  clump.position.y = atY;
+  clump.castShadow = true;
+  clump.userData.ph = rand(0, Math.PI*2);
+  parent.add(clump);
+  leafClumps.push(clump);
+  if(rand() < 0.55){
+    const pod = new THREE.Group();               // pivot at the twig; it swings
+    pod.position.y = atY - 0.1;
+    const stalkLen = rand(0.5, 0.85);
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, stalkLen, 5), matStalk);
+    stalk.position.y = -stalkLen/2;
+    pod.add(stalk);
+    const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 7), matPod);
+    fruit.scale.set(0.75, 1.3, 0.75);
+    fruit.position.y = -stalkLen - 0.13;
+    fruit.castShadow = true;
+    pod.add(fruit);
+    pod.userData.ph = rand(0, Math.PI*2);
+    parent.add(pod);
+    pods.push(pod);
+  }
+}
+{
+  const N = 9;
+  for(let i=0;i<N;i++){
+    const a = (i/N)*Math.PI*2 + rand(-0.25, 0.25);
+    const tilt = rand(0.55, 0.95);               // out of vertical, root-like splay
+    const limb = new THREE.Group();
+    limb.rotation.set(Math.sin(a)*tilt, 0, -Math.cos(a)*tilt);
+    crown.add(limb);
+    const len = rand(1.5, 2.1);
+    const gB = paintBark(new THREE.CylinderGeometry(0.13, 0.3, len, 7), -len/2, len/2);
+    gB.translate(0, len/2, 0);
+    const bough = new THREE.Mesh(gB, matBark);
+    bough.castShadow = true;
+    limb.add(bough);
+    const nTw = 2 + (rand() < 0.5 ? 1 : 0);
+    for(let j=0;j<nTw;j++){
+      const twig = new THREE.Group();
+      twig.position.y = len;
+      twig.rotation.set(rand(-0.7, 0.7), rand(0, Math.PI*2), rand(-0.7, 0.7));
+      limb.add(twig);
+      const tl = rand(0.7, 1.1);
+      const gT = paintBark(new THREE.CylinderGeometry(0.045, 0.11, tl, 6), -tl/2, tl/2);
+      gT.translate(0, tl/2, 0);
+      const tw = new THREE.Mesh(gT, matBark);
+      tw.castShadow = true;
+      twig.add(tw);
+      twigTip(twig, tl + 0.1);
+    }
+  }
+}
+
+// ---------- the stand-in Vita, looking up at it ----------------------------
+const vita = new THREE.Group();
+let vHead;
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0xc9a85c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  const hips = new THREE.Group(); hips.position.y = 0.42; vita.add(hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; hips.add(barrel);
+  vHead = new THREE.Group(); vHead.position.y = 0.8; hips.add(vHead);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; vHead.add(skull);
+  for(const s of [-1,1]){
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.set(s*0.14, -0.26, 0); shin.castShadow = true; hips.add(shin);
+  }
+  vita.position.set(3.6, 0.1, 2.6);
+  vita.rotation.y = -2.45;                       // turned to face the trunk
+  scene.add(vita);
+}
+
+// ---------- chip: in leaf / bare -------------------------------------------
+let leafOn = true;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  leafOn = m === 'leaf';
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('leaf');
+
+// ---------- animate --------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the ONE wind signal: base + slow gust envelope + high-freq flutter
+  const gust = Math.pow(0.5 + 0.5*Math.sin(t*0.31 + Math.sin(t*0.13)*1.2), 2);
+  const wind = 0.35 + 0.65*gust;
+  const flutter = Math.sin(t*5.2) * 0.4 + Math.sin(t*8.7) * 0.25;
+
+  // the baobab is STIFF: high-frequency, tiny amplitude, never a bow
+  crown.rotation.z = wind * 0.008 * Math.sin(t*2.3) + flutter * 0.0015;
+  crown.rotation.x = wind * 0.006 * Math.sin(t*2.0 + 1.3);
+
+  // leaves flutter in place; grow/shrink eases the leaf↔bare toggle
+  const leafK = leafOn ? 1 : 0;
+  for(const c of leafClumps){
+    const s = lerp(c.scale.x, leafK, Math.min(1, dt*3.5));
+    c.scale.setScalar(Math.max(0.001, s));
+    c.visible = s > 0.02;
+    c.rotation.z = (flutter*0.03 + Math.sin(t*6.1 + c.userData.ph)*0.02) * wind;
+    c.rotation.x = Math.sin(t*7.3 + c.userData.ph)*0.018 * wind;
+  }
+  // pods swing like pendulums, lagging the gusts
+  for(const p of pods){
+    p.rotation.x = Math.sin(t*1.7 + p.userData.ph) * 0.1 * wind;
+    p.rotation.z = Math.sin(t*1.35 + p.userData.ph*1.7) * 0.12 * wind;
+  }
+
+  // the Vita: a small idle sway, head craned back at the crown
+  vita.rotation.y = -2.45 + Math.sin(t*0.4)*0.06;
+  vHead.rotation.x = -0.5 + Math.sin(t*0.7)*0.05;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
