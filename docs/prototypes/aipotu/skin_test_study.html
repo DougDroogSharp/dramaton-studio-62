@@ -310,9 +310,19 @@ SKINLIB.forEach((def, i) => {
   o.value = i; o.textContent = def.name;
   skinSel.appendChild(o);
 });
-skinSel.addEventListener('change', () => {
-  meshes.forEach((m, i) => m.visible = i === +skinSel.value);
-});
+function showSkin(v){
+  if(String(v).startsWith('dl:')){
+    activeDL = +String(v).slice(3);
+    meshes.forEach(m => m.visible = false);
+    DL.forEach((d, i) => d.obj.visible = i === activeDL);
+  } else {
+    activeDL = -1;
+    DL.forEach(d => d.obj.visible = false);
+    meshes.forEach((m, i) => m.visible = i === +v);
+  }
+  replay();
+}
+skinSel.addEventListener('change', () => showSkin(skinSel.value));
 
 // ---------- our test clips (authored on the canonical rig) -----------------
 function quatTrack(boneName, times, eulers){
@@ -371,14 +381,21 @@ const OURS = [];
 }
 
 // ==========================================================================
-//  THE GUEST — Xbot.glb, and the cascading MODEL ▸ ANIMATION menu.
+//  GUESTS & DOWNLOADED SKINS — Xbot stands at the right as the reference;
+//  every .glb listed in vendor/models/manifest.json (or DRAGGED onto this
+//  page) joins the SKIN menu and takes the left spot when picked. Foreign
+//  skins keep their own skeletons — clips travel by bone name, and only
+//  quaternion tracks cross rigs (positions stay home).
 // ==========================================================================
 const ourMixer = new THREE.AnimationMixer(meshes[0]);
-let guestMixer = null, guestClips = [];
-let ourAction = null, guestAction = null;
 const animSel = document.getElementById('animsel');
+const loader = new GLTFLoader();
+const DL = [];                    // downloaded skins {name, obj, mixer, clips, action}
+let activeDL = -1;                // -1 = a built-in body is on stage
+let xbot = null;                  // {mixer, clips, action}
+let ourAction = null;
+let lastPick = null;
 
-// THE RETARGET RULE: quaternion tracks travel; position tracks stay home.
 function quatsOnly(clip){
   return new THREE.AnimationClip(clip.name, clip.duration,
     clip.tracks.filter(tr => !tr.name.endsWith('.position') && !tr.name.endsWith('.scale')));
@@ -387,18 +404,29 @@ function normNames(clip){
   for(const tr of clip.tracks) tr.name = tr.name.replace('mixamorig:', 'mixamorig');
   return clip;
 }
-function playBoth(clip, fromGuest){
+function stopAll(){
   if(ourAction) ourAction.stop();
-  if(guestAction) guestAction.stop();
-  const forUs = fromGuest ? quatsOnly(clip) : clip;
-  ourAction = ourMixer.clipAction(forUs, meshes[0]);
-  ourAction.reset().play();
-  if(guestMixer){
-    const forGuest = fromGuest ? clip : quatsOnly(clip);
-    guestAction = guestMixer.clipAction(forGuest);
-    guestAction.reset().play();
+  if(xbot?.action) xbot.action.stop();
+  for(const d of DL) if(d.action) d.action.stop();
+}
+function playAll(clip, src, si = -1){
+  lastPick = { clip, src, si };
+  stopAll();
+  if(activeDL < 0){
+    ourAction = ourMixer.clipAction(src === 'ours' ? clip : quatsOnly(clip), meshes[0]);
+    ourAction.reset().play();
+  } else {
+    const d = DL[activeDL];
+    d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : quatsOnly(clip));
+    d.action.reset().play();
+  }
+  if(xbot){
+    xbot.action = xbot.mixer.clipAction(src === 'xbot' ? clip : quatsOnly(clip));
+    xbot.action.reset().play();
   }
 }
+function replay(){ if(lastPick) playAll(lastPick.clip, lastPick.src, lastPick.si); }
+
 // the cascade: one <select>, an <optgroup> per MODEL, its clips inside
 const ogOurs = document.createElement('optgroup');
 ogOurs.label = '★ Canonical Vita rig — authored clips';
@@ -409,40 +437,100 @@ OURS.forEach((c, i) => {
 });
 animSel.appendChild(ogOurs);
 animSel.addEventListener('change', () => {
-  const [src, i] = animSel.value.split(':');
-  if(src === 'ours') playBoth(OURS[+i], false);
-  else playBoth(guestClips[+i], true);
+  const p = animSel.value.split(':');
+  if(p[0] === 'ours') playAll(OURS[+p[1]], 'ours');
+  else if(p[0] === 'xbot' && xbot) playAll(xbot.clips[+p[1]], 'xbot');
+  else if(p[0] === 'skin') playAll(DL[+p[1]].clips[+p[2]], 'skin', +p[1]);
 });
 
-new GLTFLoader().load('./vendor/models/Xbot.glb', gltf => {
+const ogDL = document.createElement('optgroup');
+ogDL.label = 'Downloaded skins';
+skinSel.appendChild(ogDL);
+
+function groundAndScale(obj, x){
+  const box = new THREE.Box3().setFromObject(obj);
+  const h = Math.max(0.01, box.max.y - box.min.y);
+  const s = 1.55/h;                // every guest stands Vita-height
+  obj.scale.setScalar(s);
+  obj.position.set(x, -box.min.y*s, 0);
+}
+function registerSkin(name, gltf){
+  const obj = gltf.scene;
+  obj.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
+  groundAndScale(obj, -0.9);
+  obj.visible = false;
+  scene.add(obj);
+  const clips = (gltf.animations || []).map(normNames);
+  DL.push({ name, obj, mixer: new THREE.AnimationMixer(obj), clips, action:null });
+  const si = DL.length - 1;
+  const o = document.createElement('option');
+  o.value = 'dl:' + si; o.textContent = name;
+  ogDL.appendChild(o);
+  if(clips.length){
+    const og = document.createElement('optgroup');
+    og.label = name + ' — bundled clips';
+    clips.forEach((c, ci) => {
+      const oo = document.createElement('option');
+      oo.value = 'skin:' + si + ':' + ci; oo.textContent = c.name;
+      og.appendChild(oo);
+    });
+    animSel.appendChild(og);
+  }
+  return si;
+}
+
+// the manifest: any .glb dropped into vendor/models/ and listed there
+fetch('./vendor/models/manifest.json')
+  .then(r => r.ok ? r.json() : null)
+  .then(man => {
+    if(!man?.skins) return;
+    for(const it of man.skins){
+      if(it.file === 'Xbot.glb') continue;   // Xbot is the standing reference
+      loader.load('./vendor/models/' + it.file,
+        g => registerSkin(it.name || it.file, g),
+        undefined, err => console.warn('skin load failed', it.file, err));
+    }
+  }).catch(() => {});
+
+// drag a .glb from anywhere onto the page — instant audition
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  for(const f of e.dataTransfer.files){
+    f.arrayBuffer().then(buf => loader.parse(buf, './', g => {
+      const si = registerSkin(f.name.replace(/\.(glb|gltf)$/i, ''), g);
+      skinSel.value = 'dl:' + si;
+      showSkin('dl:' + si);
+    }, err => console.warn('drop parse failed', err)));
+  }
+});
+
+// Xbot — the permanent reference on the right
+loader.load('./vendor/models/Xbot.glb', gltf => {
   const guest = gltf.scene;
   guest.position.set(0.9, 0, 0);
-  guest.traverse(o => { if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; } });
+  guest.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
   scene.add(guest);
-  guestMixer = new THREE.AnimationMixer(guest);
-  guestClips = (gltf.animations || []).map(c => normNames(c));
+  xbot = { mixer: new THREE.AnimationMixer(guest),
+           clips: (gltf.animations || []).map(normNames), action:null };
   const og = document.createElement('optgroup');
   og.label = 'Xbot — real Mixamo library (from the .glb)';
-  guestClips.forEach((c, i) => {
+  xbot.clips.forEach((c, i) => {
     const o = document.createElement('option');
     o.value = 'xbot:' + i; o.textContent = c.name;
     og.appendChild(o);
   });
   animSel.appendChild(og);
-  playBoth(OURS[0], false);               // open on our walk, both bodies
-}, undefined, err => {
-  const o = document.createElement('option');
-  o.textContent = 'Xbot failed to load';
-  animSel.appendChild(o);
-  playBoth(OURS[0], false);
-});
+  playAll(OURS[0], 'ours');               // open on our walk
+}, undefined, () => playAll(OURS[0], 'ours'));
 
 const clock = new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   ourMixer.update(dt);
-  if(guestMixer) guestMixer.update(dt);
+  if(xbot) xbot.mixer.update(dt);
+  for(const d of DL) d.mixer.update(dt);
   controls.update();
   renderer.render(scene, camera);
 }
