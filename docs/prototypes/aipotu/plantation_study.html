@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PLANTATION STUDY — the extraction economy made visible, for
+     George World's coerced-labor scenario. Filed 2026-08-31.
+     Deliberately sober, no cartooning: the teaching is in the FLOW.
+     The grand white house stands on the rise with its columned
+     veranda; below it, field rows where four workers bend and hoe,
+     shuffling slowly along their rows. The overseer watches from the
+     porch with folded arms, now and then walking a row to point and
+     press. A carrier hauls each filled basket UP THE HILL — and the
+     basket pile grows at the big house, never at the two bare worker
+     huts at the field's edge. Product flows one way; that's the
+     lesson standing in the geography (rank clusters + dwellings fit
+     for rank, DESIGN.md). Pairs with the game's coercion-spring and
+     quota mechanics.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plantation Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:330px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🏛️ Plantation Study</b> — product flows one way, v1<br>
+  <span class="hint">workers bend in the rows; baskets climb the hill to the
+  big house; nothing comes back down</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 6060;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 50, 260);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(8, 5, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0dc), zenith = new THREE.Color(0x8ab0d4),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 0.95));
+const sun = new THREE.DirectionalLight(0xffedc8, 2.2);
+sun.position.set(14, 20, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+scene.add(sun);
+
+// ---------- the ground: a rise for the house, flats for the field ----------
+function groundH(x, z){
+  // the house hill at (-6, -6); field flats toward +x/+z
+  const d = Math.hypot(x + 6, z + 6);
+  return 1.8*Math.exp(-(d*d)/26);
+}
+{
+  const geo = new THREE.PlaneGeometry(50, 50, 60, 60);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, col = [];
+  const grass = new THREE.Color(0x94a85c), worn = new THREE.Color(0xb8a86a), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, groundH(x, z));
+    c.copy(grass).lerp(worn, clamp(groundH(x, z)/1.6, 0, 0.6));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const g = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ---------- THE BIG HOUSE --------------------------------------------------
+const HOUSE = new THREE.Vector3(-6, groundH(-6, -6), -6);
+{
+  const white = new THREE.MeshLambertMaterial({ color:0xefe9dc, flatShading:true });
+  const trim = new THREE.MeshLambertMaterial({ color:0xcfc4ae, flatShading:true });
+  const roofM = new THREE.MeshLambertMaterial({ color:0x5c5650, flatShading:true });
+  const H = new THREE.Group();
+  H.position.copy(HOUSE);
+  H.rotation.y = Math.PI/4;                 // faces the field
+  scene.add(H);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(5.2, 2.6, 3.4), white);
+  body.position.y = 1.75;
+  body.castShadow = true;
+  H.add(body);
+  // the veranda slab + six thin columns
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.18, 1.5), trim);
+  slab.position.set(0, 0.55, 2.35);
+  slab.castShadow = true;
+  H.add(slab);
+  for(let i = 0; i < 6; i++){
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 2.5, 10), white);
+    col.position.set(-2.55 + i*1.02, 1.9, 2.95);
+    col.castShadow = true;
+    H.add(col);
+  }
+  const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.16, 1.7), roofM);
+  porchRoof.position.set(0, 3.16, 2.4);
+  porchRoof.castShadow = true;
+  H.add(porchRoof);
+  // hipped main roof
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 2.6, 1.5, 4), roofM);
+  roof.rotation.y = Math.PI/4;
+  roof.scale.set(1.5, 1, 1.05);
+  roof.position.y = 3.85;
+  roof.castShadow = true;
+  H.add(roof);
+  // windows + door
+  const winM = new THREE.MeshLambertMaterial({ color:0x2c3440 });
+  for(const x of [-1.9, -0.95, 0.95, 1.9]){
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.85, 0.06), winM);
+    w.position.set(x, 2.0, 1.74);
+    H.add(w);
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.4, 0.08), new THREE.MeshLambertMaterial({ color:0x5a3a22 }));
+  door.position.set(0, 1.35, 1.74);
+  H.add(door);
+  // the steps down toward the field
+  for(let i = 0; i < 4; i++){
+    const step = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.14, 0.4), trim);
+    step.position.set(0, 0.42 - i*0.14, 3.3 + i*0.38);
+    step.castShadow = true;
+    H.add(step);
+  }
+}
+// the two worker huts at the field's edge — the contrast
+{
+  const hutM = new THREE.MeshLambertMaterial({ color:0x8a6a44, flatShading:true });
+  const thatchM = new THREE.MeshLambertMaterial({ color:0xa89050, flatShading:true });
+  for(const [x, z] of [[8.5, 6.5], [10.2, 7.8]]){
+    const hut = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.0, 1.2), hutM);
+    body.position.y = 0.5;
+    body.castShadow = true;
+    hut.add(body);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.15, 0.8, 4), thatchM);
+    roof.rotation.y = Math.PI/4;
+    roof.position.y = 1.35;
+    roof.castShadow = true;
+    hut.add(roof);
+    hut.position.set(x, groundH(x, z), z);
+    hut.rotation.y = rand(0, 1);
+    scene.add(hut);
+  }
+}
+
+// ---------- THE FIELD ROWS -------------------------------------------------
+const ROWS = [];
+{
+  const cropM = new THREE.MeshLambertMaterial({ color:0x5c8544, flatShading:true });
+  const soilM = new THREE.MeshLambertMaterial({ color:0x7a5c3c });
+  for(let r = 0; r < 4; r++){
+    const z = 1.5 + r*1.4;
+    const mound = new THREE.Mesh(new THREE.BoxGeometry(10, 0.16, 0.5), soilM);
+    mound.position.set(3.5, groundH(3.5, z) + 0.08, z);
+    mound.receiveShadow = true;
+    scene.add(mound);
+    for(let i = 0; i < 14; i++){
+      const x = -1 + i*0.66;
+      const c = new THREE.Mesh(new THREE.ConeGeometry(rand(0.09, 0.14), rand(0.25, 0.4), 5), cropM);
+      c.position.set(x, groundH(x, z) + 0.28, z + rand(-0.08, 0.08));
+      c.rotation.y = rand(0, 6);
+      c.castShadow = true;
+      scene.add(c);
+    }
+    ROWS.push(z);
+  }
+}
+
+// ---------- people ---------------------------------------------------------
+function makePerson(shirtCol, opts = {}){
+  const P = { g: new THREE.Group() };
+  const shirt = new THREE.MeshLambertMaterial({ color:shirtCol });
+  const skin = new THREE.MeshLambertMaterial({ color:opts.skin || 0xe0ba92 });
+  P.hips = new THREE.Group(); P.hips.position.y = 0.42; P.g.add(P.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.38, 6, 10), shirt);
+  barrel.position.y = 0.2; barrel.castShadow = true; P.hips.add(barrel);
+  P.head = new THREE.Group(); P.head.position.y = 0.74; P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), skin);
+  skull.castShadow = true; P.head.add(skull);
+  if(opts.strawHat){
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.04, 12),
+      new THREE.MeshLambertMaterial({ color:0xc8b06a }));
+    brim.position.y = 0.14; P.head.add(brim);
+  }
+  if(opts.tophat){
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 12),
+      new THREE.MeshLambertMaterial({ color:0x2a2a2e }));
+    brim.position.y = 0.16; P.head.add(brim);
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.18, 0.32, 10),
+      new THREE.MeshLambertMaterial({ color:0x2a2a2e }));
+    crown.position.y = 0.32; P.head.add(crown);
+  }
+  P.arms = []; P.hands = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.29, 0.44, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.34, 4, 8), skin);
+    limb.position.y = -0.21; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), skin);
+    hand.position.y = -0.43; arm.add(hand);
+    P.hips.add(arm); P.arms.push(arm); P.hands.push(hand);
+  }
+  P.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.13, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.072, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    shin.position.y = -0.24; shin.castShadow = true; leg.add(shin);
+    P.hips.add(leg); P.legs.push(leg);
+  }
+  scene.add(P.g);
+  return P;
+}
+function walkLegs(P, t, sp = 1){
+  const ph = t*8*sp;
+  P.legs[0].rotation.x = Math.sin(ph)*0.45;
+  P.legs[1].rotation.x = -Math.sin(ph)*0.45;
+}
+// four workers, one per row, with hoes
+const workers = [];
+{
+  const hoeM = new THREE.MeshLambertMaterial({ color:0x6a4a2a });
+  const skins = [0xc89272, 0xe0ba92, 0xb0805c, 0xd8a878];
+  for(let i = 0; i < 4; i++){
+    const P = makePerson(0x9a8a6a, { strawHat:true, skin:skins[i] });
+    // the hoe, held in both hands
+    const hoe = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1, 6), hoeM);
+    hoe.add(shaft);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.02),
+      new THREE.MeshStandardMaterial({ color:0x9aa2ac, roughness:0.5, metalness:0.4 }));
+    blade.position.set(0, -0.56, 0.06);
+    blade.rotation.x = 0.6;
+    hoe.add(blade);
+    hoe.position.set(0, -0.35, 0.18);
+    hoe.rotation.x = 0.5;
+    P.hips.add(hoe);
+    P.rowZ = ROWS[i];
+    P.ph = rand(0, 10);
+    workers.push(P);
+    scene.add(P.g);
+  }
+}
+const overseer = makePerson(0x3a3a4a, { tophat:true });
+const carrier = makePerson(0x8a7a5a, { strawHat:true, skin:0xc89272 });
+// the basket (carried) + the pile at the house
+const basketM = new THREE.MeshLambertMaterial({ color:0xb08c4c, flatShading:true });
+const carryBasket = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.13, 0.2, 9), basketM);
+carryBasket.castShadow = true;
+scene.add(carryBasket);
+const pile = [];
+{
+  for(let i = 0; i < 6; i++){
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.13, 0.2, 9), basketM);
+    const px = HOUSE.x + 1.6 + (i%3)*0.42, pz = HOUSE.z + 2.6 + Math.floor(i/3)*0.42;
+    b.position.set(px, groundH(px, pz) + 0.62 + 0, pz);
+    b.position.y = HOUSE.y + 0.55 + Math.floor(i/3)*0.0 + 0.1;
+    b.castShadow = true;
+    b.visible = false;
+    scene.add(b);
+    pile.push(b);
+  }
+}
+let piled = 0;
+
+// ---------- the loop -------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ------ the workers: bent, hoeing, shuffling slowly along their rows ------
+  for(const P of workers){
+    const tt = t*0.11 + P.ph;                 // very slow progress
+    const k = tt % 2;
+    const dir = k < 1 ? 1 : -1;
+    const along = (k < 1 ? k : 2 - k)*9 - 1;
+    P.g.position.set(along, groundH(along, P.rowZ), P.rowZ + 0.55);
+    P.g.rotation.y = -Math.PI/2*0 + (dir > 0 ? -1.35 : 1.35);
+    P.hips.rotation.x = 0.62 + Math.sin(t*2.6 + P.ph)*0.1;    // the bend + the stroke
+    P.arms[0].rotation.x = -1.15 + Math.sin(t*2.6 + P.ph)*0.35;
+    P.arms[1].rotation.x = -1.15 + Math.sin(t*2.6 + P.ph)*0.35;
+    P.head.rotation.x = 0.3;
+    // tiny shuffle steps in rhythm
+    P.legs[0].rotation.x = Math.sin(t*2.6 + P.ph)*0.12;
+    P.legs[1].rotation.x = -Math.sin(t*2.6 + P.ph)*0.12;
+  }
+
+  // ------ the overseer: porch watch, then a walk down the rows ------
+  {
+    const f = t % 26;
+    const PORCH = new THREE.Vector3(HOUSE.x + 1.2, HOUSE.y + 0.68, HOUSE.z + 2.9);
+    const ROWSTART = new THREE.Vector3(-0.5, 0, 1.9);
+    const ROWEND = new THREE.Vector3(6.5, 0, 1.9);
+    if(f < 10){                               // arms folded on the porch
+      overseer.g.position.copy(PORCH);
+      overseer.g.rotation.y = 0.75;
+      overseer.arms[0].rotation.x = -1.15; overseer.arms[0].rotation.z = 0.75;
+      overseer.arms[1].rotation.x = -1.15; overseer.arms[1].rotation.z = -0.75;
+      overseer.head.rotation.y = Math.sin(t*0.5)*0.35;     // surveying
+      for(const P of [overseer]) { P.legs[0].rotation.x = 0; P.legs[1].rotation.x = 0; }
+    } else if(f < 14){                        // down to the field
+      const p = smooth((f - 10)/4);
+      const x = lerp(PORCH.x, ROWSTART.x, p), z = lerp(PORCH.z, ROWSTART.z, p);
+      overseer.g.position.set(x, lerp(PORCH.y, groundH(ROWSTART.x, ROWSTART.z), p), z);
+      overseer.g.rotation.y = Math.atan2(ROWSTART.x - PORCH.x, ROWSTART.z - PORCH.z);
+      walkLegs(overseer, t);
+      overseer.arms[0].rotation.x = 0; overseer.arms[0].rotation.z = 0.15;
+      overseer.arms[1].rotation.x = 0; overseer.arms[1].rotation.z = -0.15;
+    } else if(f < 21){                        // along the row, pointing and pressing
+      const p = (f - 14)/7;
+      const x = lerp(ROWSTART.x, ROWEND.x, p);
+      overseer.g.position.set(x, groundH(x, ROWSTART.z), ROWSTART.z);
+      overseer.g.rotation.y = Math.PI/2 + 0.35;   // angled at the workers
+      walkLegs(overseer, t, 0.7);
+      const jab = Math.max(0, Math.sin(t*2.2));
+      overseer.arms[1].rotation.x = -1.2 - jab*0.35;   // the pointing arm
+      overseer.head.rotation.x = 0.12;
+    } else {                                  // back up the hill
+      const p = smooth((f - 21)/5);
+      const x = lerp(ROWEND.x, PORCH.x, p), z = lerp(ROWSTART.z, PORCH.z, p);
+      overseer.g.position.set(x, lerp(groundH(ROWEND.x, ROWSTART.z), PORCH.y, p), z);
+      overseer.g.rotation.y = Math.atan2(PORCH.x - ROWEND.x, PORCH.z - ROWSTART.z);
+      walkLegs(overseer, t);
+      overseer.arms[1].rotation.x = lerp(overseer.arms[1].rotation.x, 0, dt*4);
+    }
+  }
+
+  // ------ the carrier: field end → up the hill → the pile grows ------
+  {
+    const f = t % 12;
+    const FIELD = new THREE.Vector3(7.2, 0, 3.6);
+    const DROP = new THREE.Vector3(HOUSE.x + 2.0, 0, HOUSE.z + 3.2);
+    if(f < 1.5){                              // picking up at the row's end
+      carrier.g.position.set(FIELD.x, groundH(FIELD.x, FIELD.z), FIELD.z);
+      carrier.g.rotation.y = -0.6;
+      carrier.hips.rotation.x = lerp(carrier.hips.rotation.x, 0.55, dt*5);
+      carrier.legs[0].rotation.x = 0; carrier.legs[1].rotation.x = 0;
+      carryBasket.position.set(FIELD.x + 0.25, groundH(FIELD.x, FIELD.z) + 0.15, FIELD.z + 0.2);
+    } else if(f < 8){                         // the climb, loaded
+      const p = smooth((f - 1.5)/6.5);
+      const x = lerp(FIELD.x, DROP.x, p), z = lerp(FIELD.z, DROP.z, p);
+      carrier.g.position.set(x, groundH(x, z), z);
+      carrier.g.rotation.y = Math.atan2(DROP.x - FIELD.x, DROP.z - FIELD.z);
+      walkLegs(carrier, t, 0.85);
+      carrier.hips.rotation.x = lerp(carrier.hips.rotation.x, 0.14, dt*4);   // stooped under it
+      carrier.arms[0].rotation.x = -2.6; carrier.arms[1].rotation.x = -2.6;  // basket on the head
+      const hp = new THREE.Vector3();
+      carrier.head.getWorldPosition(hp);
+      carryBasket.position.set(hp.x, hp.y + 0.3, hp.z);
+    } else if(f < 9){                         // set it on the pile
+      if(f - dt < 8){
+        piled = (piled + 1) % 7;
+        if(piled === 0) pile.forEach(b => b.visible = false);   // carted off to market
+        else pile[piled - 1].visible = true;
+      }
+      carrier.hips.rotation.x = 0.4;
+      carrier.arms[0].rotation.x = -1.2; carrier.arms[1].rotation.x = -1.2;
+      carryBasket.position.set(DROP.x, groundH(DROP.x, DROP.z) + 0.3, DROP.z);
+    } else {                                  // back down, empty-handed
+      const p = smooth((f - 9)/3);
+      const x = lerp(DROP.x, FIELD.x, p), z = lerp(DROP.z, FIELD.z, p);
+      carrier.g.position.set(x, groundH(x, z), z);
+      carrier.g.rotation.y = Math.atan2(FIELD.x - DROP.x, FIELD.z - DROP.z);
+      walkLegs(carrier, t);
+      carrier.hips.rotation.x = lerp(carrier.hips.rotation.x, 0.05, dt*4);
+      carrier.arms[0].rotation.x = lerp(carrier.arms[0].rotation.x, 0, dt*5);
+      carrier.arms[1].rotation.x = lerp(carrier.arms[1].rotation.x, 0, dt*5);
+      carryBasket.position.set(FIELD.x + 0.25, groundH(FIELD.x, FIELD.z) + 0.15, FIELD.z + 0.2);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
