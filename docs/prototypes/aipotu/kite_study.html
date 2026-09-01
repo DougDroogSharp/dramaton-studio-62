@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     KITE STUDY — kites over the island, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: a fun simple kite in FOUR colors/patterns with the
+     fabric RIPPLING realistically; a friendly DRAGON KITE with its
+     tail WHIPPING and wings FLUTTERING; and the full flying scene —
+     a Vita REELS OUT string as the kite climbs, the string SAGS and
+     WIGGLES with the wind, and the flier PULLS, WALKS with it, and
+     BACKS UP pulling. Pick a kite; the flight loops through its
+     phases on its own.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kite Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#d4e8f2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(16,28,40,0.78); color:#e8f2fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3d8ec9; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4da3e0; }
+  #chip button.on { background:#e8c531; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🪁 Kite Study</b> — four sails + the dragon, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the flight loops: reel out → fly → pull → walk → back up</span><br>
+  <button data-k="0">Sunburst</button><button data-k="1">Diamonds</button><button
+    data-k="2">Stripes</button><button data-k="3">Bullseye</button><button data-k="4">🐉 Dragon</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 121212;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd2e6f0), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(8, 6, 14);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 60;
+controls.maxPolarAngle = 1.53;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeef6f8), zenith = new THREE.Color(0x54a6dd),
+        below = new THREE.Color(0xcfe0d2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf8, 0x9ab088, 1.05));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(24, 34, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14;  sun.shadow.camera.bottom = -14;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8c078 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  THE SIMPLE KITES — one diamond sail, four painted personalities. The
+//  sail is a segmented plane whose vertices RIPPLE live (fabric luffing);
+//  crossed spars, a bridle point, and a little cloth-bow tail.
+// ==========================================================================
+const PAINTS = [
+  function sunburst(g){                     // warm rays from the center
+    g.fillStyle = '#f2ce4a'; g.fillRect(0,0,256,256);
+    g.fillStyle = '#e8642c';
+    for(let i = 0; i < 8; i++){
+      g.beginPath();
+      const a0 = i/8 * Math.PI*2, a1 = a0 + 0.22;
+      g.moveTo(128, 128);
+      g.lineTo(128 + Math.cos(a0)*200, 128 + Math.sin(a0)*200);
+      g.lineTo(128 + Math.cos(a1)*200, 128 + Math.sin(a1)*200);
+      g.closePath(); g.fill();
+    }
+    g.fillStyle = '#d8352c';
+    g.beginPath(); g.arc(128, 128, 34, 0, Math.PI*2); g.fill();
+  },
+  function diamonds(g){                     // harlequin
+    g.fillStyle = '#3d8ec9'; g.fillRect(0,0,256,256);
+    g.fillStyle = '#f4f6f6';
+    for(let y = 0; y < 4; y++) for(let x = 0; x < 4; x++){
+      if((x + y) % 2) continue;
+      g.beginPath();
+      g.moveTo(x*64 + 32, y*64);
+      g.lineTo(x*64 + 64, y*64 + 32);
+      g.lineTo(x*64 + 32, y*64 + 64);
+      g.lineTo(x*64, y*64 + 32);
+      g.closePath(); g.fill();
+    }
+  },
+  function stripes(g){                      // bold diagonals
+    g.fillStyle = '#7ed957'; g.fillRect(0,0,256,256);
+    g.fillStyle = '#2c3438';
+    for(let i = -4; i < 8; i++){
+      g.save();
+      g.translate(i*52, 0);
+      g.rotate(0.6);
+      g.fillRect(0, -60, 22, 400);
+      g.restore();
+    }
+  },
+  function bullseye(g){                     // rings
+    const cols = ['#d8352c', '#f4f6f6', '#3d8ec9', '#f2ce4a', '#d8352c'];
+    cols.forEach((c2, i) => {
+      g.fillStyle = c2;
+      g.beginPath(); g.arc(128, 128, 170 - i*36, 0, Math.PI*2); g.fill();
+    });
+  },
+];
+function makeDiamondKite(paintI){
+  const g = new THREE.Group();
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  PAINTS[paintI](cv.getContext('2d'));
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sailG = new THREE.PlaneGeometry(1.5, 1.9, 8, 10);
+  const sail = new THREE.Mesh(sailG, new THREE.MeshLambertMaterial({
+    map: tex, side: THREE.DoubleSide }));
+  // clip to the diamond by collapsing corner verts — cheap and true enough:
+  // scale x by (1 - |v|) per row so the plane necks to points top and bottom
+  const pos = sailG.attributes.position;
+  for(let i = 0; i < pos.count; i++){
+    const vFrac = pos.getY(i) / 0.95;                 // -1..1
+    pos.setX(i, pos.getX(i) * (1 - Math.abs(vFrac)*0.92));
+  }
+  sail.castShadow = true;
+  g.add(sail);
+  // spars
+  const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.95, 5),
+    new THREE.MeshLambertMaterial({ color:0x8a6134 }));
+  spine.position.z = -0.02;
+  g.add(spine);
+  const cross = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.42, 5),
+    new THREE.MeshLambertMaterial({ color:0x8a6134 }));
+  cross.rotation.z = Math.PI/2;
+  cross.position.set(0, 0.28, -0.02);
+  g.add(cross);
+  // the bow tail: cloth bows down a string
+  const tail = [];
+  let py = -0.98;
+  for(let i = 0; i < 5; i++){
+    const bow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.02),
+      new THREE.MeshLambertMaterial({ color: [0xd8352c, 0xf4f6f6, 0x3d8ec9, 0xf2ce4a, 0xe8642c][i] }));
+    bow.position.set(0, py - i*0.3, 0);
+    g.add(bow);
+    tail.push(bow);
+  }
+  return { g, sailG, tail, wings: null, dragonTail: null };
+}
+// ---------- THE DRAGON KITE: friendly head, wing flaps, long whipping tail -
+function makeDragonKite(){
+  const g = new THREE.Group();
+  // the head sail: a round friendly face
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const c2 = cv.getContext('2d');
+  c2.fillStyle = '#7ed957'; c2.fillRect(0,0,256,256);
+  c2.fillStyle = '#5cb83c'; c2.beginPath(); c2.arc(128, 128, 110, 0, Math.PI*2); c2.fill();
+  // big friendly eyes + smile
+  for(const ex of [88, 168]){
+    c2.fillStyle = '#ffffff'; c2.beginPath(); c2.arc(ex, 104, 26, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#241d16'; c2.beginPath(); c2.arc(ex, 110, 12, 0, Math.PI*2); c2.fill();
+  }
+  c2.strokeStyle = '#241d16'; c2.lineWidth = 8;
+  c2.beginPath(); c2.arc(128, 150, 44, 0.25, Math.PI - 0.25); c2.stroke();
+  c2.fillStyle = '#d8352c';   // little horns
+  c2.beginPath(); c2.moveTo(70, 40); c2.lineTo(90, 12); c2.lineTo(102, 42); c2.closePath(); c2.fill();
+  c2.beginPath(); c2.moveTo(186, 40); c2.lineTo(166, 12); c2.lineTo(154, 42); c2.closePath(); c2.fill();
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const headG = new THREE.PlaneGeometry(1.5, 1.5, 8, 8);
+  const head = new THREE.Mesh(headG, new THREE.MeshLambertMaterial({ map: tex, side:THREE.DoubleSide }));
+  head.castShadow = true;
+  g.add(head);
+  // WING FLAPS on hinges either side
+  const wings = [];
+  for(const s of [-1, 1]){
+    const wg = new THREE.Group();
+    wg.position.set(s*0.72, 0.1, 0);
+    const wing = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9, 4, 4),
+      new THREE.MeshLambertMaterial({ color:0x5cb83c, side:THREE.DoubleSide }));
+    wing.position.x = s*0.45;
+    const wp = wing.geometry.attributes.position;
+    for(let i = 0; i < wp.count; i++){
+      const f = (wp.getX(i) + 0.45) / 0.9;
+      wp.setY(i, wp.getY(i) * (1 - Math.abs(f - 0.5)*0.9));   // pointed wing
+    }
+    wg.add(wing);
+    g.add(wg);
+    wings.push(wg);
+  }
+  // THE LONG TAIL: a chain of shrinking cloth segments, whipping free
+  const dragonTail = [];
+  let parent = g, py = -0.75;
+  for(let i = 0; i < 10; i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, 0);
+    const w = 0.5 * (1 - i/11);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.44),
+      new THREE.MeshLambertMaterial({ color: i % 2 ? 0xf2ce4a : 0xd8352c, side:THREE.DoubleSide }));
+    cloth.position.y = -0.22;
+    seg.add(cloth);
+    parent.add(seg);
+    dragonTail.push(seg);
+    parent = seg; py = -0.45;
+  }
+  return { g, sailG: headG, tail: null, wings, dragonTail };
+}
+
+// build all five, show one
+const kites = [];
+for(let i = 0; i < 4; i++) kites.push(makeDiamondKite(i));
+kites.push(makeDragonKite());
+for(const k of kites){ k.g.visible = false; scene.add(k.g); }
+let kiteI = 0;
+kites[0].g.visible = true;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  kites[kiteI].g.visible = false;
+  kiteI = parseInt(b.dataset.k);
+  kites[kiteI].g.visible = true;
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+// ---------- the FLIER: stand-in Vita with a reel ---------------------------
+const flier = new THREE.Group();
+const F = {};
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0xff7a5c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xffd9b3 });
+  F.hips = new THREE.Group();
+  flier.add(F.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.62; barrel.castShadow = true; F.hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; F.hips.add(head);
+  F.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0.42, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.24; shin.castShadow = true;
+    leg.add(shin);
+    F.hips.add(leg);
+    F.legs.push(leg);
+  }
+  F.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.3, 0.95, 0.05);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    arm.add(limb);
+    F.hips.add(arm);
+    F.arms.push(arm);
+  }
+  const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 8),
+    new THREE.MeshLambertMaterial({ color:0x8a6134 }));
+  reel.rotation.z = Math.PI/2;
+  reel.position.set(0, 0.5, 0.16);
+  F.arms[0].add(reel);
+  F.reel = reel;
+  scene.add(flier);
+  flier.position.set(0, 0, 0);
+}
+
+// ---------- THE STRING: a sagging, wiggling polyline hand → kite -----------
+const STR_N = 26;
+const strGeo = new THREE.BufferGeometry();
+strGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(STR_N * 3), 3));
+const string = new THREE.Line(strGeo,
+  new THREE.LineBasicMaterial({ color:0xf4f6f0, transparent:true, opacity:0.8 }));
+scene.add(string);
+
+// ==========================================================================
+//  THE FLIGHT — a phase loop:
+//  reelout (string pays out, kite CLIMBS) → fly (dance on the wind) →
+//  pull (two sharp tugs, the kite jumps) → walk (flier strolls, kite
+//  follows) → backup (flier backs away pulling, kite rises) → fly …
+// ==========================================================================
+const PHASES = [['reelout', 7], ['fly', 6], ['pull', 3], ['walk', 6], ['backup', 5], ['fly', 4]];
+let phI = 0, phT = 0;
+let lineLen = 3, height = 2.5;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  phT += dt;
+  if(phT > PHASES[phI][1]){ phT = 0; phI = (phI + 1) % PHASES.length; }
+  const phase = PHASES[phI][0];
+
+  // wind + the kite's dance
+  const gust = 1 + 0.25*Math.sin(t*0.7) + 0.15*Math.sin(t*1.9);
+  let walkV = 0;
+  if(phase === 'reelout'){
+    lineLen = Math.min(14, lineLen + dt*1.7);       // paying out
+    F.reel.rotation.x += dt*9;                       // the reel spins
+  } else if(phase === 'pull'){
+    const tug = Math.pow(Math.max(0, Math.sin(phT*4.2)), 3);
+    lineLen = Math.max(9, lineLen - tug*dt*2.2);
+    F.arms[0].rotation.x = -1.1 - tug*0.5;
+    F.arms[1].rotation.x = -0.9 - tug*0.5;
+    F.hips.rotation.x = -tug*0.12;                   // leaning back into it
+  } else if(phase === 'walk'){
+    walkV = 0.9;
+  } else if(phase === 'backup'){
+    walkV = -0.75;
+    lineLen = Math.min(15, lineLen + dt*0.4);
+    F.hips.rotation.x = -0.1;                        // leaning back, pulling
+  }
+  if(phase !== 'pull' && phase !== 'backup'){
+    F.arms[0].rotation.x = lerp(F.arms[0].rotation.x, -1.05, dt*4);
+    F.arms[1].rotation.x = lerp(F.arms[1].rotation.x, -0.85, dt*4);
+    F.hips.rotation.x = lerp(F.hips.rotation.x, 0, dt*4);
+  }
+  // the flier moves; kite anchor follows the hand
+  flier.position.z += walkV * dt;
+  flier.position.z = clamp(flier.position.z, -6, 6);
+  if(walkV !== 0){
+    const ph = t*7;
+    F.legs[0].rotation.x = Math.sin(ph)*0.45*Math.sign(walkV);
+    F.legs[1].rotation.x = -Math.sin(ph)*0.45*Math.sign(walkV);
+  } else {
+    F.legs[0].rotation.x = lerp(F.legs[0].rotation.x, 0, dt*5);
+    F.legs[1].rotation.x = lerp(F.legs[1].rotation.x, 0, dt*5);
+  }
+
+  // kite position: downwind (+x) of the flier, height from line + gusts
+  height = lerp(height, lineLen * (0.62 + 0.1*Math.sin(t*0.5)) * gust * 0.9, dt*1.6);
+  const kx = flier.position.x + lineLen*0.62 + Math.sin(t*0.8)*1.1;
+  const kz = flier.position.z + Math.sin(t*0.55)*2.2;
+  const k = kites[kiteI];
+  k.g.position.set(kx, Math.max(1.6, height), kz);
+  k.g.rotation.z = -0.3 + Math.sin(t*0.8)*0.18;      // banking with the dance
+  k.g.rotation.y = -Math.PI/2 + Math.sin(t*0.55)*0.25;
+  k.g.rotation.x = -0.35 + Math.sin(t*1.3)*0.08;
+
+  // FABRIC RIPPLE: the sail luffs — travelling wave through the verts
+  {
+    const pos = k.sailG.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), y = pos.getY(i);
+      pos.setZ(i, Math.sin(x*6 + y*4 + t*13) * 0.03 * (1 + 0.5*Math.sin(t*2.2)));
+    }
+    pos.needsUpdate = true;
+    k.sailG.computeVertexNormals();
+  }
+  // bow tail sways
+  if(k.tail) k.tail.forEach((bow, i) => {
+    bow.position.x = Math.sin(t*2.6 + i*0.9) * (0.1 + i*0.08);
+    bow.rotation.z = Math.sin(t*3.1 + i) * 0.5;
+  });
+  // dragon: WINGS FLUTTER, the long tail WHIPS
+  if(k.wings) k.wings.forEach((w, i) => {
+    w.rotation.y = (i ? -1 : 1) * (0.25 + Math.sin(t*9 + i)*0.45);
+  });
+  if(k.dragonTail) k.dragonTail.forEach((seg, i) => {
+    seg.rotation.x = Math.sin(t*3.4 + i*0.75) * 0.28;
+    seg.rotation.z = Math.sin(t*2.7 + i*0.9) * 0.34;
+  });
+
+  // ---------- THE STRING: sag + wind wiggle, hand to bridle ----------
+  {
+    const hand = new THREE.Vector3(flier.position.x + 0.3, flier.position.y + 1.1, flier.position.z + 0.2);
+    const bridle = k.g.position.clone().add(new THREE.Vector3(-0.2, -0.2, 0));
+    const pos = strGeo.attributes.position;
+    for(let i = 0; i < STR_N; i++){
+      const f = i / (STR_N - 1);
+      const p = hand.clone().lerp(bridle, f);
+      p.y -= Math.sin(f*Math.PI) * lineLen * 0.055 * (1.3 - 0.6*gust*0.5);   // the sag
+      p.z += Math.sin(f*9 - t*4) * 0.12 * f;                                  // the wiggle
+      p.x += Math.sin(f*6 - t*3.1) * 0.08 * f;
+      pos.setXYZ(i, p.x, p.y, p.z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
