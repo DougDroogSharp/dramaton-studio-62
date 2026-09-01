@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     VITA RIG STUDY — the canonical ARMATURE Vita, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160) + GLTFLoader.
+
+     Dispatch's architecture, made real: ONE canonical Vita skeleton with
+     the industry-standard MIXAMO bone names (mixamorig:Hips → Spine →
+     Spine1 → Spine2 → Neck → Head; Shoulder/Arm/ForeArm/Hand L+R;
+     UpLeg/Leg/Foot/ToeBase L+R), and the chibi hero LOOK rebuilt as ONE
+     SkinnedMesh bound to it — rigid per-part skinning (every vertex
+     weighted 100% to its part's bone), which is exactly right at this
+     style. Animation and body are separate things now:
+     · the built-in TEST CLIPS (walk · wave · idle sway) are
+       AnimationClips with tracks addressed BY BONE NAME — proof the
+       name contract works before any download;
+     · DROP any Mixamo/standard .glb clip file onto the page and its
+       clips play on OUR body — the whole premade library, retargeting
+       by name;
+     · SKIN SWAP buttons recolor/replace the mesh while the skeleton
+       and every clip keep working — the skin gallery, made cheap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vita Rig Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.8); color:#eaf4f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:310px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:3px 3px 0 0; padding:3px 9px; border:0; border-radius:6px;
+    background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#e8963c; color:#241d06; font-weight:700; }
+  #chip .lbl { opacity:0.65; font-size:11px; margin-top:7px; }
+  #chip label { font-size:12px; display:block; margin-top:4px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦴 Vita Rig Study</b> — the canonical armature, v1<br>
+  <span class="hint">Mixamo-named skeleton · chibi as ONE SkinnedMesh · drop a standard .glb clip file on the page and it plays on OUR body</span>
+  <div class="lbl">test clips (authored by bone name)</div>
+  <div id="clips"></div>
+  <div class="lbl">skins (mesh swap — same skeleton, same clips)</div>
+  <div id="skins"></div>
+  <label><input id="skel" type="checkbox"> show skeleton</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+
+// ---------- the standard study rig -----------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2f0f6), 60, 300);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.05, 500);
+camera.position.set(1.6, 1.7, 3.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 0.6;
+controls.maxDistance = 24;
+controls.maxPolarAngle = 1.53;
+
+{
+  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4),
+        below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/300;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.05));
+const sun = new THREE.DirectionalLight(0xffeeda, 2.4);
+sun.position.set(10, 14, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -1;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(160, 40),
+    new THREE.MeshLambertMaterial({ color:0xe0cba0 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  THE CANONICAL SKELETON — Mixamo standard names & hierarchy. Bind pose is
+//  a relaxed A-pose (arms ~40° down from T) at chibi proportions.
+//  Root at the ground; Hips ~0.62 up.
+// ==========================================================================
+const B = {};   // name → bone
+function bone(name, parentName, x, y, z){
+  const b = new THREE.Bone();
+  b.name = name;
+  b.position.set(x, y, z);
+  if(parentName) B[parentName].add(b);
+  B[name] = b;
+  return b;
+}
+// offsets are PARENT-RELATIVE
+const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
+bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
+bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
+bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
+bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
+bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
+for(const [S, s] of [['Left', 1], ['Right', -1]]){
+  bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
+  bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
+  bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
+  bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
+  bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
+  bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
+  bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
+  bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
+}
+const allBones = Object.values(B);
+const skeleton = new THREE.Skeleton(allBones);
+
+// ==========================================================================
+//  THE SKIN — the chibi look as ONE merged SkinnedMesh, rigidly weighted:
+//  each part's vertices belong 100% to one bone. Parts are authored in
+//  WORLD bind-pose position, then given (skinIndex, skinWeight).
+// ==========================================================================
+const boneIndex = {};
+allBones.forEach((b, i) => boneIndex[b.name] = i);
+// world position of each bone in bind pose (walk the offsets)
+scene.add(rootBone);          // temporarily to compute world matrices
+rootBone.updateMatrixWorld(true);
+const bWorld = {};
+for(const b of allBones){
+  bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+}
+
+function partGeo(geoFn, boneName, colorHex){
+  const g = geoFn();
+  const p = bWorld[boneName];
+  g.translate(p.x, p.y, p.z);            // author AT the bone
+  const n = g.attributes.position.count;
+  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+  for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
+  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+  const col = new Float32Array(n*3);
+  const c = new THREE.Color(colorHex);
+  for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+const SKINS = {
+  blue:   { shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e },
+  red:    { shirt:0xc0392b, pants:0x4c5666, skin:0xeab98f, hair:0x2e2620 },
+  royal:  { shirt:0x7d3fa8, pants:0x3c3050, skin:0xf2c299, hair:0x8a5a28 },
+};
+let skinnedMesh = null;
+function buildSkin(pal){
+  if(skinnedMesh){ rootBone.parent?.remove?.(skinnedMesh); scene.remove(skinnedMesh); skinnedMesh.geometry.dispose(); }
+  const parts = [];
+  // torso barrel on Spine1
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.34, 18, 14);
+    g.scale(1.02, 1.08, 0.88); return g; }, 'mixamorigSpine1', pal.shirt));
+  // head ball + nose on Head
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.40, 22, 16);
+    g.scale(1.04, 1.0, 0.97); g.translate(0, 0.24, 0); return g; }, 'mixamorigHead', pal.skin));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.065, 8, 6);
+    g.translate(0, 0.17, 0.4); return g; }, 'mixamorigHead', pal.skin));
+  // hair cap on Head
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.41, 18, 12, 0, Math.PI*2, 0, Math.PI*0.4);
+    g.scale(1.05, 1.0, 0.99); g.translate(0, 0.26, 0); return g; }, 'mixamorigHead', pal.hair));
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    // upper arm / forearm / mitten hand
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.075, 0.16, 4, 8);
+      g.translate(s*0.045, -0.10, 0); return g; }, `mixamorig${S}Arm`, pal.shirt));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.068, 0.14, 4, 8);
+      g.translate(s*0.025, -0.09, 0); return g; }, `mixamorig${S}ForeArm`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.095, 10, 8);
+      g.translate(0, -0.04, 0); return g; }, `mixamorig${S}Hand`, pal.skin));
+    // thigh / shin / sneaker
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.105, 0.18, 4, 8);
+      g.translate(0, -0.13, 0); return g; }, `mixamorig${S}UpLeg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.09, 0.16, 4, 8);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}Leg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.135, 12, 8);
+      g.scale(1, 0.75, 1.4); g.translate(0, -0.02, 0.05); return g; }, `mixamorig${S}Foot`, 0xf2f2f0));
+  }
+  const merged = mergeGeometries(parts, false);
+  const mesh = new THREE.SkinnedMesh(merged,
+    new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
+  mesh.castShadow = true;
+  mesh.frustumCulled = false;
+  mesh.add(rootBone);
+  mesh.bind(skeleton);
+  scene.add(mesh);
+  skinnedMesh = mesh;
+}
+buildSkin(SKINS.blue);
+
+// ==========================================================================
+//  TEST CLIPS — authored as AnimationClips with NAME-addressed tracks,
+//  the same contract a Mixamo file uses. If these play, the library plays.
+// ==========================================================================
+function quatTrack(boneName, times, eulers){
+  const vals = [];
+  for(const e of eulers){
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+    vals.push(q.x, q.y, q.z, q.w);
+  }
+  return new THREE.QuaternionKeyframeTrack(boneName + '.quaternion', times, vals);
+}
+function makeWalkClip(){
+  const T = [0, 0.4, 0.8, 1.2, 1.6];   // one full cycle
+  const A = 0.62;
+  return new THREE.AnimationClip('test_walk', 1.6, [
+    quatTrack('mixamorigLeftUpLeg', T, [[A,0,0],[0,0,0],[-A,0,0],[0,0,0],[A,0,0]]),
+    quatTrack('mixamorigRightUpLeg', T, [[-A,0,0],[0,0,0],[A,0,0],[0,0,0],[-A,0,0]]),
+    quatTrack('mixamorigLeftLeg', T, [[0,0,0],[0.5,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+    quatTrack('mixamorigRightLeg', T, [[0,0,0],[0.05,0,0],[0,0,0],[0.5,0,0],[0,0,0]]),
+    quatTrack('mixamorigLeftArm', T, [[-0.5,0,0.3],[0,0,0.3],[0.5,0,0.3],[0,0,0.3],[-0.5,0,0.3]]),
+    quatTrack('mixamorigRightArm', T, [[0.5,0,-0.3],[0,0,-0.3],[-0.5,0,-0.3],[0,0,-0.3],[0.5,0,-0.3]]),
+    quatTrack('mixamorigSpine', T, [[0.06,0,0.03],[0.06,0,0],[0.06,0,-0.03],[0.06,0,0],[0.06,0,0.03]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', [0, 0.4, 0.8, 1.2, 1.6],
+      [0,0.62,0, 0,0.66,0, 0,0.62,0, 0,0.66,0, 0,0.62,0]),
+  ]);
+}
+function makeWaveClip(){
+  const T = [0, 0.25, 0.5, 0.75, 1.0];
+  return new THREE.AnimationClip('test_wave', 1.0, [
+    quatTrack('mixamorigRightArm', T, [[0,0,-0.3],[0,0,-2.4],[0,0,-2.7],[0,0,-2.4],[0,0,-0.3]]),
+    quatTrack('mixamorigRightForeArm', T, [[0,0,0],[0,0,-0.3],[0,0,0.3],[0,0,-0.3],[0,0,0]]),
+    quatTrack('mixamorigHead', T, [[0,0,0],[0,0,0.12],[0,0,0.12],[0,0,0.12],[0,0,0]]),
+  ]);
+}
+function makeIdleClip(){
+  const T = [0, 1.2, 2.4];
+  return new THREE.AnimationClip('test_idle', 2.4, [
+    quatTrack('mixamorigSpine', T, [[0.03,0,0],[0.055,0,0],[0.03,0,0]]),
+    quatTrack('mixamorigHead', T, [[0,-0.12,0],[0,0.12,0],[0,-0.12,0]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', T,
+      [0,0.62,0, 0,0.635,0, 0,0.62,0]),
+  ]);
+}
+let clips = [makeWalkClip(), makeWaveClip(), makeIdleClip()];
+const mixer = new THREE.AnimationMixer(skinnedMesh);
+let action = null;
+const clipsEl = document.getElementById('clips');
+function renderClips(){
+  clipsEl.innerHTML = '';
+  clips.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = c.name || ('clip ' + i);
+    b.dataset.i = i;
+    b.addEventListener('click', () => play(i));
+    clipsEl.appendChild(b);
+  });
+}
+function play(i){
+  if(action) action.stop();
+  action = mixer.clipAction(clips[i], skinnedMesh);
+  action.reset().play();
+  [...clipsEl.children].forEach(b => b.classList.toggle('on', +b.dataset.i === i));
+}
+renderClips();
+play(0);
+
+// skins: the mesh swaps, the skeleton and clips carry on
+const skinsEl = document.getElementById('skins');
+for(const name of Object.keys(SKINS)){
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.addEventListener('click', () => {
+    buildSkin(SKINS[name]);
+    [...skinsEl.children].forEach(x => x.classList.toggle('on', x === b));
+    // rebind the mixer to the new mesh — the clips are UNCHANGED
+    if(action){ const i = clips.indexOf(action.getClip()); action.stop(); play(Math.max(0, i)); }
+  });
+  skinsEl.appendChild(b);
+}
+skinsEl.children[0].classList.add('on');
+
+// drop a standard clip file → it plays on OUR body (names do the work)
+const loader = new GLTFLoader();
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  for(const file of e.dataTransfer.files){
+    file.arrayBuffer().then(buf => {
+      loader.parse(buf, './', gltf => {
+        for(const c of (gltf.animations || [])){
+          // strip the 'mixamorig:' colon variant to our colon-less names
+          for(const tr of c.tracks) tr.name = tr.name.replace('mixamorig:', 'mixamorig');
+          clips.push(c);
+        }
+        renderClips();
+      }, err => console.warn('drop parse failed', err));
+    });
+  }
+});
+
+let skelHelper = null;
+document.getElementById('skel').addEventListener('change', e => {
+  if(e.target.checked){
+    skelHelper = new THREE.SkeletonHelper(rootBone);
+    scene.add(skelHelper);
+  } else if(skelHelper){ scene.remove(skelHelper); skelHelper = null; }
+});
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
