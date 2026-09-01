@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CORN STUDY — three cornstalks, four growth stages, in the wind.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: three different models of a corn stalk; each with
+     FOUR STAGES OF GROWTH, the final stage bearing TWO EARS of corn;
+     and the whole crop answers the different WIND conditions.
+
+     Three cultivars (each its own habit): TALL & STRAIGHT · the LEANER
+     (a lazy S in the stalk, broader leaves) · STOUT & BUSHY (shorter,
+     more leaves). Four stages, planted in a growing row per cultivar:
+     1 SEEDLING (two blades)  2 KNEE-HIGH (stalk + leaves)
+     3 TASSELED (full height, tassel crown)  4 MATURE (tassel + TWO
+     husked ears with silk). Wind: breeze / wind / storm / hurricane —
+     corn is FLEXIBLE: whole-stalk bend from the root, leaves streaming
+     and fluttering, ears swinging on the stalk, tassels whipping.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corn Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d0; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,30,16,0.78); color:#f0f2e0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#6a8a34; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#7fa244; }
+  #chip button.on { background:#e8c531; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌽 Corn Study</b> — 3 cultivars × 4 stages, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · each row grows front-to-back: seedling → knee-high → tasseled → MATURE (two ears)</span><br>
+  <button data-w="0.14">Breeze</button><button data-w="0.4">Wind</button><button
+    data-w="0.72">Storm</button><button data-w="1">Hurricane</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 31313;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4ce), 50, 280);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(6.5, 4.4, 11);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.5;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2de), zenith = new THREE.Color(0x82b4da),
+        below = new THREE.Color(0xd8dac4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 28, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12;  sun.shadow.camera.bottom = -12;
+sun.shadow.camera.near = 6; sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- the field ------------------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xb5a678 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+  // tilled furrows under the rows
+  for(let i = -1; i <= 1; i++){
+    const furrow = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.09, 10),
+      new THREE.MeshLambertMaterial({ color:0x8a744e }));
+    furrow.position.set(i*3, 0.045, -1.2);
+    furrow.receiveShadow = true;
+    scene.add(furrow);
+  }
+}
+
+// ---------- materials ------------------------------------------------------
+const matStalk = new THREE.MeshLambertMaterial({ color:0x6f9440, flatShading:true });
+const matLeaf = new THREE.MeshLambertMaterial({ color:0x5d8a34, flatShading:true, side:THREE.DoubleSide });
+const matLeafLt = new THREE.MeshLambertMaterial({ color:0x79a648, flatShading:true, side:THREE.DoubleSide });
+const matTassel = new THREE.MeshLambertMaterial({ color:0xc9b45c, flatShading:true });
+const matHusk = new THREE.MeshLambertMaterial({ color:0x9fae5c, flatShading:true });
+const matSilk = new THREE.MeshLambertMaterial({ color:0xc98d3c });
+const matKernel = new THREE.MeshLambertMaterial({ color:0xe8c531 });
+
+// ==========================================================================
+//  makeCorn(cultivar, stage) — a stalk group pivoting at the ROOT (so the
+//  whole plant can bow in the wind), leaves on their own pivots, ears and
+//  tassel on theirs. Returns { g, leaves[], ears[], tassel }.
+//  cultivar: { h, leanS, leafN, leafLen, leafW } · stage: 1..4
+// ==========================================================================
+function makeCorn(cv, stage){
+  const g = new THREE.Group();
+  const leaves = [], ears = [];
+  let tassel = null;
+  const f = [0.16, 0.45, 1, 1][stage - 1];       // height fraction per stage
+  const H = cv.h * f;
+  if(stage === 1){
+    // SEEDLING: two arched blades from the soil
+    for(const s of [-1, 1]){
+      const lg = new THREE.Group();
+      const blade = new THREE.Mesh(new THREE.ConeGeometry(0.045, H*1.6, 4), matLeafLt);
+      blade.rotation.z = s * 1.0;
+      blade.scale.set(0.4, 1, 1);
+      blade.position.set(s*H*0.5, H*0.55, 0);
+      blade.castShadow = true;
+      lg.add(blade);
+      g.add(lg);
+      leaves.push({ g: lg, ph: rand(0, 9), amp: 1.4 });
+    }
+    return { g, leaves, ears, tassel };
+  }
+  // the stalk: 3 segments with the cultivar's lean
+  let y = 0, lean = 0;
+  for(let i = 0; i < 3; i++){
+    const segH = H/3;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(
+      0.05*(1 - i*0.2)*cv.girth, 0.06*(1 - i*0.2)*cv.girth, segH, 6), matStalk);
+    lean += cv.leanS * Math.sin(i*2.1);
+    seg.position.set(lean*0.3, y + segH/2, 0);
+    seg.rotation.z = -lean*0.25;
+    seg.castShadow = true;
+    g.add(seg);
+    y += segH;
+  }
+  // leaves: alternating sides up the stalk, arching out and DOWN at the tip
+  const n = Math.round(cv.leafN * (stage >= 3 ? 1 : 0.6));
+  for(let i = 0; i < n; i++){
+    const hF = 0.2 + (i/n)*0.65;
+    const s = i % 2 ? 1 : -1;
+    const lg = new THREE.Group();
+    lg.position.set(0, H*hF, 0);
+    lg.rotation.y = s > 0 ? 0 : Math.PI;
+    lg.rotation.z = -(0.75 - hF*0.3);
+    const len = cv.leafLen * (1 - Math.abs(hF - 0.45)*0.8);
+    const blade = new THREE.Mesh(new THREE.ConeGeometry(cv.leafW, len, 4), i % 3 ? matLeaf : matLeafLt);
+    blade.rotation.z = -Math.PI/2;
+    blade.scale.set(1, 1, 0.28);
+    blade.position.x = len*0.5;
+    blade.castShadow = true;
+    lg.add(blade);
+    // the drooping tip
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(cv.leafW*0.6, len*0.5, 4), matLeaf);
+    tip.rotation.z = -Math.PI/2 - 0.8;
+    tip.scale.set(1, 1, 0.25);
+    tip.position.set(len*0.95, -len*0.14, 0);
+    tip.castShadow = true;
+    lg.add(tip);
+    g.add(lg);
+    leaves.push({ g: lg, ph: rand(0, 9), amp: 1 });
+  }
+  // stage 3+: the TASSEL crown
+  if(stage >= 3){
+    tassel = new THREE.Group();
+    tassel.position.y = H;
+    const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.42, 5), matTassel);
+    spike.position.y = 0.21;
+    tassel.add(spike);
+    for(let i = 0; i < 6; i++){
+      const a = (i/6)*Math.PI*2;
+      const br2 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.3, 4), matTassel);
+      br2.position.set(Math.cos(a)*0.08, 0.32, Math.sin(a)*0.08);
+      br2.rotation.z = Math.cos(a)*0.7;
+      br2.rotation.x = -Math.sin(a)*0.7;
+      tassel.add(br2);
+    }
+    g.add(tassel);
+  }
+  // stage 4: TWO EARS, husked, with silk — set at different heights/sides
+  if(stage === 4){
+    for(const [hF, s] of [[0.42, 1], [0.58, -1]]){
+      const eg = new THREE.Group();
+      eg.position.set(0, H*hF, 0);
+      eg.rotation.y = s > 0 ? 0.4 : Math.PI - 0.4;
+      const husk = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 7), matHusk);
+      husk.scale.set(1, 2.6, 1);
+      husk.rotation.z = -0.85;
+      husk.position.set(0.14, 0.05, 0);
+      husk.castShadow = true;
+      eg.add(husk);
+      // the kernel tip peeking from the husk
+      const tip2 = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), matKernel);
+      tip2.scale.set(1, 1.5, 1);
+      tip2.rotation.z = -0.85;
+      tip2.position.set(0.31, 0.22, 0);
+      eg.add(tip2);
+      // silk spilling from the tip
+      for(let k = 0; k < 3; k++){
+        const silk = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.16, 3), matSilk);
+        silk.position.set(0.36 + rand(-0.02, 0.02), 0.3, rand(-0.03, 0.03));
+        silk.rotation.z = rand(0.4, 1.1);
+        eg.add(silk);
+      }
+      // husk leaves flaring at the base of the ear
+      for(let k = 0; k < 2; k++){
+        const hl = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.28, 4), matHusk);
+        hl.rotation.z = -0.85 - 0.4 - k*0.3;
+        hl.scale.set(0.5, 1, 0.3);
+        hl.position.set(0.08, -0.06, (k - 0.5)*0.06);
+        eg.add(hl);
+      }
+      g.add(eg);
+      ears.push({ g: eg, ph: rand(0, 9) });
+    }
+  }
+  return { g, leaves, ears, tassel };
+}
+
+// ---------- plant the field: 3 cultivars × 4 stages ------------------------
+const CULTIVARS = [
+  { name:'tall',  h:3.1, leanS:0.0, girth:1.0, leafN:8, leafLen:1.15, leafW:0.16 },
+  { name:'leaner',h:2.7, leanS:0.55, girth:1.05, leafN:7, leafLen:1.3, leafW:0.2 },
+  { name:'stout', h:2.1, leanS:0.15, girth:1.35, leafN:10, leafLen:0.95, leafW:0.19 },
+];
+const plants = [];
+CULTIVARS.forEach((cv, ci) => {
+  for(let stage = 1; stage <= 4; stage++){
+    const p = makeCorn(cv, stage);
+    p.g.position.set(-3 + ci*3, 0, 2.4 - (stage-1)*2.4);
+    p.g.rotation.y = rand(0, Math.PI*2);
+    scene.add(p.g);
+    plants.push({ ...p, ph: rand(0, Math.PI*2), stage });
+  }
+});
+
+// ==========================================================================
+//  THE WIND — same rig as the wind study: base + gust envelope + flutter.
+//  Corn is FLEXIBLE: whole-stalk bow from the root (more than the palm's
+//  trunk, less than its fronds), leaves streaming, ears swinging, tassel
+//  whipping. A seedling is all flutter and no mass.
+// ==========================================================================
+let W = 0.14, Wt = 0.14;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  Wt = parseFloat(b.dataset.w);
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  W = lerp(W, Wt, Math.min(1, dt*1.2));
+  const slam = W > 0.85 ? Math.pow(Math.max(0, Math.sin(t*0.95)), 6) * 0.8 : 0;
+  const gust = W * (0.75 + 0.25*Math.sin(t*0.55) + 0.18*Math.sin(t*1.8) + slam);
+  const flut = t * (5 + W*15);
+
+  for(const p of plants){
+    // the whole plant bows downwind from the ROOT — younger = whippier
+    const mass = p.stage === 1 ? 1.6 : p.stage === 2 ? 1.2 : 1.0;
+    p.g.rotation.z = -gust * 0.26 * mass - Math.sin(flut*0.5 + p.ph)*0.035*W*mass;
+    p.g.rotation.x = Math.sin(flut*0.37 + p.ph*2)*0.05*W;
+    for(const lf of p.leaves){
+      lf.g.rotation.x = Math.sin(flut + lf.ph) * 0.09 * W * lf.amp;
+      lf.g.rotation.z += (Math.sin(flut*1.3 + lf.ph) * 0.05 * W * lf.amp
+        - lf.g.rotation.z * 0) * 1;   // flutter layered on the set arch
+    }
+    for(const e of p.ears){
+      e.g.rotation.z = Math.sin(flut*0.8 + e.ph) * 0.10 * W + gust*0.06;  // ears swing
+    }
+    if(p.tassel){
+      p.tassel.rotation.z = -gust*0.4 - Math.sin(flut*1.6 + p.ph)*0.16*W;  // the whip
+      p.tassel.rotation.x = Math.sin(flut*1.2 + p.ph*3)*0.1*W;
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
