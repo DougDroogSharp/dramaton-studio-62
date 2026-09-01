@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     HOT AIR BALLOON STUDY — for George World. Filed 2026-08-31,
+     Doug's transport batch. A proper montgolfier: striped gore
+     envelope (painted vertex colors), load ring and eight shroud
+     lines down to a wicker basket, a BURNER that fires in real
+     blasts — whoosh, flame column up into the mouth, the envelope
+     glowing from inside at night... well, at dusk here — and two
+     passengers who lean out and point. The flight: burner blasts
+     lift her off; she rises and DRIFTS on the wind, swinging gently
+     under the envelope; the burner rests and she sighs down; a
+     little bounce on touchdown, and the next blast goes round.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hot Air Balloon Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e8e2d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,24,18,0.78); color:#f2f0e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎈 Hot Air Balloon Study</b> — blast, rise, drift, sigh down, v1<br>
+  <span class="hint">the burner fires in real blasts; the basket swings under the envelope</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 9191;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe6dcc8), 60, 320);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(9, 6, 13);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.53;
+{
+  // dusk sky — the balloon's hour
+  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4c890), zenith = new THREE.Color(0x5a7ab0),
+        below = new THREE.Color(0xd8c8a8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/300;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.7)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xe8d8c0, 0x9a9078, 0.95));
+const sun = new THREE.DirectionalLight(0xffd8a0, 1.9);
+sun.position.set(-18, 10, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -4;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8a468 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // a scatter of dusk meadow tufts and two launch sandbags
+  const tuftM = new THREE.MeshLambertMaterial({ color:0x8a9454, flatShading:true });
+  for(let i = 0; i < 50; i++){
+    const a = rand(0, Math.PI*2), r = rand(2, 24);
+    const tf = new THREE.Mesh(new THREE.ConeGeometry(rand(0.06, 0.12), rand(0.2, 0.4), 5), tuftM);
+    tf.position.set(Math.cos(a)*r, 0.12, Math.sin(a)*r);
+    scene.add(tf);
+  }
+  const bagM = new THREE.MeshLambertMaterial({ color:0xb8a078, flatShading:true });
+  for(const [x, z] of [[1.4, 0.8], [-1.2, 1.1]]){
+    const bag = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), bagM);
+    bag.scale.y = 0.65;
+    bag.position.set(x, 0.18, z);
+    bag.castShadow = true;
+    scene.add(bag);
+  }
+}
+
+// ---------- THE BALLOON ----------------------------------------------------
+const BALLOON = new THREE.Group();
+scene.add(BALLOON);
+let envelope, burnerFlame, burnerLight, basketSwing;
+{
+  // the envelope — sphere squashed pear-ish, GORE STRIPES via vertex color
+  const geo = new THREE.SphereGeometry(3.2, 36, 24);
+  geo.scale(1, 1.15, 1);
+  const pos = geo.attributes.position, col = [];
+  const A = new THREE.Color(0xd83a2a), B = new THREE.Color(0xf2e6c8),
+        C = new THREE.Color(0xe8a83c), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const gore = Math.floor(((Math.atan2(z, x) + Math.PI)/(Math.PI*2))*12) % 3;
+    c.copy(gore === 0 ? A : gore === 1 ? B : C);
+    // pinch the bottom toward the mouth
+    const y = pos.getY(i);
+    if(y < -2.2){
+      const k = clamp((-y - 2.2)/1.5, 0, 1);
+      pos.setX(i, x*(1 - k*0.75));
+      pos.setZ(i, z*(1 - k*0.75));
+    }
+    col.push(c.r, c.g, c.b);
+  }
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  envelope = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  envelope.position.y = 7.2;
+  envelope.castShadow = true;
+  BALLOON.add(envelope);
+  // basketSwing pivots at the envelope mouth so the basket can pendulum
+  basketSwing = new THREE.Group();
+  basketSwing.position.y = 3.9;              // the mouth
+  BALLOON.add(basketSwing);
+  // load ring + shrouds
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.04, 6, 16),
+    new THREE.MeshLambertMaterial({ color:0x6a4a2a }));
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = -0.8;
+  basketSwing.add(ring);
+  const lineM = new THREE.MeshLambertMaterial({ color:0x4a3a26 });
+  for(let i = 0; i < 8; i++){
+    const a = i/8*Math.PI*2;
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.15, 4), lineM);
+    sh.position.set(Math.cos(a)*0.62, -0.28, Math.sin(a)*0.62);
+    sh.rotation.z = Math.cos(a)*0.35;
+    sh.rotation.x = -Math.sin(a)*0.35;
+    basketSwing.add(sh);
+    const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.9, 4), lineM);
+    drop.position.set(Math.cos(a)*0.42, -1.3, Math.sin(a)*0.42);
+    basketSwing.add(drop);
+  }
+  // the wicker basket — woven look via two-tone stacked rings
+  const basket = new THREE.Group();
+  basket.position.y = -2.1;
+  basketSwing.add(basket);
+  for(let i = 0; i < 5; i++){
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.5, 0.13, 12),
+      new THREE.MeshLambertMaterial({ color: i%2 ? 0xa8804c : 0x8a6a3c, flatShading:true }));
+    w.position.y = i*0.13;
+    w.castShadow = true;
+    basket.add(w);
+  }
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.05, 6, 14),
+    new THREE.MeshLambertMaterial({ color:0x6a4a2a }));
+  rim.rotation.x = Math.PI/2;
+  rim.position.y = 0.68;
+  basket.add(rim);
+  // THE BURNER — frame + can + the flame column
+  const frameM = new THREE.MeshStandardMaterial({ color:0x8a929c, roughness:0.4, metalness:0.6 });
+  for(const a of [0.6, 2.2, 3.8, 5.4]){
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 5), frameM);
+    rod.position.set(Math.cos(a)*0.35, 1.0, Math.sin(a)*0.35);
+    basket.add(rod);
+  }
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.22, 10), frameM);
+  can.position.y = 1.4;
+  basket.add(can);
+  burnerFlame = new THREE.Mesh(new THREE.ConeGeometry(0.14, 1.6, 8),
+    new THREE.MeshBasicMaterial({ color:0xffb03c, transparent:true, opacity:0 }));
+  burnerFlame.position.y = 2.3;
+  basket.add(burnerFlame);
+  burnerLight = new THREE.PointLight(0xff9c46, 0, 8, 1.8);
+  burnerLight.position.y = 2.4;
+  basket.add(burnerLight);
+  // two passengers leaning at the rim
+  function passenger(col, x, ry){
+    const P = new THREE.Group();
+    const shirt = new THREE.MeshLambertMaterial({ color:col });
+    const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.3, 6, 10), shirt);
+    body.position.y = 0.55; body.castShadow = true; P.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), skin);
+    head.position.y = 0.95; P.add(head);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.3, 4, 8), skin);
+    arm.position.set(0.24, 0.72, 0.12);
+    arm.rotation.x = -1.9;                    // pointing out at the world
+    P.add(arm);
+    P.position.set(x, 0.15, 0);
+    P.rotation.y = ry;
+    P.lean = body;
+    basket.add(P);
+    return P;
+  }
+  BALLOON.pass1 = passenger(0x3c6a8a, 0.22, 0.5);
+  BALLOON.pass2 = passenger(0x8a5a6a, -0.24, -2.2);
+}
+
+// heat shimmer puffs above the burner when firing (little rising sprites)
+function glowTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 3, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(255,220,150,0.55)'); rg.addColorStop(1, 'rgba(255,200,100,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const shimmer = [];
+{
+  const sm = new THREE.SpriteMaterial({ map:glowTex(), transparent:true, depthWrite:false });
+  for(let i = 0; i < 10; i++){
+    const s = new THREE.Sprite(sm.clone());
+    s.visible = false;
+    scene.add(s);
+    shimmer.push({ m:s, age:9 });
+  }
+}
+let shTick = 0;
+
+// ---------- the flight -----------------------------------------------------
+// 36s loop: 0–4 on the ground, pre-blast · 4–10 BLASTS + lift-off ·
+// 10–24 cruising drift (occasional top-up blasts) · 24–33 the sigh down ·
+// 33–36 touchdown bounce + settle. The whole flight drifts downwind and
+// loops back on a big circle so it lands where it started.
+let phT = 0;
+function burnerOn(f){
+  // blast windows: ignition blasts + cruise top-ups
+  return (f > 4 && f < 6.2) || (f > 7 && f < 9.4)
+      || (f > 13 && f < 14.2) || (f > 18 && f < 19.4) || (f > 34.6 && f < 35.2);
+}
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 36;
+  const f = phT;
+
+  // altitude profile
+  let alt;
+  if(f < 4) alt = 0;
+  else if(f < 10) alt = smooth((f - 4)/6)*3.5;
+  else if(f < 24) alt = 3.5 + Math.sin((f - 10)/14*Math.PI)*4.5;     // up to ~8
+  else if(f < 33) alt = lerp(3.5, 0, smooth((f - 24)/9));
+  else alt = Math.abs(Math.sin((f - 33)*3.2))*0.25*Math.exp(-(f - 33))*1;  // the bounce
+  // drift: a wide circle downwind and home
+  const k = clamp((f - 4)/29, 0, 1);
+  const ang = k*Math.PI*2;
+  const R = 9*Math.sin(Math.PI*k);
+  BALLOON.position.set(Math.sin(ang)*R, alt, (1 - Math.cos(ang))*R*0.5);
+
+  const firing = burnerOn(f);
+  // the flame — licks and roars while firing
+  burnerFlame.material.opacity = lerp(burnerFlame.material.opacity, firing ? 0.85 : 0, dt*(firing ? 14 : 6));
+  burnerFlame.scale.y = 0.7 + Math.sin(t*23)*0.25 + (firing ? 0.4 : 0);
+  burnerFlame.scale.x = burnerFlame.scale.z = 0.8 + Math.sin(t*31)*0.2;
+  burnerLight.intensity = firing ? 2.2 + Math.sin(t*27)*0.6 : lerp(burnerLight.intensity, 0, dt*6);
+  // envelope glows faintly from inside during a blast (dusk!)
+  envelope.material.emissive = envelope.material.emissive || new THREE.Color(0);
+  envelope.material.emissive.setScalar(firing ? 0.13 + Math.sin(t*21)*0.04 : 0);
+  // envelope breathes; basket pendulums; passengers lean
+  envelope.scale.setScalar(1 + Math.sin(t*0.8)*0.008 + (firing ? 0.012 : 0));
+  basketSwing.rotation.x = Math.sin(t*0.9)*0.045*(alt > 0.2 ? 1 : 0.2);
+  basketSwing.rotation.z = Math.sin(t*0.7 + 1.2)*0.05*(alt > 0.2 ? 1 : 0.2);
+  BALLOON.pass1.lean.rotation.x = Math.sin(t*0.5)*0.1 + 0.12;
+  BALLOON.pass2.lean.rotation.x = Math.sin(t*0.6 + 2)*0.1 + 0.12;
+  // heat shimmer while firing
+  if(firing){
+    shTick += dt;
+    if(shTick > 0.1){
+      shTick = 0;
+      const s = shimmer.find(x => x.age > 1.2);
+      if(s){
+        s.age = 0;
+        const mouth = new THREE.Vector3();
+        envelope.getWorldPosition(mouth);
+        mouth.y -= 3.2;
+        s.m.position.copy(mouth).add(new THREE.Vector3(rand(-0.2, 0.2), 0, rand(-0.2, 0.2)));
+        s.m.visible = true;
+      }
+    }
+  }
+  for(const s of shimmer){
+    s.age += dt;
+    const kk = clamp(s.age/1.2, 0, 1);
+    s.m.position.y += dt*2.2;
+    s.m.scale.setScalar(0.4 + kk*0.9);
+    s.m.material.opacity = (1 - kk)*0.5;
+    if(kk >= 1) s.m.visible = false;
+  }
+
+  controls.target.lerp(new THREE.Vector3(BALLOON.position.x, BALLOON.position.y + 4.5, BALLOON.position.z), dt*2);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
