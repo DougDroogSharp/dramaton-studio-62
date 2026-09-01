@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     EASTER EGG CHAMBER STUDY — the hidden fantastical room, for George
+     World / every Georgeland map. Filed 2026-08-31 per DESIGN.md
+     2026-08-31 "EASTER EGG ROOM per Georgeland (D)".
+     One chamber that mixes the flavors: a magical CAVERN pocket
+     (dripping stalactites, a glowing pool) whose back wall is an
+     ANCIENT TEMPLE FACADE (Mayan-ish carved glyphs, two guardian
+     statues, worn steps), with GLITTERING JEWELS set in the rock and
+     a treasure heap. The scene: the secret trigger fires somewhere
+     up on the island — a swirl of sparks PORTS a Vita in. It looks
+     around in awe (head sweeping the ceiling), pads to the treasure,
+     lifts one jewel overhead — the jewel flares — then the swirl
+     takes it home again. Drips fall from the stalactites and ring
+     the pool. (Dev shortcut in the spec: every map gets a "Go to
+     Easter Egg Room" menu item; this is what it jumps to.)
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Easter Egg Chamber Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#080a10; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(8,10,18,0.78); color:#e8ecf4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>💎 Easter Egg Chamber</b> — the hidden room, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · a visitor ports in every half minute</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 8888;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x06080e), 10, 34);
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.2, 200);
+camera.position.set(4.6, 2.6, 7.2);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 16;
+controls.maxPolarAngle = 1.54;
+
+function glowTex(inner, outer){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  rg.addColorStop(0, inner); rg.addColorStop(0.35, outer); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ---------- THE CAVE SHELL -------------------------------------------------
+// a lumpy dome seen from inside — vertices pushed by layered sines
+{
+  const geo = new THREE.SphereGeometry(11, 40, 24);
+  const pos = geo.attributes.position, col = [];
+  const deep = new THREE.Color(0x141a26), warm = new THREE.Color(0x2c2434),
+        c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const n = v.clone().normalize();
+    const lump = Math.sin(n.x*7 + 1) * Math.sin(n.y*6 + 2) * Math.sin(n.z*8) * 0.7
+               + Math.sin(n.x*17) * Math.sin(n.z*13) * 0.25;
+    v.multiplyScalar(1 + lump*0.06);
+    if(v.y < -0.2) v.y = -0.2;              // flatten below the floor
+    pos.setXYZ(i, v.x, v.y, v.z);
+    c.copy(deep).lerp(warm, clamp(0.5 + lump*0.5, 0, 1));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const cave = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.BackSide, flatShading:true }));
+  scene.add(cave);
+}
+{ // the floor — worn rock, receives all the glow
+  const g = new THREE.Mesh(new THREE.CircleGeometry(11, 36),
+    new THREE.MeshLambertMaterial({ color:0x1e222c, flatShading:true }));
+  g.rotation.x = -Math.PI/2; g.position.y = 0; g.receiveShadow = true; scene.add(g);
+}
+
+// ---------- STALACTITES / STALAGMITES + THE DRIPS --------------------------
+const rockM = new THREE.MeshLambertMaterial({ color:0x2e3442, flatShading:true });
+const drips = [];
+{
+  const spots = [];
+  for(let i = 0; i < 26; i++){
+    const a = rand(0, Math.PI*2), r = rand(2.2, 8.6);
+    spots.push([Math.cos(a)*r, Math.sin(a)*r]);
+  }
+  for(const [x, z] of spots){
+    const L = rand(0.5, 2.4);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(rand(0.1, 0.28), L, 6), rockM);
+    const ceilY = 6.2 - Math.hypot(x, z)*0.32;
+    tip.position.set(x, ceilY - L/2, z);
+    tip.rotation.x = Math.PI;               // point down
+    scene.add(tip);
+    if(rand() < 0.55){                       // its answering stalagmite
+      const L2 = L*rand(0.4, 0.8);
+      const up = new THREE.Mesh(new THREE.ConeGeometry(rand(0.14, 0.34), L2, 6), rockM);
+      up.position.set(x + rand(-0.1, 0.1), L2/2, z + rand(-0.1, 0.1));
+      up.castShadow = true;
+      scene.add(up);
+    }
+    if(rand() < 0.4){                        // a dripper
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5),
+        new THREE.MeshBasicMaterial({ color:0xa8d8e8, transparent:true, opacity:0.85 }));
+      scene.add(d);
+      drips.push({ m:d, x, z, top: ceilY - L, ph: rand(0, 3), speed: rand(2.4, 3.4) });
+    }
+  }
+  // two full columns where they met long ago
+  for(const [x, z] of [[-3.4, 2.6], [2.8, -3.8]]){
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, 5.2, 7), rockM);
+    col.position.set(x, 2.6, z);
+    col.castShadow = true;
+    scene.add(col);
+  }
+}
+
+// ---------- THE GLOWING POOL ----------------------------------------------
+const POOL = new THREE.Vector3(-2.2, 0, -0.8);
+let poolMesh;
+{
+  poolMesh = new THREE.Mesh(new THREE.CircleGeometry(1.7, 28),
+    new THREE.MeshBasicMaterial({ color:0x3ec8c0, transparent:true, opacity:0.8 }));
+  poolMesh.rotation.x = -Math.PI/2;
+  poolMesh.position.set(POOL.x, 0.02, POOL.z);
+  scene.add(poolMesh);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.12, 7, 26), rockM);
+  rim.rotation.x = Math.PI/2;
+  rim.position.set(POOL.x, 0.08, POOL.z);
+  scene.add(rim);
+}
+const poolLight = new THREE.PointLight(0x4ee8dc, 2.6, 9, 1.6);
+poolLight.position.set(POOL.x, 0.9, POOL.z);
+scene.add(poolLight);
+// ripple rings that spread when a drip lands
+const rings = [];
+{
+  for(let i = 0; i < 4; i++){
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 24),
+      new THREE.MeshBasicMaterial({ color:0xbef8f2, transparent:true, opacity:0, side:THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI/2;
+    ring.position.y = 0.03;
+    scene.add(ring);
+    rings.push({ m:ring, age:99 });
+  }
+}
+function splash(x, z){
+  const r = rings.find(r => r.age > 1.4); if(!r) return;
+  r.age = 0; r.m.position.x = x; r.m.position.z = z;
+}
+
+// ---------- THE TEMPLE FACADE ---------------------------------------------
+{
+  const stoneM = new THREE.MeshLambertMaterial({ color:0x6a5e48, flatShading:true });
+  const T = new THREE.Group();
+  T.position.set(0, 0, -6.4);
+  scene.add(T);
+  // worn steps
+  for(let i = 0; i < 4; i++){
+    const step = new THREE.Mesh(new THREE.BoxGeometry(5.4 - i*0.7, 0.28, 1.4 - i*0.25), stoneM);
+    step.position.set(0, 0.14 + i*0.28, 1.2 - i*0.3);
+    step.castShadow = true; step.receiveShadow = true;
+    T.add(step);
+  }
+  // the glyph wall — painted canvas
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#5e5340'; g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = '#453b2a'; g.lineWidth = 3;
+  for(let i = 0; i <= 4; i++){ g.beginPath(); g.moveTo(0, i*52); g.lineTo(512, i*52); g.stroke(); }
+  const glyphs = ['𓂀','𓆃','𓃒','𓁛','𓋹','𓅓','𓂻','𓊝','𓉐','𓆣','☀','◈','ᨏ','ꙮ','۞'];
+  g.fillStyle = '#3a3122';
+  for(let r = 0; r < 5; r++) for(let c2 = 0; c2 < 10; c2++){
+    g.font = (26 + (r*c2)%8) + 'px serif';
+    g.fillText(glyphs[(r*10 + c2) % glyphs.length], 14 + c2*50, 40 + r*52);
+  }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(6.2, 3.4, 0.5),
+    new THREE.MeshLambertMaterial({ map:tex }));
+  wall.position.set(0, 2.7, -0.4);
+  wall.castShadow = true;
+  T.add(wall);
+  // the dark doorway (goes nowhere — or does it)
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.9),
+    new THREE.MeshBasicMaterial({ color:0x04050a }));
+  door.position.set(0, 2.0, -0.14);
+  T.add(door);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.3, 0.6), stoneM);
+  lintel.position.set(0, 3.1, -0.1);
+  T.add(lintel);
+  // two guardian statues — seated blocky figures, moss-green
+  const guardM = new THREE.MeshLambertMaterial({ color:0x4e5e46, flatShading:true });
+  for(const s of [-1, 1]){
+    const G = new THREE.Group();
+    G.position.set(s*2.3, 1.12, 0.3);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.55), guardM);
+    body.castShadow = true; G.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), guardM);
+    head.position.y = 0.75; head.castShadow = true; G.add(head);
+    const headdress = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 4), guardM);
+    headdress.position.y = 1.1; headdress.rotation.y = Math.PI/4; G.add(headdress);
+    for(const a of [-1, 1]){
+      const knee = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.5, 0.6), guardM);
+      knee.position.set(a*0.28, -0.55, 0.25); knee.castShadow = true; G.add(knee);
+    }
+    T.add(G);
+  }
+}
+
+// ---------- THE JEWELS + THE TREASURE --------------------------------------
+const gems = [];
+{
+  const GEM_COLORS = [0xe83e6c, 0x3ee87c, 0x3e8ce8, 0xe8c43e, 0xb43ee8, 0x3ee8dc];
+  // jewels set in the rock — a band around the walls
+  for(let i = 0; i < 34; i++){
+    const a = rand(0, Math.PI*2);
+    if(Math.abs(a - Math.PI*1.5) < 0.5) continue;    // not over the temple
+    const r = 9.6 + rand(-0.4, 0.2), y = rand(0.5, 3.4);
+    const col = GEM_COLORS[i % GEM_COLORS.length];
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.08, 0.17)),
+      new THREE.MeshLambertMaterial({ color:col, emissive:col, emissiveIntensity:0.4 }));
+    gem.position.set(Math.cos(a)*r, y, Math.sin(a)*r);
+    gem.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
+    scene.add(gem);
+    gems.push({ m:gem, ph: rand(0, Math.PI*2), w: rand(0.6, 1.8) });
+  }
+  // the treasure heap: gold + a chest + the PRIZE jewel on top
+  const goldM = new THREE.MeshLambertMaterial({ color:0xd8a63c, emissive:0x3c2a08, flatShading:true });
+  const HEAP = new THREE.Vector3(2.4, 0, 0.6);
+  const mound = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 7), goldM);
+  mound.scale.y = 0.45; mound.position.set(HEAP.x, 0.18, HEAP.z);
+  mound.castShadow = true;
+  scene.add(mound);
+  for(let i = 0; i < 26; i++){
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8), goldM);
+    const a = rand(0, Math.PI*2), r = rand(0.2, 1.3);
+    coin.position.set(HEAP.x + Math.cos(a)*r, 0.03 + rand(0.3)*Math.max(0, 1 - r/1.2), HEAP.z + Math.sin(a)*r);
+    coin.rotation.set(rand(-0.4, 0.4), rand(0, 3), rand(-0.4, 0.4));
+    scene.add(coin);
+  }
+  const chest = new THREE.Group();
+  chest.position.set(HEAP.x + 1.0, 0.25, HEAP.z - 0.7);
+  chest.rotation.y = -0.5;
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.45),
+    new THREE.MeshLambertMaterial({ color:0x6a4426, flatShading:true }));
+  box.castShadow = true; chest.add(box);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.7, 8, 1, false, 0, Math.PI),
+    new THREE.MeshLambertMaterial({ color:0x7a5232, flatShading:true }));
+  lid.rotation.z = Math.PI/2;
+  lid.rotation.x = -0.7;                    // open
+  lid.position.y = 0.21; chest.add(lid);
+  scene.add(chest);
+}
+// the PRIZE — the jewel the visitor takes
+const prize = new THREE.Mesh(new THREE.OctahedronGeometry(0.16),
+  new THREE.MeshLambertMaterial({ color:0xe83e6c, emissive:0xe83e6c, emissiveIntensity:0.6 }));
+const PRIZE_HOME = new THREE.Vector3(2.4, 0.62, 0.6);
+prize.position.copy(PRIZE_HOME);
+scene.add(prize);
+const prizeGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: glowTex('rgba(255,180,210,0.9)', 'rgba(232,62,108,0.4)'),
+  blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }));
+prizeGlow.scale.set(0.7, 0.7, 1);
+scene.add(prizeGlow);
+
+// ---------- the light of the place ----------------------------------------
+scene.add(new THREE.AmbientLight(0x28242e, 1.2));
+const crackLight = new THREE.DirectionalLight(0xcfe0f0, 0.7);  // one shaft from a crack
+crackLight.position.set(3, 9, 2);
+crackLight.castShadow = true;
+crackLight.shadow.mapSize.set(1024, 1024);
+crackLight.shadow.camera.left = -7; crackLight.shadow.camera.right = 7;
+crackLight.shadow.camera.top = 7; crackLight.shadow.camera.bottom = -7;
+scene.add(crackLight);
+const braziers = [];
+for(const [x, z] of [[-1.6, -4.6], [1.6, -4.6]]){   // flanking the temple steps
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.1, 0.16, 8), rockM);
+  bowl.position.set(x, 0.9, z); scene.add(bowl);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.9, 6), rockM);
+  stem.position.set(x, 0.45, z); scene.add(stem);
+  const fl = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.34, 5),
+    new THREE.MeshBasicMaterial({ color:0x8ce4d0, transparent:true, opacity:0.85 }));
+  fl.position.set(x, 1.14, z); scene.add(fl);
+  const li = new THREE.PointLight(0x6ce8c8, 1.4, 6, 1.8);
+  li.position.set(x, 1.2, z); scene.add(li);
+  braziers.push({ fl, li, ph: rand(0, 9) });        // ghost-green temple fire
+}
+
+// ---------- THE PORT SWIRL -------------------------------------------------
+const SWIRL_N = 60;
+const swPos = new Float32Array(SWIRL_N*3), swCol = new Float32Array(SWIRL_N*3);
+const swirlGeo = new THREE.BufferGeometry();
+swirlGeo.setAttribute('position', new THREE.BufferAttribute(swPos, 3));
+swirlGeo.setAttribute('color', new THREE.BufferAttribute(swCol, 3));
+const swirl = new THREE.Points(swirlGeo, new THREE.PointsMaterial({
+  size:0.12, sizeAttenuation:true, vertexColors:true,
+  map: glowTex('rgba(255,240,200,1)', 'rgba(255,200,90,0.5)'),
+  blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }));
+scene.add(swirl);
+function swirlAt(center, k, expand){   // k 0..1 life; expand: 1 arriving, -1 leaving
+  for(let i = 0; i < SWIRL_N; i++){
+    const a = i/SWIRL_N*Math.PI*10 + k*7;
+    const h = (i/SWIRL_N)*1.7;
+    const r = (expand > 0 ? (1 - k) : k)*0.9 + 0.12;
+    swPos[i*3]   = center.x + Math.cos(a)*r;
+    swPos[i*3+1] = center.y + h;
+    swPos[i*3+2] = center.z + Math.sin(a)*r;
+    const b = Math.sin(k*Math.PI)*rand(0.6, 1);
+    swCol[i*3] = b; swCol[i*3+1] = b*0.85; swCol[i*3+2] = b*0.4;
+  }
+  swirlGeo.attributes.position.needsUpdate = true;
+  swirlGeo.attributes.color.needsUpdate = true;
+}
+function swirlOff(){
+  for(let i = 0; i < SWIRL_N*3; i++) swCol[i] = 0;
+  swirlGeo.attributes.color.needsUpdate = true;
+}
+swirlOff();
+
+// ---------- the visitor ----------------------------------------------------
+const V = { g: new THREE.Group() };
+{
+  const shirt = new THREE.MeshLambertMaterial({ color:0x5a8a4c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  V.hips = new THREE.Group(); V.hips.position.y = 0.42; V.g.add(V.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), shirt);
+  barrel.position.y = 0.22; barrel.castShadow = true; V.hips.add(barrel);
+  V.head = new THREE.Group(); V.head.position.y = 0.8; V.hips.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; V.head.add(skull);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.31, 12, 8, 0, Math.PI*2, 0, 1.4),
+    new THREE.MeshLambertMaterial({ color:0x7a4a22 }));
+  hair.position.y = 0.04; V.head.add(hair);
+  V.arms = []; V.hands = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6), skin);
+    hand.position.y = -0.5; arm.add(hand);
+    V.hips.add(arm); V.arms.push(arm); V.hands.push(hand);
+  }
+  V.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    V.hips.add(leg); V.legs.push(leg);
+  }
+  scene.add(V.g);
+}
+function walkCycle(t, sp = 1){
+  const ph = t*8*sp;
+  V.legs[0].rotation.x = Math.sin(ph)*0.45;
+  V.legs[1].rotation.x = -Math.sin(ph)*0.45;
+  V.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.025;
+}
+function stillLegs(dt){
+  V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, 0, dt*6);
+  V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, 0, dt*6);
+}
+function armsTo(dt, lx, lz, rx, rz, k = 5){
+  V.arms[0].rotation.x = lerp(V.arms[0].rotation.x, lx, dt*k);
+  V.arms[0].rotation.z = lerp(V.arms[0].rotation.z, lz, dt*k);
+  V.arms[1].rotation.x = lerp(V.arms[1].rotation.x, rx, dt*k);
+  V.arms[1].rotation.z = lerp(V.arms[1].rotation.z, rz, dt*k);
+}
+
+// ---------- the loop -------------------------------------------------------
+// 0–2    empty chamber, drips, gem-glitter
+// 2–4    the swirl builds at the ARRIVE spot; Vita scales in
+// 4–9    AWE: head sweeps the ceiling, slow turn, arms half-raised
+// 9–13   pads over to the treasure heap
+// 13–17  kneels, takes THE PRIZE, holds it OVERHEAD — it flares
+// 17–19  the swirl again — ports out (prize goes with it)
+// 19–30  empty again; the prize quietly rematerializes on the heap (26s)
+let phT = 0;
+const ARRIVE = new THREE.Vector3(-0.4, 0, 2.6);
+const HEAP_SPOT = new THREE.Vector3(1.55, 0, 0.55);
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 30;
+  const f = phT;
+
+  // pool breath + light
+  poolLight.intensity = 2.3 + Math.sin(t*1.1)*0.5;
+  poolMesh.material.opacity = 0.72 + Math.sin(t*0.9)*0.08;
+  // brazier flames
+  for(const b of braziers){
+    b.fl.scale.y = 0.75 + Math.sin(t*8 + b.ph)*0.25;
+    b.li.intensity = 1.25 + Math.sin(t*11 + b.ph)*0.3;
+  }
+  // gem glitter — each pulses on its own beat, sharp glints
+  for(const g of gems){
+    const s = Math.sin(t*g.w + g.ph);
+    g.m.material.emissiveIntensity = 0.25 + Math.pow(Math.max(0, s), 6)*1.4;
+    g.m.rotation.y += dt*0.2;
+  }
+  // drips: fall from tip, splash rings if over the pool
+  for(const d of drips){
+    const k = ((t*0.4 + d.ph) % 1);
+    const y = d.top - k*k*d.speed*2.2;
+    if(y > 0.05){ d.m.position.set(d.x, y, d.z); d.m.material.opacity = 0.85; }
+    else {
+      if(d.m.material.opacity > 0){
+        if(Math.hypot(d.x - POOL.x, d.z - POOL.z) < 1.7) splash(d.x, d.z);
+      }
+      d.m.material.opacity = 0;
+    }
+  }
+  for(const r of rings){
+    r.age += dt;
+    const k = clamp(r.age/1.4, 0, 1);
+    r.m.scale.setScalar(0.1 + k*0.8);
+    r.m.material.opacity = (1 - k)*0.5;
+  }
+  // the prize glow rides the prize
+  prizeGlow.position.copy(prize.position);
+  prizeGlow.material.opacity = prize.visible ? 0.35 + Math.sin(t*3)*0.15 : 0;
+  prize.rotation.y += dt*0.8;
+
+  // ------ the visitor's visit ------
+  if(f < 2){
+    V.g.visible = false; swirlOff();
+    if(f > 1 && !prize.visible){ prize.visible = true; prize.position.copy(PRIZE_HOME); }
+  } else if(f < 4){                          // PORT IN
+    const k = (f - 2)/2;
+    swirlAt(ARRIVE, k, 1);
+    V.g.visible = k > 0.35;
+    V.g.position.copy(ARRIVE);
+    V.g.scale.setScalar(clamp((k - 0.35)/0.5, 0.01, 1));
+    V.g.rotation.y = (1 - k)*6;              // spins to a stop
+    stillLegs(dt);
+  } else if(f < 9){                          // THE AWE
+    swirlOff();
+    V.g.scale.setScalar(1);
+    stillLegs(dt);
+    V.g.rotation.y = Math.sin((f - 4)*0.5)*1.6;         // slow looking-turn
+    V.head.rotation.x = -0.55 + Math.sin(t*0.7)*0.25;   // sweeping the ceiling
+    V.head.rotation.y = Math.sin(t*1.1)*0.3;
+    armsTo(dt, -0.5, 0.45, -0.5, -0.45, 3);             // arms half-raised — whoa
+    V.hips.position.y = 0.42;
+  } else if(f < 13){                         // pad to the treasure
+    const p = smooth((f - 9)/4);
+    V.g.position.lerpVectors(ARRIVE, HEAP_SPOT, p);
+    V.g.rotation.y = Math.atan2(HEAP_SPOT.x - ARRIVE.x, HEAP_SPOT.z - ARRIVE.z);
+    walkCycle(t, 0.85);
+    armsTo(dt, 0, 0.12, 0, -0.12, 4);
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.15, dt*4);   // eyes on the gold
+    V.head.rotation.y = lerp(V.head.rotation.y, 0, dt*4);
+  } else if(f < 17){                         // kneel, take it, hold it HIGH
+    stillLegs(dt);
+    const want = Math.atan2(PRIZE_HOME.x - V.g.position.x, PRIZE_HOME.z - V.g.position.z);
+    V.g.rotation.y += (want - V.g.rotation.y)*Math.min(1, dt*4);
+    if(f < 14.5){                            // the reach
+      V.hips.rotation.x = lerp(V.hips.rotation.x, 0.5, dt*5);
+      armsTo(dt, -1.5, 0.3, -1.5, -0.3, 6);
+      const hp = new THREE.Vector3(); V.hands[1].getWorldPosition(hp);
+      if(f > 13.8) prize.position.lerp(hp, Math.min(1, dt*10));
+    } else {                                 // held OVERHEAD — the flare
+      V.hips.rotation.x = lerp(V.hips.rotation.x, -0.06, dt*5);
+      armsTo(dt, -2.9, 0.25, -2.9, -0.25, 6);
+      const hp = new THREE.Vector3(); V.hands[0].getWorldPosition(hp);
+      const hp2 = new THREE.Vector3(); V.hands[1].getWorldPosition(hp2);
+      prize.position.copy(hp.add(hp2).multiplyScalar(0.5));
+      prize.material.emissiveIntensity = 1.2 + Math.sin(t*9)*0.6;
+      V.head.rotation.x = lerp(V.head.rotation.x, -0.5, dt*5);  // gazing up at it
+    }
+  } else if(f < 19){                         // PORT OUT, prize in hand
+    const k = (f - 17)/2;
+    swirlAt(V.g.position, k, -1);
+    V.g.scale.setScalar(clamp(1 - k*1.3, 0.01, 1));
+    V.g.rotation.y += dt*8*k;                // spinning away
+    const hp = new THREE.Vector3(); V.hands[0].getWorldPosition(hp);
+    prize.position.copy(hp);
+    prize.scale.setScalar(clamp(1 - k*1.3, 0.01, 1));
+    if(k > 0.95){ prize.visible = false; prize.scale.setScalar(1); prize.material.emissiveIntensity = 0.6; }
+  } else {                                   // the chamber keeps its own counsel
+    V.g.visible = false; swirlOff();
+    V.hips.rotation.x = 0;
+    if(f > 26 && !prize.visible){            // ...and the prize is back. Magic.
+      prize.visible = true;
+      prize.position.copy(PRIZE_HOME);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
