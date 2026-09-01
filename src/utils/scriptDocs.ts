@@ -185,15 +185,16 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'CHOICE',
     category: 'choice',
-    syntax: '[CHOICE]\\n- "Option text" -> target_scene\\n[/CHOICE]',
-    description: 'Presents the player with branching dialogue options. Each option navigates to a different scene.',
+    syntax: '[CHOICE]\\n- "Option text" -> target_scene [SET variable += amount]\\n[/CHOICE]',
+    description: 'Presents the player with branching dialogue options. Each option navigates to a different scene. An option may carry one or more inline [SET ...] twiddles (a Narraton decision point): they apply to in-scene or world variables just before the jump, steering which scenes the selector favors next.',
     parameters: [
       { name: 'options', type: 'array', description: 'List of choice options with text and target scenes' },
+      { name: 'sets', type: 'array', description: 'Optional inline [SET ...] commands after the target, applied when the option is picked', optional: true },
     ],
     example: `[CHOICE]
 - "Investigate the desk" -> desk_scene
 - "Talk to the witness" -> witness_scene
-- "Leave the room" -> hallway
+- "Bribe the guard" -> hallway [SET guard_trust += 10] [SET cash -= 50]
 [/CHOICE]`,
     implemented: true,
   },
@@ -224,15 +225,18 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'SET',
     category: 'flow',
-    syntax: '[SET variable = value]',
-    description: 'Sets a world state variable that persists across scenes.',
+    syntax: '[SET variable = value]  or  [SET variable += amount]  or  [SET variable -= amount]',
+    description: 'Sets a variable. Plain = assigns; += and -= increment/decrement numeric variables (missing or non-numeric values count as 0). If the variable is declared in the scene\'s in-scene variables, the change stays scene-local and invisible to the Narraton selector; otherwise it changes world state, which persists across scenes.',
     parameters: [
       { name: 'variable', type: 'string', description: 'The variable name (alphanumeric, no spaces)' },
-      { name: 'value', type: 'any', description: 'The value to set (string, number, or boolean)' },
+      { name: 'operator', type: 'string', description: '= to assign, += to add, -= to subtract' },
+      { name: 'value', type: 'any', description: 'The value to set (string, number, or boolean; += and -= need numbers)' },
     ],
     example: `[SET hasKey = true]
 [SET visitCount = 3]
-[SET playerName = "Alex"]`,
+[SET playerName = "Alex"]
+[SET boss_rep += 10]
+[SET gang_morale -= 5]`,
     implemented: true,
   },
   {

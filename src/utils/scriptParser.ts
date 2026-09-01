@@ -102,6 +102,8 @@ export interface SceneCommand {
 export interface ChoiceOption {
   text: string;
   target: string;
+  // Decision point: variables this option twiddles before jumping (Narraton).
+  sets?: SetCommand[];
 }
 
 export interface ChoiceCommand {
@@ -109,9 +111,12 @@ export interface ChoiceCommand {
   options: ChoiceOption[];
 }
 
+export type SetOperator = '=' | '+=' | '-=';
+
 export interface SetCommand {
   type: 'SET';
   variable: string;
+  op?: SetOperator;    // undefined means '=' (plain assignment)
   value: string | number | boolean;
 }
 
@@ -182,6 +187,28 @@ function parseDuration(str: string): number {
   if (sMatch) return parseFloat(sMatch[1]);
   
   return 1;
+}
+
+// Parse the inside of a SET command: "variable = value", also += / -= for
+// increment/decrement (KoC-style variable twiddling at decision points).
+function parseSetContent(content: string): SetCommand | null {
+  const setMatch = content.match(/^SET\s+(\w+)\s*(\+=|-=|=)\s*(.+)$/i);
+  if (!setMatch) return null;
+
+  let value: string | number | boolean = setMatch[3].trim();
+  // Try to parse as number or boolean
+  if (value === 'true') value = true;
+  else if (value === 'false') value = false;
+  else if (!isNaN(Number(value))) value = Number(value);
+  else value = value.replace(/^["']|["']$/g, ''); // Remove quotes
+
+  const op = setMatch[2] as SetOperator;
+  return {
+    type: 'SET',
+    variable: setMatch[1],
+    ...(op !== '=' ? { op } : {}),
+    value,
+  };
 }
 
 // Parse a single line of script
@@ -318,22 +345,9 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
     
-    // SET variable = value
-    const setMatch = content.match(/^SET\s+(\w+)\s*=\s*(.+)$/i);
-    if (setMatch) {
-      let value: string | number | boolean = setMatch[2].trim();
-      // Try to parse as number or boolean
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      else if (!isNaN(Number(value))) value = Number(value);
-      else value = value.replace(/^["']|["']$/g, ''); // Remove quotes
-      
-      return {
-        type: 'SET',
-        variable: setMatch[1],
-        value,
-      };
-    }
+    // SET variable = value  (also += / -=)
+    const setCommand = parseSetContent(content);
+    if (setCommand) return setCommand;
     
     // IF variable == value
     const ifMatch = content.match(/^IF\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
@@ -420,11 +434,20 @@ function parseChoiceBlock(lines: string[], startIndex: number): { command: Choic
     }
     
     // Parse choice option: - "Option text" -> target_scene
-    const optionMatch = line.match(/^-\s*"([^"]+)"\s*->\s*(\w+)$/);
+    // Optionally followed by inline variable twiddles (a decision point):
+    //   - "Bribe him" -> office [SET boss_rep += 10] [SET cash -= 50]
+    const optionMatch = line.match(/^-\s*"([^"]+)"\s*->\s*(\w+)((?:\s*\[SET[^\]]*\])*)\s*$/i);
     if (optionMatch) {
+      const sets: SetCommand[] = [];
+      const setChunks = optionMatch[3]?.match(/\[([^\]]*)\]/g) || [];
+      for (const chunk of setChunks) {
+        const cmd = parseSetContent(chunk.slice(1, -1));
+        if (cmd) sets.push(cmd);
+      }
       options.push({
         text: optionMatch[1],
         target: optionMatch[2],
+        ...(sets.length > 0 ? { sets } : {}),
       });
     }
     
@@ -503,6 +526,11 @@ export function findActorByName(name: string, actors: { id: string; name: string
 
 // ============ SERIALIZATION FUNCTIONS ============
 
+function serializeSet(cmd: SetCommand): string {
+  const valStr = typeof cmd.value === 'string' ? `"${cmd.value}"` : String(cmd.value);
+  return `[SET ${cmd.variable} ${cmd.op || '='} ${valStr}]`;
+}
+
 // Serialize a single command back to script text
 export function commandToString(cmd: ScriptCommand): string {
   switch (cmd.type) {
@@ -550,12 +578,8 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[BUTTON ${cmd.buttonId}]`;
     case 'HIDE_BUTTON':
       return `[HIDE_BUTTON ${cmd.buttonId}]`;
-    case 'SET': {
-      let valStr: string;
-      if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
-      else valStr = String(cmd.value);
-      return `[SET ${cmd.variable} = ${valStr}]`;
-    }
+    case 'SET':
+      return serializeSet(cmd);
     case 'IF': {
       let valStr: string;
       if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
@@ -564,7 +588,10 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[IF ${cmd.variable} ${cmd.operator} ${valStr}]\n${inner}\n[ENDIF]`;
     }
     case 'CHOICE': {
-      const opts = cmd.options.map(o => `- "${o.text}" -> ${o.target}`).join('\n');
+      const opts = cmd.options.map(o => {
+        const sets = (o.sets || []).map(s => ` ${serializeSet(s)}`).join('');
+        return `- "${o.text}" -> ${o.target}${sets}`;
+      }).join('\n');
       return `[CHOICE]\n${opts}\n[/CHOICE]`;
     }
     case 'COMMENT':

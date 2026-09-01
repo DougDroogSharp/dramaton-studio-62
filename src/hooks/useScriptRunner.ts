@@ -1,6 +1,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameData, Scene, StageElement } from '@/types';
-import { parseScript, ScriptCommand, DialogueCommand, findActorByName } from '@/utils/scriptParser';
+import { parseScript, ScriptCommand, DialogueCommand, SetCommand, findActorByName } from '@/utils/scriptParser';
+
+export type VarScope = 'world' | 'local';
+
+// One recorded variable change, for the Narraton test-mode panel.
+export interface VarChange {
+  variable: string;
+  scope: VarScope;
+  from: string | number | boolean | undefined;
+  to: string | number | boolean;
+  sceneId: string;
+}
 
 export interface ActiveDialogue {
   actorId: string | null;
@@ -21,6 +32,10 @@ export interface ScriptRunnerState {
   activeDialogue: ActiveDialogue | null;
   choices: ChoiceState | null;
   worldState: Record<string, string | number | boolean>;
+  // In-scene variables: seeded from Scene.localVars on scene entry, reset on
+  // every scene change, never written back to worldState (invisible to Narraton).
+  localState: Record<string, string | number | boolean>;
+  varLog: VarChange[];
   hiddenElements: Set<string>;
   elementOverrides: Map<string, Partial<StageElement>>;
   activeEffects: Map<string, string[]>;
@@ -53,6 +68,8 @@ export function useScriptRunner({
     activeDialogue: null,
     choices: null,
     worldState: { ...game.info.worldState },
+    localState: { ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) },
+    varLog: [],
     hiddenElements: new Set(),
     elementOverrides: new Map(),
     activeEffects: new Map(),
@@ -65,6 +82,61 @@ export function useScriptRunner({
   const typewriterRef = useRef<NodeJS.Timeout | null>(null);
   const waitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Which scene a mid-chain command belongs to (state.currentSceneId is stale
+  // inside an advance() loop that crossed a scene boundary).
+  const currentSceneIdRef = useRef(startSceneId);
+
+  // Synchronous mirror of variable state. React state updates are queued, so a
+  // [SET] followed by an [IF] within one advance() chain must read from here,
+  // not from the (stale) state closure. setState keeps the rendered copies in
+  // sync after every change.
+  const varsRef = useRef({
+    world: { ...game.info.worldState },
+    local: { ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) },
+  });
+
+  // Route a variable to its store: local when the current scene DECLARED it in
+  // localVars; everything else is world state (matches pre-Narraton behavior).
+  const scopeOf = useCallback((variable: string): VarScope => (
+    variable in varsRef.current.local ? 'local' : 'world'
+  ), []);
+
+  const readVar = useCallback((variable: string) => {
+    const scope = scopeOf(variable);
+    return scope === 'local' ? varsRef.current.local[variable] : varsRef.current.world[variable];
+  }, [scopeOf]);
+
+  // Apply a SET (including += / -=) synchronously, log it, mirror into state.
+  const applySet = useCallback((cmd: SetCommand, sceneId: string) => {
+    const scope = scopeOf(cmd.variable);
+    const store = scope === 'local' ? varsRef.current.local : varsRef.current.world;
+    const from = store[cmd.variable];
+    let to: string | number | boolean;
+    if (cmd.op === '+=' || cmd.op === '-=') {
+      const base = Number(from ?? 0);
+      const delta = Number(cmd.value);
+      const safeBase = Number.isFinite(base) ? base : 0;
+      const safeDelta = Number.isFinite(delta) ? delta : 0;
+      to = cmd.op === '+=' ? safeBase + safeDelta : safeBase - safeDelta;
+    } else {
+      to = cmd.value;
+    }
+    store[cmd.variable] = to;
+    const change: VarChange = { variable: cmd.variable, scope, from, to, sceneId };
+    setState(prev => ({
+      ...prev,
+      worldState: { ...varsRef.current.world },
+      localState: { ...varsRef.current.local },
+      varLog: [...prev.varLog, change],
+    }));
+  }, [scopeOf]);
+
+  // Reset in-scene variables when entering a scene.
+  const seedLocals = useCallback((sceneId: string) => {
+    const scene = game.scenes.find(s => s.id === sceneId);
+    varsRef.current.local = { ...(scene?.localVars || {}) };
+  }, [game.scenes]);
 
   // Get current scene and parsed commands
   const currentScene = game.scenes.find(s => s.id === state.currentSceneId);
@@ -236,6 +308,8 @@ export function useScriptRunner({
       
       case 'SCENE': {
         clearTimeouts();
+        currentSceneIdRef.current = command.sceneId;
+        seedLocals(command.sceneId);
         onSceneChange?.(command.sceneId);
         setState(prev => ({
           ...prev,
@@ -243,6 +317,7 @@ export function useScriptRunner({
           currentCommandIndex: 0,
           activeDialogue: null,
           choices: null,
+          localState: { ...varsRef.current.local },
           hiddenElements: new Set(),
           elementOverrides: new Map(),
           activeEffects: new Map(),
@@ -261,15 +336,12 @@ export function useScriptRunner({
       }
       
       case 'SET': {
-        setState(prev => ({
-          ...prev,
-          worldState: { ...prev.worldState, [command.variable]: command.value },
-        }));
+        applySet(command, currentSceneIdRef.current);
         return true;
       }
-      
+
       case 'IF': {
-        const varValue = state.worldState[command.variable];
+        const varValue = readVar(command.variable);
         let conditionMet = false;
         
         switch (command.operator) {
@@ -312,7 +384,7 @@ export function useScriptRunner({
       case 'UNKNOWN':
         return true; // Skip
     }
-  }, [game, state.worldState, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
+  }, [game, readVar, applySet, seedLocals, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
 
   // Advance to next command
   const advance = useCallback(() => {
@@ -355,9 +427,16 @@ export function useScriptRunner({
     
     const option = state.choices.options[index];
     if (!option) return;
-    
+
+    // Decision point: twiddle the option's variables before leaving the scene.
+    for (const set of option.sets || []) {
+      applySet(set, currentSceneIdRef.current);
+    }
+
     // Navigate to target scene
     clearTimeouts();
+    currentSceneIdRef.current = option.target;
+    seedLocals(option.target);
     onSceneChange?.(option.target);
     setState(prev => ({
       ...prev,
@@ -365,6 +444,7 @@ export function useScriptRunner({
       currentCommandIndex: 0,
       activeDialogue: null,
       choices: null,
+      localState: { ...varsRef.current.local },
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
@@ -372,7 +452,7 @@ export function useScriptRunner({
       isWaiting: false,
       isComplete: false,
     }));
-  }, [state.choices, onSceneChange, clearTimeouts]);
+  }, [state.choices, applySet, seedLocals, onSceneChange, clearTimeouts]);
 
   // Auto-advance when in auto-play mode
   useEffect(() => {
@@ -399,6 +479,8 @@ export function useScriptRunner({
   // Reset to a specific scene
   const goToScene = useCallback((sceneId: string) => {
     clearTimeouts();
+    currentSceneIdRef.current = sceneId;
+    seedLocals(sceneId);
     onSceneChange?.(sceneId);
     setState(prev => ({
       ...prev,
@@ -406,6 +488,7 @@ export function useScriptRunner({
       currentCommandIndex: 0,
       activeDialogue: null,
       choices: null,
+      localState: { ...varsRef.current.local },
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
@@ -413,7 +496,7 @@ export function useScriptRunner({
       isWaiting: false,
       isComplete: false,
     }));
-  }, [onSceneChange, clearTimeouts]);
+  }, [seedLocals, onSceneChange, clearTimeouts]);
 
   // Toggle auto-play
   const toggleAutoPlay = useCallback(() => {

@@ -1,7 +1,7 @@
 # DRAM Script Language Reference
 
 **Version:** 1.0  
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 
 DRAM Script is the scripting language used by Dramaton to control narrative flow, scene transitions, character dialogue, and interactive elements in visual novel-style games.
 
@@ -368,24 +368,25 @@ Commands for presenting branching narrative choices to the player.
 
 #### `CHOICE`
 
-Presents the player with branching dialogue options. Each option navigates to a different scene.
+Presents the player with branching dialogue options. Each option navigates to a different scene. An option may carry one or more inline [SET ...] twiddles (a Narraton decision point): they apply to in-scene or world variables just before the jump, steering which scenes the selector favors next.
 
 **Syntax:**
 ```
-[CHOICE]\n- "Option text" -> target_scene\n[/CHOICE]
+[CHOICE]\n- "Option text" -> target_scene [SET variable += amount]\n[/CHOICE]
 ```
 
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
 | `options` | array | List of choice options with text and target scenes |
+| `sets` | array | Optional inline [SET ...] commands after the target, applied when the option is picked *(optional)* |
 
 **Example:**
 ```
 [CHOICE]
 - "Investigate the desk" -> desk_scene
 - "Talk to the witness" -> witness_scene
-- "Leave the room" -> hallway
+- "Bribe the guard" -> hallway [SET guard_trust += 10] [SET cash -= 50]
 [/CHOICE]
 ```
 
@@ -417,24 +418,27 @@ Pauses script execution for the specified duration.
 
 #### `SET`
 
-Sets a world state variable that persists across scenes.
+Sets a variable. Plain = assigns; += and -= increment/decrement numeric variables (missing or non-numeric values count as 0). If the variable is declared in the scene's in-scene variables, the change stays scene-local and invisible to the Narraton selector; otherwise it changes world state, which persists across scenes.
 
 **Syntax:**
 ```
-[SET variable = value]
+[SET variable = value]  or  [SET variable += amount]  or  [SET variable -= amount]
 ```
 
 **Parameters:**
 | Name | Type | Description |
 |------|------|-------------|
 | `variable` | string | The variable name (alphanumeric, no spaces) |
-| `value` | any | The value to set (string, number, or boolean) |
+| `operator` | string | = to assign, += to add, -= to subtract |
+| `value` | any | The value to set (string, number, or boolean; += and -= need numbers) |
 
 **Example:**
 ```
 [SET hasKey = true]
 [SET visitCount = 3]
 [SET playerName = "Alex"]
+[SET boss_rep += 10]
+[SET gang_morale -= 5]
 ```
 
 #### `IF`
