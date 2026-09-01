@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BULLDOZER STUDY — a crawler dozer at work, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     Ochre hull, roll-frame cab, curved blade on push arms. The tracks
+     are REAL: sixteen links a side circulating an oval path (top run,
+     idler arc, ground run, sprocket arc) at ground speed, wheels
+     spinning to match. Work loop: blade drops, the dozer PUSHES a
+     growing dirt heap down the cut, spreads it, lifts the blade,
+     REVERSES to the start, drops and goes again. Exhaust stack puffs
+     smoke that leans harder under load. Idle mode: engine tremble and
+     lazy smoke. Hull ~1.9 long against the 1.5-unit Vita.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulldozer Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e0cc; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,26,18,0.78); color:#f2eede; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a6a1e; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#a8842c; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🚜 Bulldozer Study</b> — tracks + push cycle, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="work">Work</button><button data-m="idle">Idle</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 909090;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4dec8), 40, 260);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(5, 3, 7);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4eeda), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd6d0ba), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/300;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaa9a72, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 22, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 48),
+    new THREE.MeshLambertMaterial({ color:0xbaa878 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the CUT the dozer works: a darker strip of turned earth
+  const cut = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 9),
+    new THREE.MeshLambertMaterial({ color:0xa08a5e }));
+  cut.rotation.x = -Math.PI/2;
+  cut.position.set(0, 0.01, -0.5);
+  cut.receiveShadow = true;
+  scene.add(cut);
+  const rockMat = new THREE.MeshLambertMaterial({ color:0x968e80, flatShading:true });
+  for(let i=0;i<6;i++){
+    const a = rand(0, Math.PI*2), r = rand(5, 18);
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.15, 0.4), 0), rockMat);
+    rock.position.set(Math.cos(a)*r, 0.1, Math.sin(a)*r);
+    rock.rotation.set(rand(3), rand(3), rand(3));
+    rock.castShadow = true;
+    scene.add(rock);
+  }
+}
+
+// ==========================================================================
+//  THE DOZER — forward is +Z. Hull ~1.9 long, tracks 2.1.
+// ==========================================================================
+const matBody = new THREE.MeshLambertMaterial({ color:0xc9952e, flatShading:true });
+const matBodyDk = new THREE.MeshLambertMaterial({ color:0xa07622, flatShading:true });
+const matTrack = new THREE.MeshLambertMaterial({ color:0x3c3c40, flatShading:true });
+const matSteel = new THREE.MeshLambertMaterial({ color:0x707a84, flatShading:true });
+const dozer = new THREE.Group();
+scene.add(dozer);
+let blade, stack;
+const wheels = [];
+{
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.55, 1.9), matBody);
+  hull.position.y = 0.72;
+  hull.castShadow = true;
+  dozer.add(hull);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.35, 0.8), matBodyDk);
+  hood.position.set(0, 1.1, 0.4);
+  hood.castShadow = true;
+  dozer.add(hood);
+  // roll-frame cab + seat
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.7, 6), matSteel);
+    post.position.set(sx*0.42, 1.35, -0.35 + sz*0.28);
+    dozer.add(post);
+  }
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.75), matBodyDk);
+  canopy.position.set(0, 1.74, -0.35);
+  canopy.castShadow = true;
+  dozer.add(canopy);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.12), matTrack);
+  seat.position.set(0, 1.2, -0.62);
+  dozer.add(seat);
+  // exhaust STACK
+  stack = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.5, 7), matSteel);
+  stack.position.set(0.22, 1.5, 0.55);
+  dozer.add(stack);
+  // the BLADE on its push arms — lifts and lowers as one group
+  blade = new THREE.Group();
+  blade.position.set(0, 0.5, 0);
+  dozer.add(blade);
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.9, 12, 1, true, 0, 1.1),
+    new THREE.MeshLambertMaterial({ color:0xa07622, flatShading:true, side:THREE.DoubleSide }));
+  face.rotation.z = Math.PI/2;
+  face.rotation.x = -2.05;                       // concave toward travel
+  face.position.set(0, 0.1, 1.42);
+  face.castShadow = true;
+  blade.add(face);
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.06), matSteel);
+  edge.position.set(0, -0.28, 1.52);
+  blade.add(edge);
+  for(const s of [-1, 1]){
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 1.1), matBodyDk);
+    arm.position.set(s*0.78, -0.1, 0.85);
+    arm.castShadow = true;
+    blade.add(arm);
+  }
+}
+// ---------- the TRACKS: links circulating an oval --------------------------
+const IDLER_Z = 0.85, WHEEL_R = 0.3, TOP_Y = 0.62, BOT_Y = 0.02;
+const RUN = IDLER_Z*2, ARC = Math.PI*WHEEL_R, PERIM = RUN*2 + ARC*2;
+function trackPoint(s, out){                      // s in [0, PERIM) → {pos, tangentAngle}
+  s = ((s % PERIM) + PERIM) % PERIM;
+  if(s < RUN)                                     // top run, rear → front
+    return out.set(0, TOP_Y, -IDLER_Z + s, 0);
+  s -= RUN;
+  if(s < ARC){                                    // front arc, over the idler
+    const a = Math.PI/2 - (s/ARC)*Math.PI;        // 90° → -90°
+    return out.set(0, 0.32 + Math.sin(a)*WHEEL_R, IDLER_Z + Math.cos(a)*WHEEL_R, -(Math.PI/2 - a));
+  }
+  s -= ARC;
+  if(s < RUN)                                     // ground run, front → rear
+    return out.set(0, BOT_Y, IDLER_Z - s, Math.PI);
+  s -= RUN;
+  const a = -Math.PI/2 - (s/ARC)*Math.PI;         // rear arc, under → over
+  return out.set(0, 0.32 + Math.sin(a)*WHEEL_R, -IDLER_Z + Math.cos(a)*WHEEL_R, -(Math.PI/2 - a));
+}
+const N_LINK = 16, links = [[], []];
+for(const [si, sx] of [[0, -0.62], [1, 0.62]]){
+  for(let i=0;i<N_LINK;i++){
+    const link = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.24), matTrack);
+    link.position.x = sx;
+    link.castShadow = true;
+    dozer.add(link);
+    links[si].push(link);
+  }
+  for(const wz of [-IDLER_Z, -0.3, 0.3, IDLER_Z]){
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(
+      Math.abs(wz) > 0.5 ? WHEEL_R : 0.16, Math.abs(wz) > 0.5 ? WHEEL_R : 0.16, 0.14, 10), matSteel);
+    w.rotation.z = Math.PI/2;
+    w.position.set(sx, Math.abs(wz) > 0.5 ? 0.32 : 0.18, wz);
+    w.castShadow = true;
+    dozer.add(w);
+    wheels.push(w);
+  }
+}
+let trackS = 0;
+const _tp = new THREE.Vector4();
+
+// ---------- the dirt HEAP --------------------------------------------------
+const heap = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 6, 0, Math.PI*2, 0, Math.PI/2),
+  new THREE.MeshLambertMaterial({ color:0x8a7248, flatShading:true }));
+heap.castShadow = true;
+scene.add(heap);
+
+// smoke puffs, recycled
+const puffs = [];
+const puffMat = new THREE.MeshLambertMaterial({ color:0x8a8a8a, transparent:true, opacity:0 });
+for(let i=0;i<7;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 5), puffMat.clone());
+  p.userData.t = 9;
+  scene.add(p);
+  puffs.push(p);
+}
+let puffTimer = 0;
+
+// ---------- the work cycle -------------------------------------------------
+// push (blade down, heap grows) → spread → reverse (blade up) → drop → again
+let working = true;
+const Z0 = -3.4, Z1 = 1.6;
+let phase = 'push', ph = 0, dozZ = Z0, heapK = 0.55;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  working = m === 'work';
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('work');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  let speed = 0, bladeY = 0.5, load = 0;
+  if(working){
+    if(phase === 'push'){
+      speed = 0.75; load = 1;
+      dozZ += speed*dt;
+      bladeY = 0.36;                              // edge in the dirt
+      heapK = clamp(heapK + dt*0.09, 0.55, 1.2);
+      heap.position.set(0, 0, dozZ + 1.75);
+      heap.scale.set(heapK, heapK*0.8, heapK);
+      heap.visible = true;
+      if(dozZ >= Z1){ phase = 'spread'; ph = 0; }
+    } else if(phase === 'spread'){
+      ph += dt;
+      bladeY = lerp(0.36, 0.5, smooth(clamp(ph/1.2, 0, 1)));
+      heap.scale.y = lerp(heap.scale.y, 0.22, dt*2);      // knocked down flat
+      heap.scale.x = lerp(heap.scale.x, heapK*1.5, dt*2);
+      if(ph > 1.4){ phase = 'reverse'; ph = 0; }
+    } else if(phase === 'reverse'){
+      speed = -1.15; bladeY = 0.56;
+      dozZ += speed*dt;
+      heap.material.opacity = 1;
+      if(dozZ <= Z0){ phase = 'drop'; ph = 0; }
+    } else {                                      // drop the blade, fresh heap
+      ph += dt;
+      bladeY = lerp(0.56, 0.36, smooth(clamp(ph/0.8, 0, 1)));
+      if(ph > 0.9){ phase = 'push'; heapK = 0.55; }
+    }
+  }
+  dozer.position.z = dozZ;
+  blade.position.y = lerp(blade.position.y, bladeY, Math.min(1, dt*5));
+
+  // tracks + wheels at ground speed
+  trackS += speed * dt;
+  for(const si of [0, 1]){
+    for(let i=0;i<N_LINK;i++){
+      const L = links[si][i];
+      trackPoint(trackS + i*(PERIM/N_LINK), _tp);
+      L.position.y = _tp.y; L.position.z = _tp.z;
+      L.rotation.x = _tp.w;
+    }
+  }
+  for(const w of wheels) w.rotation.x += speed/WHEEL_R * dt;
+
+  // engine: idle tremble, working shudder
+  const shake = working ? 0.004 + load*0.004 : 0.003;
+  dozer.position.y = Math.sin(t*31)*shake;
+  dozer.rotation.z = Math.sin(t*27)*shake*0.7;
+  dozer.rotation.x = load ? 0.012 : 0;            // nose settles into the push
+
+  // smoke: harder under load
+  puffTimer -= dt;
+  if(puffTimer <= 0){
+    puffTimer = load ? 0.28 : 0.55;
+    const p = puffs.find(p => p.userData.t > 1);
+    if(p){
+      p.userData.t = 0;
+      p.position.set(dozer.position.x + 0.22, 1.78, dozZ + 0.55);
+      p.scale.setScalar(load ? 1.2 : 0.8);
+    }
+  }
+  for(const p of puffs){
+    if(p.userData.t > 1){ p.material.opacity = 0; continue; }
+    p.userData.t += dt*0.8;
+    p.position.y += dt*0.7;
+    p.position.z -= dt*0.25;                      // drifts back over the cab
+    p.scale.multiplyScalar(1 + dt*1.4);
+    p.material.opacity = 0.4*(1 - p.userData.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
