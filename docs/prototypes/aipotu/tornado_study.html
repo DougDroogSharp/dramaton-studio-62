@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     TORNADO STUDY — the twister, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: a tornado TWISTING and RISING and KICKING UP DUST.
+     The build: the funnel is a stack of 16 translucent rings, each
+     rotating at its own rate (fastest at the ground), each following
+     the WRITHE — a slow S-curve that snakes through the column while
+     the whole funnel wanders the plain. It RISES: the column stretches
+     and reaches, the top boiling into a dark wall-cloud disc. The dust:
+     a ground-level SKIRT of churned debris orbiting the foot, brown
+     dust puffs kicked outward and up, and loose debris (planks, fronds)
+     snatched into the spiral, carried around, and flung clear.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tornado Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#4a4c48; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(22,22,20,0.8); color:#ece8dc;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌪 Tornado Study</b> — twisting, rising, kicking dust, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1925;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x4e504a), 60, 280);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.3, 800);
+camera.position.set(18, 12, 26);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 7, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 6;
+controls.maxDistance = 90;
+controls.maxPolarAngle = 1.52;
+
+// ---------- the storm-light world ------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0x8a8468), zenith = new THREE.Color(0x3a3e42),
+        below = new THREE.Color(0x4a4c46), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0x9a9c8e, 0x4a463c, 0.85));
+const sun = new THREE.DirectionalLight(0xd8cfa8, 1.1);
+sun.position.set(-28, 30, 18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;  sun.shadow.camera.bottom = -30;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0x9a9068 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+  // a few standing props for scale (they stay; the debris flies separately)
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x7a8a48, flatShading:true });
+  for(let i = 0; i < 14; i++){
+    const a = rand(0, Math.PI*2), r = rand(14, 34);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.3, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ==========================================================================
+//  THE FUNNEL — 16 stacked rings, each its own rotation rate (ground
+//  fastest), all riding the WRITHE curve; the top boils into a wall cloud.
+// ==========================================================================
+const RINGS = 16, FUNNEL_H = 15;
+const funnel = new THREE.Group();
+scene.add(funnel);
+const ringsF = [];
+for(let i = 0; i < RINGS; i++){
+  const f = i / (RINGS - 1);
+  const r = 0.55 + Math.pow(f, 1.5) * 5.2;          // narrow foot, wide throat
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.34 + f*0.75, 7, 20),
+    new THREE.MeshLambertMaterial({
+      color: new THREE.Color().setHSL(0.1, 0.14, 0.32 + f*0.2),
+      transparent:true, opacity: 0.5 - f*0.12 }));
+  m.rotation.x = Math.PI/2;
+  m.scale.y = 2.1;                                   // tall ring sections overlap into a column
+  g.add(m);
+  // ragged lumps riding each ring make the rotation READ
+  for(let l = 0; l < 3; l++){
+    const lump = new THREE.Mesh(new THREE.SphereGeometry(0.4 + f*0.7, 6, 5),
+      new THREE.MeshLambertMaterial({
+        color: new THREE.Color().setHSL(0.1, 0.16, 0.28 + f*0.18),
+        transparent:true, opacity: 0.55 - f*0.14 }));
+    const la = (l/3)*Math.PI*2;
+    lump.position.set(Math.cos(la)*r, rand(-0.4, 0.4), Math.sin(la)*r);
+    g.add(lump);
+  }
+  funnel.add(g);
+  ringsF.push({ g, f, spin: (2.6 - f*1.7) * (1 + rand(-0.1, 0.1)), ph: rand(0, 9) });
+}
+// the WALL CLOUD: a dark boiling disc where the funnel meets the sky
+const wall = new THREE.Group();
+for(let i = 0; i < 10; i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(rand(2.4, 4), 8, 7),
+    new THREE.MeshLambertMaterial({ color:0x3c3e3a, transparent:true, opacity:0.9 }));
+  const a = (i/10)*Math.PI*2;
+  p.position.set(Math.cos(a)*rand(2, 6), rand(-0.8, 0.8), Math.sin(a)*rand(2, 6));
+  p.scale.y = 0.5;
+  wall.add(p);
+}
+scene.add(wall);
+
+// ---------- the dust: skirt puffs + flung debris ---------------------------
+const dust = [];
+{
+  for(let i = 0; i < 40; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(rand(0.5, 1.1), 7, 6),
+      new THREE.MeshLambertMaterial({ color:0x8a7a54, transparent:true, opacity:0 }));
+    m.visible = false;
+    scene.add(m);
+    dust.push({ m, t: 9, vx:0, vy:0, vz:0 });
+  }
+}
+const debris = [];
+{
+  const mats = [new THREE.MeshLambertMaterial({ color:0x8a6134 }),
+                new THREE.MeshLambertMaterial({ color:0x4a8a3c }),
+                new THREE.MeshLambertMaterial({ color:0xb9a05c })];
+  for(let i = 0; i < 14; i++){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(rand(0.3, 0.8), 0.06, rand(0.12, 0.3)), mats[i % 3]);
+    m.visible = false;
+    m.castShadow = true;
+    scene.add(m);
+    debris.push({ m, t: 99, mode:'in', a: 0, h: 0, r: 0 });
+  }
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the funnel WANDERS the plain and RISES-AND-REACHES on a slow cycle
+  const baseX = Math.sin(t*0.13)*7 + Math.sin(t*0.31)*2.5;
+  const baseZ = Math.cos(t*0.17)*6 + Math.sin(t*0.23)*2.5;
+  const reach = 1 + 0.18*Math.sin(t*0.4) + 0.08*Math.sin(t*0.9);   // the rising stretch
+
+  ringsF.forEach(r2 => {
+    const y = 0.6 + r2.f * FUNNEL_H * reach;
+    // the WRITHE: an S-curve snaking up the column, stronger higher up
+    const wx = Math.sin(t*0.8 + r2.f*4.2) * r2.f * 1.9
+             + Math.sin(t*1.7 + r2.f*7.5) * r2.f * 0.7;
+    const wz = Math.cos(t*0.7 + r2.f*3.6) * r2.f * 1.9;
+    r2.g.position.set(baseX + wx, y, baseZ + wz);
+    r2.g.rotation.y += dt * r2.spin * Math.PI;      // ground rings spin FASTEST
+    const pulse = 1 + 0.06*Math.sin(t*3.2 + r2.ph);
+    r2.g.scale.set(pulse * reachScale(r2.f, reach), 1, pulse * reachScale(r2.f, reach));
+  });
+  function reachScale(f, rch){ return 1 + (rch - 1) * f * 0.5; }  // the throat widens as it reaches
+  wall.position.set(baseX + Math.sin(t*0.8 + 4.2)*1.9, 0.6 + FUNNEL_H*reach + 1.2, baseZ + Math.cos(t*0.7 + 3.6)*1.9);
+  wall.rotation.y += dt * 0.5;
+  wall.children.forEach((p, i) => p.position.y = Math.sin(t*1.1 + i)*0.5);
+
+  // ---------- KICKING UP DUST at the foot ----------
+  if(Math.random() < dt*26){
+    const d = dust.find(d => d.t > 1.8);
+    if(d){
+      d.t = 0;
+      d.m.visible = true;
+      const a = rand(0, Math.PI*2);
+      d.m.position.set(baseX + Math.cos(a)*rand(0.4, 1.6), 0.3, baseZ + Math.sin(a)*rand(0.4, 1.6));
+      // flung OUTWARD and up, with the spin's tangent
+      d.vx = Math.cos(a)*rand(2, 5) - Math.sin(a)*rand(4, 7);
+      d.vz = Math.sin(a)*rand(2, 5) + Math.cos(a)*rand(4, 7);
+      d.vy = rand(1.5, 4);
+      d.m.scale.setScalar(rand(0.6, 1));
+    }
+  }
+  for(const d of dust){
+    if(d.t > 1.8){ d.m.visible = false; continue; }
+    d.t += dt;
+    d.vx *= (1 - dt*1.2); d.vz *= (1 - dt*1.2);
+    d.vy -= 2.2*dt;
+    d.m.position.x += d.vx*dt;
+    d.m.position.y = Math.max(0.2, d.m.position.y + d.vy*dt);
+    d.m.position.z += d.vz*dt;
+    d.m.scale.multiplyScalar(1 + dt*0.9);            // billowing out
+    d.m.material.opacity = clamp((d.t < 0.25 ? d.t*2.2 : 0.55 - (d.t - 0.25)*0.36), 0, 1);
+  }
+
+  // ---------- debris snatched, carried around, flung clear ----------
+  if(Math.random() < dt*1.6){
+    const b = debris.find(b => b.t > 5);
+    if(b){
+      b.t = 0;
+      b.mode = 'in';
+      b.m.visible = true;
+      b.a = rand(0, Math.PI*2);
+      b.r = rand(6, 11);
+      b.h = 0.2;
+    }
+  }
+  for(const b of debris){
+    if(b.t > 5){ b.m.visible = false; continue; }
+    b.t += dt;
+    if(b.mode === 'in'){                             // dragged toward the foot
+      b.r = Math.max(1.2, b.r - dt*5);
+      b.a += dt * (10 / b.r);                        // faster as it closes
+      b.h = lerp(b.h, 0.5, dt*2);
+      if(b.r <= 1.25) b.mode = 'up';
+    } else if(b.mode === 'up'){                      // riding the spiral UP
+      b.a += dt * 7;
+      b.h += dt * (3 + b.h*0.35);
+      b.r = 1.1 + b.h*0.28;
+      if(b.h > FUNNEL_H*0.65 && Math.random() < dt*2) b.mode = 'flung';
+    } else {                                         // FLUNG clear
+      b.r += dt*14;
+      b.h -= dt*5;
+      b.a += dt*1.5;
+      if(b.h < 0.15){ b.h = 0.15; b.t = 5.01; }      // lands, done
+    }
+    b.m.position.set(baseX + Math.cos(b.a)*b.r, b.h, baseZ + Math.sin(b.a)*b.r);
+    b.m.rotation.x += dt*9; b.m.rotation.y += dt*6;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
