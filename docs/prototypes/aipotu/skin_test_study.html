@@ -446,6 +446,11 @@ animSel.addEventListener('change', () => {
 const ogDL = document.createElement('optgroup');
 ogDL.label = 'Downloaded skins';
 skinSel.appendChild(ogDL);
+// visible even when empty, so the feature is discoverable
+const dlHint = document.createElement('option');
+dlHint.disabled = true;
+dlHint.textContent = '(none yet — drag a .glb here, or Dropbox AIPOTU/skins_inbox + tell HvM "skins")';
+ogDL.appendChild(dlHint);
 
 function groundAndScale(obj, x){
   const box = new THREE.Box3().setFromObject(obj);
@@ -463,6 +468,7 @@ function registerSkin(name, gltf){
   const clips = (gltf.animations || []).map(normNames);
   DL.push({ name, obj, mixer: new THREE.AnimationMixer(obj), clips, action:null });
   const si = DL.length - 1;
+  dlHint.remove();                     // a real skin replaces the placeholder
   const o = document.createElement('option');
   o.value = 'dl:' + si; o.textContent = name;
   ogDL.appendChild(o);

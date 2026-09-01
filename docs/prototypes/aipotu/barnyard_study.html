@@ -187,7 +187,14 @@ function quadBase(bodyGeoFn, bodyMat, o = {}){
   for(const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
     const leg = new THREE.Group();
     leg.position.set(sx*(o.legX || 0.16), -(o.bodyY || 0.5) + (o.legTop || 0.42), sz*(o.legZ || 0.3));
-    const shin = new THREE.Mesh(new THREE.CylinderGeometry(o.legR || 0.045, (o.legR || 0.045)*0.8, (o.legTop || 0.42), 6), bodyMat);
+    // the JOINT — a haunch/shoulder blend sphere rooting the limb into the body
+    const joint = new THREE.Mesh(new THREE.SphereGeometry((o.legR || 0.045)*(sz < 0 ? 2.6 : 2.2), 12, 9), bodyMat);
+    joint.scale.set(0.9, 1.25, 1.1);
+    joint.position.copy(leg.position);
+    joint.position.y += 0.02;
+    joint.castShadow = true;
+    Q.body.add(joint);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry((o.legR || 0.045), (o.legTop || 0.42)*0.9, 5, 10), bodyMat);
     shin.position.y = -(o.legTop || 0.42)/2;
     shin.castShadow = true;
     leg.add(shin);
@@ -210,20 +217,33 @@ function stillQ(Q, dt){
 
 // ---------- goats ----------------------------------------------------------
 function makeGoat(col){
-  const m = new THREE.MeshLambertMaterial({ color:col, flatShading:true });
-  const G = quadBase(() => new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.36, 0.9), m),
-    m, { bodyY:0.52, legTop:0.36, legX:0.2, legZ:0.32, legR:0.04, headZ:0.5, headY:0.2 });
-  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.24, 0.34), m);
-  skull.position.z = 0.1; skull.castShadow = true; G.head.add(skull);
-  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.16), m);
-  snout.position.set(0, -0.04, 0.32); G.head.add(snout);
+  const m = new THREE.MeshLambertMaterial({ color:col });
+  const G = quadBase(() => {
+    const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 0.46, 8, 14), m);
+    b.rotation.x = Math.PI/2;
+    b.scale.set(1.12, 0.95, 1);
+    return b;
+  }, m, { bodyY:0.52, legTop:0.36, legX:0.17, legZ:0.3, legR:0.04, headZ:0.5, headY:0.2 });
+  // the NECK — a real bridge from chest to skull
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.24, 6, 10), m);
+  neck.rotation.x = -0.75;
+  neck.position.set(0, 0.13, 0.42);
+  neck.castShadow = true;
+  G.body.add(neck);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 11), m);
+  skull.scale.set(0.9, 1.0, 1.25);
+  skull.position.z = 0.08; skull.castShadow = true; G.head.add(skull);
+  const snout = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.12, 5, 9), m);
+  snout.rotation.x = Math.PI/2 + 0.25;
+  snout.position.set(0, -0.05, 0.26); snout.castShadow = true; G.head.add(snout);
   const hornM = new THREE.MeshLambertMaterial({ color:0x8a8072, flatShading:true });
   for(const s of [-1, 1]){
     const horn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 5), hornM);
     horn.position.set(s*0.07, 0.17, 0.02);
     horn.rotation.x = -0.7; horn.rotation.z = s*0.3;
     G.head.add(horn);
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.14), m);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), m);
+    ear.scale.set(0.42, 0.55, 1.1);
     ear.position.set(s*0.13, 0.05, 0.02);
     ear.rotation.z = s*0.9;
     G.head.add(ear);
@@ -233,9 +253,10 @@ function makeGoat(col){
   beard.rotation.x = Math.PI;
   beard.position.set(0, -0.16, 0.28);
   G.head.add(beard);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), m);
+  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.11, 5, 8), m);
   tail.position.set(0, 0.2, -0.45);
   tail.rotation.x = 0.6;
+  tail.castShadow = true;
   G.body.add(tail);
   G.tail = tail;
   return G;
@@ -244,22 +265,36 @@ const goats = [makeGoat(0xb8ae9c), makeGoat(0x6a5a48), makeGoat(0xd8d2c4)];
 
 // ---------- sheep ----------------------------------------------------------
 function makeSheep(){
-  const wool = new THREE.MeshLambertMaterial({ color:0xf2ede0, flatShading:true });
-  const skin = new THREE.MeshLambertMaterial({ color:0xe8c2b0, flatShading:true });
+  const wool = new THREE.MeshLambertMaterial({ color:0xf2ede0, flatShading:true });  // lumpy = fleece
+  const skin = new THREE.MeshLambertMaterial({ color:0xe8c2b0 });
   const S = quadBase(() => {
-    const grp = new THREE.Mesh(new THREE.SphereGeometry(0.4, 9, 7), wool);
+    const grp = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 9), wool);
     grp.scale.set(1, 0.85, 1.25);
     return grp;
-  }, skin, { bodyY:0.5, legTop:0.32, legX:0.17, legZ:0.26, legR:0.038, headZ:0.48, headY:0.12 });
+  }, skin, { bodyY:0.5, legTop:0.32, legX:0.15, legZ:0.24, legR:0.038, headZ:0.48, headY:0.12 });
   S.wool = S.body.children[0];
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), skin);
-  skull.scale.z = 1.4; skull.castShadow = true; S.head.add(skull);
-  const topknot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 5), wool);
+  // fleece tufts over each leg root, so the legs grow OUT of the wool
+  for(const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
+    const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), wool);
+    tuft.position.set(sx*0.15, -0.2, sz*0.24);
+    tuft.castShadow = true;
+    S.body.add(tuft);
+  }
+  // wool neck bridging into the head
+  const neckWool = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.16, 6, 9), wool);
+  neckWool.rotation.x = -0.85;
+  neckWool.position.set(0, 0.05, 0.4);
+  neckWool.castShadow = true;
+  S.body.add(neckWool);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), skin);
+  skull.scale.z = 1.35; skull.castShadow = true; S.head.add(skull);
+  const topknot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), wool);
   topknot.position.set(0, 0.11, -0.02);
   S.head.add(topknot);
   S.topknot = topknot;
   for(const s of [-1, 1]){
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, 0.13), skin);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.06, 9, 7), skin);
+    ear.scale.set(0.45, 0.5, 1.15);
     ear.position.set(s*0.12, 0.03, 0);
     ear.rotation.z = s*1.1;
     S.head.add(ear);
@@ -304,7 +339,7 @@ const shearer = { g: new THREE.Group() };
 
 // ---------- chickens -------------------------------------------------------
 function makeChicken(){
-  const white = new THREE.MeshLambertMaterial({ color:0xf4f0e4, flatShading:true });
+  const white = new THREE.MeshLambertMaterial({ color:0xf4f0e4 });
   const C = { g: new THREE.Group() };
   C.body = new THREE.Group(); C.body.position.y = 0.16; C.g.add(C.body);
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), white);
@@ -338,19 +373,33 @@ const chickens = [makeChicken(), makeChicken(), makeChicken(), makeChicken()];
 
 // ---------- the donkey -----------------------------------------------------
 const donkey = (() => {
-  const gray = new THREE.MeshLambertMaterial({ color:0x8a8288, flatShading:true });
+  const gray = new THREE.MeshLambertMaterial({ color:0x8a8288 });
   const D = quadBase(() => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.05), gray);
+    const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.56, 8, 14), gray);
+    b.rotation.x = Math.PI/2;
+    b.scale.set(0.95, 0.98, 1);
     return b;
-  }, gray, { bodyY:0.62, legTop:0.5, legX:0.18, legZ:0.4, legR:0.045, headZ:0.6, headY:0.3 });
-  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.4, 0.2), gray);
-  neck.rotation.x = 0.5; neck.position.set(0, -0.05, -0.05); D.head.add(neck);
-  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.42), gray);
-  skull.position.set(0, 0.14, 0.14); skull.castShadow = true; D.head.add(skull);
+  }, gray, { bodyY:0.62, legTop:0.5, legX:0.16, legZ:0.36, legR:0.045, headZ:0.6, headY:0.3 });
+  // a real neck: thick capsule rising from the chest into the skull
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.34, 6, 10), gray);
+  neck.rotation.x = -0.6;
+  neck.position.set(0, 0.02, -0.08);
+  neck.castShadow = true;
+  D.head.add(neck);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 11), gray);
+  skull.scale.set(0.85, 1.0, 1.3);
+  skull.position.set(0, 0.18, 0.1); skull.castShadow = true; D.head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.16, 6, 10),
+    new THREE.MeshLambertMaterial({ color:0xa8a0a4 }));
+  muzzle.rotation.x = Math.PI/2 + 0.2;
+  muzzle.position.set(0, 0.13, 0.32);
+  muzzle.castShadow = true;
+  D.head.add(muzzle);
   D.ears = [];
   for(const s of [-1, 1]){
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.08), gray);
-    ear.position.set(s*0.08, 0.34, 0.02);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), gray);
+    ear.scale.set(0.32, 1.5, 0.5);
+    ear.position.set(s*0.08, 0.4, 0.02);
     ear.rotation.z = s*0.25;
     D.head.add(ear); D.ears.push(ear);
   }

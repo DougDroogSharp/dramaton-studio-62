@@ -122,7 +122,7 @@ function trackAt(a){
 //  THE HORSES — paired, galloping
 // ==========================================================================
 function makeHorse(col, maneCol){
-  const m = new THREE.MeshLambertMaterial({ color:col, flatShading:true });
+  const m = new THREE.MeshLambertMaterial({ color:col });
   const mane = new THREE.MeshLambertMaterial({ color:maneCol, flatShading:true });
   const H = { g: new THREE.Group() };
   H.body = new THREE.Group();
@@ -143,11 +143,17 @@ function makeHorse(col, maneCol){
   H.head = new THREE.Group();
   H.head.position.set(0, 0.52, 0.34);
   H.neck.add(H.head);
-  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.24, 0.52), m);
-  skull.position.z = 0.16;
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 11), m);
+  skull.scale.set(0.85, 1.0, 1.5);
+  skull.position.z = 0.12;
   skull.rotation.x = 0.5;
   skull.castShadow = true;
   H.head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.16, 6, 10), m);
+  muzzle.rotation.x = Math.PI/2 - 0.35;
+  muzzle.position.set(0, -0.12, 0.3);
+  muzzle.castShadow = true;
+  H.head.add(muzzle);
   for(const s of [-1, 1]){
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 5), m);
     ear.position.set(s*0.08, 0.2, -0.02);
@@ -170,6 +176,13 @@ function makeHorse(col, maneCol){
   for(const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
     const hip = new THREE.Group();
     hip.position.set(sx*0.22, -0.14, sz*0.48);
+    // shoulder/haunch blend so the leg roots INTO the barrel
+    const joint = new THREE.Mesh(new THREE.SphereGeometry(sz < 0 ? 0.17 : 0.14, 12, 9), m);
+    joint.scale.set(0.8, 1.2, 1.1);
+    joint.position.copy(hip.position);
+    joint.position.y += 0.04;
+    joint.castShadow = true;
+    H.body.add(joint);
     const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.34, 4, 7), m);
     upper.position.y = -0.22;
     upper.castShadow = true;
