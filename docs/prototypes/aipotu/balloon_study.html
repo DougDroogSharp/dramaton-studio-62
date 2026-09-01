@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BALLOON STUDY — a kid's toy balloon, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: a toy balloon an adult can GIVE to a child, and the
+     child walks around with it TRAILING and BOBBLING above them.
+     The loop: the adult walks over holding the balloon high, kneels,
+     HANDS IT DOWN — the string changes hands — the baby does a little
+     happy bounce and TODDLES off in wobbly arcs, balloon riding above
+     and BEHIND on its sagging, wiggling string: it lags when the baby
+     sets off, overshoots when the baby stops, bobs on its buoyancy,
+     and never sits still. Pick the balloon color up in the chip.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balloon Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2ecda; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,28,20,0.78); color:#eef4e8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 12px; border:0; border-radius:7px;
+    color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button.on { outline:2px solid #ffd94a; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎈 Balloon Study</b> — the gift and the toddle, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the loop: hand it over → wobbly laps</span><br>
+  <button data-c="0xd8352c" style="background:#d8352c">red</button><button
+    data-c="0x3d8ec9" style="background:#3d8ec9">blue</button><button
+    data-c="0xf2ce4a" style="background:#e0b32a">yellow</button><button
+    data-c="0x7ed957" style="background:#5cb83c">green</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 9090;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0eada), 40, 240);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(3.4, 2.6, 6.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.5;
+controls.maxDistance = 30;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f6e8), zenith = new THREE.Color(0x74b2e0),
+        below = new THREE.Color(0xd6e0cc), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8b888, 1.05));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8;  sun.shadow.camera.bottom = -8;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(220, 40),
+    new THREE.MeshLambertMaterial({ color:0xb8c488 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  THE PEOPLE — the adult, and the BABY (mostly-head chibi, tuft, sat-low
+//  proportions, toddling gait)
+// ==========================================================================
+function person(dressC, baby){
+  const P = { g: new THREE.Group(), baby };
+  const s = baby ? 0.52 : 1;
+  P.hips = new THREE.Group();
+  P.hips.position.y = 0.42 * s;
+  P.g.add(P.hips);
+  const dress = new THREE.MeshLambertMaterial({ color: dressC });
+  const skin = new THREE.MeshLambertMaterial({ color:0xffd9b3 });
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3*s, 0.42*s, 6, 12), dress);
+  barrel.position.y = 0.22 * s;
+  barrel.castShadow = true;
+  P.hips.add(barrel);
+  P.head = new THREE.Group();
+  P.head.position.y = (baby ? 0.72 : 0.8) * s;
+  P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry((baby ? 0.4 : 0.3)*s, 16, 13), skin);
+  skull.castShadow = true;
+  P.head.add(skull);
+  if(baby){
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 5),
+      new THREE.MeshLambertMaterial({ color:0x5b3a29 }));
+    tuft.position.y = 0.42*s + 0.16;
+    tuft.rotation.z = 0.3;
+    P.head.add(tuft);
+  }
+  // simple dot-and-smile face
+  for(const sx of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035*(baby?1.4:1)*s, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x241d16 }));
+    eye.position.set(sx*0.11*s*(baby?1.3:1), 0.05*s, (baby ? 0.36 : 0.27)*s);
+    P.head.add(eye);
+  }
+  P.arms = [];
+  for(const sx of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(sx*0.32*s, 0.5*s, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065*s, 0.4*s, 4, 8), skin);
+    limb.position.y = -0.24*s;
+    limb.castShadow = true;
+    arm.add(limb);
+    const hand = new THREE.Group();
+    hand.position.y = -0.5*s;
+    arm.add(hand);
+    P.hips.add(arm);
+    P.arms.push({ g: arm, hand, s: sx });
+  }
+  P.legs = [];
+  for(const sx of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(sx*0.14*s, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08*s, 0.32*s, 4, 8),
+      new THREE.MeshLambertMaterial({ color: baby ? 0xffe066 : 0x4c5666 }));
+    shin.position.y = -0.26*s;
+    shin.castShadow = true;
+    leg.add(shin);
+    P.hips.add(leg);
+    P.legs.push(leg);
+  }
+  scene.add(P.g);
+  return P;
+}
+const adult = person(0x8fbf50, false);
+const baby = person(0xffe066, true);
+baby.g.position.set(0.6, 0.1, 0.4);
+baby.g.rotation.y = -0.6;
+adult.g.position.set(-3, 0.1, -1.5);
+
+// ==========================================================================
+//  THE BALLOON — a proper toy: pear-round body, pinched KNOT, curly string.
+//  Physics: a buoyant point mass on a string — it LAGS the hand, overshoots,
+//  bobs on its own lift, and wobbles in the least breeze.
+// ==========================================================================
+const balloonMat = new THREE.MeshStandardMaterial({ color:0xd8352c, roughness:0.25, metalness:0.05 });
+const balloon = new THREE.Group();
+{
+  const bodyG = new THREE.SphereGeometry(0.26, 14, 12);
+  bodyG.scale(1, 1.18, 1);
+  const body = new THREE.Mesh(bodyG, balloonMat);
+  body.castShadow = true;
+  balloon.add(body);
+  // the shine spot
+  const shine = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6),
+    new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.55 }));
+  shine.position.set(-0.09, 0.14, 0.18);
+  balloon.add(shine);
+  const knot = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.09, 6), balloonMat);
+  knot.rotation.x = Math.PI;
+  knot.position.y = -0.34;
+  balloon.add(knot);
+  scene.add(balloon);
+}
+// balloon physics state
+const bPos = new THREE.Vector3(-3, 2.6, -1.5);
+const bVel = new THREE.Vector3();
+const STRING_L = 1.55;
+// the string: a wiggly polyline hand → knot
+const STR_N = 16;
+const strGeo = new THREE.BufferGeometry();
+strGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(STR_N*3), 3));
+const string = new THREE.Line(strGeo,
+  new THREE.LineBasicMaterial({ color:0xf4f6f0, transparent:true, opacity:0.85 }));
+scene.add(string);
+
+// ---------- color buttons ---------------------------------------------------
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  balloonMat.color.setHex(parseInt(b.dataset.c));
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+// ==========================================================================
+//  THE LOOP — give (walk in → kneel → hand over → baby bounce) → toddle
+//  (wobbly arcs, balloon trailing above-behind) → the adult strolls off,
+//  watches, comes back for another give.
+// ==========================================================================
+let phT = 0;
+const GIVE_T = 5.2, TODDLE_T = 14;
+let holder = adult;      // whose hand owns the string
+let babyJoy = 0;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+  if(phT > GIVE_T + TODDLE_T) phT = 0;
+
+  // ---------- the adult ----------
+  if(phT < GIVE_T){
+    if(phT < 2.0){                       // walking in, balloon held high
+      const f = smooth(phT/2.0);
+      adult.g.position.set(lerp(-3, -0.2, f), 0.1, lerp(-1.5, 0.15, f));
+      adult.g.rotation.y = 1.1;
+      const ph = f*11;
+      adult.legs[0].rotation.x = Math.sin(ph)*0.5;
+      adult.legs[1].rotation.x = -Math.sin(ph)*0.5;
+      adult.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.03;
+      adult.arms[1].g.rotation.x = -2.4;                // the balloon arm, up
+      holder = adult;
+    } else if(phT < 3.2){                // KNEELING down to the little one
+      const f = smooth((phT - 2.0)/1.2);
+      adult.legs[0].rotation.x = lerp(0, -2.2, f);
+      adult.legs[1].rotation.x = lerp(0, -1.2, f);
+      adult.hips.position.y = lerp(0.42, 0.18, f);
+      adult.hips.rotation.x = 0.12*f;
+      adult.arms[1].g.rotation.x = lerp(-2.4, -0.85, f);  // bringing the string down
+      adult.head.rotation.x = 0.3*f;                       // looking at the child
+    } else if(phT < 4.2){                // THE HANDING-OVER
+      const f = smooth((phT - 3.2)/1.0);
+      baby.arms[0].g.rotation.x = lerp(0, -1.5, f);        // little arm reaches UP
+      baby.head.rotation.x = -0.5;                          // eyes on the balloon
+      if(f > 0.75) holder = baby;                           // the string changes hands
+    } else {                             // the happy bounce; the adult rises
+      const f = smooth((phT - 4.2)/1.0);
+      babyJoy = 1;
+      adult.legs[0].rotation.x = lerp(-2.2, 0, f);
+      adult.legs[1].rotation.x = lerp(-1.2, 0, f);
+      adult.hips.position.y = lerp(0.18, 0.42, f);
+      adult.hips.rotation.x = lerp(0.12, 0, f);
+      adult.head.rotation.x = lerp(0.3, 0.1, f);
+      baby.arms[0].g.rotation.x = -1.4;
+    }
+  } else {
+    // the adult steps back and fondly watches
+    const wf = clamp((phT - GIVE_T)/2, 0, 1);
+    adult.g.position.x = lerp(-0.2, -1.6, smooth(wf));
+    adult.g.position.z = lerp(0.15, -0.9, smooth(wf));
+    if(wf < 1){
+      const ph = phT*9;
+      adult.legs[0].rotation.x = Math.sin(ph)*0.4;
+      adult.legs[1].rotation.x = -Math.sin(ph)*0.4;
+    } else {
+      adult.legs[0].rotation.x = lerp(adult.legs[0].rotation.x, 0, dt*5);
+      adult.legs[1].rotation.x = lerp(adult.legs[1].rotation.x, 0, dt*5);
+      adult.arms[1].g.rotation.x = lerp(adult.arms[1].g.rotation.x, 0, dt*3);
+      // watching the child wherever it toddles
+      const want = Math.atan2(baby.g.position.x - adult.g.position.x, baby.g.position.z - adult.g.position.z);
+      adult.g.rotation.y += (((want - adult.g.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*2);
+      adult.head.rotation.z = Math.sin(t*0.8)*0.04;
+    }
+  }
+
+  // ---------- the baby ----------
+  if(phT >= GIVE_T){
+    // THE TODDLE: wobbly arcs — heading wanders, little quick steps,
+    // the whole body tipping side to side, string arm up the while
+    const wob = t*1.1;
+    baby.g.rotation.y += Math.sin(wob)*dt*1.4 + Math.sin(wob*2.3)*dt*0.6;
+    baby.g.position.x += Math.sin(baby.g.rotation.y) * 0.42 * dt;
+    baby.g.position.z += Math.cos(baby.g.rotation.y) * 0.42 * dt;
+    // keep the little one on stage
+    const d = Math.hypot(baby.g.position.x, baby.g.position.z);
+    if(d > 2.6) baby.g.rotation.y += dt*1.8;
+    const ph = t*10;
+    baby.legs[0].rotation.x = Math.sin(ph)*0.6;
+    baby.legs[1].rotation.x = -Math.sin(ph)*0.6;
+    baby.hips.position.y = 0.42*0.52 + Math.abs(Math.cos(ph))*0.025;
+    baby.hips.rotation.z = Math.sin(ph*0.5)*0.09;      // the toddler tip
+    baby.arms[0].g.rotation.x = -1.4;                  // string arm up
+    baby.arms[1].g.rotation.z = 0.5 + Math.sin(ph)*0.3;  // the free arm balancing
+    baby.head.rotation.x = -0.35 + Math.sin(t*1.3)*0.1;  // looking up at it, mostly
+    if(babyJoy > 0){                                   // the first-joy bounces
+      babyJoy -= dt*0.35;
+      baby.hips.position.y += Math.abs(Math.sin(t*7))*0.06*babyJoy;
+    }
+  } else if(phT < GIVE_T && phT > 3.2){
+    baby.head.rotation.x = -0.5;
+  } else {
+    baby.legs[0].rotation.x = lerp(baby.legs[0].rotation.x, 0, dt*5);
+    baby.legs[1].rotation.x = lerp(baby.legs[1].rotation.x, 0, dt*5);
+    baby.head.rotation.x = lerp(baby.head.rotation.x, -0.3, dt*3);  // watching it come
+  }
+
+  // ---------- BALLOON PHYSICS: buoyant mass on a string ----------
+  const hand = new THREE.Vector3();
+  (holder === adult ? adult.arms[1] : baby.arms[0]).hand.getWorldPosition(hand);
+  // forces: lift up, breeze wiggle, drag
+  bVel.y += 2.6 * dt;                                   // buoyancy
+  bVel.x += (Math.sin(t*1.3) * 0.5 + Math.sin(t*3.1)*0.2) * dt;
+  bVel.z += (Math.cos(t*1.1) * 0.5 + Math.sin(t*2.3)*0.2) * dt;
+  bVel.multiplyScalar(1 - dt*1.1);                      // air drag
+  bPos.addScaledVector(bVel, dt);
+  // the string constraint: never farther than STRING_L from the hand
+  const toB = bPos.clone().sub(hand);
+  if(toB.length() > STRING_L){
+    toB.setLength(STRING_L);
+    bPos.copy(hand).add(toB);
+    // kill the velocity component pulling outward (the string twangs taut)
+    const out = toB.normalize();
+    const vOut = bVel.dot(out);
+    if(vOut > 0) bVel.addScaledVector(out, -vOut*0.9);
+  }
+  balloon.position.copy(bPos);
+  // the balloon tips away from its string: knot points at the hand
+  const dir = bPos.clone().sub(hand).normalize();
+  balloon.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  balloon.rotateY(t*0.4);                               // the lazy spin
+
+  // the string: sagging wiggly polyline hand → knot
+  {
+    const knotP = balloon.localToWorld(new THREE.Vector3(0, -0.38, 0));
+    const pos = strGeo.attributes.position;
+    for(let i = 0; i < STR_N; i++){
+      const f = i/(STR_N - 1);
+      const p = hand.clone().lerp(knotP, f);
+      const slack = Math.max(0, STRING_L - hand.distanceTo(knotP));
+      p.y -= Math.sin(f*Math.PI) * slack * 0.55;        // the sag when slack
+      p.x += Math.sin(f*7 + t*5) * 0.02;                // the wiggle
+      p.z += Math.cos(f*5 + t*4.2) * 0.02;
+      pos.setXYZ(i, p.x, p.y, p.z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
