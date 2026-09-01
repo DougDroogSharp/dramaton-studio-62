@@ -140,6 +140,7 @@ const ourRoot = new THREE.Group();
 ourRoot.position.set(-0.9, 0, 0);
 scene.add(ourRoot);
 ourRoot.add(rootBone);
+ourRoot.updateMatrixWorld(true);     // so the bone world positions include the -0.9 offset
 rootBone.updateMatrixWorld(true);
 const bWorld = {};
 for(const b of allBones){
@@ -148,7 +149,8 @@ for(const b of allBones){
 }
 ourRoot.remove(rootBone);
 function partGeo(geoFn, boneName, colorHex){
-  const g = geoFn();
+  let g = geoFn();
+  if(g.index) g = g.toNonIndexed();   // icosahedra are non-indexed — unify, or merge fails
   const p = bWorld[boneName];
   g.translate(p.x, p.y, p.z);
   const n = g.attributes.position.count;
