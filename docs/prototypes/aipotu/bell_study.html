@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BELL TOWER STUDY — the island's voice, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A timber-framed tower with a bronze bell: the RINGER hauls the
+     rope in real pulls (body dropping with each haul), the bell swings
+     through building arcs with the CLAPPER lagging then striking —
+     flash + ring-ripple on each strike — and three bystander Vitas
+     across the green turn their heads to listen. The bell winds down
+     on its own damping when the ringer rests.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bell Tower Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e4d2; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,26,16,0.78); color:#f2f2e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a6a22; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#ffd94a; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🔔 Bell Tower Study</b> — the island's voice, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · heads turn when it rings</span><br>
+  <button data-m="ring">RING it</button><button data-m="rest">Let it rest</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 424;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e2d0), 45, 260);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(6, 5, 9);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2.5; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f2e0), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8d8c4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(18, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xb2bc82 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+
+// ---------- THE TOWER ------------------------------------------------------
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matWoodDk = new THREE.MeshLambertMaterial({ color:0x6b4a26, flatShading:true });
+const matRoof = new THREE.MeshLambertMaterial({ color:0x9a8a5c, flatShading:true });
+const matBronze = new THREE.MeshStandardMaterial({ color:0xa8722e, metalness:0.7, roughness:0.4 });
+const matRope = new THREE.MeshLambertMaterial({ color:0xc9b48a });
+{
+  // four legs, cross-braces, the belfry platform, pyramid roof
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.2, 7), matWood);
+    leg.position.set(sx*0.9*(1 - 0.0), 2.6, sz*0.9);
+    leg.rotation.z = -sx*0.06;
+    leg.rotation.x = sz*0.06;
+    leg.castShadow = true;
+    scene.add(leg);
+  }
+  for(let lvl = 0; lvl < 2; lvl++){
+    for(const s of [-1, 1]){
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.08), matWoodDk);
+      brace.position.set(0, 1.2 + lvl*1.8, s*0.85);
+      brace.rotation.z = s*0.5;
+      scene.add(brace);
+      const brace2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 2.0), matWoodDk);
+      brace2.position.set(s*0.85, 1.2 + lvl*1.8, 0);
+      brace2.rotation.x = -s*0.5;
+      scene.add(brace2);
+    }
+  }
+  const platform = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.14, 2.1), matWood);
+  platform.position.y = 5.1;
+  platform.castShadow = true;
+  scene.add(platform);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.8, 1.3, 4), matRoof);
+  roof.rotation.y = Math.PI/4;
+  roof.position.y = 6.4;
+  roof.castShadow = true;
+  scene.add(roof);
+  // the headstock beam the bell swings from
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.14, 0.2), matWoodDk);
+  beam.position.y = 5.85;
+  scene.add(beam);
+}
+// THE BELL — swings on its yoke; the CLAPPER is its own pendulum inside
+const yoke = new THREE.Group();
+yoke.position.y = 5.78;
+scene.add(yoke);
+let clapper;
+{
+  const yokeBar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.16), matWoodDk);
+  yoke.add(yokeBar);
+  // the bell: lathe profile
+  const pts = [];
+  for(let i = 0; i <= 12; i++){
+    const f = i/12;
+    pts.push(new THREE.Vector2(0.12 + Math.pow(f, 1.7)*0.38, -0.05 - f*0.62));
+  }
+  pts.push(new THREE.Vector2(0.54, -0.72));
+  const bell = new THREE.Mesh(new THREE.LatheGeometry(pts, 20), matBronze);
+  bell.material.side = THREE.DoubleSide;
+  bell.castShadow = true;
+  yoke.add(bell);
+  clapper = new THREE.Group();
+  clapper.position.y = -0.15;
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 6), matWoodDk);
+  rod.position.y = -0.25;
+  clapper.add(rod);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), matBronze);
+  ball.position.y = -0.52;
+  clapper.add(ball);
+  yoke.add(clapper);
+}
+// the ROPE: yoke arm → the ringer's hands
+const ropeGeo = new THREE.BufferGeometry();
+ropeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(10*3), 3));
+scene.add(new THREE.Line(ropeGeo, new THREE.LineBasicMaterial({ color:0xc9b48a })));
+// strike flash + sound-ripple rings
+const flash = new THREE.PointLight(0xffe8a0, 0, 12);
+flash.position.set(0, 5.4, 0);
+scene.add(flash);
+const rings = [];
+for(let i = 0; i < 4; i++){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.02, 6, 24),
+    new THREE.MeshBasicMaterial({ color:0xfff2c8, transparent:true, opacity:0 }));
+  m.position.y = 5.35;
+  scene.add(m);
+  rings.push({ m, t: 9 });
+}
+
+// ---------- people ---------------------------------------------------------
+function person(dressC, x, z, ry){
+  const P = { g: new THREE.Group() };
+  const dress = new THREE.MeshLambertMaterial({ color: dressC });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  P.hips = new THREE.Group(); P.hips.position.y = 0.42; P.g.add(P.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; P.hips.add(barrel);
+  P.head = new THREE.Group(); P.head.position.y = 0.8; P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; P.head.add(skull);
+  P.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Group(); hand.position.y = -0.5; arm.add(hand);
+    P.hips.add(arm); P.arms.push({ g: arm, hand });
+  }
+  for(const s of [-1, 1]){
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    leg.position.set(s*0.14, -0.26, 0);
+    P.hips.add(leg);
+  }
+  P.g.position.set(x, 0.1, z);
+  P.g.rotation.y = ry;
+  scene.add(P.g);
+  return P;
+}
+const ringer = person(0xa03636, 0.85, 0.4, -2.4);
+const folks = [
+  person(0x7aa06a, -4.5, 2.5, 0.9),
+  person(0x4f9fd8, 3.8, 4.2, -0.6),
+  person(0xc9a85c, -2.5, -4.5, 2.6),
+];
+
+// ---------- the ringing ----------------------------------------------------
+let mode = 'ring';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.m;
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+// bell physics-ish: driven pendulum with damping; clapper lags
+let bellA = 0, bellV = 0, clapA = 0, clapV = 0, lastSide = 0, heardT = 0;
+function strike(){
+  flash.intensity = 9;
+  const r = rings.find(r => r.t > 1.1);
+  if(r){ r.t = 0; r.m.scale.setScalar(1); }
+  heardT = 2.6;                          // the island hears it
+}
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the pull cycle drives the bell near its natural period
+  const pulling = mode === 'ring';
+  const pull = pulling ? Math.max(0, Math.sin(t*3.1)) : 0;
+  bellV += (-9.2 * Math.sin(bellA)) * dt;          // gravity restoring
+  bellV += pull * 2.4 * dt * (bellA < 0.9 ? 1 : 0.2);   // the haul, in rhythm
+  bellV *= (1 - dt*(pulling ? 0.12 : 0.5));        // damping (winds down at rest)
+  bellA += bellV * dt;
+  yoke.rotation.z = bellA;
+  // clapper: its own pendulum inside the swinging bell — lags, then STRIKES
+  clapV += (-14 * Math.sin(clapA - bellA)) * dt;   // relative gravity toward bell axis
+  clapV *= (1 - dt*0.4);
+  clapA += clapV * dt;
+  const rel = clapA - bellA;
+  if(Math.abs(rel) > 0.38){                        // the lip
+    clapA = bellA + Math.sign(rel)*0.38;
+    if(Math.abs(clapV) > 0.8 && Math.sign(rel) !== lastSide){
+      strike();
+      lastSide = Math.sign(rel);
+    }
+    clapV *= -0.25;
+  }
+  clapper.rotation.z = clapA - bellA;
+  flash.intensity = Math.max(0, flash.intensity - dt*40);
+
+  // sound ripples
+  for(const r of rings){
+    if(r.t > 1.1){ r.m.material.opacity = 0; continue; }
+    r.t += dt;
+    r.m.scale.setScalar(1 + r.t*7);
+    r.m.material.opacity = 0.55*(1 - r.t/1.1);
+  }
+
+  // THE RINGER: real pulls — arms up, HAUL down, body dropping with it
+  const haulPh = pulling ? (t*3.1) % (Math.PI*2) : 0;
+  const haul = pulling ? Math.max(0, Math.sin(haulPh)) : 0;
+  ringer.arms[0].g.rotation.x = -2.5 + haul*1.2;
+  ringer.arms[1].g.rotation.x = -2.5 + haul*1.2;
+  ringer.hips.position.y = 0.42 - haul*0.13;       // dropping with the pull
+  ringer.hips.rotation.x = haul*0.15;
+  ringer.head.rotation.x = -0.4 + haul*0.3;        // watching the bell
+
+  // the rope: yoke arm tip → the ringer's hands, sagging on the upswing
+  {
+    const armTip = new THREE.Vector3(0.42, 0, 0).applyAxisAngle(new THREE.Vector3(0,0,1), bellA)
+      .add(new THREE.Vector3(0, 5.78, 0));
+    const hands = new THREE.Vector3();
+    ringer.arms[1].hand.getWorldPosition(hands);
+    const pos = ropeGeo.attributes.position;
+    for(let i = 0; i < 10; i++){
+      const f = i/9;
+      const p = armTip.clone().lerp(hands, f);
+      p.x += Math.sin(f*Math.PI) * (0.06 + (1-haul)*0.12);  // slack on the upswing
+      pos.setXYZ(i, p.x, p.y, p.z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // BYSTANDERS: heads turn toward the tower while the bell is heard
+  heardT = Math.max(0, heardT - dt);
+  for(const f of folks){
+    const want = heardT > 0
+      ? Math.atan2(-f.g.position.x, -f.g.position.z) - f.g.rotation.y
+      : 0;
+    f.head.rotation.y += (clamp(want, -1.1, 1.1) - f.head.rotation.y) * Math.min(1, dt*3);
+    f.head.rotation.x = heardT > 0 ? -0.25 : lerp(f.head.rotation.x, 0, dt*3);  // looking UP at it
+    f.hips.position.y = 0.42 + Math.sin(t*2 + f.g.position.x)*0.008;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
