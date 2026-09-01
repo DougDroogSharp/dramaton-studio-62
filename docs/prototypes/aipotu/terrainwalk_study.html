@@ -1,19 +1,17 @@
 <!DOCTYPE html>
 <!-- ======================================================================
-     TERRAIN WALK STUDY — ankles on the normal, for George World.
-     Filed 2026-08-31, Doug's challenge: walking on uneven ground.
-     The map carries NORMALS (the terrain is an analytic heightfield, so
-     height AND normal are exact at every point, not just at vertices).
-     THE NEW BODY walks a loop over bumps, a ridge and a bowl. The walk
-     clip owns the legs; a post-animation ANKLE LAYER owns the feet:
-     each frame, each foot samples the normal under it, and when that
-     normal is not vertical the ankle (the Foot bone) rotates so the
-     sole lies on the slope — blended in by ground proximity, so the
-     planted foot conforms while the swinging foot relaxes. The body
-     also leans a fraction into the slope (pitch on the grade, roll on
-     the camber), like a real hiker.
-     Toggles: ANKLE LAYER on/off (watch the toes stab the slope when
-     off) · show the normals as arrows.
+     TERRAIN WALK STUDY — full leg IK on the normal, for George World.
+     Filed 2026-08-31. v3: IMPORT SKINS — the walker can be ANY .glb
+     with mixamorig bone names (menu from vendor/models/manifest.json,
+     or drag a .glb onto the page). To make that work, both IK layers
+     were rebuilt REST-POSE-AGNOSTIC: instead of constructing absolute
+     bone orientations (which assumed our rig's bind pose), they now
+     apply WORLD-SPACE DELTA rotations on top of whatever the clip
+     posed — so a real Mixamo skeleton, with its twisted rest bones,
+     gets the same planted feet. Leg lengths, ankle heights and sole
+     offsets are MEASURED from each skin's actual skeleton at load.
+     The map carries NORMALS (analytic heightfield — height and normal
+     exact everywhere). Toggles: LEG IK · ANKLE LAYER · show normals.
      ====================================================================== -->
 <html lang="en">
 <head>
@@ -31,14 +29,18 @@
   #chip button { margin:5px 4px 0 0; padding:4px 11px; border:0; border-radius:7px;
     background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer; }
   #chip button.on { background:#e8963c; color:#241d06; font-weight:700; }
+  #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
+    border-radius:7px; background:#3d6f96; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:240px; }
 </style>
 </head>
 <body>
 <div id="chip">
-  <b>⛰️ Terrain Walk Study</b> — full leg IK on the normal, v2<br>
-  <span class="hint">two-bone leg IK plants each foot on its own ground sample —
-  uphill leg bends, downhill leg extends, pelvis absorbs the rest; the ankle
-  layer rolls each sole onto the slope · the camera follows</span><br>
+  <b>⛰️ Terrain Walk Study</b> — full leg IK, any skin, v3<br>
+  <span class="hint">two-bone IK plants each foot on its own ground sample;
+  ankles roll onto the slope · import a walker below, or drag a .glb
+  (mixamorig bones) onto the page</span><br>
+  <select id="skinsel"><option value="-1">Vita — THE NEW BODY (built in)</option></select>
   <button id="legik" class="on">LEG IK: ON</button>
   <button id="ankle" class="on">ANKLE LAYER: ON</button>
   <button id="normals">show normals</button>
@@ -53,6 +55,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
@@ -100,9 +103,8 @@ sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
 scene.add(sun);
 
 // ==========================================================================
-//  THE MAP WITH NORMALS — an analytic heightfield. Because h(x,z) is a
-//  formula, the surface NORMAL is exact at every point:
-//  n = normalize(-dh/dx, 1, -dh/dz). No mesh lookup, no interpolation.
+//  THE MAP WITH NORMALS — analytic heightfield: exact height + normal
+//  at every point. n = normalize(-dh/dx, 1, -dh/dz).
 // ==========================================================================
 function terrainH(x, z){
   return 0.55*Math.sin(x*0.42)*Math.cos(z*0.36)
@@ -134,9 +136,8 @@ function terrainNormal(x, z){
     const y = terrainH(x, z);
     pos.setY(i, y);
     const n = terrainNormal(x, z);
-    const flatness = n.y;                       // 1 = level, lower = steeper
     c.copy(grass).lerp(dry, clamp((y + 0.4)/1.6, 0, 1));
-    c.lerp(steep, clamp((1 - flatness)*3.2, 0, 1));
+    c.lerp(steep, clamp((1 - n.y)*3.2, 0, 1));
     col.push(c.r, c.g, c.b);
   }
   geo.computeVertexNormals();
@@ -145,16 +146,15 @@ function terrainNormal(x, z){
   ground.receiveShadow = true;
   scene.add(ground);
 }
-// a few rocks and tufts so the eye reads the relief
 {
-  let seed = 977;
-  const rnd = (a=1,b) => { seed = (seed*1103515245 + 12345) & 0x7fffffff;
-    const r = seed/0x7fffffff; return b===undefined ? r*a : a + r*(b-a); };
+  let s2 = 977;
+  const rnd = (a=1,b) => { s2 = (s2*1103515245 + 12345) & 0x7fffffff;
+    const r = s2/0x7fffffff; return b===undefined ? r*a : a + r*(b-a); };
   const rockM = new THREE.MeshLambertMaterial({ color:0x8a8578, flatShading:true });
   const tuftM = new THREE.MeshLambertMaterial({ color:0x5c8544, flatShading:true });
   for(let i = 0; i < 40; i++){
     const x = rnd(-16, 16), z = rnd(-16, 16);
-    if(Math.abs(Math.hypot(x, z) - 5.5) < 1.2) continue;   // keep the path clear
+    if(Math.abs(Math.hypot(x, z) - 5.5) < 1.2) continue;
     const m = rnd() < 0.4
       ? new THREE.Mesh(new THREE.DodecahedronGeometry(rnd(0.1, 0.3)), rockM)
       : new THREE.Mesh(new THREE.ConeGeometry(rnd(0.06, 0.12), rnd(0.2, 0.45), 5), tuftM);
@@ -164,79 +164,80 @@ function terrainNormal(x, z){
     scene.add(m);
   }
 }
-// the normals, visible — arrows on a grid (toggle)
 const normalsGroup = new THREE.Group();
 normalsGroup.visible = false;
 scene.add(normalsGroup);
 for(let x = -14; x <= 14; x += 2){
   for(let z = -14; z <= 14; z += 2){
     const n = terrainNormal(x, z);
-    const a = new THREE.ArrowHelper(n,
+    normalsGroup.add(new THREE.ArrowHelper(n,
       new THREE.Vector3(x, terrainH(x, z), z), 0.8,
-      n.y > 0.995 ? 0x4488cc : 0xcc4444, 0.16, 0.09);
-    normalsGroup.add(a);
+      n.y > 0.995 ? 0x4488cc : 0xcc4444, 0.16, 0.09));
   }
 }
 
 // ==========================================================================
-//  THE NEW BODY (canonical rig, verbatim from vita_rig_study.html)
+//  THE WALKER FRAME — V is the moving root; whichever skin is active
+//  hangs under it. Each rig carries its own bones, mixer and MEASURED
+//  leg metrics (lengths, rest ankle height) so the IK adapts.
 // ==========================================================================
-const B = {};
-function bone(name, parentName, x, y, z){
-  const b = new THREE.Bone();
-  b.name = name;
-  b.position.set(x, y, z);
-  if(parentName) B[parentName].add(b);
-  B[name] = b;
-  return b;
-}
-const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
-bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
-bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
-bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
-bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
-bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
-for(const [S, s] of [['Left', 1], ['Right', -1]]){
-  bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
-  bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
-  bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
-  bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
-  bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
-  bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
-  bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
-  bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
-}
-const allBones = Object.values(B);
-const skeleton = new THREE.Skeleton(allBones);
-const boneIndex = {};
-allBones.forEach((b, i) => boneIndex[b.name] = i);
 const V = new THREE.Group();
 scene.add(V);
-V.add(rootBone);
-rootBone.updateMatrixWorld(true);
-const bWorld = {};
-for(const b of allBones){
-  bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld)
-    .sub(V.position);
-}
-V.remove(rootBone);
-function partGeo(geoFn, boneName, colorHex){
-  const g = geoFn();
-  const p = bWorld[boneName];
-  g.translate(p.x, p.y, p.z);
-  const n = g.attributes.position.count;
-  const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
-  for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
-  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
-  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-  const col = new Float32Array(n*3);
-  const c = new THREE.Color(colorHex);
-  for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  return g;
-}
-let mesh;
-{
+const rigs = [];        // {name, node, B, mixer, action, L1, L2, ankleY, ready}
+let active = null;
+
+// ---------- the built-in NEW BODY -----------------------------------------
+function buildCanonical(){
+  const B = {};
+  function bone(name, parentName, x, y, z){
+    const b = new THREE.Bone();
+    b.name = name; b.position.set(x, y, z);
+    if(parentName) B[parentName].add(b);
+    B[name] = b; return b;
+  }
+  const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
+  bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
+  bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
+  bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
+  bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
+  bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
+    bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
+    bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
+    bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
+    bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
+    bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
+    bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
+    bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
+  }
+  const allBones = Object.values(B);
+  const skeleton = new THREE.Skeleton(allBones);
+  const boneIndex = {};
+  allBones.forEach((b, i) => boneIndex[b.name] = i);
+  const tmp = new THREE.Group();
+  tmp.add(rootBone);
+  rootBone.updateMatrixWorld(true);
+  const bWorld = {};
+  for(const b of allBones)
+    bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  tmp.remove(rootBone);
+  function partGeo(geoFn, boneName, colorHex){
+    let g = geoFn();
+    if(g.index) g = g.toNonIndexed();
+    const p = bWorld[boneName];
+    g.translate(p.x, p.y, p.z);
+    const n = g.attributes.position.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const col = new Float32Array(n*3);
+    const c = new THREE.Color(colorHex);
+    for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
   const pal = { shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e };
   const skinDk = new THREE.Color(pal.skin).offsetHSL(0, 0.02, -0.05).getHex();
   const shirtDk = new THREE.Color(pal.shirt).offsetHSL(0, 0, -0.07).getHex();
@@ -287,146 +288,211 @@ let mesh;
     parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.095, 12, 9);
       g.scale(1, 0.62, 1.05); g.translate(0, -0.035, 0.055); return g; }, `mixamorig${S}ToeBase`, 0xf2f2f0));
   }
-  const merged = mergeGeometries(parts, false);
-  mesh = new THREE.SkinnedMesh(merged,
+  const mesh = new THREE.SkinnedMesh(mergeGeometries(parts, false),
     new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
   mesh.castShadow = true;
   mesh.frustumCulled = false;
   mesh.add(rootBone);
   mesh.bind(skeleton);
-  V.add(mesh);
+  return { name:'Vita', node: mesh, B };
 }
 
-// ---------- the walk clip (legs only — the ankle layer owns the feet) ------
-function quatTrack(boneName, times, eulers){
+// ---------- the walk clip (quaternions only — every rig keeps its own hips)
+function quatTrack(bn, times, eulers){
   const vals = [];
   for(const e of eulers){
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
     vals.push(q.x, q.y, q.z, q.w);
   }
-  return new THREE.QuaternionKeyframeTrack(boneName + '.quaternion', times, vals);
+  return new THREE.QuaternionKeyframeTrack(bn + '.quaternion', times, vals);
 }
-const T = [0, 0.4, 0.8, 1.2, 1.6];
-const A = 0.55;
+const T0 = [0, 0.4, 0.8, 1.2, 1.6];
+const A0 = 0.55;
 const walkClip = new THREE.AnimationClip('walk', 1.6, [
-  quatTrack('mixamorigLeftUpLeg', T, [[A,0,0],[0,0,0],[-A,0,0],[0,0,0],[A,0,0]]),
-  quatTrack('mixamorigRightUpLeg', T, [[-A,0,0],[0,0,0],[A,0,0],[0,0,0],[-A,0,0]]),
-  quatTrack('mixamorigLeftLeg', T, [[0,0,0],[0.5,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
-  quatTrack('mixamorigRightLeg', T, [[0,0,0],[0.05,0,0],[0,0,0],[0.5,0,0],[0,0,0]]),
-  quatTrack('mixamorigLeftArm', T, [[-0.4,0,0.3],[0,0,0.3],[0.4,0,0.3],[0,0,0.3],[-0.4,0,0.3]]),
-  quatTrack('mixamorigRightArm', T, [[0.4,0,-0.3],[0,0,-0.3],[-0.4,0,-0.3],[0,0,-0.3],[0.4,0,-0.3]]),
-  quatTrack('mixamorigSpine', T, [[0.06,0,0.03],[0.06,0,0],[0.06,0,-0.03],[0.06,0,0],[0.06,0,0.03]]),
-  new THREE.VectorKeyframeTrack('mixamorigHips.position', T,
-    [0,0.62,0, 0,0.655,0, 0,0.62,0, 0,0.655,0, 0,0.62,0]),
+  quatTrack('mixamorigLeftUpLeg', T0, [[A0,0,0],[0,0,0],[-A0,0,0],[0,0,0],[A0,0,0]]),
+  quatTrack('mixamorigRightUpLeg', T0, [[-A0,0,0],[0,0,0],[A0,0,0],[0,0,0],[-A0,0,0]]),
+  quatTrack('mixamorigLeftLeg', T0, [[0,0,0],[0.5,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+  quatTrack('mixamorigRightLeg', T0, [[0,0,0],[0.05,0,0],[0,0,0],[0.5,0,0],[0,0,0]]),
+  quatTrack('mixamorigLeftArm', T0, [[-0.4,0,0.3],[0,0,0.3],[0.4,0,0.3],[0,0,0.3],[-0.4,0,0.3]]),
+  quatTrack('mixamorigRightArm', T0, [[0.4,0,-0.3],[0,0,-0.3],[-0.4,0,-0.3],[0,0,-0.3],[0.4,0,-0.3]]),
+  quatTrack('mixamorigSpine', T0, [[0.05,0,0.02],[0.05,0,0],[0.05,0,-0.02],[0.05,0,0],[0.05,0,0.02]]),
 ]);
-const mixer = new THREE.AnimationMixer(mesh);
-mixer.clipAction(walkClip).play();
+// NOTE: a foreign rig playing OUR quaternions inherits its rest-pose quirks;
+// its own bundled walk (if any) would look better — this is the pipeline demo.
+
+// ---------- rig registration (measure the legs, wire the mixer) ------------
+function registerRig(name, node, B){
+  node.visible = false;
+  V.add(node);
+  V.updateMatrixWorld(true);
+  const m = {};
+  const p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), p3 = new THREE.Vector3();
+  B.mixamorigLeftUpLeg.getWorldPosition(p1);
+  B.mixamorigLeftLeg.getWorldPosition(p2);
+  B.mixamorigLeftFoot.getWorldPosition(p3);
+  m.L1 = p1.distanceTo(p2);
+  m.L2 = p2.distanceTo(p3);
+  m.ankleY = V.worldToLocal(p3.clone()).y;      // rest ankle height above ground
+  const ws = new THREE.Vector3();
+  B.mixamorigHips.parent.getWorldScale(ws);      // local-unit → world-unit factor
+  const rig = { name, node, B, unit: ws.y || 1,
+    mixer: new THREE.AnimationMixer(node), ...m, hipsRestY: B.mixamorigHips.position.y };
+  rig.mixer.clipAction(walkClip).play();
+  rigs.push(rig);
+  return rig;
+}
+function activate(i){
+  for(const r of rigs) r.node.visible = false;
+  active = rigs[i];
+  active.node.visible = true;
+  pelvisDrop = 0;
+}
+{
+  const c = buildCanonical();
+  registerRig(c.name, c.node, c.B);
+  activate(0);
+}
+
+// ---------- imported skins: manifest + drag-drop ---------------------------
+const loader = new GLTFLoader();
+const skinSel = document.getElementById('skinsel');
+function adoptGltf(name, gltf){
+  const node = gltf.scene;
+  // scale to Vita height, feet on the ground
+  const box = new THREE.Box3().setFromObject(node);
+  const h = Math.max(0.01, box.max.y - box.min.y);
+  const s = 1.55/h;
+  node.scale.setScalar(s);
+  node.position.y = -box.min.y*s;
+  node.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
+  // find the mixamorig bones (colon variants normalized)
+  const B = {};
+  node.traverse(o => {
+    if(o.isBone){
+      const n = o.name.replace('mixamorig:', 'mixamorig');
+      if(n.startsWith('mixamorig')) B[n] = o;
+    }
+  });
+  const need = ['mixamorigHips','mixamorigLeftUpLeg','mixamorigLeftLeg','mixamorigLeftFoot',
+                'mixamorigRightUpLeg','mixamorigRightLeg','mixamorigRightFoot'];
+  if(need.some(n => !B[n])){
+    console.warn(name, 'lacks mixamorig leg bones — cannot IK this skin');
+    return -1;
+  }
+  const rig = registerRig(name, node, B);
+  rig.foreign = true;
+  const idx = rigs.length - 1;
+  const o = document.createElement('option');
+  o.value = idx; o.textContent = name + ' (imported)';
+  skinSel.appendChild(o);
+  return idx;
+}
+skinSel.addEventListener('change', () => activate(+skinSel.value));
+fetch('./vendor/models/manifest.json')
+  .then(r => r.ok ? r.json() : null)
+  .then(man => {
+    const files = [{ file:'Xbot.glb', name:'Xbot' }, ...((man && man.skins) || [])];
+    for(const it of files){
+      loader.load('./vendor/models/' + it.file,
+        g => adoptGltf(it.name || it.file, g),
+        undefined, err => console.warn('skin load failed', it.file, err));
+    }
+  }).catch(() => {});
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  for(const f of e.dataTransfer.files){
+    f.arrayBuffer().then(buf => loader.parse(buf, './', g => {
+      const idx = adoptGltf(f.name.replace(/\.(glb|gltf)$/i, ''), g);
+      if(idx >= 0){ skinSel.value = idx; activate(idx); }
+    }, err => console.warn('drop parse failed', err)));
+  }
+});
 
 // ==========================================================================
-//  THE ANKLE LAYER — runs AFTER the mixer, owns the Foot bones (the walk
-//  clip deliberately never keyframes them). For each foot:
-//   1. where is it? (world) → sample terrain height + NORMAL there
-//   2. how planted is it? proximity blend w: 1 on the ground, 0 in swing
-//   3. build the target world orientation: up = the NORMAL, forward = the
-//      body's heading projected onto the slope plane
-//   4. convert to the Foot bone's LOCAL space via the parent's world
-//      quaternion — this automatically counter-rotates whatever swing the
-//      leg still carries, exactly like a real ankle
-//   5. slerp toward it by w (and relax to neutral as w falls)
+//  FULL LEG IK — rest-pose-agnostic. World-space DELTA rotations on top
+//  of the clip pose: rotate the thigh so the hip→ankle chain reaches the
+//  terrain-sampled target (knee toward the pole), then the shin onto the
+//  target. Works on any skeleton; lengths are the rig's own.
 // ==========================================================================
-let ankleOn = true;
-let legIKOn = true;
-const _fw = new THREE.Vector3(), _pq = new THREE.Quaternion(),
-      _tq = new THREE.Quaternion(), _m = new THREE.Matrix4(),
-      _right = new THREE.Vector3(), _up = new THREE.Vector3(),
-      _fwd = new THREE.Vector3(), _neutral = new THREE.Quaternion();
-
-// ==========================================================================
-//  FULL LEG IK — Doug's side-hill challenge. Runs after the mixer (which
-//  rewrites the leg bones from the clip every frame, so there is no
-//  feedback loop): for each leg, take where the CLIP put the ankle, keep
-//  its horizontal position and its swing lift, but re-plant its height on
-//  the terrain sampled AT THAT FOOT — then solve two-bone IK (thigh +
-//  shin, law of cosines, knee bending forward) so the leg actually
-//  reaches it. Across a slope the uphill knee bends, the downhill leg
-//  extends; if even full extension can't reach, the PELVIS drops to
-//  cover the difference (smoothed, so gentle hills stay jitter-free).
-// ==========================================================================
-const L1 = 0.26, L2 = 0.26;                  // thigh, shin bone lengths
+let legIKOn = true, ankleOn = true;
 let pelvisDrop = 0;
-const _A = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(),
-      _dir = new THREE.Vector3(), _po = new THREE.Vector3(), _thigh = new THREE.Vector3(),
-      _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3(),
-      _wq = new THREE.Quaternion(), _hq = new THREE.Quaternion(), _m2 = new THREE.Matrix4();
+const _A = new THREE.Vector3(), _H = new THREE.Vector3(), _K = new THREE.Vector3(),
+      _T = new THREE.Vector3(), _dir = new THREE.Vector3(), _po = new THREE.Vector3(),
+      _fwd = new THREE.Vector3(), _cur = new THREE.Vector3(), _want = new THREE.Vector3(),
+      _dq = new THREE.Quaternion(), _wq = new THREE.Quaternion(), _pq = new THREE.Quaternion(),
+      _n = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+function rotateBoneWorld(bone, deltaQ){
+  bone.getWorldQuaternion(_wq);
+  _wq.premultiply(deltaQ);                       // new world orientation
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(_wq));
+  bone.updateMatrixWorld(true);
+}
 function legIK(dt, heading){
-  // last frame's pelvis drop rides on top of the clip's fresh hips pose
-  B.mixamorigHips.position.y -= pelvisDrop;
+  const R = active;
+  R.B.mixamorigHips.position.y = R.hipsRestY
+    + (Math.abs(Math.sin((performance.now()/1000)*3.9))*R.L1*0.13 - pelvisDrop)/R.unit;
   V.updateMatrixWorld(true);
   if(!legIKOn){ pelvisDrop = lerp(pelvisDrop, 0, Math.min(1, dt*6)); return; }
   let excess = 0;
+  const L1 = R.L1, L2 = R.L2;
   for(const S of ['Left', 'Right']){
-    const up = B[`mixamorig${S}UpLeg`], lo = B[`mixamorig${S}Leg`],
-          ft = B[`mixamorig${S}Foot`];
-    ft.getWorldPosition(_A);                 // the CLIP's ankle (pre-IK this frame)
-    const localY = V.worldToLocal(_A.clone()).y;
-    const lift = Math.max(0, localY - 0.115);       // how high the clip swings it
-    _T.set(_A.x, terrainH(_A.x, _A.z) + 0.105 + lift, _A.z);
+    const up = R.B[`mixamorig${S}UpLeg`], lo = R.B[`mixamorig${S}Leg`],
+          ft = R.B[`mixamorig${S}Foot`];
+    ft.getWorldPosition(_A);
+    const lift = Math.max(0, V.worldToLocal(_A.clone()).y - R.ankleY*1.02);
+    _T.set(_A.x, terrainH(_A.x, _A.z) + R.ankleY*0.92 + lift, _A.z);
     up.getWorldPosition(_H);
     let d = _H.distanceTo(_T);
-    const reach = L1 + L2 - 0.015;
+    const reach = L1 + L2 - 0.012;
     if(d > reach){ excess = Math.max(excess, d - reach); d = reach; }
-    d = Math.max(d, 0.12);
+    d = Math.max(d, Math.abs(L1 - L2) + 0.02);
     _dir.copy(_T).sub(_H).normalize();
-    // knee pole: the body's forward, made perpendicular to the hip-ankle line
-    _po.set(Math.sin(heading), 0, Math.cos(heading))
-       .addScaledVector(_dir, -_dir.dot(new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading))))
-       .normalize();
+    _fwd.set(Math.sin(heading), 0, Math.cos(heading));
+    _po.copy(_fwd).addScaledVector(_dir, -_fwd.dot(_dir)).normalize();
     const a1 = Math.acos(clamp((L1*L1 + d*d - L2*L2)/(2*L1*d), -1, 1));
-    const interior = Math.acos(clamp((L1*L1 + L2*L2 - d*d)/(2*L1*L2), -1, 1));
-    // thigh: the hip-ankle line, tipped toward the pole so the knee leads
-    _thigh.copy(_dir).multiplyScalar(Math.cos(a1)).addScaledVector(_po, Math.sin(a1)).normalize();
-    _by.copy(_thigh).negate();               // bone local -Y runs down the thigh
-    _bz.copy(_po).addScaledVector(_by, -_po.dot(_by)).normalize();
-    _bx.crossVectors(_by, _bz);
-    _m2.makeBasis(_bx, _by, _bz);
-    _wq.setFromRotationMatrix(_m2);
-    up.parent.getWorldQuaternion(_hq);
-    up.quaternion.copy(_hq.invert().multiply(_wq));
-    lo.quaternion.setFromEuler(new THREE.Euler(Math.PI - interior, 0, 0));
+    // 1) thigh: rotate current hip→knee direction onto the solved one
+    lo.getWorldPosition(_K);
+    _cur.copy(_K).sub(_H).normalize();
+    _want.copy(_dir).multiplyScalar(Math.cos(a1)).addScaledVector(_po, Math.sin(a1)).normalize();
+    _dq.setFromUnitVectors(_cur, _want);
+    rotateBoneWorld(up, _dq);
+    // 2) shin: rotate current knee→ankle direction onto knee→target
+    lo.getWorldPosition(_K);
+    ft.getWorldPosition(_A);
+    _cur.copy(_A).sub(_K).normalize();
+    _want.copy(_T).sub(_K).normalize();
+    _dq.setFromUnitVectors(_cur, _want);
+    rotateBoneWorld(lo, _dq);
   }
   pelvisDrop = lerp(pelvisDrop, excess, Math.min(1, dt*8));
-  V.updateMatrixWorld(true);                 // fresh matrices for the ankle layer
+  V.updateMatrixWorld(true);
 }
-function ankleLayer(dt, heading){
+// ANKLE LAYER — also delta-based: tilt each planted foot's WORLD frame so
+// "up" matches the terrain normal under it, blended by ground proximity.
+const _neutralQ = new THREE.Quaternion();
+function ankleLayer(dt){
+  const R = active;
   for(const S of ['Left', 'Right']){
-    const foot = B[`mixamorig${S}Foot`];
-    foot.getWorldPosition(_fw);
-    const gy = terrainH(_fw.x, _fw.z);
-    const sole = _fw.y - 0.09;               // sole sits ~0.09 under the ankle
-    const w = ankleOn ? clamp(1 - (sole - gy)/0.14, 0, 1) : 0;
+    const foot = R.B[`mixamorig${S}Foot`];
+    foot.getWorldPosition(_A);
+    const sole = _A.y - R.ankleY*0.85;
+    const gy = terrainH(_A.x, _A.z);
+    const w = ankleOn ? clamp(1 - (sole - gy)/(R.ankleY*1.4), 0, 1) : 0;
     if(w > 0.001){
-      _up.copy(terrainNormal(_fw.x, _fw.z));
-      _fwd.set(Math.sin(heading), 0, Math.cos(heading));
-      _right.crossVectors(_up, _fwd).normalize();
-      _fwd.crossVectors(_right, _up).normalize();
-      _m.makeBasis(_right, _up, _fwd);
-      _tq.setFromRotationMatrix(_m);
-      foot.parent.getWorldQuaternion(_pq);
-      _tq.premultiply(_pq.invert());         // world target → foot-local
-      _neutral.identity();
-      _neutral.slerp(_tq, w);                // planted = conform, swing = relax
-      foot.quaternion.slerp(_neutral, Math.min(1, dt*14));
-    } else {
-      _neutral.identity();
-      foot.quaternion.slerp(_neutral, Math.min(1, dt*8));
+      _n.copy(terrainNormal(_A.x, _A.z));
+      _dq.setFromUnitVectors(_up, _n);
+      _neutralQ.identity().slerp(_dq, w);
+      rotateBoneWorld(foot, _neutralQ);
     }
   }
 }
 
 // ---------- the loop: walk a ring over the relief --------------------------
-const R = 5.5;
+const RING = 5.5;
 let pathA = 0;
-const SPEED = 1.05;                          // units/sec along the ring
+const SPEED = 1.05;
 const bodyQ = new THREE.Quaternion(), yawQ = new THREE.Quaternion(),
       pitchQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion();
 document.getElementById('legik').addEventListener('click', e => {
@@ -449,27 +515,24 @@ function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
 
-  // advance along the ring; slow slightly on a climb (real legs do)
-  const px = Math.sin(pathA)*R, pz = Math.cos(pathA)*R;
+  const px = Math.sin(pathA)*RING, pz = Math.cos(pathA)*RING;
   const heading = Math.atan2(Math.cos(pathA), -Math.sin(pathA));
   const g = terrainGrad(px, pz);
-  const ahead = g.hx*Math.sin(heading) + g.hz*Math.cos(heading);   // grade on the path
-  pathA += (SPEED * (1 - clamp(ahead, -0.35, 0.5)*0.4)) / R * dt;
+  const ahead = g.hx*Math.sin(heading) + g.hz*Math.cos(heading);
+  pathA += (SPEED * (1 - clamp(ahead, -0.35, 0.5)*0.4)) / RING * dt;
 
-  // the body rides the terrain and leans a fraction into it
   V.position.set(px, terrainH(px, pz), pz);
-  const roll = g.hx*Math.cos(heading) - g.hz*Math.sin(heading);    // camber
+  const roll = g.hx*Math.cos(heading) - g.hz*Math.sin(heading);
   yawQ.setFromAxisAngle(new THREE.Vector3(0,1,0), heading);
   pitchQ.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.atan(ahead)*0.35);
   rollQ.setFromAxisAngle(new THREE.Vector3(0,0,1), Math.atan(roll)*0.22);
   bodyQ.copy(yawQ).multiply(pitchQ).multiply(rollQ);
   V.quaternion.slerp(bodyQ, Math.min(1, dt*6));
 
-  mixer.update(dt);
-  legIK(dt, heading);                        // plants each foot on its own ground
-  ankleLayer(dt, heading);                   // then rolls each sole onto the slope
+  active.mixer.update(dt);
+  legIK(dt, heading);
+  ankleLayer(dt);
 
-  // camera tags along
   controls.target.lerp(new THREE.Vector3(px, terrainH(px, pz) + 0.9, pz), dt*2.5);
   controls.update();
   renderer.render(scene, camera);
