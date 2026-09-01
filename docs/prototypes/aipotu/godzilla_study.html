@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     GODZILLA STUDY — the leviathan, done properly, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: a really good Godzilla with the range of usual
+     animations — WALKING · STOMPING · TURNING SLOWLY in either
+     direction · HOWLING exultantly · LOWERING ITS HEAD to direct
+     FLAMES at a target · STOMPING ON something · EMERGING from and
+     RETURNING to the sea (talking to the water: bow-foam rings and a
+     wake at the waterline as it wades). Flames reuse the fire study's
+     tongue technique, blue-hot at the throat.
+
+     The body: an upright kaiju — heavy thighs, small hands, a thick
+     dragging tail in five segments, three rows of dorsal PLATES that
+     GLOW before the fire comes, a big head with a hinged jaw.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Godzilla Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#2a3038; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(18,22,26,0.82); color:#e8f0f4;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#4a6a52; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#5c8266; }
+  #chip button.on { background:#ffb340; color:#241206; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦖 Godzilla Study</b> — the leviathan, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="emerge">Emerge</button><button data-m="walk">Walk</button><button
+    data-m="turnL">Turn ⟲</button><button data-m="turnR">Turn ⟳</button><button
+    data-m="howl">Howl</button><button data-m="flame">Flame the hut</button><button
+    data-m="stomp">Stomp the hut</button><button data-m="return">Return to the sea</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1954;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x2e343c), 60, 320);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.3, 900);
+camera.position.set(16, 10, 24);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 90;
+controls.maxPolarAngle = 1.53;
+
+// ---------- dusk sky + light -----------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0x8a7a68), zenith = new THREE.Color(0x2c3a50),
+        below = new THREE.Color(0x3a4048), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/400;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.7)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0x8a98b0, 0x3a3830, 0.7));
+const sun = new THREE.DirectionalLight(0xffc890, 1.3);
+sun.position.set(-30, 24, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;  sun.shadow.camera.bottom = -30;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 120;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+// ---------- the shore: beach one side, SEA the other -----------------------
+let sea;
+const SEA_X = 8;    // water begins east of this line
+{
+  const beach = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0x9a9070 }));
+  beach.rotation.x = -Math.PI/2;
+  beach.receiveShadow = true;
+  scene.add(beach);
+  const geo = new THREE.PlaneGeometry(280, 300, 48, 48);
+  geo.rotateX(-Math.PI/2);
+  sea = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color:0x24455c, transparent:true, opacity:0.92 }));
+  sea.position.set(SEA_X + 140, 0.25, 0);
+  scene.add(sea);
+}
+// the doomed HUT (flame + stomp target)
+const hut = new THREE.Group();
+let hutIntact = true, hutBurn = 0;
+{
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 2.0),
+    new THREE.MeshLambertMaterial({ color:0x8a6a4a, flatShading:true }));
+  walls.position.y = 0.8;
+  walls.castShadow = true;
+  hut.add(walls);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.9, 1.2, 4),
+    new THREE.MeshLambertMaterial({ color:0x6e5a3a, flatShading:true }));
+  roof.position.y = 2.2;
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = true;
+  hut.add(roof);
+  hut.position.set(-7, 0, -4);
+  scene.add(hut);
+}
+
+// ==========================================================================
+//  THE BODY — ~9 units tall at the howl. Root → pelvis → torso → neck →
+//  head with hinged jaw. Charcoal hide, pale belly plates, glowing dorsal
+//  fins in three rows down the spine and tail.
+// ==========================================================================
+const matHide = new THREE.MeshLambertMaterial({ color:0x3c4438, flatShading:true });
+const matHideDk = new THREE.MeshLambertMaterial({ color:0x2e352c, flatShading:true });
+const matBelly = new THREE.MeshLambertMaterial({ color:0x6e705c, flatShading:true });
+const matPlate = new THREE.MeshStandardMaterial({ color:0xb8c4c0, emissive:0x2a7a8a,
+  emissiveIntensity:0, roughness:0.6, flatShading:true });
+const matTeeth = new THREE.MeshLambertMaterial({ color:0xd8d4c4 });
+
+const zilla = new THREE.Group();
+scene.add(zilla);
+const Z = { plates: [] };
+Z.pelvis = new THREE.Group();
+Z.pelvis.position.y = 3.4;
+zilla.add(Z.pelvis);
+{
+  const hipsG = new THREE.SphereGeometry(1.5, 12, 10);
+  hipsG.scale(1, 0.9, 1.1);
+  const hips = new THREE.Mesh(hipsG, matHide);
+  hips.castShadow = true;
+  Z.pelvis.add(hips);
+  Z.torso = new THREE.Group();
+  Z.torso.position.y = 1.1;
+  Z.pelvis.add(Z.torso);
+  const chestG = new THREE.CapsuleGeometry(1.25, 1.6, 8, 12);
+  const chest = new THREE.Mesh(chestG, matHide);
+  chest.position.y = 1.1;
+  chest.castShadow = true;
+  Z.torso.add(chest);
+  // pale belly plates: stacked slabs up the front
+  for(let i = 0; i < 5; i++){
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(1.5 - i*0.12, 0.42, 0.3), matBelly);
+    slab.position.set(0, 0.3 + i*0.48, 1.12 - i*0.03);
+    Z.torso.add(slab);
+  }
+  // small arms
+  Z.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*1.3, 1.7, 0.35);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.7, 5, 8), matHide);
+    up.position.y = -0.4;
+    up.castShadow = true;
+    arm.add(up);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.28, 7, 6), matHideDk);
+    hand.scale.set(1, 0.7, 1.3);
+    hand.position.y = -0.95;
+    arm.add(hand);
+    arm.rotation.x = -0.5;
+    Z.torso.add(arm);
+    Z.arms.push(arm);
+  }
+  // neck + head
+  Z.neck = new THREE.Group();
+  Z.neck.position.set(0, 2.4, 0.3);
+  Z.torso.add(Z.neck);
+  const neckG = new THREE.CylinderGeometry(0.6, 0.9, 1.4, 9);
+  neckG.rotateX(0.35);
+  const neck = new THREE.Mesh(neckG, matHide);
+  neck.position.y = 0.6;
+  neck.castShadow = true;
+  Z.neck.add(neck);
+  Z.head = new THREE.Group();
+  Z.head.position.set(0, 1.35, 0.35);
+  Z.neck.add(Z.head);
+  const skullG = new THREE.SphereGeometry(0.72, 12, 10);
+  skullG.scale(0.95, 0.85, 1.2);
+  const skull = new THREE.Mesh(skullG, matHide);
+  skull.castShadow = true;
+  Z.head.add(skull);
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.9), matHide);
+  snout.position.set(0, -0.12, 0.75);
+  snout.castShadow = true;
+  Z.head.add(snout);
+  // the hinged JAW with teeth
+  Z.jaw = new THREE.Group();
+  Z.jaw.position.set(0, -0.35, 0.25);
+  const jawM = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.24, 1.15), matHideDk);
+  jawM.position.set(0, -0.1, 0.5);
+  jawM.castShadow = true;
+  Z.jaw.add(jawM);
+  for(let i = 0; i < 5; i++){
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 4), matTeeth);
+    tooth.position.set(-0.22 + i*0.11, 0.06, 1.0);
+    Z.jaw.add(tooth);
+  }
+  Z.head.add(Z.jaw);
+  // fierce little eyes
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6),
+      new THREE.MeshBasicMaterial({ color:0xffb340 }));
+    eye.position.set(s*0.4, 0.12, 0.62);
+    Z.head.add(eye);
+  }
+  // legs: massive thighs, digitigrade shins, wide three-toed feet
+  Z.legs = [];
+  for(const s of [-1, 1]){
+    const hip = new THREE.Group();
+    hip.position.set(s*0.85, -0.5, 0);
+    Z.pelvis.add(hip);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.62, 1.0, 6, 10), matHide);
+    thigh.position.y = -0.7;
+    thigh.castShadow = true;
+    hip.add(thigh);
+    const knee = new THREE.Group();
+    knee.position.y = -1.5;
+    hip.add(knee);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.85, 6, 9), matHideDk);
+    shin.position.y = -0.55;
+    shin.castShadow = true;
+    knee.add(shin);
+    const foot = new THREE.Group();
+    foot.position.y = -1.25;
+    knee.add(foot);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 1.25), matHideDk);
+    pad.position.set(0, 0, 0.25);
+    pad.castShadow = true;
+    foot.add(pad);
+    for(let tI = 0; tI < 3; tI++){
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.4, 5), matTeeth);
+      claw.rotation.x = Math.PI/2;
+      claw.position.set(-0.28 + tI*0.28, 0, 0.95);
+      foot.add(claw);
+    }
+    hip.add(knee);
+    Z.legs.push({ hip, knee, foot });
+  }
+  // THE TAIL: five dragging segments
+  Z.tail = [];
+  let parent = Z.pelvis, pz = -1.2, py = -0.2;
+  for(let i = 0; i < 5; i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const r = 0.85 * (1 - i*0.17);
+    const gG = new THREE.CapsuleGeometry(r, 1.1, 6, 9);
+    gG.rotateX(Math.PI/2);
+    gG.translate(0, 0, -0.7);
+    const m = new THREE.Mesh(gG, i % 2 ? matHideDk : matHide);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    Z.tail.push(seg);
+    parent = seg; pz = -1.35; py = -0.06;
+  }
+  // DORSAL PLATES: three staggered rows down spine + tail, glow-capable
+  function plateRun(host, n, y0, z0, dz, s0){
+    for(let i = 0; i < n; i++){
+      const p = new THREE.Mesh(new THREE.ConeGeometry(0.3*s0*(1 - i*0.06), 0.75*s0*(1 - i*0.05), 4), matPlate.clone());
+      p.rotation.y = Math.PI/4;
+      p.scale.z = 0.35;
+      p.position.set((i % 2 ? 0.14 : -0.14)*s0, y0, z0 + i*dz);
+      host.add(p);
+      Z.plates.push(p);
+    }
+  }
+  plateRun(Z.torso, 4, 2.7, -0.6, -0.28, 1.15);
+  plateRun(Z.pelvis, 3, 1.15, -0.6, -0.34, 1);
+  Z.tail.forEach((seg, i) => plateRun(seg, 2, 0.55*(1 - i*0.15), -0.2, -0.7, 0.8 - i*0.13));
+}
+
+// ---------- the FLAME BREATH (fire-study tongues, blue at the throat) ------
+const breath = [];
+{
+  for(let i = 0; i < 30; i++){
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 6),
+      new THREE.MeshBasicMaterial({ color:0xffa626, transparent:true, opacity:0.9 }));
+    m.visible = false;
+    scene.add(m);
+    breath.push({ m, t: 9, dir: new THREE.Vector3() });
+  }
+}
+const breathLight = new THREE.PointLight(0xff7a26, 0, 26);
+scene.add(breathLight);
+
+// ---------- the SEA talking back: wake rings + splash ----------------------
+const rings = [];
+{
+  for(let i = 0; i < 12; i++){
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.9, 22),
+      new THREE.MeshBasicMaterial({ color:0xd8ecf2, transparent:true, opacity:0, side:THREE.DoubleSide }));
+    m.rotation.x = -Math.PI/2;
+    m.position.y = 0.3;
+    scene.add(m);
+    rings.push({ m, t: 9 });
+  }
+}
+function ring(x, z, big){
+  const r = rings.find(r => r.t > 1.6);
+  if(!r) return;
+  r.t = 0;
+  r.m.position.x = x; r.m.position.z = z;
+  r.m.scale.setScalar(big ? 2 : 1);
+}
+
+// ==========================================================================
+//  THE MODES
+// ==========================================================================
+let mode = 'emerge', phT = 0, heading = Math.PI/2 + Math.PI;  // facing shoreward (-x)
+zilla.position.set(SEA_X + 12, -8, 0);                        // starts under the sea
+zilla.rotation.y = heading;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(mode === m) return;
+  mode = m; phT = 0;
+  if(m === 'flame' || m === 'stomp'){ hutIntact = true; hutBurn = 0; hut.scale.set(1,1,1); hut.rotation.z = 0; }
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns[0].classList.add('on');
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+
+let stompShake = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+
+  // sea swell
+  {
+    const pos = sea.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, Math.sin(x*0.25 + t*1.0)*0.12 + Math.sin(z*0.32 + t*0.8)*0.1);
+    }
+    pos.needsUpdate = true;
+  }
+  for(const r of rings){
+    if(r.t > 1.6){ r.m.material.opacity = 0; continue; }
+    r.t += dt;
+    r.m.scale.setScalar(r.m.scale.x + dt*3.5);
+    r.m.material.opacity = 0.55 * (1 - r.t/1.6);
+  }
+
+  // shared walk machinery
+  const inSea = zilla.position.x > SEA_X;
+  function walkCycle(sp){
+    const ph = t * 2.0 * sp;
+    Z.legs[0].hip.rotation.x = Math.sin(ph)*0.5;
+    Z.legs[1].hip.rotation.x = -Math.sin(ph)*0.5;
+    Z.legs[0].knee.rotation.x = Math.max(0, -Math.sin(ph))*0.7;
+    Z.legs[1].knee.rotation.x = Math.max(0, Math.sin(ph))*0.7;
+    Z.legs[0].foot.rotation.x = -Math.max(0, -Math.sin(ph))*0.4;
+    Z.legs[1].foot.rotation.x = -Math.max(0, Math.sin(ph))*0.4;
+    Z.pelvis.rotation.z = Math.sin(ph)*0.05;                   // the ponderous roll
+    Z.pelvis.position.y = 3.4 + Math.abs(Math.sin(ph))*0.12;
+    Z.torso.rotation.y = -Math.sin(ph)*0.07;
+    // THE STOMP: each footfall slams
+    const fall = Math.abs(Math.cos(ph));
+    if(fall > 0.985 && stompShake <= 0){
+      stompShake = 0.4;
+      if(inSea) ring(zilla.position.x + rand(-1,1), zilla.position.z + rand(-1,1), true);
+    }
+    // tail drags and sways opposite the hips
+    Z.tail.forEach((seg, i) => {
+      seg.rotation.y = Math.sin(ph*0.9 - i*0.5)*0.14;
+      seg.rotation.x = 0.04 + Math.sin(t*0.8 + i)*0.02;
+    });
+    Z.arms[0].rotation.x = -0.5 + Math.sin(ph)*0.12;
+    Z.arms[1].rotation.x = -0.5 - Math.sin(ph)*0.12;
+  }
+  function still(){
+    Z.legs.forEach(l => { l.hip.rotation.x = lerp(l.hip.rotation.x, 0, dt*4);
+      l.knee.rotation.x = lerp(l.knee.rotation.x, 0, dt*4);
+      l.foot.rotation.x = lerp(l.foot.rotation.x, 0, dt*4); });
+    Z.pelvis.rotation.z = lerp(Z.pelvis.rotation.z, 0, dt*4);
+    Z.pelvis.position.y = lerp(Z.pelvis.position.y, 3.4, dt*4);
+    Z.tail.forEach((seg, i) => { seg.rotation.y = Math.sin(t*0.7 - i*0.5)*0.06; });
+  }
+  let plateGlow = 0, jawOpen = 0.06, neckPitch = 0;
+
+  if(mode === 'emerge'){
+    // rise from the deep, wading shoreward, the sea boiling around it
+    const f = clamp(phT / 6, 0, 1);
+    zilla.position.y = lerp(-8, 0, smooth(clamp(f*1.5, 0, 1)));
+    zilla.position.x = lerp(SEA_X + 12, SEA_X - 2, smooth(f));
+    zilla.rotation.y = Math.PI/2 + Math.PI;   // facing -x, shoreward
+    walkCycle(0.8);
+    if(Math.random() < dt*6 && zilla.position.x > SEA_X - 3)
+      ring(zilla.position.x + rand(-2, 2), zilla.position.z + rand(-2, 2), true);
+    if(f >= 1) setMode('walk');
+  } else if(mode === 'walk'){
+    walkCycle(1);
+    zilla.position.x += Math.sin(zilla.rotation.y) * 1.35 * dt;
+    zilla.position.z += Math.cos(zilla.rotation.y) * 1.35 * dt;
+    zilla.position.y = 0;
+    // stay on stage
+    const d = Math.hypot(zilla.position.x, zilla.position.z);
+    if(d > 16) zilla.rotation.y += dt*0.5;
+  } else if(mode === 'turnL' || mode === 'turnR'){
+    // the SLOW turn: tiny shuffling steps, tail swinging wide the other way
+    const s = mode === 'turnL' ? 1 : -1;
+    zilla.rotation.y += s * dt * 0.35;
+    walkCycle(0.45);
+    Z.tail.forEach((seg, i) => seg.rotation.y += -s * 0.1);     // counter-swing
+    Z.torso.rotation.y = s * 0.12;
+    Z.head.rotation.y = s * 0.2;                                 // leading with the eyes
+  } else if(mode === 'howl'){
+    still();
+    // rear tall, head thrown back, jaw wide, plates BLAZING
+    const f = Math.min(1, phT/1.2);
+    Z.torso.rotation.x = lerp(Z.torso.rotation.x, -0.22, dt*3);
+    neckPitch = -0.75 * f;
+    jawOpen = 0.55 * f + Math.sin(t*9)*0.05*f;                  // the throat working
+    plateGlow = f * (0.8 + 0.3*Math.sin(t*7));
+    Z.arms[0].rotation.x = -1.3; Z.arms[1].rotation.x = -1.3;   // arms raised
+    stompShake = Math.max(stompShake, f*0.12);                  // the world trembles
+    if(phT > 3.4) phT = 0;                                      // howl again
+  } else if(mode === 'flame'){
+    // walk near the hut, LOWER THE HEAD, and burn it
+    const stand = new THREE.Vector3(-1.5, 0, -2.2);
+    const dist = zilla.position.distanceTo(stand);
+    if(dist > 0.5){
+      const want = Math.atan2(stand.x - zilla.position.x, stand.z - zilla.position.z);
+      zilla.rotation.y += (((want - zilla.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*1.5);
+      zilla.position.x += Math.sin(zilla.rotation.y) * 1.35 * dt;
+      zilla.position.z += Math.cos(zilla.rotation.y) * 1.35 * dt;
+      walkCycle(1);
+      phT = 0;
+    } else {
+      still();
+      const want = Math.atan2(hut.position.x - zilla.position.x, hut.position.z - zilla.position.z);
+      zilla.rotation.y += (((want - zilla.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*2);
+      const f = Math.min(1, phT/1.4);
+      neckPitch = 0.6 * f;                                      // the head comes DOWN at the target
+      Z.torso.rotation.x = 0.18 * f;
+      jawOpen = 0.5 * f;
+      plateGlow = f;
+      if(f >= 1){
+        // FIRE: tongues stream from the jaw to the hut
+        if(Math.random() < dt*40){
+          const b = breath.find(b => b.t > 0.55);
+          if(b){
+            b.t = 0;
+            b.m.visible = true;
+            const jawPos = new THREE.Vector3();
+            Z.jaw.getWorldPosition(jawPos);
+            b.m.position.copy(jawPos);
+            b.dir.copy(hut.position).setY(1).sub(jawPos).normalize();
+          }
+        }
+        hutBurn = Math.min(1, hutBurn + dt*0.25);
+        breathLight.position.copy(hut.position).setY(2);
+        breathLight.intensity = 14 + Math.sin(t*13)*4;
+      }
+    }
+  } else if(mode === 'stomp'){
+    // stride to the hut and bring one great foot down on it
+    const stand = new THREE.Vector3(-4.2, 0, -3.4);
+    const dist = zilla.position.distanceTo(stand);
+    if(dist > 0.5 && hutIntact){
+      const want = Math.atan2(stand.x - zilla.position.x, stand.z - zilla.position.z);
+      zilla.rotation.y += (((want - zilla.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*1.5);
+      zilla.position.x += Math.sin(zilla.rotation.y) * 1.35 * dt;
+      zilla.position.z += Math.cos(zilla.rotation.y) * 1.35 * dt;
+      walkCycle(1);
+      phT = 0;
+    } else {
+      const f = phT % 2.4;
+      const want = Math.atan2(hut.position.x - zilla.position.x, hut.position.z - zilla.position.z);
+      zilla.rotation.y += (((want - zilla.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*2);
+      if(f < 0.9){                                              // the leg RISES
+        const rf = smooth(f/0.9);
+        Z.legs[0].hip.rotation.x = -1.2*rf;
+        Z.legs[0].knee.rotation.x = 1.4*rf;
+        Z.torso.rotation.x = -0.08*rf;
+      } else if(f < 1.15){                                      // the SLAM
+        const sf = (f - 0.9)/0.25;
+        Z.legs[0].hip.rotation.x = lerp(-1.2, 0.15, sf*sf);
+        Z.legs[0].knee.rotation.x = lerp(1.4, 0, sf*sf);
+        if(sf > 0.9 && hutIntact){
+          hutIntact = false;
+          stompShake = 1;
+          hut.scale.set(1.25, 0.12, 1.25);                      // FLATTENED
+          hut.rotation.z = 0.08;
+        }
+      } else {                                                  // settle, admire the work
+        Z.legs[0].hip.rotation.x = lerp(Z.legs[0].hip.rotation.x, 0, dt*4);
+        neckPitch = 0.35;
+        if(f > 2.3) hutIntact ? 0 : null;
+      }
+      Z.tail.forEach((seg, i) => seg.rotation.y = Math.sin(t*1.2 - i*0.5)*0.1);
+    }
+  } else if(mode === 'return'){
+    // wade back out and sink under, the sea closing over it
+    const want = Math.PI/2;                                     // facing +x, seaward
+    zilla.rotation.y += (((want - zilla.rotation.y + Math.PI*3) % (Math.PI*2)) - Math.PI) * Math.min(1, dt*1.5);
+    zilla.position.x += Math.sin(zilla.rotation.y) * 1.35 * dt;
+    zilla.position.z += Math.cos(zilla.rotation.y) * 1.35 * dt;
+    walkCycle(0.9);
+    if(zilla.position.x > SEA_X + 2)
+      zilla.position.y = Math.max(-8, zilla.position.y - dt*1.1);   // the long sink
+    if(Math.random() < dt*6 && inSea)
+      ring(zilla.position.x + rand(-2, 2), zilla.position.z + rand(-2, 2), true);
+    if(zilla.position.y <= -7.9){ setMode('emerge'); }          // …and it always comes back
+  }
+
+  // shared posers
+  Z.neck.rotation.x = lerp(Z.neck.rotation.x, neckPitch, dt*4);
+  Z.jaw.rotation.x = lerp(Z.jaw.rotation.x, jawOpen, dt*8);
+  for(const p of Z.plates)
+    p.material.emissiveIntensity = lerp(p.material.emissiveIntensity, plateGlow * (0.7 + 0.5*Math.sin(t*11 + p.position.z*3)), dt*6);
+
+  // breath tongues fly
+  for(const b of breath){
+    if(b.t > 0.55){ b.m.visible = false; continue; }
+    b.t += dt;
+    const f = b.t / 0.55;
+    b.m.position.addScaledVector(b.dir, dt * 16);
+    b.m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.dir);
+    b.m.scale.setScalar(0.6 + f*1.6);
+    b.m.material.color.setHSL(f < 0.12 ? 0.58 : 0.09 - f*0.06, 1, f < 0.12 ? 0.7 : 0.6 - f*0.25);  // blue at the throat
+    b.m.material.opacity = 0.9 * (1 - f*f);
+  }
+  if(mode !== 'flame') breathLight.intensity = lerp(breathLight.intensity, 0, dt*4);
+
+  // the hut burns
+  if(hutBurn > 0){
+    hut.children.forEach(c2 => c2.material.color.setHSL(0.06, 0.4, clamp(0.32 - hutBurn*0.24, 0.06, 0.4)));
+    hut.scale.y = 1 - hutBurn*0.45;
+  }
+
+  // stomp shake
+  if(stompShake > 0){
+    stompShake -= dt;
+    camera.position.y += Math.sin(t*45) * 0.05 * stompShake;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
