@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THE CALDERA — a NEW George World island map study.
+     Filed 2026-08-31 20:57. Standalone: nothing here touches georgeworld.html.
+     Three.js VENDORED locally (vendor/three, r160) — the game's importmap.
+     Serve: python serve_nocache.py 8211 → http://localhost:8211/caldera_study.html
+
+     CONCEPT — a large island dominated by a GIANT COLLAPSED VOLCANO: a ring
+     of soft mountains encircling a central lake. Fertile SMOOTH terraced
+     slopes (broad gentle steps, not banding) spill from the ring down to the
+     sea outside and down to the lake inside. Two WATERFALLS cascade the
+     terraces into the lake. The KING'S HALL sits on the north rim, looking
+     into the bowl. Two mountain PASSES cross the rim (SSE above the landing
+     beach, NW). A wide south BEACH for the saucer landing. A jeweled
+     EASTER-EGG CHAMBER hides under the lake (button-teleport; its little
+     stone door stands behind the tall waterfall).
+
+     ASSETS lifted from the finished studies (models/, STYLE.md contract):
+     makeFir (fir_study) · makeBush (bushgrowth_study) · the real palm's
+     buildTrunk/buildFrond (palm_study) — each template MERGED to one
+     geometry and INSTANCED, so the whole forest is a handful of draw calls.
+     Hero (full, swaying) firs at the hall + palms on the beach.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Caldera — island map study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#cfe8f2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(18,26,30,0.78); color:#ecf4f6;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:6px 6px 0 0; padding:5px 11px; border:0; border-radius:7px;
+    background:#3f7040; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4f8a50; }
+  #chip button.gold { background:#8a6a2a; }
+  #chip button.gold:hover { background:#a5822f; }
+  #rev {
+    position:fixed; right:10px; bottom:8px; z-index:10;
+    color:#123; background:rgba(255,255,255,0.55);
+    font:11px/1.3 ui-monospace, monospace; padding:3px 8px; border-radius:6px;
+    user-select:none; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌋 The Caldera</b> — island map study, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the King's Hall is on the north rim; two passes cross the ring; the tall fall hides a door</span><br>
+  <button id="shot">📸 Save Image</button><button id="egg" class="gold">🥚 Go to Easter Egg Room</button>
+</div>
+<div id="rev"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ---------- REV STAMP (bump REV + reset REV_BUILT on every save) ----------
+const REV = 1;
+const REV_BUILT = '2026-08-31 21:12';
+document.getElementById('rev').textContent = `THE CALDERA · REV ${REV} · built ${REV_BUILT}`;
+
+// ---------- helpers -------------------------------------------------------
+let seed = 62111;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const sstep = (a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const angdiff = (a,b)=>{ let d=a-b; while(d> Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2; return d; };
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.10;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOGC = new THREE.Color(0xd2e9f2);
+scene.fog = new THREE.Fog(FOGC, 320, 950);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.4, 1800);
+camera.position.set(148, 96, 188);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 12, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 520;
+controls.maxPolarAngle = 1.53;
+
+// ---------- sky + light (STYLE.md daylight rig) ---------------------------
+{
+  const geo = new THREE.SphereGeometry(1200, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f4e8), zenith = new THREE.Color(0x6fadde),
+        below = new THREE.Color(0xd4dccc), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/1200;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(150, 190, 95);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
+sun.shadow.camera.top = 200;  sun.shadow.camera.bottom = -200;
+sun.shadow.camera.near = 40; sun.shadow.camera.far = 560;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+
+// ==========================================================================
+//  THE HEIGHTFIELD — one smooth radial construction, no spikes anywhere.
+//  A soft mountain ring (gaussian in d, gentle lobes in angle) around a
+//  sunken lake bowl; two angular notches make the PASSES; gentle broad
+//  TERRACES (smoothed quantize, blended half-in) on both faces of the ring.
+// ==========================================================================
+const LAKE_Y  = 5.4;                 // lake surface (well above the sea)
+const BEACH_A = Math.PI/2;           // landing beach angle: due south (+z)
+const PASS1   = 1.15;                // SSE pass — climbs from the beach
+const PASS2   = -2.55;               // NW pass
+const HALL    = { x: 0, z: -90 };    // the King's Hall, north rim
+const HALL_Y  = 27.2;
+const FALL_A  = -2.0;                // the tall hero fall (NW inner wall)
+const FALL_B  = 0.75;                // the east fall
+
+function ringR(a){ return 92 + 6*Math.sin(2*a + 0.7) + 3*Math.sin(5*a + 2.1); }
+function ringH(a){
+  let H = 34 + 4*Math.sin(2*a + 1.1) + 2.5*Math.sin(5*a + 0.4);
+  H *= 1 - 0.62*Math.exp(-((angdiff(a, PASS1)/0.17)**2));   // the beach pass
+  H *= 1 - 0.58*Math.exp(-((angdiff(a, PASS2)/0.15)**2));   // the NW pass
+  return H;
+}
+function coastR(a){
+  return 152 + 9*Math.sin(3*a + 1.7) + 5*Math.sin(2*a - 0.5) + 4*Math.sin(5*a + 3.0);
+}
+const TSTEP = 3.4;                   // one terrace = one broad step
+function terraceF(h){
+  const k = h/TSTEP, f = k - Math.floor(k);
+  return (Math.floor(k) + sstep(0.62, 0.97, f)) * TSTEP;    // wide flat, soft riser
+}
+function terrainH(x, z){
+  const d = Math.hypot(x, z), a = Math.atan2(z, x);
+  const C = coastR(a), RH = ringH(a), RR = ringR(a);
+  let h = -6 + 13*(1 - sstep(C-26, C+8, d));                // sea floor → island base plain
+  h += RH * Math.exp(-(((d - RR)/27)**2));                  // the soft mountain ring
+  h -= 6.5 * (1 - sstep(14, 40, d));                        // the lake bowl
+  h += 0.55*Math.sin(x*0.11+1)*Math.sin(z*0.13+2)
+     + 0.35*Math.sin(x*0.23+4)*Math.sin(z*0.21+3);          // gentle ground breath
+  // TERRACES — half-blended smoothed steps, only on the mid slopes
+  const tAmt = 0.5 * sstep(7.5, 11, h) * (1 - sstep(RH*0.60, RH*0.85, h));
+  h = lerp(h, terraceF(h), tAmt);
+  // the landing beach: a wide flat sandy apron on the south shore
+  const bm = Math.exp(-((angdiff(a, BEACH_A)/0.34)**2))
+           * sstep(C-46, C-24, d) * (1 - sstep(C-4, C+8, d));
+  h = lerp(h, 1.8, bm*0.85);
+  // the hall plateau: a flattened crown on the north crest
+  h = lerp(h, HALL_Y, 1 - sstep(9, 18, Math.hypot(x-HALL.x, z-HALL.z)));
+  return h;
+}
+function slopeAt(x, z){
+  return Math.hypot(terrainH(x+2,z)-terrainH(x-2,z), terrainH(x,z+2)-terrainH(x,z-2)) / 4;
+}
+
+// ---------- the walking paths (painted, not carved) ------------------------
+const PATHS = [
+  // hall → switchback down the inner wall → the lake's east shore
+  [[0,-88],[6,-78],[-4,-66],[4,-52],[0,-42],[14,-30],[24,-12]],
+  // lake → up through the SSE pass → down to the landing beach
+  [[24,-12],[30,22],[35,56],[39,87],[24,112],[2,134]],
+  // a short rim walk past the hall
+  [[-22,-84],[0,-90],[22,-82]],
+];
+function pathDist(x, z){
+  let best = 1e9;
+  for(const P of PATHS) for(let i=0;i<P.length-1;i++){
+    const [ax,az]=P[i], [bx,bz]=P[i+1];
+    const abx=bx-ax, abz=bz-az;
+    const t = clamp(((x-ax)*abx+(z-az)*abz)/(abx*abx+abz*abz), 0, 1);
+    best = Math.min(best, Math.hypot(x-(ax+abx*t), z-(az+abz*t)));
+  }
+  return best;
+}
+
+// ---------- terrain mesh: smooth-shaded, vertex-colored --------------------
+const TSIZE = 460, TSEG = 220;
+const tGeo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+tGeo.rotateX(-Math.PI/2);
+{
+  const pos = tGeo.attributes.position;
+  const colors = new Float32Array(pos.count*3);
+  const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+  const cLush = new THREE.Color(0x55b364), cFlat = new THREE.Color(0x9fd873);
+  const cRock = new THREE.Color(0xa29383), cRockHi = new THREE.Color(0xbfb4a6);
+  const cSand = new THREE.Color(0xeed9a4), cDeepSea = new THREE.Color(0x7d9a8a);
+  const cLakeBed = new THREE.Color(0x6f9a8a), cPath = new THREE.Color(0xd9b98a);
+  const cPave = new THREE.Color(0xb8ab8f);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x, z);
+    pos.setY(i, h);
+    const d = Math.hypot(x, z), a = Math.atan2(z, x);
+    const s = slopeAt(x, z);
+    const n = 0.5 + 0.5*Math.sin(x*0.21+3)*Math.sin(z*0.17+1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    if(d < ringR(a)-20) c.lerp(cLush, 0.35);                       // the fertile bowl
+    // terrace flats read as lusher shelves
+    const f = h/TSTEP - Math.floor(h/TSTEP);
+    const band = sstep(7.5, 11, h) * (1 - sstep(ringH(a)*0.60, ringH(a)*0.85, h));
+    c.lerp(cFlat, (1 - sstep(0.40, 0.65, f)) * band * 0.36);
+    // grand smooth rock only on the crests and the truly steep walls —
+    // the slopes stay FERTILE (the whole point of the caldera)
+    const tr = Math.max(sstep(1.05, 1.5, s), sstep(27.5, 33, h));
+    c.lerp(h > 30 ? cRockHi : cRock, tr);
+    // the sand ring (the flattened beach falls inside it)
+    c.lerp(cSand, (1 - sstep(2.0, 3.1, h)) * (1 - tr*0.8));
+    if(h < 0) c.lerp(cDeepSea, clamp(-h/5, 0, 1)*0.8);             // under the sea
+    if(d < 34 && h < LAKE_Y+0.2) c.lerp(cLakeBed, clamp((LAKE_Y-h)/5, 0, 1)*0.7);
+    const pd = pathDist(x, z);
+    if(pd < 2.6 && h > LAKE_Y+0.3) c.lerp(cPath, (1 - pd/2.6)*0.75);
+    if(Math.hypot(x-HALL.x, z-HALL.z) < 11) c.lerp(cPave, 0.45);   // the hall's court
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+  }
+  tGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();
+}
+const terrain = new THREE.Mesh(tGeo,
+  new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:false }));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+// ---------- WATER (STYLE.md: per-vertex height+color on Lambert planes) ----
+const DEEP = new THREE.Color(0x2a6f9e), SHALLOW = new THREE.Color(0x4fa8c4),
+      FOAM = new THREE.Color(0xf2fbfd);
+
+// the OCEAN — crests phase on distance-to-coast, so they parallel the shore
+const oGeo = new THREE.PlaneGeometry(1500, 1500, 88, 88);
+oGeo.rotateX(-Math.PI/2);
+const oInfo = [];
+{
+  const pos = oGeo.attributes.position, col = new Float32Array(pos.count*3);
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const dc = Math.hypot(x, z) - coastR(Math.atan2(z, x));   // <0 under the island
+    oInfo.push(dc);
+    col[i*3]=DEEP.r; col[i*3+1]=DEEP.g; col[i*3+2]=DEEP.b;
+  }
+  oGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+const ocean = new THREE.Mesh(oGeo, new THREE.MeshLambertMaterial({
+  vertexColors:true, transparent:true, opacity:0.92 }));
+ocean.position.y = 0;
+scene.add(ocean);
+
+// the LAKE — a tenth of the ocean's tempo (STYLE.md), foam at shore + plunges
+const FALL_BASE = [FALL_A, FALL_B].map(a => ({
+  x: Math.cos(a)*29.5, z: Math.sin(a)*29.5 }));
+const lGeo = new THREE.CircleGeometry(34, 72, 0, Math.PI*2);
+lGeo.rotateX(-Math.PI/2);
+const lInfo = [];
+{
+  const pos = lGeo.attributes.position, col = new Float32Array(pos.count*3);
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const depth = LAKE_Y - terrainH(x, z);
+    const fd = Math.min(...FALL_BASE.map(f => Math.hypot(x-f.x, z-f.z)));
+    lInfo.push({ r: Math.hypot(x, z), depth, fd });
+    col[i*3]=SHALLOW.r; col[i*3+1]=SHALLOW.g; col[i*3+2]=SHALLOW.b;
+  }
+  lGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+const lake = new THREE.Mesh(lGeo, new THREE.MeshLambertMaterial({
+  vertexColors:true, transparent:true, opacity:0.9 }));
+lake.position.y = LAKE_Y;
+scene.add(lake);
+
+// ---------- WATERFALLS — ribbons cascading the terraces into the lake ------
+const falls = [];
+function makeFall(a, width){
+  const RR = ringR(a), N = 34;
+  const dTop = RR - 8, dEnd = 28.5;
+  const px = Math.cos(a), pz = Math.sin(a);           // radial dir
+  const qx = -pz, qz = px;                            // across the ribbon
+  const posA = [], colA = [], idx = [], vArr = [], steep = [];
+  let v = 0, lastY = 0;
+  for(let i=0;i<=N;i++){
+    const t = i/N, d = lerp(dTop, dEnd, t);
+    const x = px*d, z = pz*d;
+    let y = Math.max(terrainH(x, z) + 0.22, LAKE_Y + 0.06);
+    if(i){ v += Math.hypot(d - lerp(dTop, dEnd, (i-1)/N), y - lastY); }
+    const st = i ? clamp((lastY - y)/2.2, 0, 1) : 0;  // local drop → whiter
+    lastY = y;
+    const w = lerp(width*0.7, width*1.25, t) * 0.5;
+    posA.push(x - qx*w, y, z - qz*w,  x + qx*w, y, z + qz*w);
+    colA.push(1,1,1, 1,1,1);
+    vArr.push(v, v); steep.push(st, st);
+  }
+  for(let i=0;i<N;i++){
+    const r0 = i*2;
+    idx.push(r0, r0+1, r0+2,  r0+1, r0+3, r0+2);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors:true, transparent:true, opacity:0.9,
+    side:THREE.DoubleSide, depthWrite:false }));
+  scene.add(mesh);
+  // spring pool at the lip
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(3, 20),
+    new THREE.MeshLambertMaterial({ color:0x4fa8c4, transparent:true, opacity:0.85 }));
+  pool.rotation.x = -Math.PI/2;
+  pool.position.set(px*(dTop+1.5), terrainH(px*(dTop+1.5), pz*(dTop+1.5)) + 0.25, pz*(dTop+1.5));
+  scene.add(pool);
+  // mist at the plunge
+  const mist = [];
+  for(let m=0;m<3;m++){
+    const s = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8),
+      new THREE.MeshBasicMaterial({ color:0xeef8fc, transparent:true,
+        opacity:0.26, depthWrite:false }));
+    s.position.set(px*dEnd + rand(-1.5,1.5), LAKE_Y + 0.6 + m*0.5, pz*dEnd + rand(-1.5,1.5));
+    scene.add(s);
+    mist.push({ s, ph: rand(0, 9) });
+  }
+  falls.push({ geo, vArr, steep, mist, base: new THREE.Color(0x9fd4e8) });
+}
+makeFall(FALL_A, 3.0);   // the hero fall — tall cascade off the NW wall
+makeFall(FALL_B, 2.2);   // the east fall
+
+// ==========================================================================
+//  FINISHED ASSETS, lifted from the studies, merged + instanced
+// ==========================================================================
+const WHITE = new THREE.Color(0xffffff);
+function bakeGroup(root){
+  root.updateMatrixWorld(true);
+  const geos = [];
+  root.traverse(o => {
+    if(!o.isMesh) return;
+    let g = o.geometry.clone();
+    if(g.index) g = g.toNonIndexed();
+    const n = g.attributes.position.count;
+    if(!g.attributes.color){
+      const arr = new Float32Array(n*3), c = o.material.color;
+      for(let i=0;i<n;i++){ arr[i*3]=c.r; arr[i*3+1]=c.g; arr[i*3+2]=c.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+    } else if(o.material.color && !o.material.color.equals(WHITE)){
+      const arr = g.attributes.color, c = o.material.color;
+      for(let i=0;i<n;i++){ arr.setXYZ(i, arr.getX(i)*c.r, arr.getY(i)*c.g, arr.getZ(i)*c.b); }
+    }
+    for(const k of Object.keys(g.attributes))
+      if(k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k);
+    g.applyMatrix4(o.matrixWorld);
+    geos.push(g);
+  });
+  return BGU.mergeGeometries(geos);
+}
+
+// ---------- THE FIR (fir_study.html construction, verbatim spirit) ---------
+const matBark = new THREE.MeshLambertMaterial({ color:0x5c4632, flatShading:true });
+const F_DEEP = new THREE.Color(0x2c4a34), F_FRESH = new THREE.Color(0x5d7d3c);
+function paintFoliage(geo){
+  const pos = geo.attributes.position, col = [];
+  const c = new THREE.Color();
+  let maxX = 0;
+  for(let i=0;i<pos.count;i++) maxX = Math.max(maxX, pos.getX(i));
+  for(let i=0;i<pos.count;i++){
+    const f = clamp(pos.getX(i)/(maxX||1), 0, 1);
+    c.copy(F_DEEP).lerp(F_FRESH, Math.pow(f, 1.6)).offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+}
+const foliageMat = () => new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+function makeFir(spec){
+  const { h, baseR, whorls, perWhorl, spread, droop, sparse = 0, lean = 0, jitter = 1 } = spec;
+  const tree = new THREE.Group();
+  const swayers = [];
+  let tx = 0, tz = 0, ty = 0;
+  const segN = 5;
+  for(let i=0;i<segN;i++){
+    const f0 = i/segN, f1 = (i+1)/segN;
+    const r0 = baseR*(1 - f0*0.82), r1 = baseR*(1 - f1*0.82);
+    const segH = h/segN;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segH, 8), matBark);
+    const dx = lean*segH*(i+0.5)/segN + rand(-0.04, 0.04)*jitter;
+    const dz = rand(-0.04, 0.04)*jitter;
+    seg.position.set(tx + dx/2, ty + segH/2, tz + dz/2);
+    seg.rotation.z = -Math.atan2(dx, segH);
+    seg.rotation.x = Math.atan2(dz, segH);
+    seg.castShadow = true;
+    tree.add(seg);
+    tx += dx; tz += dz; ty += segH;
+  }
+  const tipG = new THREE.ConeGeometry(0.16, 0.55, 7);
+  paintFoliage(tipG);
+  const tip = new THREE.Mesh(tipG, foliageMat());
+  tip.position.set(tx, ty + 0.24, tz);
+  tip.castShadow = true;
+  tree.add(tip);
+  const y0 = h*0.16;
+  for(let w=0;w<whorls;w++){
+    const f = w/(whorls - 1);
+    const wy = y0 + f*(h - y0 - h*0.14);
+    const wr = spread*(1 - f*0.78);
+    const n = Math.max(3, Math.round(perWhorl*(1 - f*0.3)));
+    const wobble = rand(0, Math.PI*2);
+    for(let b=0;b<n;b++){
+      if(sparse && rand() < sparse) continue;
+      const a = wobble + (b/n)*Math.PI*2 + rand(-0.25, 0.25)*jitter;
+      const len = wr*rand(0.75, 1.15);
+      const dr = droop*(0.5 + f*0.2 + rand(0, 0.5))*(1 + (1-f)*0.6);
+      const br = new THREE.Group();
+      br.position.set(tx*f, wy, tz*f);
+      br.rotation.y = -a;
+      const fanG = new THREE.ConeGeometry(len*0.30, len, 5);
+      fanG.rotateZ(-Math.PI/2);
+      fanG.scale(1, 0.26, 1);
+      fanG.translate(len*0.52, 0, 0);
+      paintFoliage(fanG);
+      const fan = new THREE.Mesh(fanG, foliageMat());
+      fan.rotation.z = -dr;
+      fan.castShadow = true;
+      br.add(fan);
+      const butt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, len*0.3, 5), matBark);
+      butt.rotation.z = Math.PI/2 + dr*0.5;
+      butt.position.set(len*0.14, 0, 0);
+      br.add(butt);
+      tree.add(br);
+      swayers.push({ g: br, ph: rand(0, Math.PI*2), amp: 0.5 + f*0.8 });
+    }
+  }
+  return { tree, swayers };
+}
+const FIR_SPECS = [
+  { h:7.2, baseR:0.26, whorls:11, perWhorl:8, spread:1.9, droop:0.28 },        // noble
+  { h:6.6, baseR:0.18, whorls:13, perWhorl:6, spread:1.05, droop:0.16 },       // slim
+  { h:5.6, baseR:0.34, whorls:8,  perWhorl:9, spread:2.5, droop:0.55, sparse:0.18 }, // elder
+  { h:2.6, baseR:0.08, whorls:5,  perWhorl:5, spread:0.85, droop:0.1, jitter:1.6 },  // sapling
+];
+
+// ---------- THE BERRY BUSH (bushgrowth_study.html, mature + young) ---------
+const matBushWood = new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true });
+const matRosL = new THREE.MeshLambertMaterial({ color:0x50783a, flatShading:true });
+const matRosD = new THREE.MeshLambertMaterial({ color:0x3f6030, flatShading:true });
+const matRed  = new THREE.MeshLambertMaterial({ color:0xd8433c, flatShading:true });
+const matGrn  = new THREE.MeshLambertMaterial({ color:0x7fa24a, flatShading:true });
+function makeBush(stage){
+  const g = new THREE.Group();
+  const armN = stage === 1 ? 1 : stage === 2 ? 2 : 4;
+  const s = stage === 1 ? 0.45 : stage === 2 ? 0.75 : 1;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12*s, 0.18*s, 0.6*s, 7), matBushWood);
+  trunk.position.y = 0.3*s;
+  trunk.castShadow = true;
+  g.add(trunk);
+  for(let i=0;i<armN;i++){
+    const a = (i/armN)*Math.PI*2 + rand(-0.3, 0.3);
+    const arm = new THREE.Group();
+    arm.position.y = 0.55*s;
+    arm.rotation.y = -a;
+    arm.rotation.z = -rand(0.5, 0.9);
+    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06*s, 0.09*s, 0.55*s, 6), matBushWood);
+    seg1.position.y = 0.27*s; seg1.castShadow = true;
+    arm.add(seg1);
+    const elbow = new THREE.Group();
+    elbow.position.y = 0.55*s;
+    elbow.rotation.z = rand(0.5, 1.0);
+    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.045*s, 0.06*s, 0.45*s, 6), matBushWood);
+    seg2.position.y = 0.22*s; seg2.castShadow = true;
+    elbow.add(seg2);
+    const ros = new THREE.Group();
+    ros.position.y = 0.48*s;
+    for(let k=0;k<7;k++){
+      const sp = new THREE.Group();
+      sp.rotation.y = -(k/7)*Math.PI*2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04*s, 0.32*s, 4), k % 3 ? matRosL : matRosD);
+      spike.rotation.z = -1.05;
+      spike.position.x = 0.12*s;
+      spike.castShadow = true;
+      sp.add(spike);
+      ros.add(sp);
+    }
+    elbow.add(ros);
+    if(stage === 3 || (stage === 2 && i === 0)){
+      const stem = new THREE.Group();
+      stem.position.set(0.1*s, 0.36*s, 0);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16*s, 4), matBushWood);
+      st.position.y = -0.08*s;
+      stem.add(st);
+      const fruit = new THREE.Mesh(new THREE.OctahedronGeometry(0.07*s, 0), i % 2 ? matRed : matGrn);
+      fruit.scale.set(1, 1.4, 1);
+      fruit.position.y = -0.18*s;
+      fruit.castShadow = true;
+      stem.add(fruit);
+      elbow.add(stem);
+    }
+    arm.add(elbow);
+    g.add(arm);
+  }
+  return g;
+}
+
+// ---------- THE PALM (palm_study.html buildTrunk/buildFrond, verbatim) -----
+function trunkTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#cdc2aa'; g.fillRect(0,0,256,128);
+  for(let i=0;i<130;i++){
+    const x = rand(256);
+    g.strokeStyle = rand() < 0.5
+      ? `rgba(90,75,55,${rand(0.04,0.11)})` : `rgba(240,230,205,${rand(0.05,0.14)})`;
+    g.lineWidth = rand(0.6, 2.2);
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + rand(-6,6), 128); g.stroke();
+  }
+  const band = g.createLinearGradient(0, 96, 0, 128);
+  band.addColorStop(0, 'rgba(0,0,0,0)');
+  band.addColorStop(0.55, 'rgba(70,58,40,0.2)');
+  band.addColorStop(0.75, 'rgba(52,42,28,0.32)');
+  band.addColorStop(1, 'rgba(40,32,20,0.16)');
+  g.fillStyle = band; g.fillRect(0, 96, 256, 32);
+  g.fillStyle = 'rgba(235,220,190,0.22)'; g.fillRect(0, 92, 256, 5);
+  for(let i=0;i<160;i++){
+    g.fillStyle = rand() < 0.7 ? `rgba(80,66,46,${rand(0.05,0.15)})`
+                               : `rgba(205,208,185,${rand(0.05,0.14)})`;
+    g.fillRect(rand(256), rand(128), rand(1,4), rand(1,3));
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function buildTrunk({ height = 9.2, lean = 0.16, rBase = 0.30, rTop = 0.145 }){
+  const N = 90, RADIAL = 14, RINGS = 26;
+  const spine = [];
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    spine.push(new THREE.Vector3(
+      lean*height*Math.pow(t,1.65) + 0.06*Math.sin(t*6.2 + 1.4)*t,
+      t*height, 0.05*Math.sin(t*4.7)*t));
+  }
+  const ringAmp = [];
+  for(let r=0;r<=RINGS;r++) ringAmp.push(rand(0.014, 0.032));
+  const posA = [], uvA = [], colA = [], idx = [];
+  const tang = new THREE.Vector3(), nrm = new THREE.Vector3(), bin = new THREE.Vector3();
+  const cGray = new THREE.Color(0xffffff), cTop = new THREE.Color(0xd9ddb8), c = new THREE.Color();
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    let r = rBase + (rTop - rBase)*Math.pow(t, 0.85);
+    r += 0.17*Math.exp(-t*9);
+    const ringPh = t*RINGS, ringI = Math.min(RINGS, Math.floor(ringPh));
+    r *= 1 + ringAmp[ringI]*(0.5 + 0.5*Math.cos(ringPh*Math.PI*2));
+    const p = spine[i];
+    tang.copy(spine[Math.min(N,i+1)]).sub(spine[Math.max(0,i-1)]).normalize();
+    bin.set(0,0,1);
+    nrm.crossVectors(bin, tang).normalize();
+    bin.crossVectors(tang, nrm).normalize();
+    c.copy(cGray).lerp(cTop, Math.max(0, (t-0.86)/0.14));
+    for(let j=0;j<=RADIAL;j++){
+      const a = (j/RADIAL)*Math.PI*2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const rr = r*(1 + 0.012*Math.sin(a*7 + ringI*2.4));
+      posA.push(p.x + (nrm.x*ca + bin.x*sa)*rr,
+                p.y + (nrm.y*ca + bin.y*sa)*rr,
+                p.z + (nrm.z*ca + bin.z*sa)*rr);
+      uvA.push(j/RADIAL*2, ringPh);
+      colA.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RADIAL;j++){
+    const a = i*(RADIAL+1)+j, b = a+RADIAL+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const top = spine[N].clone();
+  const tv = spine[N].clone().sub(spine[N-4]).normalize();
+  return { geo, top, tiltZ: Math.atan2(tv.x, tv.y) };
+}
+function buildFrond({ length = 4.0, elev = 0.5, droop = 1.5, nLeaf = 40,
+  leafMax = 0.88, leafW = 0.056, cInner = 0x3e6b25, cOuter = 0x74a742, collapsed = 0 }){
+  const NSEG = 22, MSEG = 3;
+  const posA = [], colA = [], idx = [];
+  const colorIn = new THREE.Color(cInner), colorOut = new THREE.Color(cOuter);
+  const cc = new THREE.Color();
+  const spine = [], angs = [];
+  {
+    let p = new THREE.Vector3(0,0,0);
+    const step = length/NSEG;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG;
+      const a = elev - droop*Math.pow(t, 1.6);
+      spine.push(p.clone()); angs.push(a);
+      p.x += Math.cos(a)*step; p.y += Math.sin(a)*step;
+    }
+  }
+  {
+    const RAD = 5, base = posA.length/3;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG, p = spine[i], a = angs[i];
+      const r = 0.045*(1-t) + 0.006;
+      const nx = -Math.sin(a), ny = Math.cos(a);
+      cc.copy(colorIn).lerp(colorOut, t*0.6);
+      for(let j=0;j<=RAD;j++){
+        const th = (j/RAD)*Math.PI*2, ct = Math.cos(th), st = Math.sin(th);
+        posA.push(p.x + nx*ct*r, p.y + ny*ct*r, p.z + st*r);
+        colA.push(cc.r, cc.g, cc.b);
+      }
+    }
+    for(let i=0;i<NSEG;i++) for(let j=0;j<RAD;j++){
+      const a2 = base + i*(RAD+1)+j, b2 = a2+RAD+1;
+      idx.push(a2, b2, a2+1, b2, b2+1, a2+1);
+    }
+  }
+  const T = new THREE.Vector3(), U = new THREE.Vector3(), S = new THREE.Vector3();
+  const d = new THREE.Vector3(), e = new THREE.Vector3(), n = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  for(let side = -1; side <= 1; side += 2){
+    for(let i=0;i<nLeaf;i++){
+      const tt = (i + 0.5)/nLeaf;
+      const t = 0.13 + 0.87*tt + rand(-0.006, 0.006);
+      const si = Math.min(NSEG-1, Math.floor(t*NSEG));
+      const f = t*NSEG - si;
+      const p0 = q.copy(spine[si]).lerp(spine[si+1], f).clone();
+      const a = angs[si] + (angs[si+1]-angs[si])*f;
+      T.set(Math.cos(a), Math.sin(a), 0);
+      U.set(-Math.sin(a), Math.cos(a), 0);
+      S.set(0, 0, side);
+      const len = leafMax*(0.22 + 0.78*Math.pow(Math.sin(Math.PI*(0.08 + 0.88*tt)), 0.7))*rand(0.92, 1.08);
+      const sweep = 0.5 + 0.35*tt + collapsed*0.75;
+      const upAmt = (0.55 - 0.75*tt)*(1 - collapsed*0.9) - collapsed*0.25;
+      d.copy(S).multiplyScalar(Math.cos(sweep))
+       .addScaledVector(T, Math.sin(sweep)).addScaledVector(U, upAmt).normalize();
+      const droopL = (0.30 + 1.15*tt + collapsed*0.8)/MSEG;
+      const w0 = leafW*(1 - collapsed*0.55)*rand(0.85,1.15);
+      const base = posA.length/3;
+      const pp = p0.clone(), dd = d.clone();
+      for(let m=0;m<=MSEG;m++){
+        const u = m/MSEG;
+        e.crossVectors(dd, T).normalize();
+        n.crossVectors(e, dd).normalize();
+        if(n.y < 0){ n.negate(); e.negate(); }
+        const w = w0*(1 - u*u*0.96)*Math.min(1, 0.35 + u*3);
+        const foldDrop = w*0.45;
+        cc.copy(colorIn).lerp(colorOut, Math.min(1, tt*0.5 + u*0.65)).multiplyScalar(rand(0.94, 1.03));
+        posA.push(pp.x - e.x*w - n.x*foldDrop, pp.y - e.y*w - n.y*foldDrop, pp.z - e.z*w - n.z*foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        posA.push(pp.x, pp.y, pp.z);
+        colA.push(cc.r, cc.g, cc.b);
+        posA.push(pp.x + e.x*w - n.x*foldDrop, pp.y + e.y*w - n.y*foldDrop, pp.z + e.z*w - n.z*foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        pp.addScaledVector(dd, len/MSEG);
+        dd.y -= droopL; dd.normalize();
+      }
+      for(let m=0;m<MSEG;m++){
+        const r0 = base + m*3, r1 = r0 + 3;
+        idx.push(r0, r1, r0+1,  r1, r1+1, r0+1,
+                 r0+1, r1+1, r0+2,  r1+1, r1+2, r0+2);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+const FROND_RINGS = [
+  { n:3, elev:1.12, droop:0.95, len:0.52, y: 0.30 },
+  { n:5, elev:0.72, droop:1.30, len:0.86, y: 0.16 },
+  { n:6, elev:0.34, droop:1.55, len:1.00, y: 0.04 },
+  { n:5, elev:0.02, droop:1.72, len:0.94, y:-0.06 },
+  { n:3, elev:-0.5, droop:1.25, len:0.72, y:-0.14, dead:true },
+];
+function buildPalmParts(){
+  const trunk = buildTrunk({});
+  const crown = new THREE.Group();
+  crown.position.copy(trunk.top);
+  crown.rotation.z = -trunk.tiltZ*0.55;
+  const frondMat = new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide });
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9),
+    new THREE.MeshLambertMaterial({ color:0x74804a }));
+  bulb.scale.set(1, 1.4, 1); bulb.position.y = 0.04;
+  crown.add(bulb);
+  let ringOfs = rand(Math.PI*2);
+  for(const ring of FROND_RINGS){
+    ringOfs += 2.399963;
+    for(let i=0;i<ring.n;i++){
+      const geo = buildFrond({
+        length: 4.1*ring.len*rand(0.94,1.06),
+        elev: ring.elev + rand(-0.07, 0.07),
+        droop: (ring.droop||1.5)*rand(0.92, 1.08),
+        leafMax: 0.88*Math.sqrt(ring.len),
+        collapsed: ring.dead ? 0.85 : 0,
+        cInner: ring.dead ? 0x6b512e : 0x3e6b25,
+        cOuter: ring.dead ? 0xa8854e : 0x74a742,
+      });
+      const m = new THREE.Mesh(geo, frondMat);
+      m.rotation.order = 'YZX';
+      m.rotation.y = ringOfs + (i/ring.n)*Math.PI*2 + rand(-0.18, 0.18);
+      m.rotation.x = rand(-0.1, 0.1);
+      m.position.y = ring.y;
+      crown.add(m);
+    }
+  }
+  const nutGeo = new THREE.SphereGeometry(0.17, 10, 8);
+  const green = new THREE.MeshLambertMaterial({ color:0x7d8b3c });
+  const brown = new THREE.MeshLambertMaterial({ color:0x6b5432 });
+  for(let i=0;i<5;i++){
+    const nut = new THREE.Mesh(nutGeo, i%3 ? green : brown);
+    const a = rand(Math.PI*2);
+    nut.position.set(Math.cos(a)*rand(0.24,0.42), rand(-0.34,-0.14), Math.sin(a)*rand(0.24,0.42));
+    nut.scale.set(1, 1.18, 1);
+    crown.add(nut);
+  }
+  return { trunk, crown };
+}
+
+// ---------- placement + instancing -----------------------------------------
+const nearPass = a => Math.min(Math.abs(angdiff(a, PASS1)), Math.abs(angdiff(a, PASS2))) < 0.22;
+const nearFallLine = (a, d) =>
+  d > 26 && d < 95 &&
+  Math.min(Math.abs(angdiff(a, FALL_A)), Math.abs(angdiff(a, FALL_B))) < 0.12;
+const nearHall = (x, z) => Math.hypot(x-HALL.x, z-HALL.z) < 17;
+
+function scatter(count, pick){
+  const mats = [];
+  let guard = count*40;
+  while(mats.length < count && guard-- > 0){
+    const spot = pick();
+    if(spot) mats.push(spot);
+  }
+  return mats;
+}
+function placeMatrix(x, z, sink, sc, scY){
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), rand(0, Math.PI*2));
+  m.compose(new THREE.Vector3(x, terrainH(x, z) - sink, z), q,
+            new THREE.Vector3(sc, scY ?? sc, sc));
+  return m;
+}
+function addInstanced(geo, mat, matrices){
+  const im = new THREE.InstancedMesh(geo, mat, matrices.length);
+  matrices.forEach((m, i) => im.setMatrixAt(i, m));
+  im.castShadow = true;
+  im.receiveShadow = true;
+  im.instanceMatrix.needsUpdate = true;
+  scene.add(im);
+  return im;
+}
+const bakedLambert = () => new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+
+// FIRS — on the ring's shoulders, inside and out
+{
+  const firGeos = FIR_SPECS.map(s => bakeGroup(makeFir(s).tree));
+  const perVariant = [[], [], [], []];
+  scatter(150, () => {
+    const a = rand(-Math.PI, Math.PI);
+    const d = rand(ringR(a) - 40, ringR(a) + 46);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z);
+    if(h < 9.5 || h > ringH(a) - 4.5) return null;
+    if(slopeAt(x, z) > 0.95) return null;
+    if(nearPass(a) || nearFallLine(a, d) || nearHall(x, z)) return null;
+    const v = rand() < 0.15 ? 3 : Math.floor(rand(3));
+    perVariant[v].push(placeMatrix(x, z, 0.25, rand(0.8, 1.25)));
+    return true;
+  });
+  firGeos.forEach((g, v) => perVariant[v].length &&
+    addInstanced(g, bakedLambert(), perVariant[v]));
+}
+
+// BERRY BUSHES — the forage: inner terraces + valley floor, a few outside
+{
+  const bushGeos = [1, 2, 3].map(st => bakeGroup(makeBush(st)));
+  const perStage = [[], [], []];
+  scatter(85, () => {
+    const a = rand(-Math.PI, Math.PI);
+    const d = rand(24, ringR(a) - 32);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z);
+    if(h < LAKE_Y + 0.7 || h > 21) return null;
+    if(slopeAt(x, z) > 0.5 || nearHall(x, z) || nearFallLine(a, d)) return null;
+    const st = rand() < 0.5 ? 2 : rand() < 0.7 ? 1 : 0;
+    perStage[st].push(placeMatrix(x, z, 0.06, rand(0.85, 1.2)));
+    return true;
+  });
+  scatter(25, () => {
+    const a = rand(-Math.PI, Math.PI);
+    const d = rand(ringR(a) + 38, coastR(a) - 22);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z);
+    if(h < 3 || h > 12 || slopeAt(x, z) > 0.5) return null;
+    perStage[Math.floor(rand(3))].push(placeMatrix(x, z, 0.06, rand(0.85, 1.15)));
+    return true;
+  });
+  bushGeos.forEach((g, i) => perStage[i].length &&
+    addInstanced(g, bakedLambert(), perStage[i]));
+}
+
+// PALMS — the outer coast, thick around the landing beach
+{
+  const parts = buildPalmParts();
+  const crownGeo = bakeGroup(parts.crown);   // bake root carries trunk.top offset
+  const mats = [];
+  scatter(46, () => {
+    const a = rand(-Math.PI, Math.PI);
+    const beachBias = Math.abs(angdiff(a, BEACH_A)) < 0.5 && rand() < 0.5;
+    const d = rand(coastR(a) - 34, coastR(a) - 9);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z);
+    if(h < 1.2 || h > (beachBias ? 4 : 6.5)) return null;
+    if(slopeAt(x, z) > 0.55) return null;
+    mats.push(placeMatrix(x, z, 0.25, rand(0.72, 1.0), rand(0.72, 1.05)));
+    return true;
+  });
+  const trunkMat = new THREE.MeshLambertMaterial({ map:trunkTexture(), vertexColors:true });
+  addInstanced(parts.trunk.geo, trunkMat, mats);
+  addInstanced(crownGeo, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.DoubleSide }), mats);
+}
+
+// ROCKS — soft rounded boulders at the ring's feet and the lake shore
+{
+  const g = new THREE.IcosahedronGeometry(1, 1).toNonIndexed();
+  const pos = g.attributes.position, col = new Float32Array(pos.count*3);
+  const lo = new THREE.Color(0x8f857a), hi = new THREE.Color(0xb5aca0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    pos.setXYZ(i, pos.getX(i)*(1 + rand(-0.1, 0.1)),
+                  pos.getY(i)*0.72*(1 + rand(-0.08, 0.08)),
+                  pos.getZ(i)*(1 + rand(-0.1, 0.1)));
+    c.copy(lo).lerp(hi, clamp(0.5 + pos.getY(i)*0.5, 0, 1));
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  const mats = [];
+  scatter(42, () => {
+    const a = rand(-Math.PI, Math.PI);
+    const d = rand() < 0.35 ? rand(31, 44) : rand(ringR(a) - 46, ringR(a) + 50);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z);
+    if(h < LAKE_Y - 1 || nearHall(x, z)) return null;
+    mats.push(placeMatrix(x, z, 0.45, rand(0.7, 2.2), rand(0.6, 1.4)));
+    return true;
+  });
+  addInstanced(g, bakedLambert(), mats);
+}
+
+// ---------- HERO trees (full builds, they sway) -----------------------------
+const heroSway = [];   // fir branch groups
+const heroFronds = []; // palm fronds
+{
+  for(const [dx, dz, si] of [[-9, 3, 0], [8.5, -4, 2]]){
+    const { tree, swayers } = makeFir(FIR_SPECS[si]);
+    const x = HALL.x + dx, z = HALL.z + dz;
+    tree.position.set(x, terrainH(x, z) - 0.2, z);
+    tree.rotation.y = rand(0, Math.PI*2);
+    scene.add(tree);
+    heroSway.push(...swayers);
+  }
+  const frondMat = new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide });
+  for(const [hx, hz, sc] of [[-14, 138, 1.0], [10, 143, 0.9], [-2, 148, 0.82]]){
+    const trunk = buildTrunk({ lean: rand(0.1, 0.22) });
+    const tree = new THREE.Group();
+    const tm = new THREE.Mesh(trunk.geo, new THREE.MeshLambertMaterial({
+      map: trunkTexture(), vertexColors:true }));
+    tm.castShadow = tm.receiveShadow = true;
+    tree.add(tm);
+    const crown = new THREE.Group();
+    crown.position.copy(trunk.top);
+    crown.rotation.z = -trunk.tiltZ*0.55;
+    tree.add(crown);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9),
+      new THREE.MeshLambertMaterial({ color:0x74804a }));
+    bulb.scale.set(1, 1.4, 1);
+    crown.add(bulb);
+    let ringOfs = rand(Math.PI*2);
+    for(const ring of FROND_RINGS){
+      ringOfs += 2.399963;
+      for(let i=0;i<ring.n;i++){
+        const geo = buildFrond({
+          length: 4.1*ring.len*rand(0.94,1.06),
+          elev: ring.elev + rand(-0.07, 0.07),
+          droop: ring.droop*rand(0.92, 1.08),
+          leafMax: 0.88*Math.sqrt(ring.len),
+          collapsed: ring.dead ? 0.85 : 0,
+          cInner: ring.dead ? 0x6b512e : 0x3e6b25,
+          cOuter: ring.dead ? 0xa8854e : 0x74a742,
+        });
+        const m = new THREE.Mesh(geo, frondMat);
+        m.castShadow = i % 3 !== 1;
+        m.rotation.order = 'YZX';
+        m.rotation.y = ringOfs + (i/ring.n)*Math.PI*2 + rand(-0.18, 0.18);
+        m.position.y = ring.y;
+        crown.add(m);
+        if(!ring.dead) heroFronds.push({ m, amp: 0.028, ph: rand(9), fr: rand(0.75, 1.05) });
+      }
+    }
+    tree.position.set(hx, terrainH(hx, hz) - 0.25, hz);
+    tree.scale.setScalar(sc);
+    tree.rotation.y = rand(Math.PI*2);
+    scene.add(tree);
+  }
+}
+
+// ==========================================================================
+//  THE KING'S HALL — timber over stone on the rim, door facing the bowl
+// ==========================================================================
+const hallFlags = [];
+let fireLight;
+{
+  const hall = new THREE.Group();
+  hall.position.set(HALL.x, HALL_Y, HALL.z);
+  const stone = new THREE.MeshLambertMaterial({ color:0x9a9082, flatShading:true });
+  const wood  = new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true });
+  const woodD = new THREE.MeshLambertMaterial({ color:0x54412a, flatShading:true });
+  const roofM = new THREE.MeshLambertMaterial({ color:0x8a7448, flatShading:true });
+  const gold  = new THREE.MeshStandardMaterial({ color:0xd8b23a, metalness:0.7, roughness:0.35 });
+
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(11, 12.5, 1.6, 24), stone);
+  plinth.position.y = 0.4;
+  plinth.receiveShadow = true;
+  hall.add(plinth);
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.5, 8.5), woodD);
+  floor.position.y = 1.45;
+  hall.add(floor);
+
+  // long walls (the south wall parts around the door)
+  for(const sz of [-1, 1]){
+    if(sz > 0){
+      for(const wx of [-4.35, 4.35]){
+        const w = new THREE.Mesh(new THREE.BoxGeometry(5.8, 3.2, 0.5), wood);
+        w.position.set(wx, 3.3, 4*sz);
+        w.castShadow = true;
+        hall.add(w);
+      }
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 0.6), woodD);
+      lintel.position.set(0, 4.35, 4*sz);
+      hall.add(lintel);
+    } else {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(14.5, 3.2, 0.5), wood);
+      w.position.set(0, 3.3, 4*sz);
+      w.castShadow = true;
+      hall.add(w);
+    }
+  }
+  // gable walls, with the peak triangle cheated as a slim box stack
+  for(const sx of [-1, 1]){
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.2, 8.5), wood);
+    w.position.set(7*sx, 3.3, 0);
+    w.castShadow = true;
+    hall.add(w);
+    const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.4, 5.6), wood);
+    g1.position.set(7*sx, 5.55, 0);
+    hall.add(g1);
+    const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 2.6), wood);
+    g2.position.set(7*sx, 6.8, 0);
+    hall.add(g2);
+  }
+  // roof slabs
+  for(const sz of [-1, 1]){
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.32, 5.6), roofM);
+    slab.rotation.x = sz*0.53;
+    slab.position.set(0, 6.1, -sz*2.35);
+    slab.castShadow = true;
+    hall.add(slab);
+  }
+  const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 16.4, 7), woodD);
+  ridge.rotation.z = Math.PI/2;
+  ridge.position.y = 7.42;
+  hall.add(ridge);
+  // crossed horn finials
+  for(const sx of [-1, 1]) for(const k of [-1, 1]){
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 1.7, 6), gold);
+    horn.position.set(8.1*sx, 8.05, k*0.35);
+    horn.rotation.x = k*0.55;
+    horn.castShadow = true;
+    hall.add(horn);
+  }
+  // porch posts
+  for(const px of [-5.5, -1.9, 1.9, 5.5]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 3.4, 7), woodD);
+    post.position.set(px, 3.2, 4.6);
+    post.castShadow = true;
+    hall.add(post);
+  }
+  // banner poles by the door, pennants flutter
+  for(const sx of [-1, 1]){
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 6, 6), woodD);
+    pole.position.set(2.6*sx, 3.9, 5.6);
+    hall.add(pole);
+    const flagG = new THREE.PlaneGeometry(1.7, 0.75, 6, 1);
+    flagG.translate(0.85, 0, 0);
+    const flag = new THREE.Mesh(flagG, new THREE.MeshLambertMaterial({
+      color:0xd8b23a, side:THREE.DoubleSide }));
+    flag.position.set(2.6*sx, 6.55, 5.6);
+    hall.add(flag);
+    hallFlags.push({ flag, base: flagG.attributes.position.array.slice(), ph: rand(9) });
+  }
+  // the king's fire on the court, looking into the bowl
+  const fire = new THREE.Group();
+  fire.position.set(0, 0.2, 9);
+  for(let i=0;i<8;i++){
+    const a = (i/8)*Math.PI*2;
+    const st = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(0.22, 0.34), 0), stone);
+    st.position.set(Math.cos(a)*1.15, 0.15, Math.sin(a)*1.15);
+    fire.add(st);
+  }
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.3, 7),
+    new THREE.MeshBasicMaterial({ color:0xff9a4a, transparent:true, opacity:0.9 }));
+  flame.position.y = 0.75;
+  fire.add(flame);
+  fireLight = new THREE.PointLight(0xffa050, 26, 22, 1.8);
+  fireLight.position.y = 1.6;
+  fire.add(fireLight);
+  hall.add(fire);
+  hall.userData.flame = flame;
+  scene.add(hall);
+  window.CALDERA_HALL = hall;
+}
+
+// ---------- scale Vitas (the meter-stick: ~1.5 to the crown) ---------------
+function makeVita(tunic, bent){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 4, 10),
+    new THREE.MeshLambertMaterial({ color: tunic, flatShading:true }));
+  body.position.y = 0.78;
+  body.castShadow = true;
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9),
+    new THREE.MeshLambertMaterial({ color:0xe8b98a, flatShading:true }));
+  head.position.y = 1.28;
+  head.castShadow = true;
+  g.add(head);
+  if(bent) g.rotation.x = 0.5;
+  return g;
+}
+{
+  const king = makeVita(0x8a3a8a);
+  king.position.set(HALL.x + 1.5, HALL_Y + 1.7, HALL.z + 10.5);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.18, 8),
+    new THREE.MeshStandardMaterial({ color:0xd8b23a, metalness:0.7, roughness:0.35 }));
+  crown.position.y = 1.55;
+  king.add(crown);
+  scene.add(king);
+  const spots = [[18, -18, 0x3a6a9a, true], [-12, 8, 0x9a6a3a, true], [4, 136, 0x6a9a3a, false]];
+  for(const [x, z, col, bent] of spots){
+    const v = makeVita(col, bent);
+    v.position.set(x, terrainH(x, z), z);
+    v.rotation.y = rand(Math.PI*2);
+    scene.add(v);
+  }
+}
+
+// ==========================================================================
+//  THE EASTER-EGG CHAMBER — jeweled cavern under the lake. Its stone door
+//  stands behind the hero waterfall; the button teleports the camera.
+// ==========================================================================
+const CH = new THREE.Vector3(0, -52, 0);
+{
+  const room = new THREE.Group();
+  room.position.copy(CH);
+  // shell — deep rock, star-flecked
+  const shellG = new THREE.SphereGeometry(16, 30, 20);
+  {
+    const pos = shellG.attributes.position, col = [];
+    const base = new THREE.Color(0x241c30), c = new THREE.Color();
+    for(let i=0;i<pos.count;i++){
+      c.copy(base).offsetHSL(rand(-0.03, 0.05), 0, rand(-0.02, 0.05));
+      if(rand() < 0.045) c.setHSL(rand(), 0.65, 0.6);   // jewel flecks
+      col.push(c.r, c.g, c.b);
+    }
+    shellG.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  }
+  room.add(new THREE.Mesh(shellG, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(14, 32),
+    new THREE.MeshLambertMaterial({ color:0x3a3048, fog:false }));
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -4;
+  room.add(floor);
+  // gem clusters
+  const GEMS = [0x39d98a, 0x3b7bff, 0xff4d6a, 0xffb347, 0xb96bff];
+  for(let i=0;i<9;i++){
+    const a = (i/9)*Math.PI*2 + rand(-0.2, 0.2);
+    const cx = Math.cos(a)*rand(7, 10), cz = Math.sin(a)*rand(7, 10);
+    for(let k=0;k<3;k++){
+      const col = GEMS[Math.floor(rand(GEMS.length))];
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.5, 1.3), 0),
+        new THREE.MeshStandardMaterial({ color: col, metalness:0.15, roughness:0.25,
+          emissive: col, emissiveIntensity:0.28, fog:false }));
+      gem.position.set(cx + rand(-1, 1), -4 + rand(0.3, 1.1), cz + rand(-1, 1));
+      gem.rotation.set(rand(3), rand(3), rand(3));
+      gem.castShadow = true;
+      room.add(gem);
+    }
+  }
+  // pedestal + THE GOLDEN EGG
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.2, 1.4, 10),
+    new THREE.MeshLambertMaterial({ color:0x584a6a, flatShading:true, fog:false }));
+  ped.position.y = -3.3;
+  room.add(ped);
+  const egg = new THREE.Mesh(new THREE.SphereGeometry(1.1, 20, 16),
+    new THREE.MeshStandardMaterial({ color:0xffc84a, metalness:0.9, roughness:0.22,
+      emissive:0x332200, fog:false }));
+  egg.scale.set(1, 1.35, 1);
+  egg.position.y = -1.2;
+  egg.castShadow = true;
+  room.add(egg);
+  window.CALDERA_EGG = egg;
+  // light + drifting motes
+  const warm = new THREE.PointLight(0xffd9a0, 60, 46, 1.7);
+  warm.position.set(0, 3, 0);
+  room.add(warm);
+  const cool = new THREE.PointLight(0x86c8ff, 25, 40, 1.7);
+  cool.position.set(-7, -1, 6);
+  room.add(cool);
+  const moteG = new THREE.BufferGeometry();
+  const mp = [];
+  for(let i=0;i<50;i++){
+    const a = rand(Math.PI*2), r = rand(2, 11);
+    mp.push(Math.cos(a)*r, rand(-3.5, 6), Math.sin(a)*r);
+  }
+  moteG.setAttribute('position', new THREE.Float32BufferAttribute(mp, 3));
+  const motes = new THREE.Points(moteG, new THREE.PointsMaterial({
+    color:0xffe9b0, size:0.16, transparent:true, opacity:0.8, fog:false }));
+  room.add(motes);
+  room.userData.motes = motes;
+  scene.add(room);
+  window.CALDERA_ROOM = room;
+
+  // the little stone door behind the hero waterfall, up in the world
+  const door = new THREE.Group();
+  const dx = Math.cos(FALL_A)*31.6, dz = Math.sin(FALL_A)*31.6;
+  door.position.set(dx, LAKE_Y + 0.1, dz);
+  const dStone = new THREE.MeshLambertMaterial({ color:0x6a6258, flatShading:true });
+  for(const sx of [-0.9, 0.9]){
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.6, 0.5), dStone);
+    jamb.position.set(sx, 1.3, 0);
+    door.add(jamb);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.5, 0.55), dStone);
+  lintel.position.y = 2.75;
+  door.add(lintel);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.25),
+    new THREE.MeshLambertMaterial({ color:0x4a4440, flatShading:true }));
+  slab.position.set(0, 1.25, 0.05);
+  door.add(slab);
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 0.06),
+    new THREE.MeshStandardMaterial({ color:0xd8b23a, metalness:0.7, roughness:0.3,
+      emissive:0x664d12 }));
+  seam.position.set(0, 1.25, 0.2);
+  door.add(seam);
+  door.lookAt(0, LAKE_Y + 0.1, 0);
+  scene.add(door);
+}
+
+// ---------- the two buttons -------------------------------------------------
+let inChamber = false;
+const savedCam = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+document.getElementById('egg').addEventListener('click', () => {
+  const btn = document.getElementById('egg');
+  if(!inChamber){
+    savedCam.pos.copy(camera.position);
+    savedCam.tgt.copy(controls.target);
+    camera.position.set(CH.x + 9, CH.y + 2.5, CH.z + 11);
+    controls.target.set(CH.x, CH.y - 1, CH.z);
+    btn.textContent = '⬅ Return to the Caldera';
+  } else {
+    camera.position.copy(savedCam.pos);
+    controls.target.copy(savedCam.tgt);
+    btn.textContent = '🥚 Go to Easter Egg Room';
+  }
+  inChamber = !inChamber;
+  controls.update();
+});
+document.getElementById('shot').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  renderer.domElement.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = `caldera_rev${REV}_${Date.now()}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+});
+
+// ---------- animate ---------------------------------------------------------
+const clock = new THREE.Clock();
+const oPos = oGeo.attributes.position, oCol = oGeo.attributes.color;
+const lPos = lGeo.attributes.position, lCol = lGeo.attributes.color;
+const cTmp = new THREE.Color(), cTmp2 = new THREE.Color();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // OCEAN — crests parallel the coast, foam at the waterline
+  for(let i=0;i<oPos.count;i++){
+    const dc = oInfo[i];
+    const amp = 0.26*(1 - sstep(10, 70, dc)) * sstep(-14, -8, dc);
+    const crest = Math.sin(dc*0.42 - t*1.8) + 0.5*Math.sin(dc*0.21 - t*1.1 + 1.3);
+    oPos.setY(i, amp*crest);
+    cTmp.copy(DEEP).lerp(SHALLOW, 1 - sstep(2, 30, dc));
+    const fm = Math.pow(clamp(0.5 + 0.5*Math.sin(dc*0.42 - t*1.8), 0, 1), 2.2)
+             * Math.exp(-(((dc + 6)/6.5)**2));
+    cTmp.lerp(FOAM, fm*0.95);
+    oCol.setXYZ(i, cTmp.r, cTmp.g, cTmp.b);
+  }
+  oPos.needsUpdate = true; oCol.needsUpdate = true;
+
+  // LAKE — a tenth of the tempo; foam at the shore and under the falls
+  for(let i=0;i<lPos.count;i++){
+    const inf = lInfo[i];
+    lPos.setY(i, 0.05*Math.sin(inf.r*1.3 - t*0.55) * sstep(0.15, 1.2, inf.depth));
+    cTmp.copy(SHALLOW).lerp(cTmp2.set(0x2f7a92), clamp(inf.depth/4.5, 0, 1));
+    cTmp.lerp(FOAM, (1 - sstep(0.1, 0.7, inf.depth))*0.45);
+    const pf = Math.exp(-((inf.fd/4)**2)) * (0.55 + 0.45*Math.sin(t*3 + inf.r*2));
+    cTmp.lerp(FOAM, clamp(pf, 0, 1)*0.85);
+    lCol.setXYZ(i, cTmp.r, cTmp.g, cTmp.b);
+  }
+  lPos.needsUpdate = true; lCol.needsUpdate = true;
+
+  // WATERFALLS — foam bands race down the cascade
+  for(const F of falls){
+    const col = F.geo.attributes.color;
+    for(let i=0;i<col.count;i++){
+      const v = F.vArr[i], st = F.steep[i];
+      const band = 0.5 + 0.5*Math.sin(v*1.6 - t*6) ;
+      const band2 = 0.5 + 0.5*Math.sin(v*3.1 - t*9 + 2);
+      // foam follows the DROP: white where it falls, blue stream where it runs
+      cTmp.copy(F.base).lerp(FOAM,
+        clamp((band*0.45 + band2*0.25)*(0.12 + st*1.3) + st*0.45, 0, 1));
+      col.setXYZ(i, cTmp.r, cTmp.g, cTmp.b);
+    }
+    col.needsUpdate = true;
+    F.mist.forEach((m, k) => {
+      const p = 1 + 0.35*Math.sin(t*2.2 + m.ph);
+      m.s.scale.setScalar(p*(1 + k*0.5));
+      m.s.material.opacity = 0.22 + 0.08*Math.sin(t*3 + m.ph);
+    });
+  }
+
+  // hero sway (STYLE.md wind: one gentle signal)
+  for(const s of heroSway){
+    s.g.rotation.x = Math.sin(t*0.9 + s.ph)*0.008*s.amp;
+    s.g.rotation.z = Math.sin(t*1.3 + s.ph*1.7)*0.006*s.amp;
+  }
+  for(const f of heroFronds)
+    f.m.rotation.z = f.amp*(Math.sin(t*f.fr + f.ph) + 0.45*Math.sin(t*f.fr*2.3 + f.ph*1.7));
+
+  // hall pennants + fire
+  for(const F of hallFlags){
+    const pos = F.flag.geometry.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const x = F.base[i*3];
+      pos.setZ(i, 0.1*x*Math.sin(t*5 + x*2.2 + F.ph));
+    }
+    pos.needsUpdate = true;
+  }
+  if(fireLight){
+    fireLight.intensity = 24 + 7*Math.sin(t*11) + 4*Math.sin(t*23 + 1);
+    const fl = window.CALDERA_HALL.userData.flame;
+    fl.scale.set(1 + 0.12*Math.sin(t*9), 1 + 0.2*Math.sin(t*13 + 2), 1 + 0.12*Math.cos(t*9));
+  }
+
+  // the chamber breathes
+  if(window.CALDERA_ROOM){
+    window.CALDERA_ROOM.userData.motes.rotation.y = t*0.06;
+    window.CALDERA_EGG.rotation.y = t*0.25;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+window.CALDERA = { renderer, scene, camera, controls, terrainH, REV };
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
