@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     VITA ANIMATION STUDY — the big pose & animation library.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief, all of it: RUN · SKIP · crazy DANCE · triumphant
+     JUMPS · CARTWHEEL · POINTING in several directions · head-shake
+     YES and NO · PICK fruit and HAND it to another Vita · defensive
+     CROUCH · arm-waving SHOUT · TALK faces (happy · sad · enraged ·
+     bossy · starving · weeping, mouth flapping) · THREE proper sleep
+     poses, flat on the ground (BACK · SIDE · TUMMY arms sprawled) ·
+     KNEEL · full PROSTRATE bow · THREATEN · and the HORSE set: walk
+     up, MOUNT, RIDE (walk and canter), DISMOUNT.
+     (The wagon-pulling and plow-walking Vitas live in wagon_study and
+     plow_study — this file is the body language library.)
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vita Animation Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e8d8; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,28,20,0.8); color:#eef4e8;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:280px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip select {
+    margin-top:6px; padding:5px 8px; border:0; border-radius:7px;
+    background:#3f7040; color:#fff; font:13px system-ui; cursor:pointer; width:100%;
+  }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎭 Vita Animation Study</b> — the pose library, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <select id="animsel">
+    <optgroup label="Locomotion & joy">
+      <option value="run">Run</option>
+      <option value="skip">Skip</option>
+      <option value="dance" selected>Dance (crazily)</option>
+      <option value="jump">Triumphant jumps</option>
+      <option value="cartwheel">Cartwheel</option>
+    </optgroup>
+    <optgroup label="Social">
+      <option value="point">Pointing about</option>
+      <option value="yes">Nod YES</option>
+      <option value="no">Shake NO</option>
+      <option value="give">Pick fruit & hand it over</option>
+      <option value="talk">Talk (faces cycle)</option>
+    </optgroup>
+    <optgroup label="Conflict & deference">
+      <option value="crouch">Defensive crouch</option>
+      <option value="shout">Arm-waving shout</option>
+      <option value="threaten">Threaten</option>
+      <option value="kneel">Kneel</option>
+      <option value="prostrate">Full prostrate bow</option>
+    </optgroup>
+    <optgroup label="Sleep (flat on the ground)">
+      <option value="sleepback">Sleep — on the back</option>
+      <option value="sleepside">Sleep — on the side</option>
+      <option value="sleeptummy">Sleep — tummy, arms sprawled</option>
+    </optgroup>
+    <optgroup label="The horse">
+      <option value="ride">Mount → ride → canter → dismount</option>
+    </optgroup>
+  </select>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 98765;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e6d6), 45, 260);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(3.6, 2.6, 6.4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.5;
+controls.maxDistance = 36;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f4e6), zenith = new THREE.Color(0x82b4da),
+        below = new THREE.Color(0xd6dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/300;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8ab80, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(18, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10;  sun.shadow.camera.bottom = -10;
+sun.shadow.camera.near = 6; sun.shadow.camera.far = 70;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcc084 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  THE VITA RIG — body-root (for cartwheels and lying flat) → hips →
+//  torso → head with a repaintable canvas FACE. Single-pivot limbs with
+//  z-spread. makeVita(dressColor) returns the full handle set.
+// ==========================================================================
+function makeFaceTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return { cv, tex };
+}
+// expression painter: brows, eyes, mouth per mood; mouthOpen 0..1 for talk
+function paintFace(cv, mood, mouthOpen = 0){
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, 128, 128);
+  const eyeY = 52, mx = 64;
+  // eyes
+  const teary = mood === 'weeping' || mood === 'sad';
+  for(const s of [-1, 1]){
+    const ex = mx + s*22;
+    if(mood === 'starving'){
+      // hollow, half-lidded
+      g.fillStyle = '#241d16';
+      g.fillRect(ex - 7, eyeY - 2, 14, 5);
+    } else {
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.ellipse(ex, eyeY, 9, mood === 'enraged' ? 7 : 10, 0, 0, Math.PI*2); g.fill();
+      g.fillStyle = '#241d16';
+      g.beginPath(); g.arc(ex, eyeY + (teary ? 2 : 0), 4.4, 0, Math.PI*2); g.fill();
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.arc(ex + 1.6, eyeY - 1.6, 1.5, 0, Math.PI*2); g.fill();
+    }
+    // brows
+    g.strokeStyle = '#241d16'; g.lineWidth = 4.5; g.lineCap = 'round';
+    g.beginPath();
+    if(mood === 'enraged' || mood === 'bossy' || mood === 'threaten'){
+      g.moveTo(ex - 9, eyeY - 16 + s*0); g.lineTo(ex + 9, eyeY - 10);   // slammed inward
+      if(s < 0){ g.moveTo(ex + 9, eyeY - 16); g.lineTo(ex - 9, eyeY - 10); }
+    } else if(mood === 'sad' || mood === 'weeping' || mood === 'starving'){
+      g.moveTo(ex - 9, eyeY - 11); g.lineTo(ex + 9, eyeY - 16);          // hurting
+      if(s < 0){ g.moveTo(ex + 9, eyeY - 11); g.lineTo(ex - 9, eyeY - 16); }
+    } else {
+      g.moveTo(ex - 9, eyeY - 15); g.quadraticCurveTo(ex, eyeY - 19, ex + 9, eyeY - 15);
+    }
+    g.stroke();
+    // tears
+    if(mood === 'weeping'){
+      g.fillStyle = '#79c4e8';
+      g.beginPath(); g.ellipse(ex, eyeY + 16, 3, 6 + Math.sin(Date.now()/150 + s)*2, 0, 0, Math.PI*2); g.fill();
+    }
+  }
+  // mouth
+  g.strokeStyle = '#241d16'; g.lineWidth = 5; g.lineCap = 'round';
+  const mo = mouthOpen;
+  if(mo > 0.08){                        // talking / shouting: an open oval
+    g.fillStyle = '#5c2c28';
+    g.beginPath(); g.ellipse(mx, 92, 10 + mo*4, 4 + mo*11, 0, 0, Math.PI*2); g.fill();
+  } else if(mood === 'happy'){
+    g.beginPath(); g.arc(mx, 84, 17, 0.3, Math.PI - 0.3); g.stroke();
+  } else if(mood === 'sad' || mood === 'starving'){
+    g.beginPath(); g.arc(mx, 102, 15, Math.PI + 0.35, -0.35); g.stroke();
+  } else if(mood === 'weeping'){
+    g.fillStyle = '#5c2c28';
+    g.beginPath(); g.ellipse(mx, 95, 8, 7, 0, 0, Math.PI*2); g.fill();   // the wail
+  } else if(mood === 'enraged' || mood === 'threaten'){
+    g.beginPath(); g.moveTo(mx - 14, 96); g.lineTo(mx - 5, 90); g.lineTo(mx + 4, 96);
+    g.lineTo(mx + 13, 90); g.stroke();  // gritted zigzag
+  } else if(mood === 'bossy'){
+    g.beginPath(); g.moveTo(mx - 12, 92); g.lineTo(mx + 14, 89); g.stroke();  // the smug line
+  } else {
+    g.beginPath(); g.moveTo(mx - 10, 92); g.lineTo(mx + 10, 92); g.stroke();
+  }
+}
+
+function makeVita(dressC){
+  const V = {};
+  V.root = new THREE.Group();           // cartwheels + lying rotate THIS
+  V.hips = new THREE.Group();
+  V.hips.position.y = 0.42;
+  V.root.add(V.hips);
+  V.torso = new THREE.Group();
+  V.hips.add(V.torso);
+  const dress = new THREE.MeshLambertMaterial({ color: dressC });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; V.torso.add(barrel);
+  V.head = new THREE.Group();
+  V.head.position.y = 0.8;
+  V.torso.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 13), skin);
+  skull.castShadow = true;
+  V.head.add(skull);
+  V.face = makeFaceTex();
+  paintFace(V.face.cv, 'happy');
+  V.face.tex.needsUpdate = true;
+  const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.44),
+    new THREE.MeshLambertMaterial({ map: V.face.tex, transparent: true }));
+  facePlane.position.set(0, 0, 0.27);
+  V.head.add(facePlane);
+  V.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    limb.castShadow = true;
+    arm.add(limb);
+    const hand = new THREE.Group();
+    hand.position.y = -0.5;
+    arm.add(hand);
+    V.torso.add(arm);
+    V.arms.push({ g: arm, hand, s });
+  }
+  V.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26;
+    shin.castShadow = true;
+    leg.add(shin);
+    V.hips.add(leg);
+    V.legs.push(leg);
+  }
+  V.setFace = (mood, mo) => { paintFace(V.face.cv, mood, mo); V.face.tex.needsUpdate = true; };
+  V.neutral = function(dt, k = 6){
+    for(const a of V.arms){ a.g.rotation.x = lerp(a.g.rotation.x, 0, dt*k); a.g.rotation.z = lerp(a.g.rotation.z, a.s*0.12, dt*k); }
+    for(const l of V.legs) l.rotation.x = lerp(l.rotation.x, 0, dt*k);
+    V.torso.rotation.x = lerp(V.torso.rotation.x, 0, dt*k);
+    V.torso.rotation.z = lerp(V.torso.rotation.z, 0, dt*k);
+    V.head.rotation.x = lerp(V.head.rotation.x, 0, dt*k);
+    V.head.rotation.y = lerp(V.head.rotation.y, 0, dt*k);
+    V.head.rotation.z = lerp(V.head.rotation.z, 0, dt*k);
+    V.root.rotation.x = lerp(V.root.rotation.x, 0, dt*k);
+    V.root.rotation.z = lerp(V.root.rotation.z, 0, dt*k);
+    V.hips.position.y = lerp(V.hips.position.y, 0.42, dt*k);
+    V.hips.rotation.x = lerp(V.hips.rotation.x, 0, dt*k);
+  };
+  return V;
+}
+const vita = makeVita(0x4f9fd8);
+vita.root.position.set(0, 0.1, 0);
+scene.add(vita.root);
+const partner = makeVita(0xa03636);
+partner.root.position.set(1.9, 0.1, 0.4);
+partner.root.rotation.y = -1.2;
+scene.add(partner.root);
+
+// a berry bush prop + the berry that changes hands
+const bush = new THREE.Group();
+{
+  const wood = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.5, 6),
+    new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true }));
+  wood.position.y = 0.25; wood.castShadow = true; bush.add(wood);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 7),
+    new THREE.MeshLambertMaterial({ color:0x50783a, flatShading:true }));
+  crown.position.y = 0.62; crown.castShadow = true; bush.add(crown);
+  bush.position.set(-1.9, 0, 0.5);
+  scene.add(bush);
+}
+const berry = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 7),
+  new THREE.MeshLambertMaterial({ color:0xd8433c }));
+const bushBerry = berry.clone();
+bushBerry.position.set(-1.62, 0.72, 0.62);
+scene.add(bushBerry);
+berry.visible = false;
+scene.add(berry);
+
+// ---------- the compact horse (bay + blanket rump) -------------------------
+const horse = new THREE.Group();
+const HS = { legs: [] };
+{
+  const matBay = new THREE.MeshLambertMaterial({ color:0x77492a });
+  const matPts = new THREE.MeshLambertMaterial({ color:0x2c1c10 });
+  const matBl = new THREE.MeshLambertMaterial({ color:0xf2ede2 });
+  HS.body = new THREE.Group();
+  HS.body.position.y = 1.32;
+  horse.add(HS.body);
+  const bg = new THREE.CapsuleGeometry(0.42, 0.95, 8, 12);
+  bg.rotateX(Math.PI/2);
+  const barrel = new THREE.Mesh(bg, matBay);
+  barrel.castShadow = true;
+  HS.body.add(barrel);
+  const croup = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), matBl);
+  croup.scale.set(0.9, 0.95, 1.15);
+  croup.position.set(0, 0.04, -0.5);
+  croup.castShadow = true;
+  HS.body.add(croup);
+  HS.neck = new THREE.Group();
+  HS.neck.position.set(0, 0.26, 0.68);
+  HS.body.add(HS.neck);
+  const neckG = new THREE.CylinderGeometry(0.14, 0.24, 0.75, 8);
+  neckG.rotateX(0.75);
+  neckG.translate(0, 0.3, 0.1);
+  const neck = new THREE.Mesh(neckG, matBay);
+  neck.castShadow = true;
+  HS.neck.add(neck);
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.44), matBay);
+  skull.position.set(0, 0.64, 0.36);
+  skull.castShadow = true;
+  HS.neck.add(skull);
+  for(const [x, z] of [[-0.24, 0.5], [0.24, 0.5], [-0.26, -0.55], [0.26, -0.55]]){
+    const hip = new THREE.Group();
+    hip.position.set(x, -0.22, z);
+    HS.body.add(hip);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.85, 7), matPts);
+    up.position.y = -0.42;
+    up.castShadow = true;
+    hip.add(up);
+    HS.legs.push(hip);
+  }
+  // a simple saddle pad + reins anchor
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.09, 0.6),
+    new THREE.MeshLambertMaterial({ color:0x8e2f36 }));
+  pad.position.set(0, 0.4, 0.05);
+  HS.body.add(pad);
+  horse.position.set(2.6, 0, -1.6);
+  horse.rotation.y = 0.6;
+  scene.add(horse);
+}
+
+// ==========================================================================
+//  THE MODE MACHINE
+// ==========================================================================
+let mode = 'dance', phT = 0, gaveT = 0;
+const sel = document.getElementById('animsel');
+sel.addEventListener('change', () => {
+  mode = sel.value;
+  phT = 0;
+  berry.visible = false;
+  bushBerry.visible = true;
+  vita.root.rotation.set(0, 0, 0);
+  vita.root.position.set(0, 0.1, 0);
+});
+
+const TALK_MOODS = ['happy', 'sad', 'enraged', 'bossy', 'starving', 'weeping'];
+let faceMood = 'happy', lastFacePaint = 0;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+  const V = vita;
+  let mood = 'happy', mouth = 0;
+
+  // partner idles unless mid-give
+  partner.neutral(dt);
+  partner.hips.position.y = 0.42 + Math.sin(t*2.1)*0.008;
+
+  if(mode === 'run'){
+    const R = 2.6;
+    const a = t * 1.9;
+    V.root.position.set(Math.cos(a)*R, 0.1, -Math.sin(a)*R);
+    V.root.rotation.y = a;
+    const ph = t * 13;
+    V.legs[0].rotation.x = Math.sin(ph)*1.0;
+    V.legs[1].rotation.x = -Math.sin(ph)*1.0;
+    V.arms[0].g.rotation.x = -Math.sin(ph)*0.9;
+    V.arms[1].g.rotation.x = Math.sin(ph)*0.9;
+    V.torso.rotation.x = 0.22;                                  // the sprint lean
+    V.hips.position.y = 0.42 + Math.abs(Math.sin(ph))*0.09;     // airtime
+  } else if(mode === 'skip'){
+    const R = 2.4;
+    const a = t * 1.1;
+    V.root.position.set(Math.cos(a)*R, 0.1, -Math.sin(a)*R);
+    V.root.rotation.y = a;
+    const ph = t * 7;
+    const hop = Math.abs(Math.sin(ph));
+    V.hips.position.y = 0.42 + hop*0.22;                        // the double-bounce
+    V.legs[0].rotation.x = Math.sin(ph)*0.7 + 0.2;
+    V.legs[1].rotation.x = -Math.sin(ph)*0.4;
+    V.arms[0].g.rotation.z = -0.12 - hop*0.9;                   // swinging out
+    V.arms[1].g.rotation.z = 0.12 + hop*0.9;
+    V.head.rotation.z = Math.sin(ph)*0.1;
+  } else if(mode === 'dance'){
+    const ph = t * 8.2;
+    V.hips.position.y = 0.42 + Math.abs(Math.sin(ph))*0.12;
+    V.hips.rotation.y = Math.sin(t*3.1)*0.8;                    // wild hip spin
+    V.torso.rotation.z = Math.sin(ph*0.5)*0.3;
+    V.arms[0].g.rotation.x = -2.6 + Math.sin(ph)*0.9;           // arms up, flailing
+    V.arms[1].g.rotation.x = -2.6 - Math.sin(ph*1.3)*0.9;
+    V.arms[0].g.rotation.z = -0.5 + Math.sin(ph*0.7)*0.5;
+    V.arms[1].g.rotation.z = 0.5 - Math.sin(ph*0.9)*0.5;
+    V.legs[0].rotation.x = Math.sin(ph)*0.5;
+    V.legs[1].rotation.x = -Math.sin(ph)*0.5;
+    V.head.rotation.z = Math.sin(ph*0.65)*0.25;
+  } else if(mode === 'jump'){
+    const ph = (t*1.4) % 1;
+    const air = Math.max(0, Math.sin(ph*Math.PI*2));
+    V.hips.position.y = 0.42 + air*0.55;
+    V.arms[0].g.rotation.x = -2.9;                              // fists to the sky
+    V.arms[1].g.rotation.x = -2.9;
+    V.arms[0].g.rotation.z = -0.35; V.arms[1].g.rotation.z = 0.35;
+    V.legs[0].rotation.x = air*(-0.7);
+    V.legs[1].rotation.x = air*(-0.7);
+    V.head.rotation.x = -0.25;                                  // face lifted
+  } else if(mode === 'cartwheel'){
+    const CYC = 2.6;
+    const f = (phT % CYC) / CYC;
+    if(f < 0.3){                                                // the run-up
+      const rf = f/0.3;
+      V.root.position.set(-2 + rf*1.2, 0.1, 0);
+      V.root.rotation.z = 0;
+      const ph = rf*14;
+      V.legs[0].rotation.x = Math.sin(ph)*0.8;
+      V.legs[1].rotation.x = -Math.sin(ph)*0.8;
+    } else if(f < 0.75){                                        // THE WHEEL
+      const wf = (f - 0.3)/0.45;
+      V.root.position.set(-0.8 + wf*1.8, 0.1 + Math.sin(wf*Math.PI)*0.35, 0);
+      V.root.rotation.z = -wf * Math.PI*2;
+      V.arms[0].g.rotation.z = -2.9; V.arms[1].g.rotation.z = 2.9;   // star shape
+      V.arms[0].g.rotation.x = 0; V.arms[1].g.rotation.x = 0;
+      V.legs[0].rotation.z = -0.6; V.legs[1].rotation.z = 0.6;
+    } else {                                                    // stick the landing
+      const lf = (f - 0.75)/0.25;
+      V.root.position.set(1.0, 0.1, 0);
+      V.root.rotation.z = 0;
+      V.legs[0].rotation.z = lerp(-0.6, 0, lf);
+      V.legs[1].rotation.z = lerp(0.6, 0, lf);
+      V.arms[0].g.rotation.z = lerp(-2.9, -0.12, lf);
+      V.arms[1].g.rotation.z = lerp(2.9, 0.12, lf);
+      V.hips.position.y = 0.42 - Math.sin(lf*Math.PI)*0.08;
+    }
+  } else if(mode === 'point'){
+    // four directions, held a beat each, head + eyes following the arm
+    const dirI = Math.floor(t / 1.6) % 4;
+    const yaw = [-0.9, 0.5, 1.6, -0.2][dirI];
+    const pitch = [0, -0.5, 0.2, -0.9][dirI];
+    V.root.rotation.y = lerp(V.root.rotation.y, yaw*0.5, dt*4);
+    V.arms[1].g.rotation.x = lerp(V.arms[1].g.rotation.x, -1.5 - pitch, dt*6);
+    V.arms[1].g.rotation.z = lerp(V.arms[1].g.rotation.z, 0.1, dt*6);
+    V.arms[0].g.rotation.x = lerp(V.arms[0].g.rotation.x, 0, dt*6);
+    V.head.rotation.y = lerp(V.head.rotation.y, yaw*0.3, dt*5);
+    V.head.rotation.x = lerp(V.head.rotation.x, pitch*0.4, dt*5);
+    V.legs[0].rotation.x = V.legs[1].rotation.x = 0;
+  } else if(mode === 'yes'){
+    V.neutral(dt);
+    V.head.rotation.x = Math.sin(t*6.5)*0.32;                   // the emphatic nod
+  } else if(mode === 'no'){
+    V.neutral(dt);
+    V.head.rotation.y = Math.sin(t*7)*0.55;                     // the firm shake
+    mood = 'bossy';
+  } else if(mode === 'give'){
+    // walk to the bush → PICK → carry to the partner → HAND OVER → loop
+    const CYC = 8;
+    const f = (phT % CYC) / CYC;
+    const bushSpot = new THREE.Vector3(-1.35, 0.1, 0.5);
+    const partSpot = new THREE.Vector3(1.15, 0.1, 0.4);
+    if(f < 0.22){                                               // to the bush
+      const wf = smooth(f/0.22);
+      V.root.position.lerpVectors(new THREE.Vector3(0, 0.1, -0.6), bushSpot, wf);
+      V.root.rotation.y = -1.8;
+      walkCycle(V, t, 1);
+      bushBerry.visible = true; berry.visible = false;
+    } else if(f < 0.34){                                        // THE PICK: reach
+      const pf = Math.sin(((f - 0.22)/0.12)*Math.PI);
+      V.arms[1].g.rotation.x = -1.9*pf;
+      V.torso.rotation.x = 0.25*pf;
+      stillLegs(V, dt);
+      if(f > 0.28){ bushBerry.visible = false; berry.visible = true; }
+    } else if(f < 0.62){                                        // carry it over
+      const wf = smooth((f - 0.34)/0.28);
+      V.root.position.lerpVectors(bushSpot, partSpot, wf);
+      V.root.rotation.y = lerp(-1.8, 1.2, wf);
+      walkCycle(V, t, 1);
+      V.arms[1].g.rotation.x = -0.8;                            // berry held close
+    } else if(f < 0.8){                                         // THE HANDING
+      const hf = smooth((f - 0.62)/0.18);
+      V.root.rotation.y = 1.2;
+      stillLegs(V, dt);
+      V.arms[1].g.rotation.x = lerp(-0.8, -1.35, hf);           // arm extends
+      partner.arms[0].g.rotation.x = lerp(0, -1.25, hf);        // partner reaches
+      partner.head.rotation.x = -0.12;
+      if(hf > 0.9) gaveT = 1;
+    } else {                                                    // received; a little bow of thanks
+      stillLegs(V, dt);
+      V.arms[1].g.rotation.x = lerp(V.arms[1].g.rotation.x, 0, dt*5);
+      partner.arms[0].g.rotation.x = -0.7;                      // holding the berry
+      partner.head.rotation.x = 0.3;                            // the thank-you nod
+      gaveT = 1;
+    }
+    // the berry rides whichever hand owns it
+    if(berry.visible){
+      const owner = (f >= 0.8 || gaveT && f > 0.75) ? partner.arms[0] : V.arms[1];
+      owner.hand.getWorldPosition(berry.position);
+    }
+    if(f < 0.05) gaveT = 0;
+  } else if(mode === 'talk'){
+    V.neutral(dt);
+    const mi = Math.floor(t / 2.2) % TALK_MOODS.length;
+    mood = TALK_MOODS[mi];
+    mouth = Math.abs(Math.sin(t*9)) * (0.4 + 0.5*Math.abs(Math.sin(t*2.3)));
+    V.head.rotation.z = Math.sin(t*1.7)*0.06;
+    V.arms[1].g.rotation.x = -0.5 + Math.sin(t*4.2)*0.25;       // talking hands
+    V.arms[0].g.rotation.x = -0.3 - Math.sin(t*3.1)*0.2;
+    if(mood === 'weeping'){ V.head.rotation.x = 0.3; V.arms[0].g.rotation.x = -2.2; }
+    if(mood === 'enraged'){ V.arms[0].g.rotation.x = -1.4 + Math.sin(t*11)*0.3; }
+    if(mood === 'starving'){ V.torso.rotation.x = 0.2; V.arms[0].g.rotation.x = -0.9; }  // hand to belly
+    if(mood === 'bossy'){ V.arms[0].g.rotation.z = -0.7; }      // arm akimbo
+  } else if(mode === 'crouch'){
+    mood = 'sad';
+    V.hips.position.y = lerp(V.hips.position.y, 0.2, dt*5);     // low
+    V.torso.rotation.x = lerp(V.torso.rotation.x, 0.5, dt*5);
+    V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, -1.1, dt*5);
+    V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, -1.1, dt*5);
+    V.arms[0].g.rotation.x = lerp(V.arms[0].g.rotation.x, -2.3, dt*5);  // arms shielding the head
+    V.arms[1].g.rotation.x = lerp(V.arms[1].g.rotation.x, -2.3, dt*5);
+    V.arms[0].g.rotation.z = -0.5; V.arms[1].g.rotation.z = 0.5;
+    V.head.rotation.x = 0.45;
+    V.root.position.x = Math.sin(t*30)*0.006;                   // the tremble
+  } else if(mode === 'shout'){
+    mood = 'enraged';
+    mouth = 0.5 + Math.abs(Math.sin(t*7))*0.5;
+    const ph = t*6.5;
+    V.arms[0].g.rotation.x = -2.7 + Math.sin(ph)*0.5;           // both arms waving high
+    V.arms[1].g.rotation.x = -2.7 - Math.sin(ph)*0.5;
+    V.arms[0].g.rotation.z = -0.4 + Math.sin(ph*0.7)*0.3;
+    V.arms[1].g.rotation.z = 0.4 - Math.sin(ph*0.7)*0.3;
+    V.torso.rotation.x = -0.1 + Math.sin(ph*0.5)*0.06;
+    V.hips.position.y = 0.42 + Math.abs(Math.sin(ph))*0.04;     // up on the toes
+  } else if(mode === 'threaten'){
+    mood = 'threaten';
+    V.torso.rotation.x = lerp(V.torso.rotation.x, -0.14, dt*5); // looming TALL
+    V.hips.position.y = lerp(V.hips.position.y, 0.47, dt*5);
+    V.arms[1].g.rotation.x = -1.9 + Math.sin(t*10)*0.18;        // the shaken fist
+    V.arms[1].g.rotation.z = 0.25;
+    V.arms[0].g.rotation.x = -0.4;
+    V.arms[0].g.rotation.z = -0.6;                              // akimbo
+    V.head.rotation.x = -0.12;
+    V.legs[0].rotation.x = 0.12; V.legs[1].rotation.x = -0.1;   // the wide stance
+    V.root.position.z = Math.max(0, Math.sin(t*1.4))*0.15;      // pressing forward
+  } else if(mode === 'kneel'){
+    mood = 'sad';
+    V.hips.position.y = lerp(V.hips.position.y, 0.13, dt*4);
+    V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, -2.4, dt*4);   // shins folded under
+    V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, -2.4, dt*4);
+    V.torso.rotation.x = lerp(V.torso.rotation.x, 0.3, dt*4);
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.5, dt*4);          // eyes down
+    V.arms[0].g.rotation.x = V.arms[1].g.rotation.x = -0.25;
+  } else if(mode === 'prostrate'){
+    // the full bow: kneel, then fold flat, forehead to the sand, arms ahead
+    const f = smooth(clamp(phT / 2.2, 0, 1));
+    mood = 'sad';
+    V.hips.position.y = lerp(0.42, 0.13, clamp(f*2, 0, 1));
+    V.legs[0].rotation.x = V.legs[1].rotation.x = lerp(0, -2.4, clamp(f*2, 0, 1));
+    V.torso.rotation.x = lerp(0, 1.35, f);                      // folding flat
+    V.head.rotation.x = lerp(0, 0.35, f);
+    V.arms[0].g.rotation.x = V.arms[1].g.rotation.x = lerp(-0.25, -2.9, f);  // arms stretched ahead
+    V.arms[0].g.rotation.z = -0.15; V.arms[1].g.rotation.z = 0.15;
+    if(phT > 5) phT = 0;                                        // rise and repeat
+  } else if(mode.startsWith('sleep')){
+    // FLAT ON THE GROUND — the root does the lying, the limbs do the truth
+    const f = smooth(clamp(phT / 1.6, 0, 1));
+    mood = 'happy';
+    if(mode === 'sleepback'){
+      V.root.rotation.x = lerp(0, -Math.PI/2, f);
+      V.root.position.y = lerp(0.1, 0.42, f);
+      V.legs[0].rotation.x = 0.15; V.legs[1].rotation.x = 0.05;
+      V.legs[0].rotation.z = -0.15; V.legs[1].rotation.z = 0.15;   // flopped apart
+      V.arms[0].g.rotation.z = -1.1; V.arms[1].g.rotation.z = 1.1; // arms out wide
+      V.arms[0].g.rotation.x = V.arms[1].g.rotation.x = 0.1;
+    } else if(mode === 'sleepside'){
+      V.root.rotation.z = lerp(0, Math.PI/2 - 0.06, f);
+      V.root.position.y = lerp(0.1, 0.34, f);
+      V.legs[0].rotation.x = -0.85;                               // top knee drawn up
+      V.legs[1].rotation.x = -0.2;                                // bottom leg long
+      V.arms[0].g.rotation.x = -1.2;                              // arms forward, never under
+      V.arms[1].g.rotation.x = -0.7;
+    } else {                                                      // tummy, arms sprawled
+      V.root.rotation.x = lerp(0, Math.PI/2, f);
+      V.root.position.y = lerp(0.1, 0.4, f);
+      V.head.rotation.z = 0.6;                                    // cheek to the sand
+      V.arms[0].g.rotation.z = -2.4; V.arms[1].g.rotation.z = 1.6; // sprawled unevenly
+      V.arms[0].g.rotation.x = 0.3; V.arms[1].g.rotation.x = -0.4;
+      V.legs[0].rotation.z = -0.2; V.legs[1].rotation.z = 0.35;
+    }
+    // the slow breath
+    V.torso.scale.setScalar(1 + Math.sin(t*1.5)*0.02*f);
+  } else if(mode === 'ride'){
+    // MOUNT (2.5s) → ridewalk (5s) → CANTER (5s) → slow (1.5s) → DISMOUNT (2.5s) → loop
+    const CYC = 18;
+    const f = phT % CYC;
+    const hipsSaddle = new THREE.Vector3(0, 1.85, 0.05);
+    if(f < 1.2){                                                // walk to the horse's side
+      const wf = smooth(f/1.2);
+      V.root.position.lerpVectors(new THREE.Vector3(0.9, 0.1, -0.9),
+        new THREE.Vector3(2.0, 0.1, -1.35), wf);
+      V.root.rotation.y = 1.1;
+      walkCycle(V, t, 1);
+      horse.position.set(2.6, 0, -1.6);
+      horse.rotation.y = 0.6;
+    } else if(f < 2.6){                                         // THE MOUNT: foot up, swing over
+      const mf = smooth((f - 1.2)/1.4);
+      V.root.position.x = lerp(2.0, 2.6, mf);
+      V.root.position.z = lerp(-1.35, -1.55, mf);
+      V.root.position.y = 0.1 + Math.sin(mf*Math.PI)*0.5 + mf*1.15;
+      V.root.rotation.y = lerp(1.1, 0.6, mf);
+      V.legs[1].rotation.x = -0.9*Math.sin(mf*Math.PI);          // the mounting leg
+      V.legs[0].rotation.z = -Math.sin(mf*Math.PI)*1.3;          // THE SWING over the back
+      V.arms[0].g.rotation.x = -1.4*Math.sin(mf*Math.PI);        // hauling on the saddle
+    } else if(f < 14.2){                                        // RIDING
+      const cantering = f > 7.6 && f < 12.6;
+      const sp = cantering ? 2.6 : 1.0;
+      const a = (f - 2.6) * sp * 0.22 + 0.6;
+      horse.position.set(Math.cos(a)*2.9, 0, -Math.sin(a)*2.9);
+      horse.rotation.y = a;
+      const ph = (f - 2.6) * (cantering ? 9 : 5);
+      HS.body.position.y = 1.32 + Math.abs(Math.sin(ph*0.5))*(cantering ? 0.1 : 0.03);
+      HS.body.rotation.x = cantering ? Math.sin(ph*0.5)*0.09 : 0;   // the canter rock
+      HS.neck.rotation.x = cantering ? 0.15 : Math.sin(ph*0.5)*0.05;
+      HS.legs.forEach((leg, i) => {
+        leg.rotation.x = Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) * (cantering ? 0.75 : 0.45);
+      });
+      // the rider sits the saddle, hips following the motion
+      V.root.position.copy(horse.position);
+      V.root.position.y = HS.body.position.y - 1.32 + 0.1 + hipsSaddle.y - 0.42;
+      V.root.rotation.y = a;
+      V.legs[0].rotation.x = -1.1; V.legs[1].rotation.x = -1.1;   // astride
+      V.legs[0].rotation.z = -0.5; V.legs[1].rotation.z = 0.5;
+      V.arms[0].g.rotation.x = -0.9; V.arms[1].g.rotation.x = -0.9;  // on the reins
+      V.torso.rotation.x = cantering ? 0.15 + Math.sin(ph*0.5)*0.05 : 0.05;
+      V.hips.position.y = 0.42 + (cantering ? Math.abs(Math.sin(ph*0.5))*0.05 : 0);
+    } else if(f < 15.7){                                        // pulling up
+      V.legs[0].rotation.x = -1.1; V.legs[1].rotation.x = -1.1;
+      V.torso.rotation.x = -0.08;                                // sitting back on the reins
+      V.arms[0].g.rotation.x = -1.2; V.arms[1].g.rotation.x = -1.2;
+    } else {                                                     // THE DISMOUNT: swing back down
+      const df = smooth((f - 15.7)/2.3);
+      const hp = horse.position;
+      V.root.position.set(hp.x - Math.cos(horse.rotation.y)*0.0 - 0.6*df,
+        lerp(1.53, 0.1, df) + Math.sin(df*Math.PI)*0.25,
+        hp.z + 0.25*df);
+      V.legs[0].rotation.z = -Math.sin(df*Math.PI)*1.3;          // leg swings back over
+      V.legs[0].rotation.x = lerp(-1.1, 0, df);
+      V.legs[1].rotation.x = lerp(-1.1, 0, df);
+      V.arms[0].g.rotation.x = lerp(-0.9, 0, df);
+      V.arms[1].g.rotation.x = -1.2*Math.sin(df*Math.PI);        // holding on as she slides
+      V.torso.rotation.x = lerp(0.05, 0, df);
+    }
+  }
+
+  // face repaint (throttled — canvas work is cheap but not free)
+  if(mood !== faceMood || mouth > 0.02 || t - lastFacePaint > 0.12){
+    faceMood = mood;
+    lastFacePaint = t;
+    V.setFace(mood, mouth);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function walkCycle(V, t, sp){
+  const ph = t * 9 * sp;
+  V.legs[0].rotation.x = Math.sin(ph)*0.55;
+  V.legs[1].rotation.x = -Math.sin(ph)*0.55;
+  V.arms[0].g.rotation.x = -Math.sin(ph)*0.4;
+  V.arms[1].g.rotation.x = Math.sin(ph)*0.4;
+  V.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.03;
+}
+function stillLegs(V, dt){
+  V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, 0, dt*8);
+  V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, 0, dt*8);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
