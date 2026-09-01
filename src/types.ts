@@ -45,8 +45,38 @@ export interface Actor {
   // 3-D skin worn by this actor (Vita); its animation manifest feeds pose
   // autocomplete in Dramscript.
   skinId?: string;
+  // Vita instrumentation, exposed to scripting via world variables.
+  gauges?: Gauge[];
+  knobs?: Knob[];
   note?: string;
   status?: AssetStatus;
+}
+
+// Vita instrumentation: every Vita exposes its gauges and knobs as script
+// variables. A GAUGE is a live meter (level) with a danger threshold
+// (redLine) and a target (goal); a KNOB is a behavior dial. All 0-100 by
+// convention. Exposed variable names: <actorId>_<gauge> (level),
+// <actorId>_<gauge>_redline, <actorId>_<gauge>_goal, <actorId>_<knob>.
+export interface Gauge {
+  name: string;
+  level: number;
+  redLine: number;
+  goal: number;
+}
+
+export interface Knob {
+  name: string;
+  value: number;
+}
+
+// Named bundle of gauge/knob settings (Happy Voracious, Starving Lazy, ...).
+// Presets are the friendly surface; advanced users edit the raw values.
+export interface VitaPreset {
+  id: string;
+  name: string;
+  gauges: Gauge[];
+  knobs: Knob[];
+  note?: string;
 }
 
 // User-generated 3-D skin (GLB/glTF model). The editor stores the MANIFEST,
@@ -240,6 +270,7 @@ export interface GameData {
   episodes: Episode[];
   subplots: Subplot[];
   skins: Skin[];
+  vitaPresets: VitaPreset[];
 }
 
 // Library Types for cross-game asset reuse
@@ -277,6 +308,35 @@ export const createDefaultLibrary = (): AssetLibrary => ({
   episodes: [],
 });
 
+// Starter Vita presets (Doug's naming style: mood + appetite). Editable
+// starting points; delete or reshape freely.
+export const createStarterVitaPresets = (): VitaPreset[] => [
+  {
+    id: 'preset_happy_voracious',
+    name: 'Happy Voracious',
+    gauges: [
+      { name: 'hunger', level: 25, redLine: 90, goal: 20 },
+      { name: 'energy', level: 80, redLine: 10, goal: 75 },
+    ],
+    knobs: [
+      { name: 'appetite', value: 90 },
+      { name: 'laziness', value: 15 },
+    ],
+  },
+  {
+    id: 'preset_starving_lazy',
+    name: 'Starving Lazy',
+    gauges: [
+      { name: 'hunger', level: 85, redLine: 90, goal: 20 },
+      { name: 'energy', level: 30, redLine: 10, goal: 75 },
+    ],
+    knobs: [
+      { name: 'appetite', value: 40 },
+      { name: 'laziness', value: 90 },
+    ],
+  },
+];
+
 // Migrate old game data to current format
 export const migrateGameData = (data: any): GameData => {
   const migrated = { ...data };
@@ -294,6 +354,12 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure skins array exists (skin library, added 2026-08-31)
   if (!migrated.skins) {
     migrated.skins = [];
+  }
+
+  // Seed the starter Vita presets (added 2026-08-31). Values are editable
+  // starting points, not canon.
+  if (!migrated.vitaPresets) {
+    migrated.vitaPresets = createStarterVitaPresets();
   }
 
   // Dramaton Editor 2.0 called drops "screens"; rename the collection and
@@ -361,4 +427,5 @@ export const createDefaultGame = (): GameData => ({
   episodes: [],
   subplots: [],
   skins: [],
+  vitaPresets: createStarterVitaPresets(),
 });

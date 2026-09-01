@@ -11,6 +11,7 @@ import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 import { isSkinAllowed } from '@/utils/skins';
+import { VitaPanel } from '@/components/editors/VitaPanel';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 
@@ -1120,6 +1121,9 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           </p>
         )}
       </section>
+
+      {/* Vita instrumentation: gauges, knobs, presets */}
+      <VitaPanel game={game} actor={selectedActor} onChange={onChange} />
 
       {/* Actions */}
       <div className="flex gap-2 mt-6">

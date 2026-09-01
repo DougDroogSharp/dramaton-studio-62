@@ -41,6 +41,7 @@ const makeGame = (scene: Scene): GameData => ({
   episodes: [],
   subplots: [],
   skins: [],
+  vitaPresets: [],
 });
 
 const makeScene = (): Scene => ({
