@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ANKYLOSAURUS STUDY — the walking fortress, for George World.
+     Filed 2026-09-01 (follows the 2026-08-31 dino brief) by ASSET
+     FOUNDRY. Standalone; vendored three (r160), game importmap.
+     Nothing here touches georgeworld.html.
+
+     Foundry pick #2: the club tail earns its keep here — the swing
+     actually CONNECTS. A darting theropod pest sneaks in from behind;
+     if it is inside the arc when the sweep comes through, it is
+     launched tumbling, scrambles up, and thinks better of it.
+
+     The animal: domed carapace with rows of keeled scutes, armored
+     brow horns, wide-set stout legs, and the two-lobed CLUB on a
+     stiff tail. Moves: WADDLE (rolling 4-beat, belly slung low),
+     GRAZE at the fern patches, HUNKER (legs fold, belly to the dirt,
+     nothing to bite), and the CLUB SWING — plant, wind up the other
+     way, sweep through with the segments lagging, follow through,
+     re-set. Shoulder ~1.05 units, club reach ~2.6.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ankylosaurus Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e2cc; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,20,0.78); color:#f0f2e0; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#5e6a3e; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#76844e; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦕 Ankylosaurus Study</b> — the club connects, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="auto">Auto</button><button data-m="waddle">Waddle</button><button
+    data-m="hunker">Hunker</button><button data-m="swing">Swing</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 77707770;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e0ca), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(6.5, 3.5, 9);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2, controls.maxDistance = 46;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f2de), zenith = new THREE.Color(0x7cb0d8),
+        below = new THREE.Color(0xd4d6c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa4ac7c, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(22, 28, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xb0b47e }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+// fern patches on the walking ring
+const fernMat = new THREE.MeshLambertMaterial({ color:0x47702f, flatShading:true });
+const RING_R = 5;
+const patches = [];
+for(const pa of [0.9, 3.6]){
+  const p = new THREE.Vector3(Math.cos(pa)*RING_R, 0, Math.sin(pa)*RING_R);
+  const fronds = [];
+  for(let j=0;j<6;j++){
+    const f = new THREE.Mesh(new THREE.ConeGeometry(rand(0.1,0.15), rand(0.4,0.7), 5), fernMat);
+    f.position.set(p.x + rand(-0.5,0.5), 0.22, p.z + rand(-0.5,0.5));
+    f.rotation.set(rand(-0.4,0.4), rand(0,6), rand(-0.4,0.4));
+    scene.add(f);
+    fronds.push(f);
+  }
+  patches.push({ a: pa, p, fronds, meal: 1 });
+}
+const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+for(let i=0;i<18;i++){
+  const a = rand(0, Math.PI*2), r = rand(7, 28);
+  const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.13,0.2), rand(0.35,0.7), 5), tuftMat);
+  tuft.position.set(Math.cos(a)*r, 0.18, Math.sin(a)*r);
+  scene.add(tuft);
+}
+
+// ==========================================================================
+//  THE ANKYLOSAUR — forward +Z; shoulder ~1.05, low and wide.
+// ==========================================================================
+const matHide = new THREE.MeshLambertMaterial({ color:0x6e6844, flatShading:true });
+const matHideDk = new THREE.MeshLambertMaterial({ color:0x545030, flatShading:true });
+const matArmor = new THREE.MeshLambertMaterial({ color:0x8a8058, flatShading:true });
+const matClub = new THREE.MeshLambertMaterial({ color:0xb0a684, flatShading:true });
+const A = { g: new THREE.Group() };
+scene.add(A.g);
+{
+  A.body = new THREE.Group();
+  A.body.position.y = 0.78;
+  A.g.add(A.body);
+  const barrelG = new THREE.CapsuleGeometry(0.62, 1.3, 8, 12);
+  barrelG.rotateX(Math.PI/2);
+  const barrel = new THREE.Mesh(barrelG, matHide);
+  barrel.scale.set(1.35, 0.72, 1);                // wide and squat
+  barrel.castShadow = true;
+  A.body.add(barrel);
+  // the CARAPACE dome + rows of keeled scutes
+  const shellG = new THREE.SphereGeometry(0.95, 14, 10, 0, Math.PI*2, 0, Math.PI/2);
+  const shell = new THREE.Mesh(shellG, matArmor);
+  shell.scale.set(1.0, 0.42, 1.15);
+  shell.position.y = 0.18;
+  shell.castShadow = true;
+  A.body.add(shell);
+  for(let row=0; row<4; row++){
+    const n = 5 - (row === 3 ? 1 : 0);
+    for(let i=0;i<n;i++){
+      const scute = new THREE.Mesh(new THREE.ConeGeometry(0.1 - row*0.012, 0.16, 4), matHideDk);
+      const x = (i - (n-1)/2) * 0.42;
+      const z = 0.75 - row*0.5;
+      scute.position.set(x, 0.42 + 0.16*Math.cos(x*1.1), z);
+      scute.rotation.z = -x*0.35;
+      scute.castShadow = true;
+      A.body.add(scute);
+    }
+  }
+  // side spikes along the skirt
+  for(const s of [-1, 1]) for(let i=0;i<4;i++){
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), matArmor);
+    spike.position.set(s*0.92, 0.02, 0.65 - i*0.45);
+    spike.rotation.z = s*-1.35;
+    spike.castShadow = true;
+    A.body.add(spike);
+  }
+  // armored HEAD with the four brow horns
+  A.head = new THREE.Group();
+  A.head.position.set(0, 0.1, 1.0);
+  A.body.add(A.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), matArmor);
+  skull.scale.set(1.05, 0.7, 1.1);
+  skull.castShadow = true;
+  A.head.add(skull);
+  const muzzleG = new THREE.SphereGeometry(0.16, 8, 6);
+  muzzleG.scale(1, 0.6, 1.2);
+  muzzleG.translate(0, -0.05, 0.22);
+  A.head.add(new THREE.Mesh(muzzleG, matHideDk));
+  for(const s of [-1, 1]) for(const [dy, dz, rx] of [[0.08, -0.12, -2.2], [-0.04, -0.16, -2.6]]){
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.17, 5), matHideDk);
+    horn.position.set(s*0.24, dy, dz);
+    horn.rotation.z = s*rx;
+    A.head.add(horn);
+  }
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x241e14 }));
+    eye.position.set(s*0.2, 0.05, 0.14);
+    A.head.add(eye);
+  }
+}
+// TAIL: four stiff segments and the two-lobed club
+A.tail = [];
+let clubTip;
+{
+  let parent = A.body, pz = -1.05, py = 0.05;
+  for(let i=0;i<4;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gT = new THREE.CapsuleGeometry(0.2 - i*0.038, 0.4, 4, 7);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.26);
+    const m = new THREE.Mesh(gT, i % 2 ? matHide : matHideDk);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    A.tail.push(seg);
+    parent = seg; pz = -0.5; py = 0;
+  }
+  clubTip = new THREE.Group();
+  clubTip.position.set(0, 0, -0.55);
+  parent.add(clubTip);
+  for(const s of [-1, 1]){
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 7), matClub);
+    lobe.scale.set(1, 0.75, 1.15);
+    lobe.position.x = s*0.14;
+    lobe.castShadow = true;
+    clubTip.add(lobe);
+  }
+}
+// LEGS: stout, wide-set
+A.legs = [];
+function makeLeg(x, z, front){
+  const hip = new THREE.Group();
+  hip.position.set(x, -0.3, z);
+  A.body.add(hip);
+  const upG = new THREE.CylinderGeometry(0.15, 0.12, 0.36, 8);
+  upG.translate(0, -0.16, 0);
+  const up = new THREE.Mesh(upG, matHideDk);
+  up.castShadow = true;
+  hip.add(up);
+  const knee = new THREE.Group();
+  knee.position.y = -0.32;
+  hip.add(knee);
+  const lowG = new THREE.CylinderGeometry(0.1, 0.13, 0.3, 8);
+  lowG.translate(0, -0.14, 0);
+  const low = new THREE.Mesh(lowG, matHide);
+  low.castShadow = true;
+  knee.add(low);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.09, 8), matHideDk);
+  foot.position.y = -0.3;
+  foot.castShadow = true;
+  knee.add(foot);
+  A.legs.push({ hip, knee, front });
+}
+makeLeg(-0.78,  0.7, true);
+makeLeg( 0.78,  0.7, true);
+makeLeg(-0.8, -0.65, false);
+makeLeg( 0.8, -0.65, false);
+
+// ---------- the PEST: a darting little theropod ----------------------------
+const pest = new THREE.Group();
+scene.add(pest);
+{
+  const dark = new THREE.MeshLambertMaterial({ color:0x46392a, flatShading:true });
+  const bodyG = new THREE.CapsuleGeometry(0.14, 0.34, 5, 8);
+  bodyG.rotateX(Math.PI/2);
+  const b = new THREE.Mesh(bodyG, dark);
+  b.position.y = 0.5;
+  b.castShadow = true;
+  pest.add(b);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), dark);
+  skull.scale.set(0.8, 0.8, 1.5);
+  skull.position.set(0, 0.68, 0.3);
+  skull.castShadow = true;
+  pest.add(skull);
+  const tailG = new THREE.ConeGeometry(0.08, 0.6, 6);
+  tailG.rotateX(-Math.PI/2);
+  const tl = new THREE.Mesh(tailG, dark);
+  tl.position.set(0, 0.52, -0.5);
+  pest.add(tl);
+  pest.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.1, 0.5, -0.05);
+    const limbG = new THREE.CapsuleGeometry(0.04, 0.36, 4, 6);
+    limbG.translate(0, -0.24, 0);
+    leg.add(new THREE.Mesh(limbG, dark));
+    pest.add(leg);
+    pest.legs.push(leg);
+  }
+}
+const puffs = [];
+for(let i=0;i<8;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5),
+    new THREE.MeshLambertMaterial({ color:0xc6ba8c, transparent:true, opacity:0 }));
+  p.userData.t = 9;
+  scene.add(p);
+  puffs.push(p);
+}
+function puff(x, y, z, k){
+  const p = puffs.find(p => p.userData.t > 1);
+  if(!p) return;
+  p.userData.t = 0; p.position.set(x, y, z); p.scale.setScalar(k);
+}
+
+// ==========================================================================
+//  BEHAVIOR
+// ==========================================================================
+let mode = 'auto', ringA = 0, dist = 0, hunker = 0, graze = 0;
+let swingT = -1, grazeTimer = 0, hunger = 6, defendCount = 0;
+// pest: approach from behind → dart → (hit? tumble) → retreat
+let pestState = 'lurk', pestT = 0, pestPos = new THREE.Vector3(8, 0, -6);
+let pestVel = new THREE.Vector3(), pestSpin = 0;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === 'swing'){ if(swingT < 0) swingT = 0; return; }
+  mode = m;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('auto');
+
+const _w = new THREE.Vector3(), _v = new THREE.Vector3();
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ---- top-level intent ----
+  const wantHunker = mode === 'hunker' || (mode === 'auto' && pestState === 'dart' && defendCount % 2 === 1);
+  hunker = lerp(hunker, wantHunker ? 1 : 0, Math.min(1, dt*2.2));
+  let walking = false;
+
+  if(mode !== 'hunker' && hunker < 0.3 && swingT < 0){
+    // find a full patch nearby if hungry, else walk the ring
+    hunger += dt;
+    let eating = false;
+    for(const pt of patches){
+      const d = Math.abs(((ringA - pt.a) % (Math.PI*2) + Math.PI*3) % (Math.PI*2) - Math.PI);
+      if(d < 0.07 && pt.meal > 0.4 && hunger > 8 && mode !== 'waddle'){
+        eating = true;
+        grazeTimer += dt;
+        pt.meal = clamp(pt.meal - dt*0.06, 0, 1);
+        for(const f of pt.fronds) f.scale.setScalar(lerp(0.25, 1, pt.meal));
+        if(grazeTimer > 5){ hunger = 0; grazeTimer = 0; }
+      }
+    }
+    graze = lerp(graze, eating ? 1 : 0, Math.min(1, dt*2));
+    if(!eating){
+      walking = true;
+      ringA += 0.42*dt / RING_R * 5;              // slow: ~0.42 u/s
+      dist += 0.42*dt;
+    }
+  } else graze = lerp(graze, 0, dt*2);
+  for(const pt of patches){
+    pt.meal = clamp(pt.meal + dt*0.008, 0, 1);
+    if(graze < 0.1) for(const f of pt.fronds) f.scale.setScalar(lerp(0.25, 1, pt.meal));
+  }
+
+  A.g.position.set(Math.cos(ringA)*RING_R, 0, Math.sin(ringA)*RING_R);
+  A.g.rotation.y = -ringA + Math.PI/2 + Math.PI;  // nose along the ring
+
+  // ---- gait: rolling 4-beat waddle ----
+  const cyc = dist*3.4;
+  const OFF = [0, 0.5, 0.75, 0.25];
+  const walkK = walking ? 1 : 0;
+  A.legs.forEach((L, i) => {
+    const swing = Math.sin(cyc + OFF[i]*Math.PI*2);
+    const lift = Math.max(0, -Math.sin(cyc + OFF[i]*Math.PI*2));
+    L.hip.rotation.x = lerp(L.hip.rotation.x, swing*0.4*walkK, Math.min(1, dt*8));
+    L.knee.rotation.x = lerp(L.knee.rotation.x, (L.front ? lift*0.5 : -lift*0.45)*walkK
+      + hunker*(L.front ? 0.9 : -0.9), Math.min(1, dt*(hunker > 0.1 ? 3 : 8)));
+    L.hip.rotation.z = lerp(L.hip.rotation.z, hunker*(i % 2 ? -0.7 : 0.7), Math.min(1, dt*3));
+  });
+  // the waddle ROLL + the hunker drop
+  A.body.rotation.z = Math.sin(cyc)*0.085*walkK;
+  A.body.position.y = 0.78 - hunker*0.42 + Math.abs(Math.cos(cyc))*0.02*walkK;
+  A.body.rotation.x = graze*0.05;
+
+  // head: grazing dips into the ferns; hunkered pulls in tight
+  A.head.rotation.x = lerp(A.head.rotation.x,
+    graze*(0.55 + Math.sin(t*4.5)*0.1) + hunker*0.35, Math.min(1, dt*3.5));
+  A.head.position.z = lerp(A.head.position.z, 1.0 - hunker*0.3, dt*3);
+
+  // ---- the CLUB SWING ----
+  // windup(0.5) → sweep(0.28) → follow(0.4) → reset(0.8); yaw on tail base
+  let baseYaw = 0, lag = 0;
+  if(swingT >= 0){
+    swingT += dt;
+    const u = swingT;
+    if(u < 0.5){ baseYaw = smooth(u/0.5)*-1.0; lag = 0.3; }
+    else if(u < 0.78){
+      baseYaw = lerp(-1.0, 1.5, smooth((u - 0.5)/0.28)); lag = -0.5;
+      // did it connect?
+      clubTip.getWorldPosition(_w);
+      if(pestState !== 'tumble' && _w.distanceTo(pestPos) < 1.3){
+        pestState = 'tumble'; pestT = 0;
+        _v.copy(pestPos).sub(A.g.position).normalize();
+        pestVel.copy(_v).multiplyScalar(6).setY(3.4);
+        pestSpin = 14;
+        for(let k=0;k<4;k++) puff(_w.x + rand(-0.3,0.3), _w.y, _w.z + rand(-0.3,0.3), rand(0.7,1.2));
+      }
+    }
+    else if(u < 1.18){ baseYaw = lerp(1.5, 1.1, smooth((u - 0.78)/0.4)); lag = 0.2; }
+    else if(u < 2){ baseYaw = lerp(1.1, 0, smooth((u - 1.18)/0.82)); }
+    else swingT = -1;
+  }
+  for(let i=0;i<4;i++){
+    const seg = A.tail[i];
+    const target = i === 0 ? baseYaw : baseYaw*0.22 + (i === 1 ? lag*0.5 : lag*0.3);
+    seg.rotation.y = lerp(seg.rotation.y, target + (swingT < 0 ? Math.sin(t*1.4 + i)*0.05*walkK : 0),
+      Math.min(1, dt*(swingT >= 0 ? 18 : 4)));
+    seg.rotation.x = lerp(seg.rotation.x, i === 0 ? 0.1 : -0.02, dt*4);
+  }
+
+  // ---- the pest ----
+  pestT += dt;
+  if(pestState === 'lurk'){
+    // slink toward a point behind the tail
+    _v.set(A.g.position.x - Math.sin(A.g.rotation.y)*4.2, 0, A.g.position.z - Math.cos(A.g.rotation.y)*4.2);
+    pestPos.lerp(_v, Math.min(1, dt*0.5));
+    if(pestT > 6){ pestState = 'dart'; pestT = 0; defendCount++; }
+  } else if(pestState === 'dart'){
+    _v.set(A.g.position.x - Math.sin(A.g.rotation.y)*1.7, 0, A.g.position.z - Math.cos(A.g.rotation.y)*1.7);
+    pestPos.lerp(_v, Math.min(1, dt*2.2));
+    // the answer: every other visit gets the club, otherwise the hunker
+    if(mode !== 'hunker' && defendCount % 2 === 0 && swingT < 0 &&
+       pestPos.distanceTo(A.g.position) < 2.6) swingT = 0;
+    if(pestT > 3.5){ pestState = 'retreat'; pestT = 0; }
+  } else if(pestState === 'tumble'){
+    pestVel.y -= 12*dt;
+    pestPos.addScaledVector(pestVel, dt);
+    pest.rotation.x += pestSpin*dt;
+    if(pestPos.y <= 0){
+      pestPos.y = 0;
+      if(Math.abs(pestVel.y) > 1){ pestVel.y *= -0.4; pestVel.x *= 0.6; pestVel.z *= 0.6; puff(pestPos.x, 0.15, pestPos.z, 0.7); }
+      else { pestState = 'retreat'; pestT = 0; pest.rotation.x = 0; pestSpin = 0; }
+    }
+  } else {                                        // retreat
+    _v.set(Math.cos(t*0.1)*11, 0, Math.sin(t*0.1)*11);
+    pestPos.lerp(_v, Math.min(1, dt*0.8));
+    if(pestT > 5){ pestState = 'lurk'; pestT = 0; }
+  }
+  pest.position.copy(pestPos);
+  if(pestState !== 'tumble'){
+    _v.copy(pestState === 'retreat' ? pestPos : A.g.position).sub(pestPos);
+    if(pestState === 'retreat') _v.set(pestPos.x, 0, pestPos.z);
+    const wantYaw = pestState === 'retreat'
+      ? Math.atan2(pestPos.x - A.g.position.x, pestPos.z - A.g.position.z)
+      : Math.atan2(A.g.position.x - pestPos.x, A.g.position.z - pestPos.z);
+    pest.rotation.y += shortestArc(pest.rotation.y, wantYaw)*Math.min(1, dt*4);
+    const scurry = pestState === 'dart' || pestState === 'retreat' ? 13 : 6;
+    pest.legs[0].rotation.x = Math.sin(t*scurry)*0.55;
+    pest.legs[1].rotation.x = -Math.sin(t*scurry)*0.55;
+    pest.position.y = Math.abs(Math.sin(t*scurry))*0.04;
+  }
+
+  for(const p of puffs){
+    if(p.userData.t > 1){ p.material.opacity = 0; continue; }
+    p.userData.t += dt*1.2;
+    p.position.y += dt*0.45;
+    p.scale.multiplyScalar(1 + dt*1.6);
+    p.material.opacity = 0.5*(1 - p.userData.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
