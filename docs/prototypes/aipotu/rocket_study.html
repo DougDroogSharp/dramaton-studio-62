@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ROCKET STUDY — the launch, for George World. Filed 2026-08-31,
+     Doug's batch. A classic red-and-white finned rocket on a proper
+     pad: gantry tower with swing-back arms, hold-downs, a flame
+     trench. The sequence: the gantry arms swing clear — IGNITION,
+     flame column and a rolling smoke billow flooding sideways out of
+     the trench — she rises slow and heavy, gathering speed, clears
+     the tower, tips into her roll program and climbs away trailing
+     exhaust — then STAGING: the booster falls away tumbling with a
+     little puff, the upper stage relights and presses on until she's
+     a bright dot... and the pad crew rolls the next one out.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rocket Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dfe8f0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,26,34,0.8); color:#eaf0f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🚀 Rocket Study</b> — ignition, tower clear, staging, v1<br>
+  <span class="hint">the smoke floods the trench; the booster tumbles away at staging</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 3210;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdde6ee), 70, 400);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 900);
+camera.position.set(10, 6, 16);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 120;
+controls.maxPolarAngle = 1.54;
+{
+  const geo = new THREE.SphereGeometry(400, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f2ea), zenith = new THREE.Color(0x4f9ad8),
+        below = new THREE.Color(0xd0d8dc), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/400;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a894, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(18, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -4;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8ab84 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+
+// ---------- THE PAD --------------------------------------------------------
+const concM = new THREE.MeshLambertMaterial({ color:0xb8b8b0, flatShading:true });
+const steelM = new THREE.MeshLambertMaterial({ color:0x8a2e2a, flatShading:true }); // red iron
+{
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5, 0.8, 24), concM);
+  pad.position.y = 0.4;
+  pad.receiveShadow = true; pad.castShadow = true;
+  scene.add(pad);
+  // the flame trench mouth — smoke pours out of this
+  const trench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 1.4),
+    new THREE.MeshLambertMaterial({ color:0x3a3a3a }));
+  trench.position.set(3.4, 0.35, 0);
+  scene.add(trench);
+  // a blockhouse in the distance
+  const bunker = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 1.6), concM);
+  bunker.position.set(-14, 0.55, 8);
+  bunker.castShadow = true;
+  scene.add(bunker);
+  const slit = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.16, 0.05),
+    new THREE.MeshBasicMaterial({ color:0x101418 }));
+  slit.position.set(-14, 0.85, 8.81);
+  scene.add(slit);
+}
+// THE GANTRY — lattice tower + two swing arms
+const arms = [];
+{
+  const T = new THREE.Group();
+  T.position.set(-2.6, 0.8, 0);
+  scene.add(T);
+  const H = 11.5;
+  for(const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]){
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, H, 0.12), steelM);
+    leg.position.set(dx, H/2, dz);
+    leg.castShadow = true;
+    T.add(leg);
+  }
+  for(let i = 1; i <= 7; i++){
+    const y = i*H/7.5;
+    for(const rot of [0, Math.PI/2]){
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.08, 0.08), steelM);
+      brace.position.y = y;
+      brace.rotation.y = rot;
+      T.add(brace);
+    }
+    // diagonals
+    const diag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.55, 0.06), steelM);
+    diag.position.set(0, y - H/15, -0.5);
+    diag.rotation.z = 0.72;
+    T.add(diag);
+  }
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.25, 1.4), steelM);
+  top.position.y = H + 0.1;
+  T.add(top);
+  // the two swing arms that hold her before launch
+  for(const y of [3.4, 7.8]){
+    const pivot = new THREE.Group();
+    pivot.position.set(0.5, y, 0);
+    T.add(pivot);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.16, 0.3), steelM);
+    arm.position.x = 0.95;
+    arm.castShadow = true;
+    pivot.add(arm);
+    const cradle = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.06, 6, 12, Math.PI), steelM);
+    cradle.position.x = 2.1;
+    cradle.rotation.x = Math.PI/2;
+    cradle.rotation.z = -Math.PI/2;
+    pivot.add(cradle);
+    arms.push(pivot);
+  }
+}
+
+// ---------- THE ROCKET -----------------------------------------------------
+const ROCKET = new THREE.Group();
+scene.add(ROCKET);
+const booster = new THREE.Group();
+const upper = new THREE.Group();
+ROCKET.add(booster); ROCKET.add(upper);
+let flame, flameLight, upFlame;
+{
+  const white = new THREE.MeshLambertMaterial({ color:0xf0eee8 });
+  const red = new THREE.MeshLambertMaterial({ color:0xc03a2a });
+  // booster: tube + engine skirt + four swept fins
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 4.6, 18), white);
+  tube.position.y = 3.1;
+  tube.castShadow = true;
+  booster.add(tube);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.5, 18), red);
+  band.position.y = 1.5;
+  booster.add(band);
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 0.7, 18), red);
+  skirt.position.y = 0.55;
+  booster.add(skirt);
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 0.4, 14),
+    new THREE.MeshStandardMaterial({ color:0x5a5a62, roughness:0.4, metalness:0.6 }));
+  nozzle.position.y = 0.1;
+  booster.add(nozzle);
+  for(let i = 0; i < 4; i++){
+    const fin = new THREE.Mesh(new THREE.ExtrudeGeometry((() => {
+      const s = new THREE.Shape();
+      s.moveTo(0, 0); s.lineTo(0.85, -0.5); s.lineTo(0.85, 0.15); s.lineTo(0, 1.15);
+      s.closePath(); return s;
+    })(), { depth:0.06, bevelEnabled:false }), red);
+    const fg = new THREE.Group();
+    fg.rotation.y = i*Math.PI/2;
+    fin.position.set(0.52, 0.55, -0.03);
+    fin.castShadow = true;
+    fg.add(fin);
+    booster.add(fg);
+  }
+  // upper stage: shorter tube + capsule nose + little window
+  const utube = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.7, 18), white);
+  utube.position.y = 6.25;
+  utube.castShadow = true;
+  upper.add(utube);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.5, 18), red);
+  nose.position.y = 7.85;
+  nose.castShadow = true;
+  upper.add(nose);
+  const port = new THREE.Mesh(new THREE.CircleGeometry(0.14, 12),
+    new THREE.MeshBasicMaterial({ color:0x2a3a4c }));
+  port.position.set(0, 6.6, 0.553);
+  upper.add(port);
+  // flames
+  flame = new THREE.Mesh(new THREE.ConeGeometry(0.42, 2.6, 12),
+    new THREE.MeshBasicMaterial({ color:0xffb03c, transparent:true, opacity:0 }));
+  flame.rotation.x = Math.PI;
+  flame.position.y = -1.3;
+  booster.add(flame);
+  upFlame = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.6, 10),
+    new THREE.MeshBasicMaterial({ color:0xa0c8ff, transparent:true, opacity:0 }));
+  upFlame.rotation.x = Math.PI;
+  upFlame.position.y = 4.6;
+  upper.add(upFlame);
+  flameLight = new THREE.PointLight(0xffa040, 0, 30, 1.6);
+  flameLight.position.y = -0.6;
+  booster.add(flameLight);
+}
+ROCKET.position.set(0, 0.8, 0);
+
+// ---------- smoke ----------------------------------------------------------
+function puffTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(240,240,238,0.85)'); rg.addColorStop(1, 'rgba(230,230,228,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const puffs = [];
+{
+  const pm = new THREE.SpriteMaterial({ map:puffTex(), transparent:true, depthWrite:false });
+  for(let i = 0; i < 80; i++){
+    const s = new THREE.Sprite(pm.clone());
+    s.visible = false;
+    scene.add(s);
+    puffs.push({ m:s, vel:new THREE.Vector3(), age:9, life:1 });
+  }
+}
+function puff(pos, vel, life, size){
+  const p = puffs.find(x => x.age > x.life); if(!p) return;
+  p.age = 0; p.life = life;
+  p.m.position.copy(pos);
+  p.vel.copy(vel);
+  p.m.scale.setScalar(size);
+  p.baseSize = size;
+  p.m.visible = true;
+}
+
+// ---------- the launch -----------------------------------------------------
+// 0–3 arms swing back · 3–4 IGNITION, held down, smoke floods · 4–12 rise,
+// slow then fast, roll program after tower clear · 12–13 STAGING (booster
+// tumbles, upper relights) · 13–20 the dot climbs out · 20–24 reset.
+let phT = 0;
+let boosterFree = false;
+const boosterVel = new THREE.Vector3();
+let boosterSpin = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 24;
+  const f = phT;
+
+  // gantry arms
+  const armK = smooth(clamp(f/3, 0, 1));
+  for(const a of arms) a.rotation.y = -armK*2.1;
+
+  const burning = f > 3 && f < 12.2;
+  flame.material.opacity = lerp(flame.material.opacity, burning ? 0.9 : 0, dt*(burning ? 16 : 8));
+  flame.scale.y = 0.7 + Math.sin(t*31)*0.25;
+  flame.scale.x = flame.scale.z = 0.8 + Math.sin(t*41)*0.2;
+  flameLight.intensity = burning ? 3.2 + Math.sin(t*37)*0.8 : 0;
+
+  if(f < 3){                                  // on the pad, arms clearing
+    ROCKET.position.set(0, 0.8, 0);
+    ROCKET.rotation.set(0, 0, 0);
+    upper.position.set(0, 0, 0);
+    upper.rotation.set(0, 0, 0);
+    boosterFree = false;
+    booster.position.set(0, 0, 0);
+    booster.rotation.set(0, 0, 0);
+    upFlame.material.opacity = 0;
+  } else if(f < 4){                           // IGNITION — held down, the world shakes
+    ROCKET.position.y = 0.8 + Math.sin(t*47)*0.015;
+    // smoke floods sideways out of the trench
+    for(let i = 0; i < 3; i++){
+      puff(new THREE.Vector3(3.4 + rand(0, 1), 0.7, rand(-0.6, 0.6)),
+        new THREE.Vector3(rand(2.5, 5), rand(0.3, 1.2), rand(-1.5, 1.5)), rand(2, 3.5), rand(1, 2));
+      puff(new THREE.Vector3(rand(-1, 1), 0.9, rand(-1, 1)),
+        new THREE.Vector3(rand(-2, 2), rand(0.2, 0.8), rand(-2, 2)), rand(2, 3), rand(0.8, 1.6));
+    }
+  } else if(f < 12.2){                        // THE CLIMB
+    const k = (f - 4);
+    const h = 0.8 + k*k*1.35;                 // slow and heavy, then away
+    ROCKET.position.y = h;
+    // roll program after clearing the tower
+    const tilt = smooth(clamp((h - 13)/30, 0, 0.55));
+    ROCKET.rotation.z = -tilt*0.5;
+    ROCKET.position.x = tilt*k*1.6;
+    // exhaust trail + lingering pad smoke early on
+    puff(ROCKET.position.clone().add(new THREE.Vector3(rand(-0.2, 0.2), -1.2, rand(-0.2, 0.2))),
+      new THREE.Vector3(rand(-0.4, 0.4), rand(-1.5, -0.4), rand(-0.4, 0.4)), rand(1.2, 2.2), rand(0.5, 1.1));
+    if(k < 2.5) puff(new THREE.Vector3(3.4 + rand(0, 1.4), 0.7, rand(-0.8, 0.8)),
+      new THREE.Vector3(rand(2, 4), rand(0.3, 1), rand(-1.4, 1.4)), rand(2, 3.2), rand(1, 1.8));
+  } else if(f < 13){                          // STAGING
+    if(!boosterFree){
+      boosterFree = true;
+      boosterVel.set(-0.8, -0.5, 0.3);
+      boosterSpin = 0;
+      // the separation puff
+      const wp = new THREE.Vector3();
+      booster.getWorldPosition(wp);
+      for(let i = 0; i < 6; i++)
+        puff(wp.clone().add(new THREE.Vector3(rand(-0.3, 0.3), 4.9, rand(-0.3, 0.3))),
+          new THREE.Vector3(rand(-1.5, 1.5), rand(-0.5, 0.5), rand(-1.5, 1.5)), 1.4, 0.7);
+    }
+  }
+  if(boosterFree){
+    // booster falls away tumbling; upper stage presses on
+    boosterVel.y -= 5*dt;
+    booster.position.addScaledVector(boosterVel, dt);
+    boosterSpin += dt*2.2;
+    booster.rotation.z = boosterSpin;
+    booster.rotation.x = boosterSpin*0.6;
+    flame.material.opacity = 0;
+    upFlame.material.opacity = 0.8 + Math.sin(t*29)*0.15;
+    upFlame.scale.y = 0.8 + Math.sin(t*33)*0.2;
+    ROCKET.position.y += 14*dt;               // she's light now
+    ROCKET.position.x += 3.2*dt;
+    if(f >= 20 || f < 3){                     // reset window
+      boosterFree = false;
+      upFlame.material.opacity = 0;
+    }
+  }
+  if(f >= 20){                                // roll out the next one
+    ROCKET.position.lerp(new THREE.Vector3(0, 0.8, 0), Math.min(1, dt*2));
+    ROCKET.rotation.z = lerp(ROCKET.rotation.z, 0, dt*3);
+    booster.position.lerp(new THREE.Vector3(0, 0, 0), Math.min(1, dt*2));
+    booster.rotation.x = lerp(booster.rotation.x, 0, dt*3);
+    booster.rotation.z = lerp(booster.rotation.z, 0, dt*3);
+    upFlame.material.opacity = 0;
+  }
+
+  // smoke life
+  for(const p of puffs){
+    if(p.age > p.life) continue;
+    p.age += dt;
+    p.vel.y += dt*0.25;                       // hot smoke buoyancy
+    p.vel.multiplyScalar(1 - dt*0.5);
+    p.m.position.addScaledVector(p.vel, dt);
+    const kk = p.age/p.life;
+    p.m.scale.setScalar(p.baseSize*(1 + kk*2.2));
+    p.m.material.opacity = (1 - kk)*0.6;
+    if(p.age >= p.life) p.m.visible = false;
+  }
+
+  // camera rides up with her
+  const target = ROCKET.position.y > 6
+    ? new THREE.Vector3(ROCKET.position.x, ROCKET.position.y + 3, ROCKET.position.z)
+    : new THREE.Vector3(0, 4, 0);
+  controls.target.lerp(target, dt*2.2);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
