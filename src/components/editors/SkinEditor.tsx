@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { GameData, SelectionState, Skin } from '@/types';
-import { skinFromFile, isSkinAllowed } from '@/utils/skins';
+import { skinFromFile, isSkinAllowed, allSkinAnimations } from '@/utils/skins';
 import { openBinaryFileWithPicker, SKIN_FILE_OPTIONS } from '@/utils/filePicker';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CyberInput } from '@/components/CyberInput';
-import { Shirt, Upload, Trash2, Lock, Plus, Film } from 'lucide-react';
+import { Shirt, Upload, Trash2, Lock, Plus, Film, Bone, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SkinEditorProps {
@@ -142,6 +142,68 @@ export const SkinEditor = ({ game, selection, onChange, onSelect }: SkinEditorPr
           </div>
         </div>
 
+        {/* Authored clips (e.g. AI-written over the bridge) */}
+        <div>
+          <div className={sectionLabel}>
+            <Wand2 size={11} />
+            Authored animations — written in-pipeline (voice/AI); also valid poses
+          </div>
+          <div className="border border-diesel-border rounded bg-diesel-dark p-2 flex flex-wrap gap-1.5">
+            {(skin.authoredAnimations ?? []).length === 0 ? (
+              <p className="text-diesel-steel/50 text-[10px]">
+                none yet — an AI collaborator can write clips here via the bridge
+              </p>
+            ) : (
+              (skin.authoredAnimations ?? []).map(c => (
+                <span
+                  key={c.name}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-diesel-purple/10 border border-diesel-purple/40 rounded text-[11px] font-mono text-diesel-purple"
+                >
+                  {c.name}
+                  <button
+                    onClick={() =>
+                      updateSkin(skin.id, {
+                        authoredAnimations: (skin.authoredAnimations ?? []).filter(x => x.name !== c.name),
+                      })
+                    }
+                    className="hover:text-diesel-rust"
+                    title="Delete authored clip"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Armature */}
+        <div>
+          <div className={sectionLabel}>
+            <Bone size={11} />
+            Armature — {skin.armature?.length ?? 0} joint{(skin.armature?.length ?? 0) !== 1 ? 's' : ''} (what authored clips animate)
+          </div>
+          <div className="border border-diesel-border rounded bg-diesel-dark p-2 flex flex-wrap gap-1 max-h-32 overflow-y-auto custom-scrollbar">
+            {(skin.armature ?? []).length === 0 ? (
+              <p className="text-diesel-steel/50 text-[10px]">no rig in this model (rigid prop)</p>
+            ) : (
+              (skin.armature ?? []).map(j => (
+                <span
+                  key={j.name}
+                  title={j.parent ? `child of ${j.parent}` : 'root joint'}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+                    j.parent
+                      ? 'bg-diesel-steel/5 border-diesel-border text-diesel-steel'
+                      : 'bg-diesel-gold/10 border-diesel-gold/40 text-diesel-gold'
+                  }`}
+                >
+                  {j.name}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
         <div>
           <div className={sectionLabel}>Worn by</div>
           {wearers.length === 0 ? (
@@ -229,6 +291,7 @@ export const SkinEditor = ({ game, selection, onChange, onSelect }: SkinEditorPr
             skins.map(s => {
               const blocked = !isSkinAllowed(s, allowed);
               const wearerCount = game.actors.filter(a => a.skinId === s.id).length;
+              const animCount = allSkinAnimations(s).length;
               return (
                 <div
                   key={s.id}
@@ -240,7 +303,7 @@ export const SkinEditor = ({ game, selection, onChange, onSelect }: SkinEditorPr
                   {s.skinType && <span className="text-[10px] font-mono text-diesel-steel">[{s.skinType}]</span>}
                   {blocked && <span className="text-[9px] uppercase text-diesel-rust">blocked</span>}
                   <span className="text-[10px] text-diesel-steel ml-auto">
-                    {s.animations.length} anim{s.animations.length !== 1 ? 's' : ''}
+                    {animCount} anim{animCount !== 1 ? 's' : ''}
                     {wearerCount > 0 && ` · ${wearerCount} wearer${wearerCount !== 1 ? 's' : ''}`}
                   </span>
                   <button

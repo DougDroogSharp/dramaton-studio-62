@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   animationsFromGltf,
   animationsFromGlb,
+  armatureFromGltf,
   skinFromFile,
   isSkinAllowed,
   skinAnimationsForActor,
+  allSkinAnimations,
 } from '../utils/skins';
 import { Skin } from '../types';
 import { getAutoCompleteSuggestions } from '../utils/scriptParser';
@@ -70,6 +72,69 @@ describe('skinFromFile', () => {
     const data = new TextEncoder().encode(JSON.stringify(GLTF_WITH_ANIMS)).buffer as ArrayBuffer;
     const skin = skinFromFile('vita.gltf', data);
     expect(skin.animations).toEqual(['Walk', 'TANTRUM', 'animation_2', 'Idle']);
+  });
+});
+
+describe('armatureFromGltf', () => {
+  // hips(0) -> spine(1) -> [arm_L(3), arm_R(4)]; node 2 is a non-joint
+  // in-between (e.g. a helper) between spine and arm_R; node 5 is a mesh.
+  const RIGGED = {
+    nodes: [
+      { name: 'hips', children: [1] },
+      { name: 'spine', children: [3, 2] },
+      { name: 'helper', children: [4] },
+      { name: 'arm_L' },
+      { name: 'arm_R' },
+      { name: 'body_mesh' },
+    ],
+    skins: [{ joints: [0, 1, 3, 4] }],
+  };
+
+  it('lists joints with their nearest JOINT ancestor as parent', () => {
+    expect(armatureFromGltf(RIGGED)).toEqual([
+      { name: 'hips' },
+      { name: 'spine', parent: 'hips' },
+      { name: 'arm_L', parent: 'spine' },
+      { name: 'arm_R', parent: 'spine' }, // skips the non-joint helper node
+    ]);
+  });
+
+  it('returns [] for rigid models and junk', () => {
+    expect(armatureFromGltf({ nodes: [{ name: 'x' }] })).toEqual([]);
+    expect(armatureFromGltf(null)).toEqual([]);
+  });
+
+  it('rides along in skinFromFile', () => {
+    const data = new TextEncoder().encode(JSON.stringify(RIGGED)).buffer as ArrayBuffer;
+    const skin = skinFromFile('rigged.gltf', data);
+    expect(skin.armature).toHaveLength(4);
+    expect(skin.armature![0]).toEqual({ name: 'hips' });
+  });
+});
+
+describe('authored clips join the pose vocabulary', () => {
+  const skin = {
+    id: 's1',
+    animations: ['Walk'],
+    authoredAnimations: [{ name: 'slump', clip: { tracks: [] } }],
+  };
+
+  it('allSkinAnimations merges baked and authored', () => {
+    expect(allSkinAnimations(skin)).toEqual(['Walk', 'slump']);
+  });
+
+  it('skinAnimationsForActor includes authored clips', () => {
+    expect(skinAnimationsForActor({ skinId: 's1' }, [skin])).toEqual(['Walk', 'slump']);
+  });
+
+  it('pose autocomplete offers authored clips', () => {
+    const game = {
+      actors: [{ id: 'george', name: 'George', skinId: 's1' }],
+      skins: [skin],
+    };
+    const script = '[POSE george pose=sl';
+    const labels = getAutoCompleteSuggestions(script, script.length, game, [], []).map(s => s.label);
+    expect(labels).toContain('slump');
   });
 });
 

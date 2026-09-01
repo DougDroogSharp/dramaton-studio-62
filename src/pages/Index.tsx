@@ -8,6 +8,7 @@ import { loadGameFromDB, saveGameToDB, clearGameFromDB } from "@/utils/db";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjectCapture } from "@/hooks/useProjectCapture";
+import { useDramBridge } from "@/hooks/useDramBridge";
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from "@/utils/filePicker";
 import { toast } from "sonner";
 import {
@@ -112,6 +113,10 @@ const Index = () => {
       }
     });
   }, []);
+
+  // DRAM bridge: mirror the live document to the dev server for AI
+  // collaboration (dev-only; no-op in production builds)
+  useDramBridge(game, setGame, isLoaded);
 
   // Autosave when editing (debounced)
   useEffect(() => {

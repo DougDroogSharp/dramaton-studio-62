@@ -84,12 +84,32 @@ export interface VitaPreset {
 // per the stage-registry convention. animations lists EVERY clip found at
 // import, including non-standard ones — each is a valid [POSE ... pose=X]
 // argument for the wearing actor.
+// One joint in a skin's rig, flattened: parent is the nearest ancestor joint
+// (undefined for roots). Enough structure for an AI to author clips against.
+export interface ArmatureJoint {
+  name: string;
+  parent?: string;
+}
+
+// An animation authored INSIDE the pipeline (e.g. by an AI collaborator over
+// the bridge) rather than baked into the model file. `clip` is an opaque
+// three.js AnimationClip.toJSON() object — the runtime plays it with
+// AnimationClip.parse on the skin's armature. The name joins the skin's pose
+// vocabulary exactly like an imported clip.
+export interface AuthoredClip {
+  name: string;
+  clip: unknown;
+  note?: string;
+}
+
 export interface Skin {
   id: string;
   name: string;
   skinType?: string;        // e.g. 'human', 'animal', 'machine' — lockdown unit
   fileName?: string;        // source file the manifest was read from
   animations: string[];
+  armature?: ArmatureJoint[];
+  authoredAnimations?: AuthoredClip[];
   note?: string;
   status?: AssetStatus;
 }

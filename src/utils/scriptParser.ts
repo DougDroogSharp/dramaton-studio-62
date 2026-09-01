@@ -773,7 +773,7 @@ export function getAutoCompleteSuggestions(
     scenes?: { id: string; name: string }[];
     buttons?: { id: string; name: string }[];
     sfx?: { id: string; name: string }[];
-    skins?: { id: string; animations: string[] }[];
+    skins?: { id: string; animations: string[]; authoredAnimations?: { name: string }[] }[];
     info?: { worldState?: Record<string, unknown>; customPoses?: string[]; customExpressions?: string[] };
   },
   defaultPoses: string[] = [],
@@ -838,8 +838,9 @@ export function getAutoCompleteSuggestions(
       const actor = poseActorId
         ? (game.actors || []).find(a => a.id.toLowerCase() === poseActorId.toLowerCase())
         : undefined;
-      const skinAnims = actor?.skinId
-        ? (game.skins || []).find(s => s.id === actor.skinId)?.animations || []
+      const actorSkin = actor?.skinId ? (game.skins || []).find(s => s.id === actor.skinId) : undefined;
+      const skinAnims = actorSkin
+        ? [...actorSkin.animations, ...(actorSkin.authoredAnimations ?? []).map(c => c.name)]
         : [];
       const allPoses = [...new Set([...skinAnims, ...defaultPoses, ...(game.info?.customPoses || [])])];
       return allPoses
