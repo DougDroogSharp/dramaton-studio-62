@@ -127,18 +127,36 @@ const fill = new THREE.DirectionalLight(0xd6e8ff, 0.45);
 fill.position.set(-18, 10, -14);
 scene.add(fill);
 
-// ---------- ground: a sandy clearing with grass tufts ---------------------
+// ---------- ground: a gently ROLLING clearing (Poppy terrain-follows) ------
+// the map contract, dog-sized: terrainH + gradient, exact everywhere
+function terrainH(x, z){
+  return 0.32*Math.sin(x*0.32)*Math.cos(z*0.28)
+       + 0.18*Math.sin(x*0.7 + 1.1)*Math.sin(z*0.55 + 0.5);
+}
+function terrainGrad(x, z){
+  return {
+    hx: 0.32*0.32*Math.cos(x*0.32)*Math.cos(z*0.28)
+      + 0.18*0.7*Math.cos(x*0.7 + 1.1)*Math.sin(z*0.55 + 0.5),
+    hz: -0.32*0.28*Math.sin(x*0.32)*Math.sin(z*0.28)
+      + 0.18*0.55*Math.sin(x*0.7 + 1.1)*Math.cos(z*0.55 + 0.5),
+  };
+}
 {
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
-    new THREE.MeshLambertMaterial({ color:0xd9c791 }));
-  sand.rotation.x = -Math.PI/2;
+  const geo = new THREE.PlaneGeometry(70, 70, 70, 70);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+  for(let i = 0; i < pos.count; i++)
+    pos.setY(i, terrainH(pos.getX(i), pos.getZ(i)));
+  geo.computeVertexNormals();
+  const sand = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color:0xd9c791 }));
   sand.receiveShadow = true;
   scene.add(sand);
   const tuftMat = new THREE.MeshLambertMaterial({ color:0x7d9a4e, flatShading:true });
   for(let i=0;i<26;i++){
     const a = rand(0, Math.PI*2), r = rand(7, 30);
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
     const t = new THREE.Mesh(new THREE.ConeGeometry(rand(0.12,0.2), rand(0.35,0.7), 5), tuftMat);
-    t.position.set(Math.cos(a)*r, 0.18, Math.sin(a)*r);
+    t.position.set(x, terrainH(x, z) + 0.18, z);
     t.rotation.z = rand(-0.2, 0.2);
     scene.add(t);
   }
@@ -158,7 +176,7 @@ const vita = new THREE.Group();
       new THREE.MeshLambertMaterial({ color:0x4c5666 }));
     leg.position.set(s*0.15, 0.28, 0); vita.add(leg);
   }
-  vita.position.set(2.6, 0, 1.4);
+  vita.position.set(2.6, terrainH(2.6, 1.4), 1.4);
   vita.lookAt(0, 0, 0);
   scene.add(vita);
 }
@@ -624,6 +642,18 @@ function animate(){
     poppy.position.lerp(new THREE.Vector3(0, 0, 0), Math.min(1, dt*1.4));
   }
 
+  // ---------- TERRAIN-FOLLOW: ride the height, tilt to the contour ----------
+  {
+    const gx = poppy.position.x, gz = poppy.position.z;
+    poppy.position.y = terrainH(gx, gz);
+    const { hx, hz } = terrainGrad(gx, gz);
+    const hd = poppy.rotation.y;
+    const ahead = hx*Math.sin(hd) + hz*Math.cos(hd);   // grade under her nose
+    const side = hx*Math.cos(hd) - hz*Math.sin(hd);    // camber under her paws
+    poppy.rotation.x = lerp(poppy.rotation.x, -Math.atan(ahead)*0.75, Math.min(1, dt*5));
+    poppy.rotation.z = lerp(poppy.rotation.z, Math.atan(side)*0.55, Math.min(1, dt*5));
+  }
+
   // ---------- pose the body ----------
   P.chest.position.y = 0.78 + ch.lift;
   P.chest.rotation.x = ch.pitch;
@@ -681,6 +711,19 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){
+    const [id, val] = pair.split(':');
+    const el = document.getElementById(id);
+    if(el){ el.value = val; el.dispatchEvent(new Event('change')); }
+  }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
 </script>
 </body>
 </html>

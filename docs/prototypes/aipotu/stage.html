@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- ======================================================================
-     THE STAGE — one screen for every George World object & animation.
-     Filed 2026-08-31. Pick a study from the pulldown; it loads in place
-     (each study's own animation controls appear inside its panel, so
-     nothing clutters). The last entry loads the live game itself.
+     THE STAGE v2 — one screen for every George World object & animation,
+     now with a CASCADING menu: pick the ITEM, then pick its ANIMATION /
+     scene / skin from the second pulldown (populated per item). The
+     second menu drives the study through the #set=/#click= hash the
+     studies understand (the "stage remote-control" snippet).
      Serve from the aipotu folder (serve_nocache.py :8201/stage.html).
      ====================================================================== -->
 <html lang="en">
@@ -18,31 +19,56 @@
     display:flex; align-items:center; gap:10px; padding:0 12px;
     background:linear-gradient(180deg,#232a30,#1a2025);
     border-bottom:1px solid #3a444c; color:#e8f0f4;
-    font:13px system-ui, sans-serif;
+    font:13px system-ui, sans-serif; overflow-x:auto;
   }
-  #bar b { font-size:14px; letter-spacing:0.5px; }
+  #bar b { font-size:14px; letter-spacing:0.5px; white-space:nowrap; }
   #bar select {
-    padding:6px 10px; border:0; border-radius:8px; min-width:260px;
+    padding:6px 10px; border:0; border-radius:8px;
     background:#3f7040; color:#fff; font:13px system-ui; cursor:pointer;
   }
-  #bar .note { opacity:0.6; font-size:12px; }
+  #pick { min-width:230px; }
+  #anim { min-width:170px; background:#3d6f96; }
+  #anim:disabled { opacity:0.45; }
   #frame { position:fixed; top:44px; left:0; right:0; bottom:0;
     width:100%; height:calc(100% - 44px); border:0; }
 </style>
 </head>
 <body>
 <div id="bar">
-  <b>🎬 GEORGE WORLD STAGE</b>
+  <b>🎬 STAGE</b>
   <select id="pick">
     <optgroup label="Creatures & characters">
       <option value="vita_anim_study.html">Vita — 30 behavior prototypes (OLD body)</option>
       <option value="vita_study.html">Vita — the hero body</option>
-      <option value="poppy_study.html">Poppy — the real girl (8 anims)</option>
+      <option value="poppy_study.html">Poppy — the real girl (9 anims)</option>
       <option value="horse_study.html">Appaloosa horse — gaits, rear, treat</option>
+      <option value="barnyard_study.html">Barnyard — goats, shearing, chickens, donkey</option>
       <option value="fish_study.html">Fish — silversides, flying fish, mullet</option>
       <option value="seagull_study.html">Seagull</option>
       <option value="orca_study.html">Orcas</option>
       <option value="godzilla_study.html">Godzilla — the leviathan (full range)</option>
+    </optgroup>
+    <optgroup label="The armature pipeline">
+      <option value="vita_rig_study.html">★ Vita RIG — THE NEW BODY</option>
+      <option value="skin_test_study.html">Skin gallery — skins × clips + imports</option>
+      <option value="anim_viewer.html">Animation viewer — drop .glb, audit clips</option>
+      <option value="terrainwalk_study.html">Terrain walk — FULL LEG IK, any skin</option>
+      <option value="formation_study.html">Formation — marching the contours</option>
+      <option value="duo_study.html">Duo — hug, hand in hand, the Frug</option>
+      <option value="army_study.html">Army — archers, the duel, the march</option>
+      <option value="roman_study.html">Romans — the charge &amp; the testudo</option>
+      <option value="landingcraft_study.html">Landing craft — ramp down, six ashore</option>
+    </optgroup>
+    <optgroup label="Transport">
+      <option value="tradeboat_study.html">Trading boat — load, hoist, reach, return</option>
+      <option value="dock_study.html">Dock — quay, pier, jib crane</option>
+      <option value="chariot_study.html">Celtic chariot — gallop, whip, skid</option>
+      <option value="train_study.html">Train — loco, boxcars, hoppers, caboose</option>
+      <option value="hotair_study.html">Hot air balloon — blast, rise, drift</option>
+      <option value="flyer_study.html">Wright Flyer — the twelve-second hop</option>
+      <option value="p51_study.html">P-51 Mustang — aerobatics + FLAK</option>
+      <option value="jet_study.html">Passenger jet — the circuit</option>
+      <option value="rocket_study.html">Rocket — ignition, staging</option>
     </optgroup>
     <optgroup label="Objects & builds">
       <option value="wagon_study.html">Wagon — smooth & bumpy rolling</option>
@@ -50,6 +76,9 @@
       <option value="surfboard_study.html">Surfboards — log, thruster, fish</option>
       <option value="throne_study.html">Throne — the king sits</option>
       <option value="castle_study.html">Castle — the Norman keep</option>
+      <option value="bank_study.html">Bank — deposits in, paper out</option>
+      <option value="plantation_study.html">Plantation — product flows one way</option>
+      <option value="houses_study.html">Houses — Wright vs the McMansion</option>
       <option value="tools_study.html">Tools — hammer, axe, saw + fence posts</option>
       <option value="windmill_study.html">Windmill — the mill grinds</option>
       <option value="market_study.html">Market stall — haggle &amp; handshake</option>
@@ -83,47 +112,112 @@
       <option value="inlandwater_study.html">Inland water — spring, creek, river, lake</option>
       <option value="fireflies_study.html">Fireflies — the night set, catch &amp; release</option>
       <option value="easteregg_study.html">Easter egg chamber — the hidden room</option>
-      <option value="caldera_study.html">The Caldera — island map study (rim, lake, falls)</option>
-      <option value="atoll_study.html">Ring Atoll — the NEW lagoon-necklace map</option>
-      <option value="delta_study.html">The River Delta — the NEW branching-river map</option>
+      <option value="bigbang_study.html">Big Bang — the dragon's egg at the origin</option>
+      <option value="caldera_study.html">The Caldera — island map study</option>
+      <option value="atoll_study.html">Ring Atoll — the lagoon-necklace map</option>
+      <option value="delta_study.html">The River Delta — the branching-river map</option>
       <option value="terrain_study.html">Terrain study (other session's work)</option>
-    </optgroup>
-    <optgroup label="The armature pipeline">
-      <option value="vita_rig_study.html">★ Vita RIG — THE NEW BODY (squat/aim clips, skins)</option>
-      <option value="anim_viewer.html">Animation viewer — drop .glb, audit clips</option>
-      <option value="skin_test_study.html">Skin gallery — skins × clips, cascading menu</option>
-      <option value="terrainwalk_study.html">Terrain walk — FULL LEG IK, any skin</option>
-      <option value="formation_study.html">Formation — the company marches the contours</option>
-      <option value="duo_study.html">Duo — hug, hand in hand, the Frug</option>
-      <option value="army_study.html">Army — archers, the duel, the march</option>
-      <option value="roman_study.html">Romans — the charge &amp; the testudo</option>
-      <option value="tradeboat_study.html">Trading boat — load, hoist, reach, return</option>
-      <option value="bank_study.html">Bank — deposits in, paper out</option>
-      <option value="plantation_study.html">Plantation — product flows one way</option>
-      <option value="barnyard_study.html">Barnyard — goats, shearing, chickens, donkey</option>
-      <option value="dock_study.html">Dock — quay, pier, jib crane</option>
-      <option value="hotair_study.html">Hot air balloon — blast, rise, drift</option>
-      <option value="flyer_study.html">Wright Flyer — the twelve-second hop</option>
-      <option value="rocket_study.html">Rocket — ignition, tower clear, staging</option>
-      <option value="p51_study.html">P-51 Mustang — the airshow display</option>
-      <option value="jet_study.html">Passenger jet — the circuit</option>
-      <option value="landingcraft_study.html">Landing craft — ramp down, six ashore</option>
-      <option value="train_study.html">Train — loco, boxcars, hoppers, caboose</option>
     </optgroup>
     <optgroup label="The machine">
       <option value="georgeotron_parts_study.html">Georgeotron parts — the kit in 3D + anchors</option>
     </optgroup>
     <optgroup label="The game">
-      <option value="georgeworld.html">▶ GEORGE WORLD — the live game (WX TEST menu inside)</option>
+      <option value="georgeworld.html">▶ GEORGE WORLD — the live game</option>
     </optgroup>
   </select>
-  <span class="note">each study's own animation controls appear inside its panel</span>
+  <select id="anim"></select>
 </div>
 <iframe id="frame" src="vita_anim_study.html"></iframe>
 <script>
+  // Second-level menus: file → [[hash, label], ...]. The hash rides the
+  // iframe URL; the study's stage-remote-control snippet applies it.
+  const MODES = {
+    'vita_anim_study.html': [
+      ['set=animsel:dance', 'Dance'], ['set=animsel:idle', 'Idle'], ['set=animsel:walk', 'Walk'],
+      ['set=animsel:run', 'Run'], ['set=animsel:skip', 'Skip'], ['set=animsel:crawl', 'Crawl'],
+      ['set=animsel:pick', 'Pick fruit'], ['set=animsel:give', 'Pick & hand a berry'],
+      ['set=animsel:celebrate', 'Celebrate'], ['set=animsel:jumptriumph', 'Triumphant jumps'],
+      ['set=animsel:cartwheel', 'Cartwheel'], ['set=animsel:point', 'Point'],
+      ['set=animsel:headturn', 'Head turn'], ['set=animsel:jump', 'Jump (peering)'],
+      ['set=animsel:bow', 'Bow'], ['set=animsel:kneel', 'Kneel'],
+      ['set=animsel:prostrate', 'Full prostrate bow'], ['set=animsel:haul', 'Haul the crate'],
+      ['set=animsel:yes', 'Nod YES'], ['set=animsel:no', 'Shake NO'],
+      ['set=animsel:talk', 'Talk (expressions)'], ['set=animsel:shout', 'Shout'],
+      ['set=animsel:threaten', 'Threaten'], ['set=animsel:crouch', 'Defensive crouch'],
+      ['set=animsel:tantrum', 'TANTRUM'], ['set=animsel:sitdown', 'Sit down'],
+      ['set=animsel:sit', 'Sit (pose)'], ['set=animsel:sleep', 'Sleep — back'],
+      ['set=animsel:sleepside', 'Sleep — side'], ['set=animsel:sleeptummy', 'Sleep — tummy'],
+      ['set=animsel:ride', 'Mount → ride → dismount'],
+    ],
+    'poppy_study.html': [
+      ['click=happy', 'Happy'], ['click=walk', 'Walk (terrain-following)'],
+      ['click=sit', 'Sit'], ['click=curl', 'CURL UP to sleep'], ['click=sleep', 'Sleep — sprawled'],
+      ['click=pawup', 'Paw-up'], ['click=rearup', 'Rear-up'],
+      ['click=tailchase', 'Tail-chase'], ['click=sad', 'Sad'],
+    ],
+    'duo_study.html': [
+      ['set=duet:hug', 'The hug'], ['set=duet:hand', 'Hand in hand'], ['set=duet:frug', 'The Frug'],
+    ],
+    'army_study.html': [
+      ['set=scene:archery', 'Archery — the volley'], ['set=scene:duel', 'The duel'],
+      ['set=scene:march', 'The march'],
+    ],
+    'roman_study.html': [
+      ['set=scene:charge', 'The charge — volley & gladius'], ['set=scene:testudo', 'The TESTUDO'],
+    ],
+    'formation_study.html': [
+      ['set=weapon:rifle', 'Garands — 12'], ['set=weapon:pike', 'Swiss pikes — 12'],
+      ['set=size:6', 'Six — column of twos'], ['set=size:24', 'Twenty-four — of fours'],
+    ],
+    'skin_test_study.html': [
+      ['set=skinsel:0', 'Skin: Vita — blue'], ['set=skinsel:1', 'Skin: Vita — red'],
+      ['set=skinsel:2', 'Skin: Vita — royal'], ['set=skinsel:3', 'Skin: Alien — green'],
+      ['set=skinsel:4', 'Skin: Alien — gray'],
+    ],
+    'terrainwalk_study.html': [
+      ['set=skinsel:-1', 'Walker: Vita — THE NEW BODY'],
+    ],
+    'p51_study.html': [
+      ['set=mnv:display', 'The airshow display'], ['set=mnv:level', 'Straight & level'],
+      ['set=mnv:loop', 'Loop'], ['set=mnv:barrel', 'Barrel roll'],
+      ['set=mnv:immelmann', 'Immelmann'], ['set=mnv:stall', 'Stall & recover'],
+      ['set=mnv:hardleft', 'Violent turn LEFT'], ['set=mnv:hardright', 'Violent turn RIGHT'],
+      ['set=mnv:dive', 'Dive & pull-out'],
+    ],
+    'houses_study.html': [
+      ['set=house:wright', 'The Wright house'], ['set=house:mcmansion', 'The McMansion'],
+    ],
+  };
   const pick = document.getElementById('pick');
+  const anim = document.getElementById('anim');
   const frame = document.getElementById('frame');
-  pick.addEventListener('change', () => { frame.src = pick.value; });
+  function fillAnim(){
+    const modes = MODES[pick.value];
+    anim.innerHTML = '';
+    if(!modes){
+      const o = document.createElement('option');
+      o.textContent = '— one continuous scene —';
+      anim.appendChild(o);
+      anim.disabled = true;
+      return;
+    }
+    anim.disabled = false;
+    for(const [hash, label] of modes){
+      const o = document.createElement('option');
+      o.value = hash;
+      o.textContent = label;
+      anim.appendChild(o);
+    }
+  }
+  let loadN = 0;
+  function load(){
+    // the ?n= buster forces a real reload even when only the hash changed
+    const hash = (!anim.disabled && anim.value) ? '#' + anim.value : '';
+    frame.src = pick.value + '?n=' + (++loadN) + hash;
+  }
+  pick.addEventListener('change', () => { fillAnim(); load(); });
+  anim.addEventListener('change', load);
+  fillAnim();
 </script>
 </body>
 </html>
