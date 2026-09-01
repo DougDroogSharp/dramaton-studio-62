@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FIREFLIES STUDY — the night set, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A dark meadow after supper: campfire coals, a log seat, fir
+     silhouettes, stars and a crescent moon. A swarm of fireflies
+     drifts and blinks over the grass — each with its own wander and
+     its own blink rhythm — and a SYNCHRONY button lets them slowly
+     fall into step (the Great Smoky Mountains trick). One brave
+     firefly loiters low by the berry bush; a Vita walks up, cups its
+     hands around it, peeks at the glow pulsing between its fingers,
+     then opens its hands and watches it spiral up into the dark.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fireflies Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0a0d16; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(10,14,24,0.78); color:#e8ecf4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin-top:6px; padding:5px 12px; border:0; border-radius:8px;
+    background:#3f7040; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#c9a03c; color:#241c04; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>✨ Fireflies Study</b> — the night set, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · one firefly waits by the berry bush</span><br>
+  <button id="sync">SYNCHRONY: off</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 6161;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.02;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x0a0f1c), 26, 130);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(5.2, 2.8, 8.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// ---------- the night sky --------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0x16223a), zenith = new THREE.Color(0x04060e),
+        below = new THREE.Color(0x090c14), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+function glowTex(inner, outer){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  rg.addColorStop(0, inner); rg.addColorStop(0.35, outer); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+{ // stars — twinkle-free points, dense at zenith
+  const p = [], c = [];
+  for(let i = 0; i < 900; i++){
+    const a = rand(0, Math.PI*2), e = Math.acos(rand(0.04, 1));
+    const R = 270;
+    p.push(Math.cos(a)*Math.sin(e)*R, Math.cos(e)*R, Math.sin(a)*Math.sin(e)*R);
+    const b = rand(0.35, 1);
+    c.push(b, b, b*rand(0.85, 1));
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    size:1.6, sizeAttenuation:false, vertexColors:true, fog:false,
+    transparent:true, opacity:0.9, depthWrite:false })));
+}
+{ // the crescent moon — painted canvas sprite
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#f4f0da';
+  g.beginPath(); g.arc(64, 64, 44, 0, Math.PI*2); g.fill();
+  g.globalCompositeOperation = 'destination-out';
+  g.beginPath(); g.arc(44, 54, 42, 0, Math.PI*2); g.fill();
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, fog:false, depthWrite:false }));
+  moon.scale.set(26, 26, 1);
+  moon.position.set(-120, 150, -190);
+  scene.add(moon);
+}
+
+// ---------- the night lights ----------------------------------------------
+scene.add(new THREE.HemisphereLight(0x2c3c5c, 0x101408, 0.55));
+const moonlight = new THREE.DirectionalLight(0x9cb4de, 0.55);
+moonlight.position.set(-14, 22, -18);
+moonlight.castShadow = true;
+moonlight.shadow.mapSize.set(1024, 1024);
+moonlight.shadow.camera.left = -9; moonlight.shadow.camera.right = 9;
+moonlight.shadow.camera.top = 9; moonlight.shadow.camera.bottom = -9;
+scene.add(moonlight);
+const fireLight = new THREE.PointLight(0xff9c46, 2.2, 12, 1.8);
+fireLight.position.set(-2.6, 0.6, -1.8);
+scene.add(fireLight);
+
+// ---------- the meadow -----------------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0x1c2a1c }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+{ // grass tufts, dark
+  const mat = new THREE.MeshLambertMaterial({ color:0x24361e, flatShading:true });
+  for(let i = 0; i < 120; i++){
+    const a = rand(0, Math.PI*2), r = rand(1.4, 16);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.05, 0.1), rand(0.18, 0.4), 4), mat);
+    tuft.position.set(Math.cos(a)*r, 0.1, Math.sin(a)*r);
+    tuft.rotation.y = rand(0, 6);
+    scene.add(tuft);
+  }
+}
+{ // fir silhouettes ringing the meadow
+  const trunkM = new THREE.MeshLambertMaterial({ color:0x241a10, flatShading:true });
+  const firM = new THREE.MeshLambertMaterial({ color:0x122016, flatShading:true });
+  for(let i = 0; i < 14; i++){
+    const a = i/14*Math.PI*2 + rand(-0.15, 0.15), r = rand(17, 26);
+    const h = rand(3.5, 6.5);
+    const fir = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, h*0.3, 6), trunkM);
+    trunk.position.y = h*0.15; fir.add(trunk);
+    for(let k = 0; k < 4; k++){
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(h*0.22*(1 - k*0.18), h*0.34, 7), firM);
+      cone.position.y = h*(0.3 + k*0.19); fir.add(cone);
+    }
+    fir.position.set(Math.cos(a)*r, 0, Math.sin(a)*r);
+    scene.add(fir);
+  }
+}
+// the berry bush the brave firefly loiters by
+const BUSH = new THREE.Vector3(2.6, 0, 1.4);
+{
+  const mat = new THREE.MeshLambertMaterial({ color:0x1a2e1a, flatShading:true });
+  for(let i = 0; i < 5; i++){
+    const b = new THREE.Mesh(new THREE.SphereGeometry(rand(0.28, 0.44), 7, 6), mat);
+    b.position.set(BUSH.x + rand(-0.35, 0.35), rand(0.18, 0.5), BUSH.z + rand(-0.35, 0.35));
+    b.castShadow = true;
+    scene.add(b);
+  }
+  const berryM = new THREE.MeshLambertMaterial({ color:0x4a2434 });
+  for(let i = 0; i < 9; i++){
+    const berry = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), berryM);
+    berry.position.set(BUSH.x + rand(-0.5, 0.5), rand(0.2, 0.6), BUSH.z + rand(-0.5, 0.5));
+    scene.add(berry);
+  }
+}
+// ---------- the campfire (coals stage — supper is over) --------------------
+const flames = [];
+{
+  const FIRE = fireLight.position;
+  const logM = new THREE.MeshLambertMaterial({ color:0x33241a, flatShading:true });
+  for(const a of [0.3, 1.4, 2.5, 4.1, 5.3]){
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.85, 6), logM);
+    log.rotation.z = Math.PI/2 - 0.35;
+    log.rotation.y = a;
+    log.position.set(FIRE.x, 0.12, FIRE.z);
+    log.castShadow = true;
+    scene.add(log);
+  }
+  const coals = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 6),
+    new THREE.MeshBasicMaterial({ color:0xff6a1c }));
+  coals.scale.y = 0.4; coals.position.set(FIRE.x, 0.1, FIRE.z);
+  scene.add(coals);
+  const flameM = new THREE.MeshBasicMaterial({ color:0xffb03c, transparent:true, opacity:0.85 });
+  for(let i = 0; i < 3; i++){
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.4, 5), flameM.clone());
+    fl.position.set(FIRE.x + rand(-0.1, 0.1), 0.3, FIRE.z + rand(-0.1, 0.1));
+    scene.add(fl); flames.push({ m:fl, ph:rand(0, 9) });
+  }
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.6, 7), logM);
+  seat.rotation.z = Math.PI/2; seat.rotation.y = 0.4;
+  seat.position.set(FIRE.x + 1.1, 0.16, FIRE.z + 0.7);
+  seat.castShadow = true;
+  scene.add(seat);
+}
+
+// ---------- THE SWARM ------------------------------------------------------
+const N = 140;
+const flies = [];
+const fPos = new Float32Array(N*3), fCol = new Float32Array(N*3);
+for(let i = 0; i < N; i++){
+  const a = rand(0, Math.PI*2), r = Math.sqrt(rand(1)) * 15 + 1;
+  flies.push({
+    hx: Math.cos(a)*r, hz: Math.sin(a)*r, hy: rand(0.25, 2.2),
+    // three incommensurate wander frequencies each — Lissajous drift
+    wx: rand(0.12, 0.3), wy: rand(0.16, 0.34), wz: rand(0.1, 0.28),
+    px: rand(0, 9), py: rand(0, 9), pz: rand(0, 9),
+    span: rand(0.8, 2.4),
+    blinkPh: rand(0, Math.PI*2), blinkW: rand(0.9, 1.6),
+  });
+}
+const swarmGeo = new THREE.BufferGeometry();
+swarmGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+swarmGeo.setAttribute('color', new THREE.BufferAttribute(fCol, 3));
+const swarm = new THREE.Points(swarmGeo, new THREE.PointsMaterial({
+  size:0.16, sizeAttenuation:true, vertexColors:true,
+  map: glowTex('rgba(240,255,190,1)', 'rgba(170,220,60,0.55)'),
+  blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }));
+scene.add(swarm);
+
+let SYNC = false;
+const syncBtn = document.getElementById('sync');
+syncBtn.addEventListener('click', () => {
+  SYNC = !SYNC;
+  syncBtn.textContent = 'SYNCHRONY: ' + (SYNC ? 'ON' : 'off');
+  syncBtn.className = SYNC ? 'on' : '';
+});
+
+// ---------- the brave one --------------------------------------------------
+const hero = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: glowTex('rgba(250,255,210,1)', 'rgba(190,235,80,0.6)'),
+  blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }));
+hero.scale.set(0.34, 0.34, 1);
+scene.add(hero);
+const heroLight = new THREE.PointLight(0xd8f088, 0, 2.4, 2);
+scene.add(heroLight);
+
+// ---------- the Vita -------------------------------------------------------
+const V = { g: new THREE.Group() };
+{
+  const shirt = new THREE.MeshLambertMaterial({ color:0x3c5a78 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xd8b28e });
+  V.hips = new THREE.Group(); V.hips.position.y = 0.42; V.g.add(V.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), shirt);
+  barrel.position.y = 0.22; barrel.castShadow = true; V.hips.add(barrel);
+  V.head = new THREE.Group(); V.head.position.y = 0.8; V.hips.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; V.head.add(skull);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.31, 12, 8, 0, Math.PI*2, 0, 1.4),
+    new THREE.MeshLambertMaterial({ color:0x2c1c10 }));
+  hair.position.y = 0.04; V.head.add(hair);
+  V.arms = []; V.hands = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6), skin);
+    hand.position.y = -0.5; arm.add(hand);
+    V.hips.add(arm); V.arms.push(arm); V.hands.push(hand);
+  }
+  V.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    V.hips.add(leg); V.legs.push(leg);
+  }
+  scene.add(V.g);
+}
+function walkCycle(t, sp = 1){
+  const ph = t*8*sp;
+  V.legs[0].rotation.x = Math.sin(ph)*0.45;
+  V.legs[1].rotation.x = -Math.sin(ph)*0.45;
+  V.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.025;
+}
+function stillLegs(dt){
+  V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, 0, dt*6);
+  V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, 0, dt*6);
+}
+function armsTo(dt, lx, lz, rx, rz, k = 5){
+  V.arms[0].rotation.x = lerp(V.arms[0].rotation.x, lx, dt*k);
+  V.arms[0].rotation.z = lerp(V.arms[0].rotation.z, lz, dt*k);
+  V.arms[1].rotation.x = lerp(V.arms[1].rotation.x, rx, dt*k);
+  V.arms[1].rotation.z = lerp(V.arms[1].rotation.z, rz, dt*k);
+}
+
+// ---------- the catch-and-release loop -------------------------------------
+// 0–3.2  the brave one loiters by the bush; Vita walks up
+// 3.2–5  Vita leans in, arms sweep together and CUP around it
+// 5–9    holds the cupped hands up; the glow PULSES between the fingers
+// 9–11   the hands open; the firefly hangs a beat, then
+// 11–16  spirals UP into the dark; Vita's head follows it; a little wave
+// 16–20  Vita wanders back to the fire; the brave one is a star now
+let phT = 0;
+const START = new THREE.Vector3(-1.6, 0.1, 3.4);
+const CATCH_SPOT = new THREE.Vector3(BUSH.x - 0.85, 0.1, BUSH.z + 0.35);
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 20;
+  const f = phT;
+
+  // fire flicker
+  fireLight.intensity = 2.0 + Math.sin(t*11)*0.35 + Math.sin(t*23 + 1.7)*0.2;
+  for(const fl of flames){
+    fl.m.scale.y = 0.7 + Math.sin(t*9 + fl.ph)*0.3;
+    fl.m.scale.x = fl.m.scale.z = 0.85 + Math.sin(t*13 + fl.ph)*0.15;
+    fl.m.material.opacity = 0.55 + Math.sin(t*7 + fl.ph)*0.25;
+  }
+
+  // ------ the swarm: drift + blink (independent or synchronized) ------
+  const globalPh = (t*1.15) % (Math.PI*2);
+  for(let i = 0; i < N; i++){
+    const F = flies[i];
+    fPos[i*3]   = F.hx + Math.sin(t*F.wx + F.px)*F.span;
+    fPos[i*3+1] = clamp(F.hy + Math.sin(t*F.wy + F.py)*0.55, 0.15, 3.2);
+    fPos[i*3+2] = F.hz + Math.sin(t*F.wz + F.pz)*F.span;
+    if(SYNC){ // Kuramoto-lite: everyone eases toward the common beat
+      let d = globalPh - F.blinkPh % (Math.PI*2);
+      if(d > Math.PI) d -= Math.PI*2; if(d < -Math.PI) d += Math.PI*2;
+      F.blinkPh += (1.15 + d*0.45)*dt;
+    } else {
+      F.blinkPh += F.blinkW*dt;
+    }
+    const s = Math.sin(F.blinkPh);
+    const b = s > 0 ? Math.pow(s, 3) : 0;        // sharp on, long off
+    fCol[i*3]   = 0.85*b;
+    fCol[i*3+1] = 1.0*b;
+    fCol[i*3+2] = 0.35*b;
+  }
+  swarmGeo.attributes.position.needsUpdate = true;
+  swarmGeo.attributes.color.needsUpdate = true;
+
+  // ------ the brave one + the Vita ------
+  const heroPulse = 0.55 + Math.pow(Math.max(0, Math.sin(t*2.4)), 3)*0.45;
+  if(f < 3.2){                              // loiter low; Vita approaches
+    hero.position.set(
+      BUSH.x + Math.sin(t*0.7)*0.4,
+      0.55 + Math.sin(t*1.3)*0.18,
+      BUSH.z + Math.cos(t*0.9)*0.4);
+    hero.material.opacity = heroPulse;
+    heroLight.intensity = heroPulse*0.5;
+    const p = smooth(f/3.2);
+    V.g.position.lerpVectors(START, CATCH_SPOT, p);
+    V.g.rotation.y = Math.atan2(CATCH_SPOT.x - START.x, CATCH_SPOT.z - START.z);
+    walkCycle(t, 0.8);                      // soft steps — don't scare it
+    armsTo(dt, 0, 0.12, 0, -0.12);
+    V.head.rotation.x = lerp(V.head.rotation.x, -0.1, dt*4);
+  } else if(f < 5){                         // lean in and CUP
+    stillLegs(dt);
+    const want = Math.atan2(hero.position.x - V.g.position.x, hero.position.z - V.g.position.z);
+    V.g.rotation.y += (want - V.g.rotation.y)*Math.min(1, dt*4);
+    const k = smooth(clamp((f - 3.2)/1.4, 0, 1));
+    V.hips.rotation.x = k*0.3;              // the lean
+    armsTo(dt, -1.75, 0.55, -1.75, -0.55, 6);   // both arms forward, palms closing
+    hero.material.opacity = heroPulse;
+    heroLight.intensity = heroPulse*0.5;
+    if(f > 4.4){                            // the gentle snap — caught!
+      const hp = new THREE.Vector3();
+      V.hands[0].getWorldPosition(hp);
+      const hp2 = new THREE.Vector3();
+      V.hands[1].getWorldPosition(hp2);
+      hero.position.lerp(hp.add(hp2).multiplyScalar(0.5), Math.min(1, dt*10));
+    }
+  } else if(f < 9){                         // hold it up, peek at the pulse
+    stillLegs(dt);
+    V.hips.rotation.x = lerp(V.hips.rotation.x, 0, dt*4);
+    armsTo(dt, -2.3, 0.5, -2.3, -0.5, 4);   // cupped hands lifted to the face
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.28, dt*4);   // looking down in
+    const hp = new THREE.Vector3(); V.hands[0].getWorldPosition(hp);
+    const hp2 = new THREE.Vector3(); V.hands[1].getWorldPosition(hp2);
+    hero.position.copy(hp.add(hp2).multiplyScalar(0.5));
+    // the glow through the fingers: dimmer, but the pulse still shows
+    const cupped = 0.2 + Math.pow(Math.max(0, Math.sin(t*2.4)), 3)*0.5;
+    hero.material.opacity = cupped;
+    hero.scale.setScalar(0.22 + cupped*0.1); hero.scale.z = 1;
+    heroLight.intensity = cupped*0.9;       // hands glow from inside
+  } else if(f < 11){                        // the hands open
+    stillLegs(dt);
+    armsTo(dt, -1.9, 1.0, -1.9, -1.0, 5);   // arms swing outward — open palms
+    const hp = new THREE.Vector3(); V.hands[0].getWorldPosition(hp);
+    const hp2 = new THREE.Vector3(); V.hands[1].getWorldPosition(hp2);
+    hero.position.lerp(hp.add(hp2).multiplyScalar(0.5).add(new THREE.Vector3(0, 0.1, 0)), dt*4);
+    hero.material.opacity = heroPulse;
+    hero.scale.set(0.34, 0.34, 1);
+    heroLight.intensity = heroPulse*0.5;
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.1, dt*4);
+  } else if(f < 16){                        // the spiral UP; the head follows
+    stillLegs(dt);
+    const k = (f - 11)/5;
+    const releaseAt = new THREE.Vector3(CATCH_SPOT.x, 1.35, CATCH_SPOT.z + 0.4);
+    hero.position.set(
+      releaseAt.x + Math.cos(k*9)*0.5*(1 - k*0.4),
+      releaseAt.y + k*k*6.5,
+      releaseAt.z + Math.sin(k*9)*0.5*(1 - k*0.4));
+    hero.material.opacity = heroPulse*(1 - smooth(clamp((k - 0.75)/0.25, 0, 1)));
+    heroLight.intensity = 0;
+    V.head.rotation.x = lerp(V.head.rotation.x, -clamp(k*1.1, 0, 0.85), dt*5);
+    if(f < 13.5) armsTo(dt, 0, 0.12, 0, -0.12, 3);
+    else {                                  // the little goodbye wave
+      armsTo(dt, 0, 0.12, -2.6, -0.25, 5);
+      V.arms[1].rotation.z = -0.25 + Math.sin(t*8)*0.2;
+    }
+  } else {                                  // back to the fire
+    hero.material.opacity = 0; heroLight.intensity = 0;
+    const p = smooth(clamp((f - 16)/3.6, 0, 1));
+    const FIRESEAT = new THREE.Vector3(fireLight.position.x + 1.5, 0.1, fireLight.position.z + 1.1);
+    V.g.position.lerpVectors(CATCH_SPOT, FIRESEAT, p);
+    V.g.rotation.y = Math.atan2(FIRESEAT.x - CATCH_SPOT.x, FIRESEAT.z - CATCH_SPOT.z);
+    walkCycle(t, 0.9);
+    armsTo(dt, 0, 0.12, 0, -0.12, 4);
+    V.head.rotation.x = lerp(V.head.rotation.x, 0, dt*4);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
