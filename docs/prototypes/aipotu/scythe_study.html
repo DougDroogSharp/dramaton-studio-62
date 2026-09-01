@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SCYTHE STUDY — the mower's sweep, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: make a SCYTHE, a Vita animation of SCYTHING, and
+     WALKING WHILE SCYTHING. The tool: a curved SNATH (the long bent
+     haft) with its two offset NIBS (grips), tang collar, and the long
+     curved BLADE riding just off the ground. The animation is the real
+     mower's rhythm — the blade sweeps a low flat ARC right-to-left
+     with a torso twist, hips leading, then a small STEP forward on the
+     backswing, sweep again: mowing a lane through standing grass, and
+     the GRASS FALLS — each tuft the blade passes keels over and lies
+     in the swath. The lane visibly opens behind the mower.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scythe Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e6cc; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,28,14,0.78); color:#f0f2e0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌾 Scythe Study</b> — sweep, step, sweep, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the lane opens as the grass falls</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 777001;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e4ca), 45, 260);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(4.6, 3.2, 7.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 36;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2de), zenith = new THREE.Color(0x86b4da),
+        below = new THREE.Color(0xd8dcc0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/300;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(18, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12;  sun.shadow.camera.bottom = -12;
+sun.shadow.camera.near = 6; sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8a86a }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  THE GRASS — a field of tufts along the mowing lane. Each tuft is a
+//  little fan of blades; when the scythe passes it KEELS OVER and lies
+//  flat in the swath (rotation eased, never popped).
+// ==========================================================================
+const matGrass = new THREE.MeshLambertMaterial({ color:0x8fa646, flatShading:true, side:THREE.DoubleSide });
+const matGrassDry = new THREE.MeshLambertMaterial({ color:0xa8a45c, flatShading:true, side:THREE.DoubleSide });
+const tufts = [];
+for(let i = 0; i < 300; i++){
+  const g = new THREE.Group();
+  const x = rand(-1.6, 1.6), z = rand(-9, 9);
+  for(let b = 0; b < 4; b++){
+    const blade = new THREE.Mesh(new THREE.ConeGeometry(0.028, rand(0.5, 0.8), 3),
+      Math.random() < 0.3 ? matGrassDry : matGrass);
+    blade.position.set(rand(-0.07, 0.07), 0.3, rand(-0.07, 0.07));
+    blade.rotation.z = rand(-0.2, 0.2);
+    blade.rotation.x = rand(-0.15, 0.15);
+    g.add(blade);
+  }
+  g.position.set(x, 0, z);
+  scene.add(g);
+  tufts.push({ g, cut: 0, cutT: 0, side: Math.random() < 0.5 ? 1 : -1 });
+}
+
+// ==========================================================================
+//  THE SCYTHE — snath (bent haft) + two offset nibs + tang collar + the
+//  long curved blade. Grip origin at the upper nib; the blade rides low.
+// ==========================================================================
+const matSnath = new THREE.MeshLambertMaterial({ color:0x96703f, flatShading:true });
+const matSteel = new THREE.MeshStandardMaterial({ color:0x9aa2ab, metalness:0.7, roughness:0.4 });
+function makeScythe(){
+  const g = new THREE.Group();
+  // the snath: two straightish runs meeting at a shallow bend
+  const s1 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.95, 7), matSnath);
+  s1.position.y = -0.45;
+  s1.rotation.z = 0.12;
+  s1.castShadow = true;
+  g.add(s1);
+  const s2 = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.037, 0.95, 7), matSnath);
+  s2.position.set(-0.16, -1.28, 0);
+  s2.rotation.z = 0.38;
+  s2.castShadow = true;
+  g.add(s2);
+  // nibs: the two grips that stand off the haft
+  for(const [ny, nz] of [[0, 0.12], [-0.75, 0.13]]){
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.14, 6), matSnath);
+    stem.rotation.x = Math.PI/2;
+    stem.position.set(ny === 0 ? 0 : -0.09, ny, nz/2);
+    g.add(stem);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 6), matSnath);
+    grip.rotation.z = Math.PI/2;
+    grip.position.set(ny === 0 ? 0 : -0.09, ny, nz);
+    g.add(grip);
+  }
+  // tang collar + the BLADE: long, curved, tapering — swept back
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.1, 7), matSteel);
+  collar.position.set(-0.34, -1.72, 0);
+  g.add(collar);
+  const bladeG = new THREE.TorusGeometry(0.95, 0.035, 4, 14, 1.25);
+  bladeG.scale(1, 1, 0.28);                     // flatten to a blade section
+  const blade = new THREE.Mesh(bladeG, matSteel);
+  blade.rotation.x = -Math.PI/2;
+  blade.rotation.z = 2.45;
+  blade.position.set(0.4, -1.74, 0.62);
+  blade.castShadow = true;
+  g.add(blade);
+  return g;
+}
+
+// ==========================================================================
+//  THE MOWER — stand-in Vita; the scythe hangs from the two hands and the
+//  whole rhythm plays through hips + torso + arms.
+// ==========================================================================
+const mower = new THREE.Group();
+const M = {};
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x7aa06a });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  M.hips = new THREE.Group();
+  mower.add(M.hips);
+  M.torso = new THREE.Group();
+  M.hips.add(M.torso);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.62; barrel.castShadow = true; M.torso.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; M.torso.add(head);
+  M.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0.42, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.24; shin.castShadow = true;
+    leg.add(shin);
+    M.hips.add(leg);
+    M.legs.push(leg);
+  }
+  // both arms reach forward-down to the nibs; the scythe parents to the right hand
+  M.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.3, 0.95, 0.05);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    limb.castShadow = true;
+    arm.add(limb);
+    M.torso.add(arm);
+    M.arms.push(arm);
+  }
+  M.arms[0].rotation.x = -0.85;
+  M.arms[1].rotation.x = -1.05;
+  M.scythe = makeScythe();
+  M.scythe.position.y = -0.5;
+  M.scythe.rotation.x = 0.5;
+  M.arms[1].add(M.scythe);
+  scene.add(mower);
+  mower.position.set(0, 0.1, -8.5);
+}
+
+// ==========================================================================
+//  THE RHYTHM — sweep (blade arcs right→left, low and flat, hips + torso
+//  twisting), then the small STEP forward on the backswing. The mower
+//  works up the lane, the tufts fall as the blade passes, and at the end
+//  of the lane it all resets and begins again.
+// ==========================================================================
+const STROKE = 2.2;             // seconds per full sweep-and-step
+let laneT = 0;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  laneT += dt;
+  const cyc = (laneT % STROKE) / STROKE;            // 0..1 through one stroke
+  // the SWEEP occupies 0..0.55: blade right→left; backswing+step 0.55..1
+  const sweeping = cyc < 0.55;
+  const sw = sweeping ? cyc/0.55 : 1 - (cyc - 0.55)/0.45;
+  const swing = lerp(0.9, -1.1, sweeping ? sw : 1 - sw*1.0);   // torso yaw
+
+  // torso + hips twist through the stroke; a slight crouch at mid-sweep
+  M.torso.rotation.y = swing * 0.55;
+  M.hips.rotation.y = swing * 0.25;
+  M.hips.position.y = -Math.sin(sw*Math.PI)*0.05;
+  M.torso.rotation.x = 0.14 + Math.sin(sw*Math.PI)*0.05;
+  // the arms carry the arc; the scythe stays low and flat
+  M.arms[1].rotation.z = -0.15 + swing*0.12;
+  M.arms[0].rotation.z = 0.2 + swing*0.1;
+
+  // WALKING WHILE SCYTHING: the step forward rides the backswing
+  const stepF = sweeping ? 0 : Math.sin((cyc - 0.55)/0.45 * Math.PI);
+  mower.position.z += (sweeping ? 0.04 : 0.42) * dt / STROKE * 2.2 * (sweeping ? 1 : 1 + stepF);
+  M.legs[0].rotation.x = stepF * 0.5;
+  M.legs[1].rotation.x = -stepF * 0.35;
+
+  // ---------- the grass falls ----------
+  // the blade's kill zone: an arc in front of the mower, sweeping right→left
+  if(sweeping){
+    const bx = Math.sin(-swing) * 1.1;              // blade tip x through the sweep
+    for(const tf of tufts){
+      if(tf.cut) continue;
+      const dx = tf.g.position.x - (mower.position.x + bx*0.6);
+      const dz = tf.g.position.z - (mower.position.z + 0.75);
+      if(Math.abs(dz) < 0.45 && Math.abs(dx) < 0.55){
+        tf.cut = 1;
+        tf.cutT = 0;
+      }
+    }
+  }
+  for(const tf of tufts){
+    if(!tf.cut) continue;
+    tf.cutT += dt;
+    const f = clamp(tf.cutT / 0.4, 0, 1);
+    tf.g.rotation.z = tf.side * f * 1.35;           // keels over into the swath
+    tf.g.position.y = -f * 0.1;
+  }
+
+  // lane done → fresh field
+  if(mower.position.z > 9){
+    mower.position.z = -8.5;
+    for(const tf of tufts){
+      tf.cut = 0; tf.cutT = 0;
+      tf.g.rotation.z = 0;
+      tf.g.position.y = 0;
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
