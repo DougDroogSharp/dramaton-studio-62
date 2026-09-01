@@ -357,10 +357,33 @@ export const createStarterVitaPresets = (): VitaPreset[] => [
   },
 ];
 
-// Migrate old game data to current format
+// Migrate old game data to current format. Also the shape gate for
+// UNTRUSTED documents (bridge PUTs, hand-edited .dram files): throws on
+// hopeless input, repairs missing top-level pieces, so a bad document can
+// never white-screen the editor.
 export const migrateGameData = (data: any): GameData => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Not a game document (expected a JSON object)');
+  }
   const migrated = { ...data };
-  
+
+  // Ensure info exists with a sane core; keep whatever the document carried.
+  const defaultInfo = createDefaultGame().info;
+  migrated.info =
+    migrated.info && typeof migrated.info === 'object' && !Array.isArray(migrated.info)
+      ? { ...defaultInfo, ...migrated.info }
+      : { ...defaultInfo };
+  if (!migrated.info.worldState || typeof migrated.info.worldState !== 'object' || Array.isArray(migrated.info.worldState)) {
+    migrated.info.worldState = {};
+  }
+
+  // Ensure every top-level collection is an array.
+  for (const collection of ['actors', 'scenes', 'items', 'sfx'] as const) {
+    if (!Array.isArray(migrated[collection])) {
+      migrated[collection] = [];
+    }
+  }
+
   // Ensure buttons array exists
   if (!migrated.buttons) {
     migrated.buttons = [];

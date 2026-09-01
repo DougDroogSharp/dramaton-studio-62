@@ -64,6 +64,13 @@ describe('scoreKey', () => {
     expect(loose.excluded).toBe(false);
   });
 
+  it('excludes on a non-numeric key target instead of scoring NaN', () => {
+    const result = scoreKey({ bad: 'high' as unknown as number }, { bad: 50 });
+    expect(result.excluded).toBe(true);
+    expect(result.missingVars).toContain('bad');
+    expect(Number.isFinite(result.score)).toBe(true);
+  });
+
   it('treats missing variables as 0 and reports them', () => {
     const result = scoreKey({ gang_morale: 40 }, {});
     expect(result.missingVars).toEqual(['gang_morale']);

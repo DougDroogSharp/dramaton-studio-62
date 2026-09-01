@@ -87,6 +87,12 @@ export function useScriptRunner({
   // inside an advance() loop that crossed a scene boundary).
   const currentSceneIdRef = useRef(startSceneId);
 
+  // Set by the SCENE command so advance() stops walking the OLD scene's
+  // command list after a jump — commands after [SCENE x] must not run (they
+  // could even leak a local variable into world state, since the local store
+  // has already been re-seeded for the new scene).
+  const navigatedRef = useRef(false);
+
   // Synchronous mirror of variable state. React state updates are queued, so a
   // [SET] followed by an [IF] within one advance() chain must read from here,
   // not from the (stale) state closure. setState keeps the rendered copies in
@@ -308,6 +314,7 @@ export function useScriptRunner({
       
       case 'SCENE': {
         clearTimeouts();
+        navigatedRef.current = true;
         currentSceneIdRef.current = command.sceneId;
         seedLocals(command.sceneId);
         onSceneChange?.(command.sceneId);
@@ -354,9 +361,10 @@ export function useScriptRunner({
         }
         
         if (conditionMet && command.commands.length > 0) {
-          // Execute nested commands
+          // Execute nested commands (stop if one of them jumped scenes)
           for (const nestedCmd of command.commands) {
             executeCommand(nestedCmd);
+            if (navigatedRef.current) break;
           }
         }
         return true;
@@ -405,15 +413,23 @@ export function useScriptRunner({
     let nextIndex = state.currentCommandIndex + (state.activeDialogue ? 1 : 0);
     
     // Execute commands until we hit one that requires waiting
+    navigatedRef.current = false;
     while (nextIndex < commands.length) {
       const command = commands[nextIndex];
       const shouldContinue = executeCommand(command);
-      
+
+      // A [SCENE] jump ends this scene's chain — the start-script effect
+      // takes over in the new scene; do NOT run the old scene's remainder.
+      if (navigatedRef.current) {
+        navigatedRef.current = false;
+        return;
+      }
+
       if (!shouldContinue) {
         setState(prev => ({ ...prev, currentCommandIndex: nextIndex }));
         return;
       }
-      
+
       nextIndex++;
     }
     
@@ -469,10 +485,14 @@ export function useScriptRunner({
     };
   }, [state.isAutoPlay, state.isWaiting, state.choices, state.activeDialogue?.isComplete, autoAdvanceDelay, advance]);
 
-  // Start script on mount
+  // Start script on mount / scene change. Scheduled through a timeout WITH
+  // CLEANUP so React StrictMode's double-invoked mount effect cancels the
+  // first schedule — otherwise the opening command chain runs twice, and
+  // since [SET x += n] is stateful, gauges would double-apply in dev.
   useEffect(() => {
     if (commands.length > 0 && state.currentCommandIndex === 0 && !state.activeDialogue && !state.isComplete) {
-      advance();
+      const timer = setTimeout(() => advance(), 0);
+      return () => clearTimeout(timer);
     }
   }, [commands.length, state.currentSceneId]); // Only run when scene changes
 

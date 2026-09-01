@@ -1,6 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import { migrateGameData, createDefaultGame } from '@/types';
 
+describe('migrateGameData — untrusted shape gate (bridge PUTs, hand-edited files)', () => {
+  it('throws on hopeless input instead of returning a broken document', () => {
+    expect(() => migrateGameData(null)).toThrow(/game document/);
+    expect(() => migrateGameData([1, 2, 3])).toThrow(/game document/);
+    expect(() => migrateGameData('a string')).toThrow(/game document/);
+  });
+
+  it('repairs a document with no info so the editor cannot white-screen', () => {
+    const migrated = migrateGameData({ scenes: [{ id: 's1', name: 'Only Scene' }] });
+    expect(migrated.info.worldState).toEqual({});
+    expect(typeof migrated.info.enableAutosave).toBe('boolean');
+    expect(migrated.actors).toEqual([]);
+    expect(migrated.items).toEqual([]);
+    expect(migrated.sfx).toEqual([]);
+    expect(migrated.scenes[0].name).toBe('Only Scene');
+  });
+
+  it('repairs a garbage worldState and keeps real info fields', () => {
+    const migrated = migrateGameData({ info: { title: 'Kept', worldState: 'nonsense' } });
+    expect(migrated.info.title).toBe('Kept');
+    expect(migrated.info.worldState).toEqual({});
+  });
+});
+
 describe('migrateGameData — sceneType normalization', () => {
   it('defaults scenes with legacy sceneType values to AGENCY', () => {
     const legacy = {

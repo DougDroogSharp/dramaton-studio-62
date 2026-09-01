@@ -11,6 +11,7 @@ import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 import { isSkinAllowed } from '@/utils/skins';
+import { vitaVariables } from '@/utils/vita';
 import { VitaPanel } from '@/components/editors/VitaPanel';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
@@ -141,7 +142,20 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
   };
 
   const deleteActor = (id: string) => {
-    onChange({ ...game, actors: game.actors.filter(a => a.id !== id) });
+    // Also remove the Vita variables this actor materialized into world
+    // state — otherwise a dead actor's gauges haunt the Narraton panel.
+    const actor = game.actors.find(a => a.id === id);
+    const worldState = { ...game.info.worldState };
+    if (actor) {
+      for (const stale of Object.keys(vitaVariables(actor))) {
+        delete worldState[stale];
+      }
+    }
+    onChange({
+      ...game,
+      info: { ...game.info, worldState },
+      actors: game.actors.filter(a => a.id !== id),
+    });
     onSelect('actor', null);
   };
 

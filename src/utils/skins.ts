@@ -43,9 +43,13 @@ export const armatureFromGltf = (gltf: unknown): ArmatureJoint[] => {
 
   const jointName = (i: number) => g.nodes![i]?.name?.trim() || `joint_${i}`;
   const nearestJointAncestor = (i: number): number | undefined => {
+    // Visited guard: broken exporters do emit cyclic node graphs, and an
+    // unguarded walk would hang the tab.
+    const visited = new Set<number>([i]);
     let p = parentOf.get(i);
-    while (p !== undefined) {
+    while (p !== undefined && !visited.has(p)) {
       if (jointIndices.has(p)) return p;
+      visited.add(p);
       p = parentOf.get(p);
     }
     return undefined;
@@ -71,6 +75,9 @@ export const gltfJsonFromGlb = (buffer: ArrayBuffer): unknown => {
   while (offset + 8 <= buffer.byteLength) {
     const chunkLength = view.getUint32(offset, true);
     const chunkType = view.getUint32(offset + 4, true);
+    if (offset + 8 + chunkLength > buffer.byteLength) {
+      throw new Error('GLB is truncated or corrupt (chunk overruns file)');
+    }
     if (chunkType === CHUNK_JSON) {
       const jsonBytes = new Uint8Array(buffer, offset + 8, chunkLength);
       return JSON.parse(new TextDecoder('utf-8').decode(jsonBytes));

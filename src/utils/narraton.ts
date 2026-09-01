@@ -52,7 +52,16 @@ export const scoreKey = (
   let score = 0;
   let excluded = false;
 
-  for (const [variable, target] of Object.entries(key)) {
+  for (const [variable, rawTarget] of Object.entries(key)) {
+    // A non-numeric target (hand-edited .dram, bridge PUT) would make the
+    // whole score NaN and the scene would sort arbitrarily — exclude instead.
+    const target = Number(rawTarget);
+    if (!Number.isFinite(target)) {
+      missingVars.push(variable);
+      distances.push({ variable, target: NaN, actual: toNumeric(worldState[variable]) ?? 0, diff: NaN });
+      excluded = true;
+      continue;
+    }
     const numeric = toNumeric(worldState[variable]);
     if (numeric === null) missingVars.push(variable);
     const actual = numeric ?? 0;

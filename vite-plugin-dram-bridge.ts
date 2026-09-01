@@ -18,6 +18,9 @@ import { Plugin } from 'vite';
 export function dramBridgePlugin(): Plugin {
   let lastDoc: unknown = null;
 
+  const MAX_BODY_BYTES = 64 * 1024 * 1024; // a .dram with inline images can be big, but not this big
+  const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
   return {
     name: 'dram-bridge',
     apply: 'serve',
@@ -29,17 +32,38 @@ export function dramBridgePlugin(): Plugin {
       server.middlewares.use('/bridge/game', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
 
+        // The dev server binds every interface (phone previews), but the
+        // bridge is a WRITE surface — loopback only.
+        if (!LOOPBACK.has(req.socket.remoteAddress ?? '')) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ ok: false, error: 'bridge is localhost-only' }));
+          return;
+        }
+
         if (req.method === 'GET') {
           res.end(JSON.stringify(lastDoc));
           return;
         }
 
         if (req.method === 'PUT') {
-          let body = '';
-          req.on('data', (chunk) => (body += chunk));
+          // Collect raw Buffers and decode ONCE — concatenating string
+          // chunks corrupts multi-byte UTF-8 split across chunk boundaries.
+          const chunks: Buffer[] = [];
+          let received = 0;
+          req.on('data', (chunk: Buffer) => {
+            received += chunk.length;
+            if (received > MAX_BODY_BYTES) {
+              res.statusCode = 413;
+              res.end(JSON.stringify({ ok: false, error: 'document too large' }));
+              req.destroy();
+              return;
+            }
+            chunks.push(chunk);
+          });
           req.on('end', () => {
+            if (res.writableEnded) return;
             try {
-              const doc = JSON.parse(body);
+              const doc = JSON.parse(Buffer.concat(chunks).toString('utf8'));
               lastDoc = doc;
               server.ws.send('dram:apply', doc);
               res.end(JSON.stringify({ ok: true }));
