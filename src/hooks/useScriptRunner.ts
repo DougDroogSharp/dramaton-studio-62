@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameData, Scene, StageElement } from '@/types';
-import { parseScript, ScriptCommand, DialogueCommand, SetCommand, findActorByName } from '@/utils/scriptParser';
+import { parseScript, ScriptCommand, DialogueCommand, SetCommand, ChoiceOption, findActorByName } from '@/utils/scriptParser';
 
 export type VarScope = 'world' | 'local';
 
@@ -23,7 +23,7 @@ export interface ActiveDialogue {
 }
 
 export interface ChoiceState {
-  options: { text: string; target: string }[];
+  options: ChoiceOption[];
 }
 
 export interface ScriptRunnerState {

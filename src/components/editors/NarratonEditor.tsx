@@ -4,8 +4,9 @@ import { rankScenes } from '@/utils/narraton';
 import { CyberInput } from '@/components/CyberInput';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, Drama, Video, Tag, Users, Globe, Pencil } from 'lucide-react';
+import { Plus, Trash2, Drama, Video, Tag, Users, Globe, Pencil, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { NarratonTestMode } from '@/components/NarratonTestMode';
 
 interface NarratonEditorProps {
   game: GameData;
@@ -34,6 +35,7 @@ const PhaseBadge = ({ phase }: { phase?: ScenePhase }) => {
 const sectionLabel = 'text-[10px] text-diesel-steel uppercase tracking-widest mb-2 flex items-center gap-1';
 
 export const NarratonEditor = ({ game, selection, onChange, onSelect }: NarratonEditorProps) => {
+  const [testSceneId, setTestSceneId] = useState<string | null>(null);
   const scenes = game.scenes ?? [];
   const subplots = game.subplots ?? [];
   const worldState = game.info.worldState ?? {};
@@ -100,16 +102,25 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
     });
   };
 
+  const testScene = testSceneId ? scenes.find(s => s.id === testSceneId) : null;
+  const testModal = testScene ? (
+    <NarratonTestMode game={game} startScene={testScene} onClose={() => setTestSceneId(null)} />
+  ) : null;
+
   if (scene) {
     return (
-      <SceneDetail
-        game={game}
-        scene={scene}
-        onBack={() => onSelect('narraton', null)}
-        onUpdate={(updates) => updateScene(scene.id, updates)}
-        onTag={(variable, value) => tagScene(scene, variable, value)}
-        onOpenSceneEditor={() => onSelect('scene', scene.id)}
-      />
+      <>
+        <SceneDetail
+          game={game}
+          scene={scene}
+          onBack={() => onSelect('narraton', null)}
+          onUpdate={(updates) => updateScene(scene.id, updates)}
+          onTag={(variable, value) => tagScene(scene, variable, value)}
+          onOpenSceneEditor={() => onSelect('scene', scene.id)}
+          onTestPlay={() => setTestSceneId(scene.id)}
+        />
+        {testModal}
+      </>
     );
   }
 
@@ -178,6 +189,16 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
                         {v}→{t}
                       </span>
                     ))}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTestSceneId(match.scene.id);
+                      }}
+                      className="text-diesel-green/70 hover:text-diesel-green"
+                      title="Test play from this scene"
+                    >
+                      <Play size={12} />
+                    </button>
                   </div>
                 ))
               )}
@@ -218,6 +239,7 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
           <WorldStatePanel game={game} onChange={onChange} />
         </div>
       </div>
+      {testModal}
     </div>
   );
 };
@@ -376,6 +398,7 @@ const SceneDetail = ({
   onUpdate,
   onTag,
   onOpenSceneEditor,
+  onTestPlay,
 }: {
   game: GameData;
   scene: Scene;
@@ -383,6 +406,7 @@ const SceneDetail = ({
   onUpdate: (updates: Partial<Scene>) => void;
   onTag: (variable: string, value: number) => void;
   onOpenSceneEditor: () => void;
+  onTestPlay: () => void;
 }) => {
   const [tagVar, setTagVar] = useState('');
   const [tagVal, setTagVal] = useState('50');
@@ -428,14 +452,24 @@ const SceneDetail = ({
         <button onClick={onBack} className="text-diesel-steel hover:text-diesel-paper text-xs">
           ← Back to Narraton
         </button>
-        <Button
-          onClick={onOpenSceneEditor}
-          size="sm"
-          className="bg-diesel-rust/20 border border-diesel-rust text-diesel-rust hover:bg-diesel-rust/30"
-        >
-          <Pencil size={12} className="mr-1" />
-          Open in Scene Editor
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={onTestPlay}
+            size="sm"
+            className="bg-diesel-green/20 border border-diesel-green text-diesel-green hover:bg-diesel-green/30"
+          >
+            <Play size={12} className="mr-1" />
+            Test Play
+          </Button>
+          <Button
+            onClick={onOpenSceneEditor}
+            size="sm"
+            className="bg-diesel-rust/20 border border-diesel-rust text-diesel-rust hover:bg-diesel-rust/30"
+          >
+            <Pencil size={12} className="mr-1" />
+            Open in Scene Editor
+          </Button>
+        </div>
       </div>
 
       <CyberInput
