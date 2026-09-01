@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     DOCK STUDY — a proper harbor for the trading boat, for George World.
+     Filed 2026-08-31, Doug's transport batch. A stone quay stepping
+     down to a long plank pier on barnacled pilings, mooring bollards
+     with hawser lines, stacked cargo, lanterns on posts — and the
+     working heart: a swinging JIB CRANE that lifts a cargo net out of
+     the moored trader's hold, swings it over the quay, and lowers it
+     onto the growing stack while the boat bobs on the swell and
+     tugs gently at her mooring lines. A dockhand steadies each load.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dock Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.8); color:#eaf4f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>⚓ Dock Study</b> — quay, pier, jib crane, v1<br>
+  <span class="hint">the crane swings cargo from the hold to the quay stack;
+  the boat tugs at her lines</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 2727;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdcecf4), 50, 280);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(8, 5, 10);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f4ea), zenith = new THREE.Color(0x6ab0e0),
+        below = new THREE.Color(0xcfe0e8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9cb0a0, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(16, 22, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+scene.add(sun);
+
+// ---------- the sea --------------------------------------------------------
+let sea, seaPos0;
+{
+  const geo = new THREE.PlaneGeometry(140, 140, 60, 60);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, col = [];
+  const DEEP = new THREE.Color(0x2a6f9e), SHALLOW = new THREE.Color(0x4fa8c4);
+  const c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const z = pos.getZ(i);
+    c.copy(DEEP).lerp(SHALLOW, clamp((z + 20)/25, 0, 1));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  sea = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  scene.add(sea);
+  seaPos0 = pos.array.slice();
+}
+function swellY(x, z, t){
+  return Math.sin(x*0.32 + t*0.85)*0.08 + Math.sin(z*0.45 - t*0.65 + 1)*0.06;
+}
+
+// ---------- THE QUAY + PIER ------------------------------------------------
+const stoneM = new THREE.MeshLambertMaterial({ color:0xa8a294, flatShading:true });
+const woodM = new THREE.MeshLambertMaterial({ color:0x8a6a42, flatShading:true });
+const woodDk = new THREE.MeshLambertMaterial({ color:0x5c422a, flatShading:true });
+{
+  // stone quay (the land end)
+  const quay = new THREE.Mesh(new THREE.BoxGeometry(16, 1.6, 8), stoneM);
+  quay.position.set(0, 0.8, 8.5);
+  quay.castShadow = true; quay.receiveShadow = true;
+  scene.add(quay);
+  // steps down to the pier
+  for(let i = 0; i < 3; i++){
+    const s = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 0.5), stoneM);
+    s.position.set(0, 1.5 - i*0.2, 4.35 - i*0.42);
+    scene.add(s);
+  }
+  // the plank pier heading out to sea
+  for(let i = 0; i < 12; i++){
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.62), woodM);
+    plank.position.set(0, 1.06, 3.4 - i*0.7);
+    plank.rotation.y = rand(-0.015, 0.015);
+    plank.castShadow = true; plank.receiveShadow = true;
+    scene.add(plank);
+  }
+  // barnacled pilings
+  for(let i = 0; i < 6; i++){
+    for(const s of [-1, 1]){
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 2.2, 7), woodDk);
+      p.position.set(s*1.05, 0.15, 3.0 - i*1.45);
+      p.rotation.z = rand(-0.04, 0.04);
+      p.castShadow = true;
+      scene.add(p);
+      // the barnacle/weed waterline band
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.14, 0.3, 7),
+        new THREE.MeshLambertMaterial({ color:0x4a6a4e, flatShading:true }));
+      band.position.set(s*1.05, 0.12, 3.0 - i*1.45);
+      scene.add(band);
+    }
+  }
+  // mooring bollards on the pier edge
+  for(const z of [1.2, -1.6, -4.2]){
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.35, 8), woodDk);
+    b.position.set(1.15, 1.25, z);
+    b.castShadow = true;
+    scene.add(b);
+  }
+  // lantern posts
+  for(const z of [2.8, -3.4]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 1.6, 6), woodDk);
+    post.position.set(-1.15, 1.9, z);
+    post.castShadow = true;
+    scene.add(post);
+    const cage = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22),
+      new THREE.MeshLambertMaterial({ color:0x3a3226, flatShading:true }));
+    cage.position.set(-1.15, 2.75, z);
+    scene.add(cage);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+      new THREE.MeshBasicMaterial({ color:0xffd890 }));
+    glow.position.set(-1.15, 2.75, z);
+    scene.add(glow);
+  }
+  // the cargo stacks on the quay
+  for(let i = 0; i < 5; i++){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), woodM);
+    c.position.set(-3.2 + rand(-0.4, 0.4), 1.85 + (i > 2 ? 0.52 : 0), 7.2 + rand(-0.6, 0.6));
+    c.rotation.y = rand(0, 1);
+    c.castShadow = true;
+    scene.add(c);
+  }
+  for(const [x, z] of [[3.2, 6.8], [3.8, 7.4]]){
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6, 10), woodDk);
+    barrel.position.set(x, 1.9, z);
+    barrel.castShadow = true;
+    scene.add(barrel);
+  }
+}
+
+// ---------- THE JIB CRANE --------------------------------------------------
+const crane = new THREE.Group();
+let jib, hook, netLoad, hoistLine;
+{
+  crane.position.set(2.6, 1.6, 4.6);          // on the quay corner
+  scene.add(crane);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 3.4, 9), woodDk);
+  mast.position.y = 1.7;
+  mast.castShadow = true;
+  crane.add(mast);
+  jib = new THREE.Group();                    // swings about the mast
+  jib.position.y = 3.1;
+  crane.add(jib);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 3.2, 8), woodM);
+  arm.rotation.z = Math.PI/2 - 0.35;
+  arm.position.set(1.4, 0.5, 0);
+  arm.castShadow = true;
+  jib.add(arm);
+  const stay = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6), woodDk);
+  stay.rotation.z = Math.PI/2 + 0.5;
+  stay.position.set(1.2, -0.25, 0);
+  jib.add(stay);
+  // the hook + hoist line + the cargo net
+  hoistLine = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1, 5),
+    new THREE.MeshLambertMaterial({ color:0x3a3226 }));
+  jib.add(hoistLine);
+  hook = new THREE.Group();
+  jib.add(hook);
+  netLoad = new THREE.Group();
+  const net = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6),
+    new THREE.MeshLambertMaterial({ color:0x6a5a3e, flatShading:true, wireframe:true }));
+  net.scale.y = 0.8;
+  netLoad.add(net);
+  for(let i = 0; i < 3; i++){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), woodM);
+    c.position.set(rand(-0.12, 0.12), -0.08 + i*0.13, rand(-0.12, 0.12));
+    c.rotation.y = rand(0, 1);
+    netLoad.add(c);
+  }
+  hook.add(netLoad);
+}
+// the growing stack where the crane lands its loads
+const landed = [];
+{
+  for(let i = 0; i < 4; i++){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), woodM);
+    c.position.set(4.4, 1.85 + (i%2)*0.47, 5.2 + Math.floor(i/2)*0.5);
+    c.castShadow = true;
+    c.visible = false;
+    scene.add(c);
+    landed.push(c);
+  }
+}
+let landedCount = 0;
+
+// ---------- THE MOORED TRADER ---------------------------------------------
+const BOAT = new THREE.Group();
+scene.add(BOAT);
+{
+  const hullM = new THREE.MeshLambertMaterial({ color:0x8a4a2e, flatShading:true });
+  const hullM2 = new THREE.MeshLambertMaterial({ color:0xa85c3a, flatShading:true });
+  const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.62, 2.3, 8, 14), hullM);
+  hull.rotation.z = Math.PI/2;
+  hull.scale.set(1, 0.62, 1.15);
+  hull.position.y = 0.18;
+  hull.castShadow = true;
+  BOAT.add(hull);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.06, 1.15), hullM2);
+  deck.position.y = 0.46;
+  BOAT.add(deck);
+  for(const s of [-1, 1]){
+    const strake = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.12, 0.07), hullM2);
+    strake.position.set(0, 0.56, s*0.62);
+    BOAT.add(strake);
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.2, 8), woodDk);
+  mast.position.set(0.45, 2.0, 0);
+  BOAT.add(mast);
+  // furled sail bundle on the boom
+  const furl = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 1.9, 6, 8),
+    new THREE.MeshLambertMaterial({ color:0xe8e0cc, flatShading:true }));
+  furl.rotation.z = Math.PI/2;
+  furl.position.set(-0.6, 0.98, 0);
+  BOAT.add(furl);
+  // hold cargo waiting to be lifted
+  for(let i = 0; i < 2; i++){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36), woodM);
+    c.position.set(0.9 - i*0.5, 0.66, 0.1);
+    BOAT.add(c);
+  }
+}
+// mooring lines: boat cleats to pier bollards (two sagging lines)
+const lineGeo1 = new THREE.BufferGeometry(), lineGeo2 = new THREE.BufferGeometry();
+const linePts1 = new Float32Array(10*3), linePts2 = new Float32Array(10*3);
+lineGeo1.setAttribute('position', new THREE.BufferAttribute(linePts1, 3));
+lineGeo2.setAttribute('position', new THREE.BufferAttribute(linePts2, 3));
+const lineMat = new THREE.LineBasicMaterial({ color:0x4a3a26 });
+scene.add(new THREE.Line(lineGeo1, lineMat));
+scene.add(new THREE.Line(lineGeo2, lineMat));
+function sagLine(pts, a, b, sag){
+  for(let i = 0; i < 10; i++){
+    const k = i/9;
+    pts[i*3] = lerp(a.x, b.x, k);
+    pts[i*3+1] = lerp(a.y, b.y, k) - Math.sin(k*Math.PI)*sag;
+    pts[i*3+2] = lerp(a.z, b.z, k);
+  }
+}
+
+// ---------- the dockhand ---------------------------------------------------
+const HAND = { g: new THREE.Group() };
+{
+  const shirt = new THREE.MeshLambertMaterial({ color:0x8a5a3c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  HAND.hips = new THREE.Group(); HAND.hips.position.y = 0.42; HAND.g.add(HAND.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.38, 6, 10), shirt);
+  barrel.position.y = 0.2; barrel.castShadow = true; HAND.hips.add(barrel);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), skin);
+  skull.position.y = 0.75; skull.castShadow = true; HAND.hips.add(skull);
+  HAND.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.29, 0.44, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.34, 4, 8), skin);
+    limb.position.y = -0.21; limb.castShadow = true; arm.add(limb);
+    HAND.hips.add(arm); HAND.arms.push(arm);
+  }
+  HAND.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.13, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.072, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    shin.position.y = -0.24; shin.castShadow = true; leg.add(shin);
+    HAND.hips.add(leg); HAND.legs.push(leg);
+  }
+  HAND.g.position.set(3.6, 1.66, 5.6);
+  scene.add(HAND.g);
+}
+
+// ---------- the loop -------------------------------------------------------
+// 12s per lift: swing out over the boat (0–3), lower + grab (3–5),
+// hoist (5–6.5), swing in over the quay (6.5–9.5), lower + release (9.5–11),
+// back up (11–12). After 4 loads the stack is carted off and it starts over.
+const MOOR = new THREE.Vector3(-2.6, 0, -0.4);
+let phT = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 12;
+  const f = phT;
+
+  // sea + boat bob
+  {
+    const pos = sea.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = seaPos0[i*3], z = seaPos0[i*3+2];
+      pos.setY(i, swellY(x, z, t));
+    }
+    pos.needsUpdate = true;
+    sea.geometry.computeVertexNormals();
+  }
+  BOAT.position.set(MOOR.x, swellY(MOOR.x, MOOR.z, t)*0.7, MOOR.z + Math.sin(t*0.4)*0.15);
+  BOAT.rotation.set(Math.sin(t*0.7)*0.02, Math.PI/2 + 0.06, Math.sin(t*0.55 + 1)*0.03);
+
+  // mooring lines follow
+  {
+    const bowCleat = new THREE.Vector3(-2.6, BOAT.position.y + 0.6, MOOR.z + 1.4 + Math.sin(t*0.4)*0.15);
+    const sternCleat = new THREE.Vector3(-2.6, BOAT.position.y + 0.6, MOOR.z - 1.4 + Math.sin(t*0.4)*0.15);
+    sagLine(linePts1, bowCleat, new THREE.Vector3(1.15, 1.4, 1.2), 0.25 + Math.sin(t*0.4)*0.05);
+    sagLine(linePts2, sternCleat, new THREE.Vector3(1.15, 1.4, -1.6), 0.25 - Math.sin(t*0.4)*0.05);
+    lineGeo1.attributes.position.needsUpdate = true;
+    lineGeo2.attributes.position.needsUpdate = true;
+  }
+
+  // ------ the crane cycle ------
+  // jib angle: over the boat ≈ -2.35 rad, over the quay stack ≈ 0.5 rad
+  const OUT = -2.35, IN = 0.55;
+  let ang, drop, loaded;
+  if(f < 3){ ang = lerp(IN, OUT, smooth(f/3)); drop = 0.6; loaded = false; }
+  else if(f < 5){ ang = OUT; drop = lerp(0.6, 2.55, smooth((f - 3)/2)); loaded = f > 4.4; }
+  else if(f < 6.5){ ang = OUT; drop = lerp(2.55, 0.6, smooth((f - 5)/1.5)); loaded = true; }
+  else if(f < 9.5){ ang = lerp(OUT, IN, smooth((f - 6.5)/3)); drop = 0.6; loaded = true; }
+  else if(f < 11){ ang = IN; drop = lerp(0.6, 1.55, smooth((f - 9.5)/1.5)); loaded = f < 10.6; }
+  else { ang = IN; drop = lerp(1.55, 0.6, smooth((f - 11)/1)); loaded = false; }
+  jib.rotation.y = ang;
+  // the load lands on the stack
+  if(f > 10.6 && f - dt <= 10.6){
+    if(landedCount < 4){ landed[landedCount].visible = true; landedCount++; }
+    else { landed.forEach(c => c.visible = false); landedCount = 0; }   // carted off
+  }
+  // hook hangs from the jib tip, with a hint of pendulum
+  const tip = new THREE.Vector3(2.75, 1.0, 0);
+  const sway = Math.sin(t*1.7)*0.06*(loaded ? 0.6 : 1);
+  hook.position.set(tip.x + sway, tip.y - drop, tip.z + Math.cos(t*1.3)*0.05);
+  netLoad.visible = loaded;
+  hoistLine.position.set(tip.x + sway*0.5, tip.y - drop/2, tip.z);
+  hoistLine.scale.y = drop;
+  // dockhand reaches to steady the incoming load
+  const steadying = f > 8.5 && f < 11;
+  HAND.arms[0].rotation.x = lerp(HAND.arms[0].rotation.x, steadying ? -1.6 : 0, dt*5);
+  HAND.arms[1].rotation.x = lerp(HAND.arms[1].rotation.x, steadying ? -1.6 : 0, dt*5);
+  HAND.g.rotation.y = lerp(HAND.g.rotation.y, steadying ? -0.6 : 0.4, dt*4);
+  HAND.hips.rotation.x = lerp(HAND.hips.rotation.x, steadying ? 0.15 : 0, dt*4);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
