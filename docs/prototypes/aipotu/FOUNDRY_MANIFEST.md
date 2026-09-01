@@ -7,3 +7,4 @@ Opened 2026-08-31 23:39. One line per study: filename — asset — animations.
 - watertower_study.html — four-legged steel water tower — valve wheel spins the spigot open, pouring stream with splash rings, float gauge drops as the tank drains, refills when shut, idle drip
 - bulldozer_study.html — crawler bulldozer — circulating track links at ground speed, blade lift/lower, push-spread-reverse-drop work cycle with a growing dirt heap, engine tremble, load-leaning exhaust smoke
 - pterodactyl_study.html — Pteranodon — banked soaring with glide/flap bursts, bezier landing approach with full flare, folded perch idle (scan + preen), quadrupedal leap launch, hard climb; follow camera
+- brontosaurus_study.html — brontosaurus — ox-plod 4-beat lumber with body roll, neck-up browse at regrowing crowns, bite-by-bite shrinking foliage, working jaw chew, swallow bulge traveling down the neck, high swaying tail

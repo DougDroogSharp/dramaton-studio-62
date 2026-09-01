@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BRONTOSAURUS STUDY — a browsing sauropod, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     Hips at ~3 units, head to ~5.8 with the neck up — George World's
+     biggest animal yet, still under the keep's 14. Columnar two-joint
+     legs on the ox-plod tempo (2.6/dist, STYLE.md), 4-beat footfall,
+     the whole body rolling with the walk and dipping at each footfall.
+     Five-segment NECK chain and six-segment TAIL held off the ground,
+     swaying with the stride.
+
+     The loop: LUMBER around the ring → arrive at a browse tree → the
+     neck eases up into the crown → BITE (the foliage shrinks bite by
+     bite) → CHEW (working jaw, little head shakes) → SWALLOW (a bulge
+     pulses down the neck, segment by segment) → more bites → move on.
+     The crowns regrow while she is away. Chip: Walk / Browse override.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brontosaurus Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e4ce; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,20,0.78); color:#f0f2e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#5c6a44; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#728454; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦕 Brontosaurus Study</b> — lumber, browse, chew, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="auto">Auto</button><button data-m="walk">Keep walking</button><button
+    data-m="browse">Browse now</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 18420000;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e2cc), 60, 320);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(12, 6, 15);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.8, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(360, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2de), zenith = new THREE.Color(0x7ab0dc),
+        below = new THREE.Color(0xd6d8c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/360;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa2ac7e, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(28, 34, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 110;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xb8b881 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+  for(let i=0;i<26;i++){
+    const a = rand(0, Math.PI*2), r = rand(3, 34);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.16,0.26), rand(0.5,0.9), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.25, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ---------- browse trees: tall crowns, in reach of the raised neck ---------
+const matBark = new THREE.MeshLambertMaterial({ color:0x6e5a3c, flatShading:true });
+const LEAF_BASE = new THREE.Color(0x3f6b34), LEAF_TIP = new THREE.Color(0x7aa848);
+const matLeaf = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+function leafGeo(r){
+  const geo = new THREE.SphereGeometry(r, 8, 6);
+  geo.scale(1, 0.7, 1);
+  const pos = geo.attributes.position, col = [], c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = clamp(pos.getY(i)/(r*0.7)*0.5 + 0.5, 0, 1);
+    c.copy(LEAF_BASE).lerp(LEAF_TIP, t);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return geo;
+}
+const RING_R = 8;
+const browseTrees = [];
+for(const treeA of [0.5, 2.6, 4.5]){
+  const p = new THREE.Vector3(Math.cos(treeA)*(RING_R + 2.3), 0, Math.sin(treeA)*(RING_R + 2.3));
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.38, 5.4, 8), matBark);
+  trunk.position.set(p.x, 2.7, p.z);
+  trunk.castShadow = true;
+  scene.add(trunk);
+  const crown = new THREE.Mesh(leafGeo(1.35), matLeaf);
+  crown.position.set(p.x, 5.6, p.z);
+  crown.castShadow = true;
+  scene.add(crown);
+  browseTrees.push({ a: treeA, p, crown, meal: 1 });
+}
+
+// ==========================================================================
+//  THE ANIMAL — forward +Z; hips at 3.0, shoulders 2.75.
+// ==========================================================================
+const matHide = new THREE.MeshLambertMaterial({ color:0x7d8168, flatShading:true });
+const matHideDk = new THREE.MeshLambertMaterial({ color:0x60644e, flatShading:true });
+const matBelly = new THREE.MeshLambertMaterial({ color:0x9d9e84, flatShading:true });
+const B = { g: new THREE.Group() };
+scene.add(B.g);
+{
+  B.body = new THREE.Group();
+  B.body.position.y = 2.85;
+  B.g.add(B.body);
+  const barrelG = new THREE.CapsuleGeometry(1.05, 1.9, 8, 14);
+  barrelG.rotateX(Math.PI/2);
+  const barrel = new THREE.Mesh(barrelG, matHide);
+  barrel.scale.set(0.92, 1, 1);
+  barrel.castShadow = true;
+  B.body.add(barrel);
+  const belly = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 1.7, 6, 12), matBelly);
+  belly.geometry.rotateX(Math.PI/2);
+  belly.position.y = -0.35;
+  belly.scale.set(0.9, 0.75, 1);
+  B.body.add(belly);
+  const rump = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), matHideDk);
+  rump.scale.set(0.95, 1.05, 1.1);
+  rump.position.set(0, 0.18, -1.15);
+  rump.castShadow = true;
+  B.body.add(rump);
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.88, 12, 10), matHide);
+  chest.scale.set(0.9, 1, 1.05);
+  chest.position.set(0, -0.12, 1.15);
+  chest.castShadow = true;
+  B.body.add(chest);
+}
+// NECK: five segments; HEAD with a working jaw
+B.neck = [];
+{
+  let parent = B.body, pz = 1.7, py = 0.25;
+  for(let i=0;i<5;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const r0 = 0.46 - i*0.065;
+    const gN = new THREE.CapsuleGeometry(r0, 0.52, 5, 9);
+    gN.rotateX(Math.PI/2);
+    gN.translate(0, 0, 0.34);
+    const m = new THREE.Mesh(gN, matHide);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    B.neck.push(seg);
+    parent = seg; pz = 0.68; py = 0;
+  }
+  B.head = new THREE.Group();
+  B.head.position.set(0, 0, 0.72);
+  parent.add(B.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), matHide);
+  skull.scale.set(0.85, 0.8, 1.15);
+  skull.castShadow = true;
+  B.head.add(skull);
+  B.jaw = new THREE.Group();
+  B.jaw.position.set(0, -0.08, 0.05);
+  B.head.add(B.jaw);
+  const jawG = new THREE.SphereGeometry(0.16, 8, 6);
+  jawG.scale(0.8, 0.45, 1.2);
+  jawG.translate(0, -0.02, 0.12);
+  const jaw = new THREE.Mesh(jawG, matHideDk);
+  B.jaw.add(jaw);
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x211c14 }));
+    eye.position.set(s*0.16, 0.07, 0.1);
+    B.head.add(eye);
+  }
+}
+// TAIL: six segments, tapering to the whip
+B.tail = [];
+{
+  let parent = B.body, pz = -1.9, py = 0.3;
+  for(let i=0;i<6;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const r0 = 0.5 - i*0.075;
+    const gT = new THREE.CapsuleGeometry(Math.max(0.06, r0), 0.6, 5, 9);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.38);
+    const m = new THREE.Mesh(gT, i < 3 ? matHideDk : matHide);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    B.tail.push(seg);
+    parent = seg; pz = -0.76; py = 0;
+  }
+}
+// LEGS: columns — hip/shoulder then knee, big flat feet
+B.legs = [];
+function makeLeg(x, z, front){
+  const hip = new THREE.Group();
+  hip.position.set(x, -0.55, z);
+  B.body.add(hip);
+  const upG = new THREE.CylinderGeometry(0.34, 0.28, 1.15, 9);
+  upG.translate(0, -0.55, 0);
+  const up = new THREE.Mesh(upG, matHideDk);
+  up.castShadow = true;
+  hip.add(up);
+  const knee = new THREE.Group();
+  knee.position.y = -1.12;
+  hip.add(knee);
+  const lowG = new THREE.CylinderGeometry(0.26, 0.3, 1.05, 9);
+  lowG.translate(0, -0.5, 0);
+  const low = new THREE.Mesh(lowG, matHide);
+  low.castShadow = true;
+  knee.add(low);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.22, 9), matHideDk);
+  foot.position.y = -1.08;
+  foot.castShadow = true;
+  knee.add(foot);
+  B.legs.push({ hip, knee, front });
+}
+makeLeg(-0.62,  1.15, true);
+makeLeg( 0.62,  1.15, true);
+makeLeg(-0.68, -1.15, false);
+makeLeg( 0.68, -1.15, false);
+
+// ==========================================================================
+//  BEHAVIOR — lumber the ring; browse when a crown is near and full.
+// ==========================================================================
+let mode = 'auto', ringA = 1.6, dist = 0, browse = 0;   // browse: 0 walk → 1 at the tree
+let browsePh = 0, target = null, hunger = 4;
+let bites = 0, biteT = 0, swallow = 9;                   // swallow: pulse position, 9 = idle
+const SPEED = 0.6, PLOD = 2.6;                           // STYLE.md: ox plod, dist-based
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('auto');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // crowns regrow
+  for(const bt of browseTrees){
+    if(bt !== target) bt.meal = clamp(bt.meal + dt*0.02, 0, 1);
+    bt.crown.scale.setScalar(lerp(0.35, 1, bt.meal));
+  }
+
+  const browsing = browse > 0.5;
+  if(!target){
+    hunger += dt;
+    ringA += SPEED*dt / RING_R;
+    dist += SPEED*dt;
+    // near a full crown, and hungry? stop and eat
+    for(const bt of browseTrees){
+      const d = Math.abs(((ringA - bt.a) % (Math.PI*2) + Math.PI*3) % (Math.PI*2) - Math.PI);
+      if(d < 0.06 && bt.meal > 0.6 && (mode === 'browse' || (mode === 'auto' && hunger > 9))){
+        target = bt; browsePh = 0; bites = 0;
+      }
+    }
+    browse = lerp(browse, 0, Math.min(1, dt*1.2));
+  } else {
+    browse = lerp(browse, 1, Math.min(1, dt*1.2));
+    browsePh += dt;
+    biteT += dt;
+    // bite every ~3.2s: the crown shrinks, a swallow pulse starts
+    if(biteT > 3.2 && browsePh > 2){
+      biteT = 0; bites++;
+      target.meal = clamp(target.meal - 0.18, 0, 1);
+      swallow = 0;
+    }
+    const done = bites >= 4 || target.meal < 0.2 || mode === 'walk';
+    if(done && browsePh > 3){ target = null; hunger = 0; }
+  }
+
+  B.g.position.set(Math.cos(ringA)*RING_R, 0, Math.sin(ringA)*RING_R);
+  B.g.rotation.y = -ringA - Math.PI/2 + Math.PI;   // nose along the ring
+
+  // ---- gait: 4-beat plod, dist-phased ----
+  const cyc = dist * PLOD;
+  const OFF = [0.0, 0.5, 0.75, 0.25];
+  const walkK = 1 - browse;
+  B.legs.forEach((leg, i) => {
+    const swing = Math.sin(cyc + OFF[i]*Math.PI*2);
+    const lift = Math.max(0, -Math.sin(cyc + OFF[i]*Math.PI*2));
+    leg.hip.rotation.x = lerp(leg.hip.rotation.x, swing*0.28*walkK, Math.min(1, dt*8));
+    leg.knee.rotation.x = lerp(leg.knee.rotation.x,
+      (leg.front ? lift*0.5 : -lift*0.4)*walkK, Math.min(1, dt*8));
+  });
+  // weight: roll with the stride, a dip at each forefoot fall
+  B.body.rotation.z = Math.sin(cyc)*0.045*walkK;
+  B.body.position.y = 2.85 - Math.abs(Math.sin(cyc))*0.05*walkK - browse*0.06;
+  B.body.rotation.x = browse*0.06;
+
+  // ---- neck ----
+  let reachYaw = 0;
+  if(target){
+    // yaw the neck toward the crown (in body space, roughly)
+    const toTree = Math.atan2(target.p.x - B.g.position.x, target.p.z - B.g.position.z);
+    reachYaw = shortestArc(B.g.rotation.y, toTree);
+    reachYaw = clamp(reachYaw, -1, 1);
+  }
+  const biteDip = target ? Math.max(0, Math.sin(biteT/3.2*Math.PI*2)) * 0.14 : 0;
+  for(let i=0;i<5;i++){
+    const seg = B.neck[i];
+    const walkPose = -0.1 + Math.sin(cyc*0.5 + i)*0.015;          // long and level
+    const browsePose = -0.34 + i*0.01 + biteDip*(i > 2 ? 0.35 : 0); // curled skyward
+    seg.rotation.x = lerp(seg.rotation.x, lerp(walkPose, browsePose, smooth(browse)), Math.min(1, dt*2.2));
+    seg.rotation.y = lerp(seg.rotation.y, (reachYaw/5)*browse, Math.min(1, dt*2));
+    // the SWALLOW: a bulge passing down segment by segment (head → chest)
+    const k = 4 - swallow;                        // pulse position among segs
+    const bulge = Math.exp(-Math.pow(i - k, 2)*1.4) * 0.16;
+    seg.scale.setScalar(1 + (swallow < 8 ? bulge : 0));
+  }
+  if(swallow < 8) swallow += dt*3.2;
+  // head: level on the walk, buried in the crown for the bite, chewing after
+  const chewing = target && biteT > 0.7 && biteT < 2.6;
+  B.head.rotation.x = lerp(B.head.rotation.x,
+    browse * (0.5 - biteDip*1.6), Math.min(1, dt*3));
+  B.head.rotation.z = chewing ? Math.sin(t*7)*0.05 : lerp(B.head.rotation.z, 0, dt*3);
+  B.jaw.rotation.x = chewing ? 0.12 + Math.sin(t*8.5)*0.14
+    : lerp(B.jaw.rotation.x, 0.02, dt*5);
+
+  // ---- tail: carried high, swaying against the stride, tip whipping ----
+  for(let i=0;i<6;i++){
+    const seg = B.tail[i];
+    seg.rotation.x = lerp(seg.rotation.x, i === 0 ? 0.22 : -0.045, Math.min(1, dt*3));
+    seg.rotation.y = Math.sin(cyc*1 + i*0.8)*0.07*(0.4 + i*0.22)*walkK
+      + Math.sin(t*1.1 + i)*0.03*browse;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
