@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PACHYCEPHALOSAURUS STUDY — two rivals, one hill, for George World.
+     Filed 2026-09-01 (follows the 2026-08-31 dino brief) by ASSET
+     FOUNDRY. Standalone; vendored three (r160), game importmap.
+     Nothing here touches georgeworld.html.
+
+     Foundry pick #1 of the two free-choice dinosaurs: the head-butting
+     dome-skull, because a DUEL animates better than a walk cycle.
+
+     Two rivals built from one maker. The bout: CIRCLE (strutting round
+     each other, heads turned in, tails swinging) → SQUARE UP (stop,
+     drop the dome, a scrape at the dirt) → CHARGE (bipedal sprint,
+     dome leading) → the CLASH (they meet slightly offset, the crack
+     rings out in dust, both recoil with a damped bounce) → STAGGER
+     (wobbling half-steps back) → and round again. Hips ~0.95 units.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pachycephalosaurus Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e0ca; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,24,16,0.78); color:#f2eeda; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a5e2e; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#a8763c; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦕 Pachycephalosaurus Study</b> — the duel, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="duel">Duel</button><button data-m="strut">Just strut</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 26102610;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4dec8), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(6, 3.5, 8);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 46;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4eeda), zenith = new THREE.Color(0x80b0d8),
+        below = new THREE.Color(0xd8d0ba), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa89e74, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(22, 28, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xbcae7a }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the trampled dueling ground
+  const arena = new THREE.Mesh(new THREE.CircleGeometry(4.6, 28),
+    new THREE.MeshLambertMaterial({ color:0xb09e66 }));
+  arena.rotation.x = -Math.PI/2; arena.position.y = 0.01;
+  arena.receiveShadow = true; scene.add(arena);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+  for(let i=0;i<20;i++){
+    const a = rand(0, Math.PI*2), r = rand(5.5, 28);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.13,0.2), rand(0.35,0.7), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.18, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ==========================================================================
+//  THE MAKER — one rival; forward +Z, hips ~0.95.
+// ==========================================================================
+function makePachy(tint){
+  const matHide = new THREE.MeshLambertMaterial({ color:tint, flatShading:true });
+  const matDk = new THREE.MeshLambertMaterial({
+    color:new THREE.Color(tint).multiplyScalar(0.72), flatShading:true });
+  const matDome = new THREE.MeshLambertMaterial({ color:0xd8cdb4, flatShading:true });
+  const P = { g: new THREE.Group() };
+  scene.add(P.g);
+  P.body = new THREE.Group();
+  P.body.position.y = 0.95;
+  P.g.add(P.body);
+  const bodyG = new THREE.CapsuleGeometry(0.3, 0.6, 6, 10);
+  bodyG.rotateX(Math.PI/2);
+  const body = new THREE.Mesh(bodyG, matHide);
+  body.scale.set(0.9, 1, 1);
+  body.castShadow = true;
+  P.body.add(body);
+  // neck + DOME head, ringed with knobs
+  P.head = new THREE.Group();
+  P.head.position.set(0, 0.16, 0.52);
+  P.body.add(P.head);
+  const neckG = new THREE.CylinderGeometry(0.09, 0.13, 0.3, 7);
+  neckG.rotateX(0.9);
+  const neck = new THREE.Mesh(neckG, matHide);
+  neck.position.set(0, 0.02, -0.05);
+  P.head.add(neck);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), matDome);
+  dome.scale.set(0.9, 1.05, 1.1);
+  dome.position.set(0, 0.16, 0.08);
+  dome.castShadow = true;
+  P.head.add(dome);
+  for(let i=0;i<7;i++){                          // the knob ring
+    const a = -0.6 + i/6*(Math.PI + 1.2);
+    const knob = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.07, 5), matDk);
+    knob.position.set(Math.sin(a)*0.17, 0.1, 0.08 + Math.cos(a)*0.19);
+    knob.rotation.x = Math.cos(a)*1.2;
+    knob.rotation.z = -Math.sin(a)*1.2;
+    P.head.add(knob);
+  }
+  const muzzleG = new THREE.ConeGeometry(0.08, 0.2, 6);
+  muzzleG.rotateX(Math.PI/2);
+  const muzzle = new THREE.Mesh(muzzleG, matDk);
+  muzzle.position.set(0, 0.02, 0.26);
+  P.head.add(muzzle);
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x241e14 }));
+    eye.position.set(s*0.1, 0.08, 0.17);
+    P.head.add(eye);
+  }
+  // little arms
+  for(const s of [-1, 1]){
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.16, 4, 6), matDk);
+    arm.position.set(s*0.26, -0.05, 0.3);
+    arm.rotation.x = 0.6;
+    P.body.add(arm);
+  }
+  // strong legs: hip/knee, digitigrade
+  P.legs = [];
+  for(const s of [-1, 1]){
+    const hip = new THREE.Group();
+    hip.position.set(s*0.22, -0.2, -0.12);
+    P.body.add(hip);
+    const upG = new THREE.CapsuleGeometry(0.1, 0.34, 4, 8);
+    upG.translate(0, -0.2, 0);
+    const up = new THREE.Mesh(upG, matHide);
+    up.castShadow = true;
+    hip.add(up);
+    const knee = new THREE.Group();
+    knee.position.y = -0.42;
+    hip.add(knee);
+    const lowG = new THREE.CapsuleGeometry(0.06, 0.3, 4, 8);
+    lowG.translate(0, -0.17, 0);
+    const low = new THREE.Mesh(lowG, matDk);
+    low.castShadow = true;
+    knee.add(low);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.2), matDk);
+    foot.position.set(0, -0.35, 0.05);
+    foot.castShadow = true;
+    knee.add(foot);
+    P.legs.push({ hip, knee });
+  }
+  // stiff tail, three segments
+  P.tail = [];
+  let parent = P.body, pz = -0.5, py = 0.02;
+  for(let i=0;i<3;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gT = new THREE.CapsuleGeometry(0.14 - i*0.045, 0.34, 4, 7);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.22);
+    const m = new THREE.Mesh(gT, i ? matHide : matDk);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    P.tail.push(seg);
+    parent = seg; pz = -0.44; py = 0;
+  }
+  P.ph = rand(0, 6);
+  return P;
+}
+const R1 = makePachy(0x907a4e), R2 = makePachy(0x84744e);
+const rivals = [R1, R2];
+
+// dust
+const puffs = [];
+for(let i=0;i<10;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5),
+    new THREE.MeshLambertMaterial({ color:0xcbba8a, transparent:true, opacity:0 }));
+  p.userData.t = 9;
+  scene.add(p);
+  puffs.push(p);
+}
+function puff(x, y, z, k){
+  const p = puffs.find(p => p.userData.t > 1);
+  if(!p) return;
+  p.userData.t = 0;
+  p.position.set(x, y, z);
+  p.scale.setScalar(k);
+}
+
+// ==========================================================================
+//  THE BOUT — circle → square → charge → clash → stagger → circle
+// ==========================================================================
+let mode = 'duel', phase = 'circle', ph = 0, baseA = 0;
+const ARENA_R = 2.6;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('duel');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  ph += dt;
+  if(phase === 'circle'){
+    baseA += dt*0.42;
+    if(mode === 'duel' && ph > 6){ phase = 'square'; ph = 0; }
+  } else if(phase === 'square' && ph > 1.6){ phase = 'charge'; ph = 0; }
+  else if(phase === 'charge' && ph > 0.68){
+    phase = 'clash'; ph = 0;
+    for(let k=0;k<5;k++)
+      puff(rand(-0.5,0.5), 0.6 + rand(0.5), rand(-0.5,0.5), rand(0.8, 1.5));
+  }
+  else if(phase === 'clash' && ph > 0.55){ phase = 'stagger'; ph = 0; }
+  else if(phase === 'stagger' && ph > 1.6){ phase = 'circle'; ph = 0; }
+  if(mode === 'strut' && phase !== 'circle' && phase !== 'stagger'){ phase = 'circle'; ph = 0; }
+
+  rivals.forEach((P, i) => {
+    const sideA = baseA + i*Math.PI;              // opposite sides of the ring
+    const home = { x: Math.cos(sideA)*ARENA_R, z: Math.sin(sideA)*ARENA_R };
+    const inDir = Math.atan2(-home.x, -home.z);   // toward the middle
+    let walk = 0, run = 0, yaw = P.g.rotation.y, headDown = 0, px = home.x, pz = home.z;
+
+    if(phase === 'circle'){
+      walk = 1;
+      yaw = inDir + Math.PI/2;                    // strutting round, flank shown
+      headDown = -0.1;
+    } else if(phase === 'square'){
+      yaw = inDir;
+      headDown = smooth(clamp(ph/0.8, 0, 1)) * 0.85;
+      // one scrape at the dirt as they set
+      if(ph > 0.7 && ph < 0.9 && Math.random() < dt*14){
+        P.legs[0].knee.children[1].getWorldPosition(_w);
+        puff(_w.x, 0.1, _w.z, 0.6);
+      }
+    } else if(phase === 'charge'){
+      run = 1; yaw = inDir; headDown = 1.0;
+      const u = smooth(clamp(ph/0.68, 0, 1));
+      const gone = u * (ARENA_R - 0.42);          // meet just short of center
+      px = home.x + Math.sin(inDir)*gone + Math.cos(inDir)*0.14*(i ? 1 : -1);
+      pz = home.z + Math.cos(inDir)*gone - Math.sin(inDir)*0.14*(i ? 1 : -1);
+    } else if(phase === 'clash'){
+      yaw = inDir; headDown = lerp(1.0, 0.2, smooth(clamp(ph/0.4, 0, 1)));
+      // the damped bounce off the impact
+      const rec = Math.exp(-ph*6) * Math.sin(ph*22) * 0.16;
+      const gone = (ARENA_R - 0.42) - Math.abs(rec)*3 - smooth(clamp(ph/0.55,0,1))*0.25;
+      px = home.x + Math.sin(inDir)*gone + Math.cos(inDir)*0.14*(i ? 1 : -1);
+      pz = home.z + Math.cos(inDir)*gone - Math.sin(inDir)*0.14*(i ? 1 : -1);
+      P.body.rotation.z = rec*2.2;
+    } else {                                      // stagger back home
+      walk = 0.7; yaw = inDir; headDown = 0.15;
+      const u = smooth(clamp(ph/1.6, 0, 1));
+      const gone = (ARENA_R - 0.68) * (1 - u);
+      px = home.x + Math.sin(inDir)*gone;
+      pz = home.z + Math.cos(inDir)*gone;
+      P.body.rotation.z = Math.sin(ph*9 + i)*0.06*(1 - u);   // the wobble
+    }
+
+    P.g.position.x = px; P.g.position.z = pz;
+    P.g.rotation.y += shortestArc(P.g.rotation.y, yaw) * Math.min(1, dt*(run ? 12 : 4));
+
+    // gait
+    const rate = run ? 15 : walk ? 7.5 : 0;
+    P.ph += dt*rate;
+    const stride = run ? 0.85 : 0.5;
+    P.legs.forEach((L, li) => {
+      const lph = P.ph + li*Math.PI;
+      const target = (walk || run) ? Math.sin(lph)*stride : (li ? -0.06 : 0.06);
+      L.hip.rotation.x = lerp(L.hip.rotation.x, target, Math.min(1, dt*26));
+      L.knee.rotation.x = lerp(L.knee.rotation.x,
+        (walk || run) ? Math.max(0, -Math.sin(lph))*stride*1.1 : 0.08, Math.min(1, dt*26));
+    });
+    P.body.position.y = 0.95 + ((walk || run) ? Math.abs(Math.cos(P.ph))*0.035*(run?2:1) : 0)
+      - headDown*0.1;
+    // charge lean; strut pomp (chest up)
+    P.body.rotation.x = lerp(P.body.rotation.x,
+      headDown*0.35 - (phase === 'circle' ? 0.08 : 0), Math.min(1, dt*6));
+    if(phase !== 'clash' && phase !== 'stagger')
+      P.body.rotation.z = lerp(P.body.rotation.z, 0, dt*6);
+
+    // head: dome presented when down; turned toward the rival otherwise
+    P.head.rotation.x = lerp(P.head.rotation.x, headDown*0.95 - 0.1, Math.min(1, dt*8));
+    const other = rivals[1 - i];
+    if(phase === 'circle'){
+      const toRival = Math.atan2(other.g.position.x - px, other.g.position.z - pz);
+      P.head.rotation.y = lerp(P.head.rotation.y,
+        clamp(shortestArc(P.g.rotation.y, toRival), -1.1, 1.1), Math.min(1, dt*3));
+      P.head.rotation.x += Math.sin(t*2.6 + i*3)*0.06;   // the strut bob
+    } else {
+      P.head.rotation.y = lerp(P.head.rotation.y, 0, dt*5);
+    }
+    // tail: swings with the strut, rigid rudder in the charge
+    for(let k=0;k<3;k++){
+      P.tail[k].rotation.y = Math.sin(P.ph*0.5 + k*0.9)*lerp(0.05, 0.24, walk)*(run ? 0.4 : 1);
+      P.tail[k].rotation.x = lerp(P.tail[k].rotation.x, k === 0 ? 0.12 + headDown*0.15 : -0.03, dt*4);
+    }
+  });
+
+  for(const p of puffs){
+    if(p.userData.t > 1){ p.material.opacity = 0; continue; }
+    p.userData.t += dt*1.2;
+    p.position.y += dt*0.5;
+    p.scale.multiplyScalar(1 + dt*1.7);
+    p.material.opacity = 0.5*(1 - p.userData.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+const _w = new THREE.Vector3();
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

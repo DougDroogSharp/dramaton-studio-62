@@ -9,3 +9,4 @@ Opened 2026-08-31 23:39. One line per study: filename — asset — animations.
 - pterodactyl_study.html — Pteranodon — banked soaring with glide/flap bursts, bezier landing approach with full flare, folded perch idle (scan + preen), quadrupedal leap launch, hard climb; follow camera
 - brontosaurus_study.html — brontosaurus — ox-plod 4-beat lumber with body roll, neck-up browse at regrowing crowns, bite-by-bite shrinking foliage, working jaw chew, swallow bulge traveling down the neck, high swaying tail
 - triceratops_study.html — triceratops — graze/alert/defend ladder against a circling theropod stand-in, nostril snorts, ground-pawing with dust, pivoting horn guard, driving lunge with upward horn toss that springs the threat away
+- pachycephalosaurus_study.html — two dueling pachycephalosaurus (foundry pick) — circling strut with heads turned in, square-up with dirt scrape, dome-down charge, offset clash with damped recoil bounce and dust, wobbling stagger back
