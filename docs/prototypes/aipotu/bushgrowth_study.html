@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BUSH GROWTH STUDY — the food berry bush's life, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: THREE growth stages for the food berry bushes, and a
+     WILTING animation for each shape. The Joshua-gnarl berry bush at:
+     · SPROUT — a knee-high starter: one kinked stem, one hopeful rosette
+     · YOUNG — two arms, first rosettes, a single berry stem
+     · MATURE — the full four-armed gnarl, spiky rosettes, three hanging
+       carambola berry stems (green → red)
+     WILT (per stage, one button): the arms sag at their elbows, the
+     rosette spikes DROOP and grey toward straw, berries shrivel dark
+     and DROP, and the whole plant sinks — then REVIVE plays it back.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bush Growth Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e6d0; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,28,16,0.78); color:#f2f2e0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#6a8a34; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#7fa244; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🫐 Bush Growth Study</b> — sprout · young · mature, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button id="wiltbtn">WILT them</button><button id="revbtn">Revive</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 30303;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4e4ce), 40, 220);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(2.6, 2.2, 5.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.5;
+controls.maxDistance = 26;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2de), zenith = new THREE.Color(0x86b4da),
+        below = new THREE.Color(0xd8d8c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 22, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8;  sun.shadow.camera.bottom = -8;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcae76 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ---------- live + wilted material pairs -----------------------------------
+// wilting LERPs each material toward its straw twin, so all three stages
+// grey together under the one drought
+const pairs = [];
+function liveMat(liveHex, strawHex, opts = {}){
+  const m = new THREE.MeshLambertMaterial({ color: liveHex, flatShading: true, ...opts });
+  pairs.push({ m, live: new THREE.Color(liveHex), straw: new THREE.Color(strawHex) });
+  return m;
+}
+const matWoodL = liveMat(0x6b5436, 0x6e6250);
+const matRosL  = liveMat(0x50783a, 0xa89c5c);
+const matRosD  = liveMat(0x3f6030, 0x8f845c);
+const matRed   = liveMat(0xd8433c, 0x5c3028);
+const matGreen = liveMat(0x7fa24a, 0x6e6244);
+
+// ==========================================================================
+//  makeBush(stage) — the Joshua gnarl at three ages. Everything that WILTS
+//  registers itself: elbows sag, rosettes droop, berry stems drop fruit.
+// ==========================================================================
+function makeBush(stage){
+  const B = { g: new THREE.Group(), elbows: [], rosettes: [], stems: [] };
+  const armN = stage === 1 ? 1 : stage === 2 ? 2 : 4;
+  const scaleT = stage === 1 ? 0.45 : stage === 2 ? 0.75 : 1;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12*scaleT, 0.18*scaleT, 0.6*scaleT, 7), matWoodL);
+  trunk.position.y = 0.3*scaleT;
+  trunk.castShadow = true;
+  B.g.add(trunk);
+  for(let i = 0; i < armN; i++){
+    const a = (i/armN)*Math.PI*2 + rand(-0.3, 0.3);
+    const arm = new THREE.Group();
+    arm.position.y = 0.55*scaleT;
+    arm.rotation.y = -a;
+    arm.rotation.z = -rand(0.5, 0.9);
+    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06*scaleT, 0.09*scaleT, 0.55*scaleT, 6), matWoodL);
+    seg1.position.y = 0.27*scaleT;
+    seg1.castShadow = true;
+    arm.add(seg1);
+    const elbow = new THREE.Group();
+    elbow.position.y = 0.55*scaleT;
+    elbow.rotation.z = rand(0.5, 1.0);
+    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.045*scaleT, 0.06*scaleT, 0.45*scaleT, 6), matWoodL);
+    seg2.position.y = 0.22*scaleT;
+    seg2.castShadow = true;
+    elbow.add(seg2);
+    // rosette: spikes on their OWN pivots so each can droop
+    const ros = new THREE.Group();
+    ros.position.y = 0.48*scaleT;
+    const spikes = [];
+    for(let s = 0; s < (stage === 1 ? 5 : 7); s++){
+      const sp = new THREE.Group();
+      const sa = (s/7)*Math.PI*2;
+      sp.rotation.y = -sa;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04*scaleT, 0.32*scaleT, 4),
+        s % 3 ? matRosL : matRosD);
+      spike.rotation.z = -1.05;
+      spike.position.x = 0.12*scaleT;
+      spike.castShadow = true;
+      sp.add(spike);
+      ros.add(sp);
+      spikes.push(sp);
+    }
+    elbow.add(ros);
+    // berry stems: mature = every arm w/ alternate colors; young = one only
+    if(stage === 3 || (stage === 2 && i === 0)){
+      const stem = new THREE.Group();
+      stem.position.set(0.1*scaleT, 0.36*scaleT, 0);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16*scaleT, 4), matWoodL);
+      st.position.y = -0.08*scaleT;
+      stem.add(st);
+      // the CARAMBOLA: a five-finned star (cheated: squashed octahedron)
+      const fruit = new THREE.Mesh(new THREE.OctahedronGeometry(0.07*scaleT, 0),
+        i % 2 ? matRed : matGreen);
+      fruit.scale.set(1, 1.4, 1);
+      fruit.position.y = -0.18*scaleT;
+      fruit.castShadow = true;
+      stem.add(fruit);
+      elbow.add(stem);
+      B.stems.push({ g: stem, fruit, drop: 0, y0: -0.18*scaleT });
+    }
+    arm.add(elbow);
+    B.g.add(arm);
+    B.elbows.push({ g: elbow, z0: elbow.rotation.z, ph: rand(0, 9) });
+    B.rosettes.push({ g: ros, spikes, ph: rand(0, 9) });
+  }
+  return B;
+}
+const bushes = [makeBush(1), makeBush(2), makeBush(3)];
+bushes[0].g.position.set(-1.9, 0, 0);
+bushes[1].g.position.set(0, 0, 0);
+bushes[2].g.position.set(1.9, 0, 0);
+for(const b of bushes) scene.add(b.g);
+
+// ---------- wilt control ----------------------------------------------------
+let wilt = 0, wiltT = 0;
+document.getElementById('wiltbtn').addEventListener('click', () => { wiltT = 1;
+  document.getElementById('wiltbtn').classList.add('on');
+  document.getElementById('revbtn').classList.remove('on'); });
+document.getElementById('revbtn').addEventListener('click', () => { wiltT = 0;
+  document.getElementById('revbtn').classList.add('on');
+  document.getElementById('wiltbtn').classList.remove('on'); });
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  // the wilt comes on SLOWLY (a drought, not a switch) and lifts faster
+  wilt = lerp(wilt, wiltT, Math.min(1, dt * (wiltT > wilt ? 0.35 : 0.9)));
+
+  // materials grey toward straw together
+  for(const p of pairs) p.m.color.copy(p.live).lerp(p.straw, wilt);
+
+  for(const b of bushes){
+    // healthy idle: the faint shiver; wilting: everything sinks
+    b.g.position.y = -wilt * 0.06;
+    b.g.scale.y = 1 - wilt * 0.07;
+    for(const e of b.elbows)
+      e.g.rotation.z = e.z0 + wilt * 0.55 + Math.sin(t*1.1 + e.ph)*0.01*(1 - wilt);   // the sag
+    for(const r of b.rosettes){
+      r.g.rotation.y += dt * 0.02 * (1 - wilt);
+      r.spikes.forEach((sp, i) => {
+        // each spike DROOPS on its own pivot — the signature of the wilt
+        sp.rotation.x = wilt * (0.5 + 0.35*Math.sin(i*2.1)) ;
+        sp.rotation.z = -wilt * 0.3;
+      });
+    }
+    for(const s of b.stems){
+      // berries shrivel… then DROP
+      const shrivel = clamp(wilt*1.4, 0, 1);
+      s.fruit.scale.setScalar(1 - shrivel*0.45);
+      s.fruit.scale.y = (1 - shrivel*0.45) * 1.4;
+      if(wilt > 0.75 && s.drop < 1) s.drop = Math.min(1, s.drop + dt*0.7);
+      if(wilt < 0.3) s.drop = Math.max(0, s.drop - dt*1.5);
+      s.fruit.position.y = s.y0 - s.drop * 0.5;
+      s.g.rotation.x = Math.sin(t*0.9 + s.y0*20)*0.12*(1 - wilt);   // healthy rock
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
