@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode';
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {

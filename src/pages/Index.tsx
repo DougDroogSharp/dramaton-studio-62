@@ -33,6 +33,7 @@ import {
   LogOut,
   LogIn,
   Layers,
+  Drama,
 } from "lucide-react";
 import { SettingsEditor } from "@/components/editors/SettingsEditor";
 import { ActorEditor } from "@/components/editors/ActorEditor";
@@ -42,6 +43,7 @@ import { ItemEditor } from "@/components/editors/ItemEditor";
 import { SfxEditor } from "@/components/editors/SfxEditor";
 import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
+import { NarratonEditor } from "@/components/editors/NarratonEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
 import {
@@ -326,6 +328,14 @@ const Index = () => {
       abbrev: "EP",
       color: "text-diesel-purple",
       count: game?.episodes?.length ?? 0,
+    },
+    {
+      type: "narraton" as const,
+      icon: Drama,
+      label: "Narraton",
+      abbrev: "NA",
+      color: "text-diesel-cyan",
+      count: game?.scenes?.filter((s) => s.key && Object.keys(s.key).length > 0).length ?? 0,
     },
     {
       type: "drop" as const,
@@ -734,6 +744,7 @@ const Index = () => {
               {selection.type === "drop" && "DROP EDITOR"}
               {selection.type === "item" && "ITEM EDITOR"}
               {selection.type === "sfx" && "SFX EDITOR"}
+              {selection.type === "narraton" && "NARRATON EDITOR"}
             </h2>
 
             {selection.type === "actor" && (
@@ -777,6 +788,14 @@ const Index = () => {
             )}
             {selection.type === "button" && (
               <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === "narraton" && (
+              <NarratonEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+              />
             )}
             {selection.type === "episode" && (
               <EpisodeEditor
