@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BARNYARD STUDY — working animals, for George World.
+     Filed 2026-08-31, Doug's batch — vegetarian strictures honored:
+     these are WOOL, EGG and PACK animals; nothing here is hunted or
+     eaten. One busy yard, everything ambient at once:
+     · GOATS — graze, hop up onto the rocks (kings of the boulder),
+       and now and then two back off and HEADBUTT — clonk — shake it
+       off, go back to grazing;
+     · SHEEP — a little flock grazing, and THE SHEARING: one is led
+       to the stool, the shearer's clippers buzz down its side, the
+       wool COMES OFF as a fat puff (added to the wool pile — spinning
+       wheel feedstock!), and a pink sheared sheep trots back to the
+       flock, its coat slowly growing back over the next minutes;
+     · CHICKENS — peck-peck-peck, little wing-flap dashes, and a dust
+       bath in the bare patch (they scatter squawking when a goat
+       charges through);
+     · THE DONKEY — plods a patient loop with loaded panniers, ears
+       flicking, tail swishing. The economy's four-legged porter.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barnyard Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:330px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐐 Barnyard Study</b> — wool, eggs and pack work, v1<br>
+  <span class="hint">goats headbutt · the shearing feeds the spinning wheel ·
+  chickens dust-bathe · the donkey plods · nobody is anybody's dinner</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 7272;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(6, 4, 9);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.7, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 35;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(14, 20, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0x9cab64 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the bare dust patch (chicken spa)
+  const dust = new THREE.Mesh(new THREE.CircleGeometry(1.4, 20),
+    new THREE.MeshLambertMaterial({ color:0xc4ae7e }));
+  dust.rotation.x = -Math.PI/2; dust.position.set(3.4, 0.01, 2.6);
+  scene.add(dust);
+}
+// fence ring + gate posts
+{
+  const postM = new THREE.MeshLambertMaterial({ color:0x8a6a42, flatShading:true });
+  const railM = new THREE.MeshLambertMaterial({ color:0x9a7a4e, flatShading:true });
+  const R = 8.5;
+  const N = 26;
+  for(let i = 0; i < N; i++){
+    if(i === 0 || i === 1) continue;         // the gate gap
+    const a1 = i/N*Math.PI*2, a2 = (i + 1)/N*Math.PI*2;
+    const p1 = new THREE.Vector3(Math.cos(a1)*R, 0, Math.sin(a1)*R);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.9, 6), postM);
+    post.position.set(p1.x, 0.45, p1.z);
+    post.castShadow = true;
+    scene.add(post);
+    for(const h of [0.35, 0.7]){
+      const p2 = new THREE.Vector3(Math.cos(a2)*R, 0, Math.sin(a2)*R);
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, p1.distanceTo(p2), 5), railM);
+      rail.position.copy(p1).add(p2).multiplyScalar(0.5);
+      rail.position.y = h;
+      rail.lookAt(p2.x, h, p2.z);
+      rail.rotateX(Math.PI/2);
+      scene.add(rail);
+    }
+  }
+}
+// the goat rocks
+const ROCK = new THREE.Vector3(-3.4, 0, -2.2);
+{
+  const rockM = new THREE.MeshLambertMaterial({ color:0x8a8578, flatShading:true });
+  const big = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9), rockM);
+  big.position.set(ROCK.x, 0.55, ROCK.z);
+  big.scale.y = 0.75;
+  big.castShadow = true;
+  scene.add(big);
+  const small = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5), rockM);
+  small.position.set(ROCK.x + 1.1, 0.3, ROCK.z + 0.5);
+  small.castShadow = true;
+  scene.add(small);
+}
+// the shearing stool + wool pile spot
+const STOOL = new THREE.Vector3(1.8, 0, -3.2);
+{
+  const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.3, 9),
+    new THREE.MeshLambertMaterial({ color:0x6a4e2e, flatShading:true }));
+  stool.position.set(STOOL.x, 0.15, STOOL.z);
+  stool.castShadow = true;
+  scene.add(stool);
+}
+const woolPile = [];
+{
+  const wm = new THREE.MeshLambertMaterial({ color:0xf2ede0, flatShading:true });
+  for(let i = 0; i < 5; i++){
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), wm);
+    p.position.set(STOOL.x + 0.9 + (i%2)*0.35, 0.18 + Math.floor(i/2)*0.3, STOOL.z - 0.2 + (i%3)*0.25);
+    p.scale.y = 0.8;
+    p.castShadow = true;
+    p.visible = false;
+    scene.add(p);
+    woolPile.push(p);
+  }
+}
+let wooled = 0;
+
+// ==========================================================================
+//  ANIMALS
+// ==========================================================================
+function quadBase(bodyGeoFn, bodyMat, o = {}){
+  const Q = { g: new THREE.Group() };
+  Q.body = new THREE.Group();
+  Q.body.position.y = o.bodyY || 0.5;
+  Q.g.add(Q.body);
+  const body = bodyGeoFn();
+  body.castShadow = true;
+  Q.body.add(body);
+  Q.head = new THREE.Group();
+  Q.head.position.set(0, o.headY || 0.15, o.headZ || 0.45);
+  Q.body.add(Q.head);
+  Q.legs = [];
+  for(const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
+    const leg = new THREE.Group();
+    leg.position.set(sx*(o.legX || 0.16), -(o.bodyY || 0.5) + (o.legTop || 0.42), sz*(o.legZ || 0.3));
+    const shin = new THREE.Mesh(new THREE.CylinderGeometry(o.legR || 0.045, (o.legR || 0.045)*0.8, (o.legTop || 0.42), 6), bodyMat);
+    shin.position.y = -(o.legTop || 0.42)/2;
+    shin.castShadow = true;
+    leg.add(shin);
+    Q.body.add(leg);
+    Q.legs.push(leg);
+  }
+  scene.add(Q.g);
+  return Q;
+}
+function trotLegs(Q, t, sp = 1, amp = 0.5){
+  const ph = t*9*sp;
+  Q.legs[0].rotation.x = Math.sin(ph)*amp;
+  Q.legs[3].rotation.x = Math.sin(ph)*amp;
+  Q.legs[1].rotation.x = -Math.sin(ph)*amp;
+  Q.legs[2].rotation.x = -Math.sin(ph)*amp;
+}
+function stillQ(Q, dt){
+  for(const l of Q.legs) l.rotation.x = lerp(l.rotation.x, 0, dt*6);
+}
+
+// ---------- goats ----------------------------------------------------------
+function makeGoat(col){
+  const m = new THREE.MeshLambertMaterial({ color:col, flatShading:true });
+  const G = quadBase(() => new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.36, 0.9), m),
+    m, { bodyY:0.52, legTop:0.36, legX:0.2, legZ:0.32, legR:0.04, headZ:0.5, headY:0.2 });
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.24, 0.34), m);
+  skull.position.z = 0.1; skull.castShadow = true; G.head.add(skull);
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.16), m);
+  snout.position.set(0, -0.04, 0.32); G.head.add(snout);
+  const hornM = new THREE.MeshLambertMaterial({ color:0x8a8072, flatShading:true });
+  for(const s of [-1, 1]){
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 5), hornM);
+    horn.position.set(s*0.07, 0.17, 0.02);
+    horn.rotation.x = -0.7; horn.rotation.z = s*0.3;
+    G.head.add(horn);
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.14), m);
+    ear.position.set(s*0.13, 0.05, 0.02);
+    ear.rotation.z = s*0.9;
+    G.head.add(ear);
+  }
+  const beard = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.14, 5),
+    new THREE.MeshLambertMaterial({ color:0xd8d2c4, flatShading:true }));
+  beard.rotation.x = Math.PI;
+  beard.position.set(0, -0.16, 0.28);
+  G.head.add(beard);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), m);
+  tail.position.set(0, 0.2, -0.45);
+  tail.rotation.x = 0.6;
+  G.body.add(tail);
+  G.tail = tail;
+  return G;
+}
+const goats = [makeGoat(0xb8ae9c), makeGoat(0x6a5a48), makeGoat(0xd8d2c4)];
+
+// ---------- sheep ----------------------------------------------------------
+function makeSheep(){
+  const wool = new THREE.MeshLambertMaterial({ color:0xf2ede0, flatShading:true });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe8c2b0, flatShading:true });
+  const S = quadBase(() => {
+    const grp = new THREE.Mesh(new THREE.SphereGeometry(0.4, 9, 7), wool);
+    grp.scale.set(1, 0.85, 1.25);
+    return grp;
+  }, skin, { bodyY:0.5, legTop:0.32, legX:0.17, legZ:0.26, legR:0.038, headZ:0.48, headY:0.12 });
+  S.wool = S.body.children[0];
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), skin);
+  skull.scale.z = 1.4; skull.castShadow = true; S.head.add(skull);
+  const topknot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 5), wool);
+  topknot.position.set(0, 0.11, -0.02);
+  S.head.add(topknot);
+  S.topknot = topknot;
+  for(const s of [-1, 1]){
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, 0.13), skin);
+    ear.position.set(s*0.12, 0.03, 0);
+    ear.rotation.z = s*1.1;
+    S.head.add(ear);
+  }
+  S.coat = 1;                                 // 1 woolly … 0 sheared
+  return S;
+}
+const sheep = [makeSheep(), makeSheep(), makeSheep()];
+sheep.forEach((S, i) => { S.home = new THREE.Vector3(2.5 + i*1.1, 0, 1.2 + (i%2)*1.3); S.ph = rand(0, 9); });
+
+// the shearer
+const shearer = { g: new THREE.Group() };
+{
+  const shirt = new THREE.MeshLambertMaterial({ color:0x4a6a5a });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  shearer.hips = new THREE.Group(); shearer.hips.position.y = 0.42; shearer.g.add(shearer.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.38, 6, 10), shirt);
+  barrel.position.y = 0.2; barrel.castShadow = true; shearer.hips.add(barrel);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), skin);
+  skull.position.y = 0.75; skull.castShadow = true; shearer.hips.add(skull);
+  shearer.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.29, 0.44, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.058, 0.34, 4, 8), skin);
+    limb.position.y = -0.21; limb.castShadow = true; arm.add(limb);
+    shearer.hips.add(arm); shearer.arms.push(arm);
+  }
+  shearer.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.13, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.072, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    shin.position.y = -0.24; shin.castShadow = true; leg.add(shin);
+    shearer.hips.add(leg); shearer.legs.push(leg);
+  }
+  shearer.g.position.set(STOOL.x - 0.7, 0, STOOL.z);
+  shearer.g.rotation.y = Math.PI/2;
+  scene.add(shearer.g);
+}
+
+// ---------- chickens -------------------------------------------------------
+function makeChicken(){
+  const white = new THREE.MeshLambertMaterial({ color:0xf4f0e4, flatShading:true });
+  const C = { g: new THREE.Group() };
+  C.body = new THREE.Group(); C.body.position.y = 0.16; C.g.add(C.body);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), white);
+  body.scale.set(0.9, 0.9, 1.2); body.castShadow = true; C.body.add(body);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 5), white);
+  tail.rotation.x = -1.0; tail.position.set(0, 0.06, -0.13); C.body.add(tail);
+  C.head = new THREE.Group(); C.head.position.set(0, 0.1, 0.1); C.body.add(C.head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.035, 0.12, 6), white);
+  neck.position.y = 0.05; C.head.add(neck);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.05, 7, 5), white);
+  skull.position.y = 0.13; C.head.add(skull);
+  const comb = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.045, 0.06),
+    new THREE.MeshLambertMaterial({ color:0xd83a2a }));
+  comb.position.y = 0.18; C.head.add(comb);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.05, 4),
+    new THREE.MeshLambertMaterial({ color:0xe8a83c }));
+  beak.rotation.x = Math.PI/2; beak.position.set(0, 0.13, 0.06); C.head.add(beak);
+  C.wings = [];
+  for(const s of [-1, 1]){
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), white);
+    w.scale.set(0.4, 0.7, 1); w.position.set(s*0.1, 0.01, 0);
+    C.body.add(w); C.wings.push(w);
+  }
+  C.home = new THREE.Vector3(3.4 + rand(-0.9, 0.9), 0, 2.6 + rand(-0.9, 0.9));
+  C.ph = rand(0, 9);
+  C.g.position.copy(C.home);
+  scene.add(C.g);
+  return C;
+}
+const chickens = [makeChicken(), makeChicken(), makeChicken(), makeChicken()];
+
+// ---------- the donkey -----------------------------------------------------
+const donkey = (() => {
+  const gray = new THREE.MeshLambertMaterial({ color:0x8a8288, flatShading:true });
+  const D = quadBase(() => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.05), gray);
+    return b;
+  }, gray, { bodyY:0.62, legTop:0.5, legX:0.18, legZ:0.4, legR:0.045, headZ:0.6, headY:0.3 });
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.4, 0.2), gray);
+  neck.rotation.x = 0.5; neck.position.set(0, -0.05, -0.05); D.head.add(neck);
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.42), gray);
+  skull.position.set(0, 0.14, 0.14); skull.castShadow = true; D.head.add(skull);
+  D.ears = [];
+  for(const s of [-1, 1]){
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.08), gray);
+    ear.position.set(s*0.08, 0.34, 0.02);
+    ear.rotation.z = s*0.25;
+    D.head.add(ear); D.ears.push(ear);
+  }
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.015, 0.42, 5), gray);
+  tail.position.set(0, 0.1, -0.55); tail.rotation.x = 0.4;
+  D.body.add(tail); D.tail = tail;
+  // panniers — the pack baskets
+  const bm = new THREE.MeshLambertMaterial({ color:0xb08c4c, flatShading:true });
+  for(const s of [-1, 1]){
+    const pan = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.5), bm);
+    pan.position.set(s*0.37, 0.02, -0.05);
+    pan.castShadow = true;
+    D.body.add(pan);
+    const sack = new THREE.Mesh(new THREE.SphereGeometry(0.13, 7, 5),
+      new THREE.MeshLambertMaterial({ color:0xc8b48a, flatShading:true }));
+    sack.position.set(s*0.37, 0.2, -0.05);
+    D.body.add(sack);
+  }
+  return D;
+})();
+
+// ---------- the loop -------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ------ goats: graze / rock-hop (goat 0) / headbutt duel (goats 1+2) ------
+  {
+    const G = goats[0];                        // the rock king
+    const f = t % 16;
+    if(f < 5){                                 // graze near the rock
+      G.g.position.set(ROCK.x + 1.8, 0, ROCK.z + 1.4);
+      G.g.rotation.y = 2.2;
+      G.head.rotation.x = 0.55 + Math.sin(t*2.2)*0.15;   // cropping
+      stillQ(G, dt);
+    } else if(f < 6){                          // THE HOP — up onto the boulder
+      const p = smooth(f - 5);
+      G.g.position.lerpVectors(new THREE.Vector3(ROCK.x + 1.8, 0, ROCK.z + 1.4),
+        new THREE.Vector3(ROCK.x, 0.92, ROCK.z), p);
+      G.g.position.y += Math.sin(p*Math.PI)*0.55;
+      G.g.rotation.y = lerp(2.2, 3.6, p);
+      G.head.rotation.x = -0.2;
+      for(const l of G.legs) l.rotation.x = p < 0.5 ? -0.7 : 0.5;
+    } else if(f < 12){                         // king of the boulder
+      G.g.position.set(ROCK.x, 0.92, ROCK.z);
+      G.head.rotation.x = -0.15;
+      G.head.rotation.y = Math.sin(t*0.8)*0.5; // surveying the realm
+      G.tail.rotation.z = Math.sin(t*7)*0.3;
+      stillQ(G, dt);
+    } else if(f < 13){                         // hop down
+      const p = smooth(f - 12);
+      G.g.position.lerpVectors(new THREE.Vector3(ROCK.x, 0.92, ROCK.z),
+        new THREE.Vector3(ROCK.x + 1.2, 0, ROCK.z + 1.2), p);
+      G.g.position.y += Math.sin(p*Math.PI)*0.35;
+    } else {
+      G.g.position.set(ROCK.x + 1.2, 0, ROCK.z + 1.2);
+      G.head.rotation.x = 0.55 + Math.sin(t*2.2)*0.15;
+    }
+  }
+  {
+    // the duel: back off … CHARGE … clonk … shake … graze
+    const [g1, g2] = [goats[1], goats[2]];
+    const f = t % 20;
+    const C1 = new THREE.Vector3(-1.2, 0, 2.8), C2 = new THREE.Vector3(1.2, 0, 2.8);
+    g1.g.rotation.y = Math.PI/2; g2.g.rotation.y = -Math.PI/2;
+    if(f < 8){                                 // grazing side by side
+      g1.g.position.lerp(new THREE.Vector3(-0.7, 0, 2.8), dt*2);
+      g2.g.position.lerp(new THREE.Vector3(0.7, 0, 2.8), dt*2);
+      g1.head.rotation.x = 0.55 + Math.sin(t*2.0)*0.15;
+      g2.head.rotation.x = 0.55 + Math.sin(t*2.4 + 1)*0.15;
+      stillQ(g1, dt); stillQ(g2, dt);
+    } else if(f < 10.5){                       // the back-off (something was said)
+      const p = smooth((f - 8)/2.5);
+      g1.g.position.lerpVectors(new THREE.Vector3(-0.7, 0, 2.8), C1, p);
+      g2.g.position.lerpVectors(new THREE.Vector3(0.7, 0, 2.8), C2, p);
+      g1.head.rotation.x = -0.3; g2.head.rotation.x = -0.3;
+      trotLegs(g1, t, 0.6, 0.3); trotLegs(g2, t, 0.6, 0.3);
+    } else if(f < 11.1){                       // THE CHARGE
+      const p = (f - 10.5)/0.6;
+      g1.g.position.lerpVectors(C1, new THREE.Vector3(-0.24, 0, 2.8), p);
+      g2.g.position.lerpVectors(C2, new THREE.Vector3(0.24, 0, 2.8), p);
+      g1.head.rotation.x = -0.75; g2.head.rotation.x = -0.75;   // heads down
+      trotLegs(g1, t, 2.2, 0.6); trotLegs(g2, t, 2.2, 0.6);
+    } else if(f < 12.4){                       // CLONK — the recoil
+      const k = clamp((f - 11.1)/0.4, 0, 1);
+      g1.g.position.x = -0.24 - smooth(k)*0.25;
+      g2.g.position.x = 0.24 + smooth(k)*0.25;
+      g1.head.rotation.x = -0.75 + k*0.4;
+      g2.head.rotation.x = -0.75 + k*0.4;
+      g1.body.rotation.x = -k*0.12; g2.body.rotation.x = -k*0.12;
+    } else {                                   // shake it off, wander back
+      g1.body.rotation.x = lerp(g1.body.rotation.x, 0, dt*5);
+      g2.body.rotation.x = lerp(g2.body.rotation.x, 0, dt*5);
+      g1.head.rotation.z = Math.sin(t*9)*0.18*Math.max(0, 1 - (f - 12.4));
+      g2.head.rotation.z = Math.sin(t*9 + 1)*0.18*Math.max(0, 1 - (f - 12.4));
+      g1.head.rotation.x = lerp(g1.head.rotation.x, 0.5, dt*3);
+      g2.head.rotation.x = lerp(g2.head.rotation.x, 0.5, dt*3);
+      stillQ(g1, dt); stillQ(g2, dt);
+    }
+  }
+
+  // ------ sheep: the flock + THE SHEARING (sheep 0 takes the turn) ------
+  {
+    const f = t % 34;
+    const S = sheep[0];
+    for(const [i, sh] of sheep.entries()){
+      if(i === 0 && f >= 4 && f < 20) continue;       // it's being sheared
+      sh.g.position.lerp(sh.home, dt*1.5);
+      sh.g.rotation.y = Math.sin(sh.ph + t*0.15)*1.2;
+      sh.head.rotation.x = 0.5 + Math.sin(t*1.8 + sh.ph)*0.18;   // graze graze
+      stillQ(sh, dt);
+      // wool regrows slowly on anyone sheared
+      sh.coat = clamp(sh.coat + dt/60, 0.25, 1);
+      sh.wool.scale.set(lerp(0.5, 1, sh.coat), lerp(0.45, 0.85, sh.coat), lerp(0.7, 1.25, sh.coat));
+      sh.topknot.scale.setScalar(lerp(0.4, 1, sh.coat));
+    }
+    if(f < 4){                                 // led to the stool
+      const p = smooth(f/4);
+      S.g.position.lerpVectors(S.home, new THREE.Vector3(STOOL.x, 0.3, STOOL.z), p);
+      S.g.rotation.y = Math.atan2(STOOL.x - S.home.x, STOOL.z - S.home.z);
+      trotLegs(S, t, 0.7, 0.35);
+    } else if(f < 16){                         // THE SHEARING
+      S.g.position.set(STOOL.x, 0.3, STOOL.z);
+      S.g.rotation.y = 0;
+      stillQ(S, dt);
+      S.head.rotation.x = 0.2 + Math.sin(t*1.2)*0.05;  // resigned
+      const k = (f - 4)/12;
+      S.coat = 1 - k*0.75;
+      S.wool.scale.set(lerp(0.5, 1, S.coat), lerp(0.45, 0.85, S.coat), lerp(0.7, 1.25, S.coat));
+      S.topknot.scale.setScalar(lerp(0.4, 1, S.coat));
+      // the shearer works down the flank
+      shearer.hips.rotation.x = 0.45;
+      shearer.arms[1].rotation.x = -1.1 + Math.sin(t*9)*0.18;   // the clippers buzz
+      shearer.arms[1].rotation.z = -0.3 + Math.sin(k*Math.PI)*0.3;
+      shearer.arms[0].rotation.x = -0.8;       // steadying hand
+      // wool puffs drop onto the pile at the thirds
+      const stage = Math.floor(k*4);
+      if(stage > wooled && wooled < woolPile.length){
+        woolPile[wooled].visible = true;
+        wooled++;
+      }
+    } else if(f < 20){                         // the pink trot back
+      const p = smooth((f - 16)/4);
+      S.g.position.lerpVectors(new THREE.Vector3(STOOL.x, 0.3, STOOL.z), S.home, p);
+      S.g.rotation.y = Math.atan2(S.home.x - STOOL.x, S.home.z - STOOL.z);
+      trotLegs(S, t, 1.3, 0.5);                // a bit skittish without the coat
+      shearer.hips.rotation.x = lerp(shearer.hips.rotation.x, 0, dt*4);
+      shearer.arms[0].rotation.x = lerp(shearer.arms[0].rotation.x, 0, dt*4);
+      shearer.arms[1].rotation.x = lerp(shearer.arms[1].rotation.x, 0, dt*4);
+    } else {
+      // between shearings the pile gets collected for the spinning wheel
+      if(f > 30 && wooled > 0){
+        woolPile.forEach(p2 => p2.visible = false);
+        wooled = 0;
+      }
+      shearer.hips.rotation.x = lerp(shearer.hips.rotation.x, 0, dt*4);
+    }
+    // rotate whose turn it is
+    if(f + dt >= 34) sheep.push(sheep.shift());
+  }
+
+  // ------ chickens: peck, flap-dash, dust bath, scatter ------
+  const goatCharging = (t % 20) > 10.5 && (t % 20) < 11.4;
+  for(const [i, C] of chickens.entries()){
+    const f = (t*0.5 + C.ph) % 8;
+    if(goatCharging){                          // SCATTER, squawking
+      const away = C.g.position.clone().sub(new THREE.Vector3(0, 0, 2.8)).setY(0).normalize();
+      C.g.position.addScaledVector(away, dt*2.4);
+      C.wings[0].rotation.z = Math.sin(t*30)*0.9;
+      C.wings[1].rotation.z = -Math.sin(t*30)*0.9;
+      C.head.rotation.x = -0.3;
+      C.body.position.y = 0.16 + Math.abs(Math.sin(t*18))*0.06;
+    } else if(f < 3){                          // peck peck peck
+      C.g.position.lerp(C.home, dt*1.2);
+      C.head.rotation.x = (Math.sin(t*7 + C.ph) > 0.2 ? 0.9 : 0.1);
+      C.wings[0].rotation.z = lerp(C.wings[0].rotation.z, 0, dt*6);
+      C.wings[1].rotation.z = lerp(C.wings[1].rotation.z, 0, dt*6);
+      C.body.position.y = 0.16;
+      C.g.rotation.y += Math.sin(t*0.9 + C.ph)*dt*0.8;
+    } else if(f < 4){                          // the flap-dash to a new spot
+      C.g.position.x += Math.sin(C.ph*3)*dt*1.4;
+      C.g.position.z += Math.cos(C.ph*2)*dt*1.4;
+      C.wings[0].rotation.z = Math.sin(t*22)*0.8;
+      C.wings[1].rotation.z = -Math.sin(t*22)*0.8;
+    } else if(i === 0 && f < 6.5){             // the dust bath (one at a time)
+      C.g.position.lerp(new THREE.Vector3(3.4, 0, 2.6), dt*2);
+      C.body.rotation.z = Math.sin(t*6)*0.5;   // the happy wallow
+      C.body.position.y = 0.1;
+      C.wings[0].rotation.z = Math.sin(t*13)*0.6;
+      C.wings[1].rotation.z = -Math.sin(t*13)*0.6;
+    } else {
+      C.body.rotation.z = lerp(C.body.rotation.z, 0, dt*5);
+      C.body.position.y = 0.16;
+      C.head.rotation.x = (Math.sin(t*7 + C.ph) > 0.2 ? 0.9 : 0.1);
+    }
+  }
+
+  // ------ the donkey: the patient loop ------
+  {
+    const a = t*0.14;
+    const R = 6.2;
+    donkey.g.position.set(Math.sin(a)*R, 0, Math.cos(a)*R*0.8);
+    donkey.g.rotation.y = Math.atan2(Math.cos(a)*R, -Math.sin(a)*R*0.8);
+    trotLegs(donkey, t, 0.45, 0.35);           // the plod
+    donkey.ears[0].rotation.x = Math.sin(t*1.7)*0.2;
+    donkey.ears[1].rotation.x = Math.sin(t*2.3 + 1)*0.2;
+    donkey.tail.rotation.z = Math.sin(t*2.8)*0.35;
+    donkey.head.rotation.x = 0.12 + Math.sin(t*0.9)*0.06;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
