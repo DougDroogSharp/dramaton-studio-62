@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FORMATION STUDY — a company marching the contours, for George World.
+     Filed 2026-08-31, Doug's spec: soldiers on the STANDARD ARMATURE so
+     the whole formation terrain-follows. Every soldier is the canonical
+     Mixamo-named rig playing ONE march clip in perfect step — and every
+     soldier runs their OWN copy of the terrain layers from the terrain
+     walk: root height + lean from the map, rest-pose-agnostic two-bone
+     LEG IK planting each foot on its own ground sample, and the ankle
+     layer rolling each sole onto the local normal. Company size menu
+     re-forms the column automatically (twos, threes or fours).
+     THE CONTRACT FOR MAP MAKERS (Dispatch): a map module exposes
+     terrainH(x,z) and terrainNormal(x,z) — that's ALL the walkers
+     need. Standard armature + those two samplers = marching anywhere.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formation Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.8); color:#eaf4f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:330px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
+    border-radius:7px; background:#3d6f96; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:230px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🥁 Formation Study</b> — the company marches the contours, v1<br>
+  <span class="hint">every soldier: standard armature + their own leg IK on
+  their own ground samples · uphill knees bend, downhill legs reach</span>
+  <select id="size">
+    <option value="6">Six — column of twos</option>
+    <option value="12" selected>Twelve — column of threes</option>
+    <option value="24">Twenty-four — column of fours</option>
+  </select>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2f0f6), 50, 260);
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.05, 500);
+camera.position.set(6, 4.5, 10);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4),
+        below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.0));
+const sun = new THREE.DirectionalLight(0xffeeda, 2.3);
+sun.position.set(12, 18, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+scene.add(sun);
+
+// ---------- the map contract: terrainH + terrainNormal --------------------
+function terrainH(x, z){
+  return 0.5*Math.sin(x*0.4)*Math.cos(z*0.34)
+       + 0.3*Math.sin(x*0.85 + 1.3)*Math.sin(z*0.7 + 0.6)
+       + 0.13*Math.sin(x*1.8 + 4.0)*Math.cos(z*1.5 + 2.2);
+}
+function terrainGrad(x, z){
+  return {
+    hx: 0.5*0.4*Math.cos(x*0.4)*Math.cos(z*0.34)
+      + 0.3*0.85*Math.cos(x*0.85 + 1.3)*Math.sin(z*0.7 + 0.6)
+      + 0.13*1.8*Math.cos(x*1.8 + 4.0)*Math.cos(z*1.5 + 2.2),
+    hz: -0.5*0.34*Math.sin(x*0.4)*Math.sin(z*0.34)
+      + 0.3*0.7*Math.sin(x*0.85 + 1.3)*Math.cos(z*0.7 + 0.6)
+      - 0.13*1.5*Math.sin(x*1.8 + 4.0)*Math.sin(z*1.5 + 2.2),
+  };
+}
+function terrainNormal(x, z){
+  const { hx, hz } = terrainGrad(x, z);
+  return new THREE.Vector3(-hx, 1, -hz).normalize();
+}
+{
+  const geo = new THREE.PlaneGeometry(40, 40, 100, 100);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, col = [];
+  const grass = new THREE.Color(0x7da45c), dry = new THREE.Color(0xb8a86a),
+        steep = new THREE.Color(0x8a7a58), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const y = terrainH(x, z);
+    pos.setY(i, y);
+    const n = terrainNormal(x, z);
+    c.copy(grass).lerp(dry, clamp((y + 0.4)/1.4, 0, 1));
+    c.lerp(steep, clamp((1 - n.y)*3.2, 0, 1));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// ==========================================================================
+//  makeSoldier — the canonical rig + helmet + spear, with its own mixer
+//  and its own measured leg metrics for the IK layers.
+// ==========================================================================
+const steelM = new THREE.MeshStandardMaterial({ color:0xb8c0c8, roughness:0.35, metalness:0.6 });
+const woodM = new THREE.MeshLambertMaterial({ color:0x6a4a2a, flatShading:true });
+function makeSoldier(pal){
+  const B = {};
+  function bone(name, parentName, x, y, z){
+    const b = new THREE.Bone();
+    b.name = name; b.position.set(x, y, z);
+    if(parentName) B[parentName].add(b);
+    B[name] = b; return b;
+  }
+  const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
+  bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
+  bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
+  bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
+  bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
+  bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
+    bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
+    bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
+    bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
+    bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
+    bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
+    bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
+    bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
+  }
+  const allBones = Object.values(B);
+  const skeleton = new THREE.Skeleton(allBones);
+  const boneIndex = {};
+  allBones.forEach((b, i) => boneIndex[b.name] = i);
+  const tmp = new THREE.Group();
+  tmp.add(rootBone);
+  rootBone.updateMatrixWorld(true);
+  const bWorld = {};
+  for(const b of allBones)
+    bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  tmp.remove(rootBone);
+  function partGeo(geoFn, boneName, colorHex){
+    let g = geoFn();
+    if(g.index) g = g.toNonIndexed();
+    const p = bWorld[boneName];
+    g.translate(p.x, p.y, p.z);
+    const n = g.attributes.position.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const col = new Float32Array(n*3);
+    const c = new THREE.Color(colorHex);
+    for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  const skinDk = new THREE.Color(pal.skin).offsetHSL(0, 0.02, -0.05).getHex();
+  const parts = [];
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.23, 14, 10);
+    g.scale(1.34, 0.8, 1.0); g.translate(0, -0.02, 0); return g; }, 'mixamorigHips', pal.pants));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.215, 0.245, 0.16, 12);
+    g.translate(0, 0.02, 0); return g; }, 'mixamorigSpine', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.26, 14, 10);
+    g.scale(1.22, 0.98, 0.9); g.translate(0, 0.04, 0.01); return g; }, 'mixamorigSpine1', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.1, 0.115, 0.44, 10);
+    g.rotateZ(Math.PI/2); g.translate(0, 0.05, 0); return g; }, 'mixamorigSpine2', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.085, 0.105, 0.14, 10);
+    g.translate(0, 0.05, 0); return g; }, 'mixamorigNeck', pal.skin));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.40, 18, 12);
+    g.scale(1.04, 1.0, 0.97); g.translate(0, 0.24, 0); return g; }, 'mixamorigHead', pal.skin));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.065, 8, 6);
+    g.translate(0, 0.17, 0.4); return g; }, 'mixamorigHead', pal.skin));
+  for(const s of [-1, 1]){
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.07, 8, 6);
+      g.scale(0.7, 1, 0.9); g.translate(s*0.41, 0.2, 0.02); return g; }, 'mixamorigHead', skinDk));
+  }
+  // the steel cap + nose guard
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.42, 16, 9, 0, Math.PI*2, 0, Math.PI*0.46);
+    g.scale(1.05, 1.05, 1.0); g.translate(0, 0.26, 0); return g; }, 'mixamorigHead', 0x9aa2ac));
+  parts.push(partGeo(() => { const g = new THREE.BoxGeometry(0.07, 0.3, 0.05);
+    g.translate(0, 0.28, 0.42); return g; }, 'mixamorigHead', 0x9aa2ac));
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.082, 0.1, 4, 8);
+      g.rotateZ(s*0.35); g.translate(s*0.075, -0.05, 0); return g; }, `mixamorig${S}Arm`, pal.shirt));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.066, 0.13, 4, 8);
+      g.translate(s*0.028, -0.09, 0); return g; }, `mixamorig${S}ForeArm`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.092, 10, 7);
+      g.scale(0.9, 1.1, 1); g.translate(0, -0.05, 0); return g; }, `mixamorig${S}Hand`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.135, 0.15, 6, 10);
+      g.scale(1, 1, 1.08); g.rotateZ(s*0.06); g.translate(s*0.012, -0.13, 0.01); return g; }, `mixamorig${S}UpLeg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.085, 0.15, 6, 8);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}Leg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.125, 10, 7);
+      g.scale(1, 0.72, 1.2); g.translate(0, -0.015, 0.02); return g; }, `mixamorig${S}Foot`, 0x4a3a28));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.095, 8, 6);
+      g.scale(1, 0.62, 1.05); g.translate(0, -0.035, 0.055); return g; }, `mixamorig${S}ToeBase`, 0x4a3a28));
+  }
+  const mesh = new THREE.SkinnedMesh(mergeGeometries(parts, false),
+    new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.75 }));
+  mesh.castShadow = true;
+  mesh.frustumCulled = false;
+  mesh.add(rootBone);
+  mesh.bind(skeleton);
+  const root = new THREE.Group();
+  root.add(mesh);
+  scene.add(root);
+  // the spear on the right hand
+  const spear = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.9, 6), woodM);
+  spear.add(shaft);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), steelM);
+  head.position.y = 1.0;
+  spear.add(head);
+  spear.position.set(0, -0.05, 0.05);
+  B.mixamorigRightHand.add(spear);
+  // metrics for the IK
+  root.updateMatrixWorld(true);
+  const p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), p3 = new THREE.Vector3();
+  B.mixamorigLeftUpLeg.getWorldPosition(p1);
+  B.mixamorigLeftLeg.getWorldPosition(p2);
+  B.mixamorigLeftFoot.getWorldPosition(p3);
+  return { root, B, mixer: new THREE.AnimationMixer(mesh),
+    L1: p1.distanceTo(p2), L2: p2.distanceTo(p3),
+    ankleY: root.worldToLocal(p3.clone()).y, hipsRestY: B.mixamorigHips.position.y,
+    pelvisDrop: 0 };
+}
+
+// ---------- the march clip (quaternions only; hips handled by the layer) ---
+function quatTrack(bn, times, eulers){
+  const vals = [];
+  for(const e of eulers){
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+    vals.push(q.x, q.y, q.z, q.w);
+  }
+  return new THREE.QuaternionKeyframeTrack(bn + '.quaternion', times, vals);
+}
+const MT = [0, 0.325, 0.65, 0.975, 1.3];
+const marchClip = new THREE.AnimationClip('march', 1.3, [
+  quatTrack('mixamorigLeftUpLeg', MT, [[0.6,0,0],[0,0,0],[-0.6,0,0],[0,0,0],[0.6,0,0]]),
+  quatTrack('mixamorigRightUpLeg', MT, [[-0.6,0,0],[0,0,0],[0.6,0,0],[0,0,0],[-0.6,0,0]]),
+  quatTrack('mixamorigLeftLeg', MT, [[0,0,0],[0.6,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+  quatTrack('mixamorigRightLeg', MT, [[0,0,0],[0.05,0,0],[0,0,0],[0.6,0,0],[0,0,0]]),
+  quatTrack('mixamorigLeftArm', MT, [[-0.6,0,0.3],[0,0,0.3],[0.6,0,0.3],[0,0,0.3],[-0.6,0,0.3]]),
+  quatTrack('mixamorigRightArm', MT, [[-0.25,0,-0.5],[-0.25,0,-0.5],[-0.25,0,-0.5],[-0.25,0,-0.5],[-0.25,0,-0.5]]),
+  quatTrack('mixamorigRightForeArm', MT, [[-1.2,0,0],[-1.2,0,0],[-1.2,0,0],[-1.2,0,0],[-1.2,0,0]]),
+  quatTrack('mixamorigSpine', MT, [[0.03,0,0],[0.03,0,0],[0.03,0,0],[0.03,0,0],[0.03,0,0]]),
+]);
+
+// ==========================================================================
+//  the terrain layers, per soldier (rest-pose-agnostic deltas)
+// ==========================================================================
+const _A = new THREE.Vector3(), _H = new THREE.Vector3(), _K = new THREE.Vector3(),
+      _T = new THREE.Vector3(), _dir = new THREE.Vector3(), _po = new THREE.Vector3(),
+      _fwd = new THREE.Vector3(), _cur = new THREE.Vector3(), _want = new THREE.Vector3(),
+      _dq = new THREE.Quaternion(), _wq = new THREE.Quaternion(), _pq = new THREE.Quaternion(),
+      _n = new THREE.Vector3(), _upv = new THREE.Vector3(0, 1, 0), _nq = new THREE.Quaternion();
+function rotateBoneWorld(bone, deltaQ){
+  bone.getWorldQuaternion(_wq);
+  _wq.premultiply(deltaQ);
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(_wq));
+  bone.updateMatrixWorld(true);
+}
+function soldierLayers(S, dt, heading, marchT){
+  // hips: rest + step bob − pelvis drop
+  S.B.mixamorigHips.position.y = S.hipsRestY
+    + Math.abs(Math.sin(marchT*Math.PI*2/1.3*1 + 0))*0 // (bob folded into the IK below)
+    + Math.abs(Math.sin(marchT/1.3*Math.PI*2))*0.045 - S.pelvisDrop;
+  S.root.updateMatrixWorld(true);
+  let excess = 0;
+  const { L1, L2 } = S;
+  for(const side of ['Left', 'Right']){
+    const up = S.B[`mixamorig${side}UpLeg`], lo = S.B[`mixamorig${side}Leg`],
+          ft = S.B[`mixamorig${side}Foot`];
+    ft.getWorldPosition(_A);
+    const lift = Math.max(0, S.root.worldToLocal(_A.clone()).y - S.ankleY*1.02);
+    _T.set(_A.x, terrainH(_A.x, _A.z) + S.ankleY*0.92 + lift, _A.z);
+    up.getWorldPosition(_H);
+    let d = _H.distanceTo(_T);
+    const reach = L1 + L2 - 0.012;
+    if(d > reach){ excess = Math.max(excess, d - reach); d = reach; }
+    d = Math.max(d, Math.abs(L1 - L2) + 0.02);
+    _dir.copy(_T).sub(_H).normalize();
+    _fwd.set(Math.sin(heading), 0, Math.cos(heading));
+    _po.copy(_fwd).addScaledVector(_dir, -_fwd.dot(_dir)).normalize();
+    const a1 = Math.acos(clamp((L1*L1 + d*d - L2*L2)/(2*L1*d), -1, 1));
+    lo.getWorldPosition(_K);
+    _cur.copy(_K).sub(_H).normalize();
+    _want.copy(_dir).multiplyScalar(Math.cos(a1)).addScaledVector(_po, Math.sin(a1)).normalize();
+    _dq.setFromUnitVectors(_cur, _want);
+    rotateBoneWorld(up, _dq);
+    lo.getWorldPosition(_K);
+    ft.getWorldPosition(_A);
+    _cur.copy(_A).sub(_K).normalize();
+    _want.copy(_T).sub(_K).normalize();
+    _dq.setFromUnitVectors(_cur, _want);
+    rotateBoneWorld(lo, _dq);
+    // the ankle roll onto the slope
+    ft.getWorldPosition(_A);
+    const sole = _A.y - S.ankleY*0.85;
+    const w = clamp(1 - (sole - terrainH(_A.x, _A.z))/(S.ankleY*1.4), 0, 1);
+    if(w > 0.001){
+      _n.copy(terrainNormal(_A.x, _A.z));
+      _dq.setFromUnitVectors(_upv, _n);
+      _nq.identity().slerp(_dq, w);
+      rotateBoneWorld(ft, _nq);
+    }
+  }
+  S.pelvisDrop = lerp(S.pelvisDrop, excess, Math.min(1, dt*8));
+}
+
+// ==========================================================================
+//  THE COMPANY — formed by size; all mixers share one march time.
+// ==========================================================================
+const PALS = [
+  { shirt:0x8a4c4c, pants:0x3c3a30, skin:0xeab98f },
+  { shirt:0x4c6a8a, pants:0x4c5666, skin:0xd8a878 },
+  { shirt:0x7a6a4c, pants:0x3c3a30, skin:0xf2c299 },
+  { shirt:0x5a7a5c, pants:0x4c5666, skin:0xc89272 },
+];
+let soldiers = [];
+let files = 3;
+const SPACING_RANK = 0.95, SPACING_FILE = 0.8;
+function form(n){
+  for(const s of soldiers) scene.remove(s.root);
+  soldiers = [];
+  files = n <= 6 ? 2 : n <= 12 ? 3 : 4;
+  for(let i = 0; i < n; i++){
+    const S = makeSoldier(PALS[i % PALS.length]);
+    S.action = S.mixer.clipAction(marchClip);
+    S.action.play();
+    S.rank = Math.floor(i/files);
+    S.file = i % files;
+    soldiers.push(S);
+  }
+}
+form(12);
+document.getElementById('size').addEventListener('change', e => form(+e.target.value));
+
+// ---------- the march: the column follows the ring, each soldier samples
+// the map at THEIR OWN position ------------------------------------------
+const RING = 6.5;
+let pathA = 0;
+const SPEED = 0.95;
+const yawQ = new THREE.Quaternion(), pitchQ = new THREE.Quaternion(),
+      rollQ = new THREE.Quaternion(), bodyQ = new THREE.Quaternion();
+let marchTime = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  pathA += SPEED/RING*dt;
+  marchTime += dt;
+
+  for(const S of soldiers){
+    // this soldier's own spot on the path (ranks trail the leader)
+    const a = pathA - S.rank*SPACING_RANK/RING;
+    const cx = Math.sin(a)*RING, cz = Math.cos(a)*RING;
+    const heading = Math.atan2(Math.cos(a), -Math.sin(a));
+    const sideX = Math.cos(heading), sideZ = -Math.sin(heading);
+    const off = (S.file - (files - 1)/2)*SPACING_FILE;
+    const px = cx + sideX*off, pz = cz + sideZ*off;
+    // root height + lean from THEIR ground
+    S.root.position.set(px, terrainH(px, pz), pz);
+    const g = terrainGrad(px, pz);
+    const ahead = g.hx*Math.sin(heading) + g.hz*Math.cos(heading);
+    const roll = g.hx*Math.cos(heading) - g.hz*Math.sin(heading);
+    yawQ.setFromAxisAngle(new THREE.Vector3(0,1,0), heading);
+    pitchQ.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.atan(ahead)*0.3);
+    rollQ.setFromAxisAngle(new THREE.Vector3(0,0,1), Math.atan(roll)*0.18);
+    bodyQ.copy(yawQ).multiply(pitchQ).multiply(rollQ);
+    S.root.quaternion.slerp(bodyQ, Math.min(1, dt*6));
+    // ONE beat for the whole company — everyone's mixer at the same time
+    S.mixer.setTime(marchTime % 1.3);
+    soldierLayers(S, dt, heading, marchTime);
+  }
+
+  // camera follows the column's middle
+  if(soldiers.length){
+    const mid = soldiers[Math.floor(soldiers.length/2)].root.position;
+    controls.target.lerp(new THREE.Vector3(mid.x, mid.y + 0.9, mid.z), dt*2);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
