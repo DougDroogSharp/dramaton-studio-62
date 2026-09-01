@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.78</title>
+<title>George World v0.79</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -315,6 +315,12 @@
     background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
     border-radius:10px; padding:7px 12px;
     box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
+  /* v0.79 the WX TEST menu, beside NEW GAME */
+  #wxtest { position:absolute; top:10px; right:118px; pointer-events:auto; cursor:pointer;
+    font-size:11px; font-weight:800; letter-spacing:0.5px; color:#e8eef3;
+    background:linear-gradient(180deg,#4d545d,#33383f); border:1px solid #7c8894;
+    border-radius:10px; padding:7px 8px;
+    box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2); }
   #scnmenu { position:absolute; inset:0; display:none; pointer-events:auto;
     background:rgba(8,14,20,.62); }
   #scnpanel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -384,7 +390,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.78</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.79</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -446,6 +452,15 @@
     </div>
   </div>
   <div id="scnbtn" title="NEW GAME — pick a scenario and restart the world">⚑ NEW GAME</div>
+  <!-- v0.79 WX TEST (Doug): force the weather on the real island — the same
+       states the sky system rolls daily; AUTO hands the sky back to the dice -->
+  <select id="wxtest" title="WEATHER TEST — force the island's sky (storm dampens work and leans the palms); AUTO returns to the daily roll">
+    <option value="">⛅ WX AUTO</option>
+    <option value="fair">☀ fair</option>
+    <option value="clear">🔆 clear</option>
+    <option value="overcast">☁ overcast</option>
+    <option value="storm">⛈ STORM</option>
+  </select>
   <div id="scnmenu">
     <div id="scnpanel">
       <h3>NEW GAME <span id="scnclose">✕</span></h3>
@@ -1864,6 +1879,11 @@ function weatherForDay(d){
   return 'fair';
 }
 let weatherOverride = null;                // debug hand on the sky
+// v0.79: the WX TEST menu is that hand, on screen (Doug: test the weather
+// simulations on the actual island)
+document.getElementById('wxtest').addEventListener('change', e => {
+  weatherOverride = e.target.value || null;
+});
 const SKY_STATES = {
   clear:    { cumulus:0.10, cirrus:0.06, overcast:0, storm:0 },
   fair:     { cumulus:1.00, cirrus:0.20, overcast:0, storm:0 },

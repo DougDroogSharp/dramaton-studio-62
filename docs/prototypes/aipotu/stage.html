@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THE STAGE — one screen for every George World object & animation.
+     Filed 2026-08-31. Pick a study from the pulldown; it loads in place
+     (each study's own animation controls appear inside its panel, so
+     nothing clutters). The last entry loads the live game itself.
+     Serve from the aipotu folder (serve_nocache.py :8201/stage.html).
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>George World Stage</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#14181c; }
+  #bar {
+    position:fixed; top:0; left:0; right:0; height:44px; z-index:20;
+    display:flex; align-items:center; gap:10px; padding:0 12px;
+    background:linear-gradient(180deg,#232a30,#1a2025);
+    border-bottom:1px solid #3a444c; color:#e8f0f4;
+    font:13px system-ui, sans-serif;
+  }
+  #bar b { font-size:14px; letter-spacing:0.5px; }
+  #bar select {
+    padding:6px 10px; border:0; border-radius:8px; min-width:260px;
+    background:#3f7040; color:#fff; font:13px system-ui; cursor:pointer;
+  }
+  #bar .note { opacity:0.6; font-size:12px; }
+  #frame { position:fixed; top:44px; left:0; right:0; bottom:0;
+    width:100%; height:calc(100% - 44px); border:0; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>🎬 GEORGE WORLD STAGE</b>
+  <select id="pick">
+    <optgroup label="Creatures & characters">
+      <option value="vita_anim_study.html">Vita — the animation library (19 anims)</option>
+      <option value="vita_study.html">Vita — the hero body</option>
+      <option value="poppy_study.html">Poppy — the real girl (8 anims)</option>
+      <option value="horse_study.html">Appaloosa horse — gaits, rear, treat</option>
+      <option value="fish_study.html">Fish — silversides, flying fish, mullet</option>
+      <option value="seagull_study.html">Seagull</option>
+      <option value="orca_study.html">Orcas</option>
+    </optgroup>
+    <optgroup label="Objects & builds">
+      <option value="wagon_study.html">Wagon — smooth & bumpy rolling</option>
+      <option value="rowboat_study.html">Rowboat — row, get in, get out</option>
+      <option value="surfboard_study.html">Surfboards — log, thruster, fish</option>
+      <option value="throne_study.html">Throne — the king sits</option>
+      <option value="castle_study.html">Castle — the Norman keep</option>
+      <option value="tools_study.html">Tools — hammer, axe, saw + fence posts</option>
+      <option value="scythe_study.html">Scythe — sweep, step, sweep</option>
+      <option value="plow_study.html">Oxen & plow — the soil curls</option>
+      <option value="kite_study.html">Kites — four sails + the dragon</option>
+      <option value="fire_study.html">Fire — campfire & the king's hearth</option>
+    </optgroup>
+    <optgroup label="Flora & growth">
+      <option value="palm_study.html">Palm</option>
+      <option value="fir_study.html">Firs — six realistic specimens</option>
+      <option value="berrybush_study.html">Berry bush — the study</option>
+      <option value="bushgrowth_study.html">Berry bush — growth stages + wilt</option>
+      <option value="corn_study.html">Corn — 3 cultivars × 4 stages, in wind</option>
+      <option value="wind_study.html">Wind — palm, bush & fir in four winds</option>
+    </optgroup>
+    <optgroup label="World & atmosphere">
+      <option value="sky_study.html">Sky — clouds, storm, moon</option>
+      <option value="weather_study.html">Weather — rain follows the wind</option>
+      <option value="waves_study.html">Waves — surf on an undulating coast</option>
+      <option value="volcano_study.html">Volcano — the eruption</option>
+      <option value="terrain_study.html">Terrain study (other session's work)</option>
+    </optgroup>
+    <optgroup label="The game">
+      <option value="georgeworld.html">▶ GEORGE WORLD — the live game (WX TEST menu inside)</option>
+    </optgroup>
+  </select>
+  <span class="note">each study's own animation controls appear inside its panel</span>
+</div>
+<iframe id="frame" src="vita_anim_study.html"></iframe>
+<script>
+  const pick = document.getElementById('pick');
+  const frame = document.getElementById('frame');
+  pick.addEventListener('change', () => { frame.src = pick.value; });
+</script>
+</body>
+</html>
