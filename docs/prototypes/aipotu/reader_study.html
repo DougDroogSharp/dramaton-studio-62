@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     READER STUDY — a Vita reading a book, for George World.
+     Filed 2026-09-01 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The stand-in capsule Vita (STYLE.md humanoid) on a bench under a
+     little tree, book open in both hands. The reading is in the small
+     things: the head SCANS each line and snaps back, a real hinged
+     PAGE lifts, arcs over, and lays flat every few sentences (the
+     free hand rises to meet it), a PONDER every so often — eyes up
+     and away, a slow breath, back to the page — a posture shift, the
+     ankles re-crossing, a little chuckle at something on page four.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e4d2; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,26,20,0.78); color:#f0f0e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#5c6478; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#727c94; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>📖 Reader Study</b> — a Vita and a book, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="auto">Auto</button><button data-m="read">Read</button><button
+    data-m="ponder">Ponder</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 14142135;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e2d0), 30, 200);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(2.4, 1.6, 3.2);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 0.8; controls.maxDistance = 24;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(240, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f2e2), zenith = new THREE.Color(0x80b2da),
+        below = new THREE.Color(0xd6d6c4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/240;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xacac84, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(10, 14, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 48),
+    new THREE.MeshLambertMaterial({ color:0xb6b284 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+// the BENCH and its tree
+{
+  const wood = new THREE.MeshLambertMaterial({ color:0x7a5c38, flatShading:true });
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.07, 0.45), wood);
+  seat.position.set(0, 0.46, 0);
+  seat.castShadow = true; seat.receiveShadow = true;
+  scene.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.06), wood);
+  back.position.set(0, 0.78, -0.22);
+  back.rotation.x = -0.12;
+  back.castShadow = true;
+  scene.add(back);
+  for(const sx of [-0.6, 0.6]){
+    const legF = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.06), wood);
+    legF.position.set(sx, 0.23, 0.16);
+    scene.add(legF);
+    const legB = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.46, 0.06), wood);
+    legB.position.set(sx, 0.23, -0.16);
+    scene.add(legB);
+  }
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 2.4, 8), wood);
+  trunk.position.set(-1.3, 1.2, -0.8);
+  trunk.castShadow = true;
+  scene.add(trunk);
+  const leafG = new THREE.SphereGeometry(0.95, 8, 6);
+  leafG.scale(1, 0.65, 1);
+  const posA = leafG.attributes.position, colA = [];
+  const b0 = new THREE.Color(0x4f7c38), b1 = new THREE.Color(0x84ae52), cc = new THREE.Color();
+  for(let i=0;i<posA.count;i++){
+    const tt = clamp(posA.getY(i)/(0.95*0.65)*0.5 + 0.5, 0, 1);
+    cc.copy(b0).lerp(b1, tt);
+    colA.push(cc.r, cc.g, cc.b);
+  }
+  leafG.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  const crown = new THREE.Mesh(leafG,
+    new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true }));
+  crown.position.set(-1.3, 2.6, -0.8);
+  crown.castShadow = true;
+  scene.add(crown);
+  scene.userData.crown = crown;
+}
+
+// ==========================================================================
+//  THE VITA, seated — STYLE.md stand-in proportions, jointed for the bench.
+// ==========================================================================
+const dress = new THREE.MeshLambertMaterial({ color:0x6a8ba8 });
+const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+const shoe = new THREE.MeshLambertMaterial({ color:0x4c5666 });
+const V = { g: new THREE.Group() };
+V.g.position.set(0.1, 0.5, 0.02);
+scene.add(V.g);
+{
+  V.hips = new THREE.Group();
+  V.g.add(V.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.34;
+  barrel.castShadow = true;
+  V.hips.add(barrel);
+  V.head = new THREE.Group();
+  V.head.position.y = 0.92;
+  V.hips.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true;
+  V.head.add(skull);
+  V.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.31, 0.58, 0.02);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.22, 4, 8), skin);
+    up.position.y = -0.15;
+    up.castShadow = true;
+    arm.add(up);
+    const elbow = new THREE.Group();
+    elbow.position.y = -0.3;
+    arm.add(elbow);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.2, 4, 8), skin);
+    fore.position.y = -0.14;
+    fore.castShadow = true;
+    elbow.add(fore);
+    const hand = new THREE.Group();
+    hand.position.y = -0.28;
+    elbow.add(hand);
+    V.hips.add(arm);
+    V.arms.push({ g: arm, elbow, hand, s });
+  }
+  V.legs = [];
+  for(const s of [-1, 1]){
+    const thighG = new THREE.Group();
+    thighG.position.set(s*0.14, 0.06, 0.1);
+    thighG.rotation.x = -1.45;                    // seated
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.26, 4, 8), dress);
+    thigh.position.y = -0.16;
+    thigh.castShadow = true;
+    thighG.add(thigh);
+    const kneeG = new THREE.Group();
+    kneeG.position.y = -0.34;
+    thighG.add(kneeG);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 4, 8), shoe);
+    shin.position.y = -0.17;
+    shin.castShadow = true;
+    kneeG.add(shin);
+    kneeG.rotation.x = 1.35;                      // shins down
+    V.hips.add(thighG);
+    V.legs.push({ thighG, kneeG, s });
+  }
+}
+
+// ---------- the BOOK: covers, page block, one live turning page ------------
+const book = new THREE.Group();
+scene.add(book);
+const matCover = new THREE.MeshLambertMaterial({ color:0x8a3c30, flatShading:true });
+const matPages = new THREE.MeshLambertMaterial({ color:0xf0ead6 });
+let turnPage;
+{
+  for(const s of [-1, 1]){
+    const cover = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.012, 0.3), matCover);
+    cover.position.x = s*0.125;
+    cover.rotation.z = s*-0.28;                   // the open V
+    book.add(cover);
+    const block = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.28), matPages);
+    block.position.set(s*0.115, 0.018, 0);
+    block.rotation.z = s*-0.28;
+    book.add(block);
+  }
+  turnPage = new THREE.Group();
+  turnPage.position.y = 0.03;
+  book.add(turnPage);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.004, 0.27), matPages);
+  leaf.position.x = 0.11;
+  turnPage.add(leaf);
+  turnPage.rotation.z = -0.28;
+}
+
+// ==========================================================================
+//  BEHAVIOR — scan, turn, ponder, shift, chuckle.
+// ==========================================================================
+let mode = 'auto';
+let lineT = 0, pageT = 0, ponderT = 0, pondering = 0, shiftT = 9, chuckleT = 17, turnK = -1;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ mode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('auto');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the tree keeps its own time
+  scene.userData.crown.rotation.z = Math.sin(t*1.9)*0.012 + Math.sin(t*5.1)*0.004;
+
+  // ---- ponder scheduling ----
+  ponderT += dt;
+  const wantPonder = mode === 'ponder' || (mode === 'auto' && (ponderT % 22) > 18);
+  pondering = lerp(pondering, wantPonder ? 1 : 0, Math.min(1, dt*1.8));
+  const reading = 1 - pondering;
+
+  // ---- the line scan: drift across, snap back ----
+  lineT += dt*0.55;
+  const scan = (lineT % 1);                       // 0 → 1 across the line
+  const headYaw = lerp(-0.16, 0.16, scan)*reading  // left page to right
+    + pondering*0.45;                              // eyes off into the middle distance
+  const headPitch = 0.42*reading + pondering*-0.18;
+  V.head.rotation.y = lerp(V.head.rotation.y, headYaw, Math.min(1, dt*(scan < 0.04 ? 30 : 6)));
+  V.head.rotation.x = lerp(V.head.rotation.x, headPitch, Math.min(1, dt*4));
+
+  // ---- page turn every ~7s of reading ----
+  pageT += dt*reading;
+  if(pageT > 7 && turnK < 0){ pageT = 0; turnK = 0; }
+  let reachK = 0;
+  if(turnK >= 0){
+    turnK += dt/1.3;
+    const u = clamp(turnK, 0, 1);
+    // page: lies right (-0.28), arcs over the spine, lays flat left (+π+0.28)
+    turnPage.rotation.z = -0.28 + (Math.PI + 0.56)*smooth(u);
+    reachK = Math.sin(Math.PI*Math.min(1, u*1.15));
+    if(turnK >= 1){ turnK = -1; turnPage.rotation.z = -0.28; }
+  }
+
+  // ---- posture: shift + chuckle ----
+  shiftT -= dt;
+  if(shiftT < 0) shiftT = rand(8, 14);
+  const shiftK = shiftT < 1 ? Math.sin(shiftT*Math.PI) : 0;
+  chuckleT -= dt;
+  if(chuckleT < 0) chuckleT = rand(15, 24);
+  const chuckle = chuckleT < 0.9 ? Math.abs(Math.sin(chuckleT*14)) * (chuckleT/0.9) : 0;
+
+  V.hips.rotation.x = 0.1 - pondering*0.14 + shiftK*0.03;   // curled to the book, opens up pondering
+  V.hips.position.y = Math.sin(t*0.8)*0.006;                 // breath
+  V.hips.rotation.z = shiftK*0.04;
+  V.head.rotation.z = chuckle*0.06;
+  V.hips.position.x = 0;
+  V.g.rotation.y = -0.05;
+
+  // ankles re-cross on the shift
+  V.legs[0].kneeG.rotation.x = lerp(V.legs[0].kneeG.rotation.x, 1.35 + (shiftT < 6 ? 0.25 : 0), dt*3);
+  V.legs[1].kneeG.rotation.x = lerp(V.legs[1].kneeG.rotation.x, 1.35 - (shiftT < 6 ? 0.15 : 0), dt*3);
+
+  // ---- arms hold the book; the free hand rises to meet the page ----
+  // left arm: steady holder. right arm: lifts with reachK to flip.
+  const holdX = -0.95 + pondering*0.35 + chuckle*0.05;      // book drops a little pondering
+  V.arms[0].g.rotation.x = lerp(V.arms[0].g.rotation.x, holdX, dt*5);
+  V.arms[0].g.rotation.z = lerp(V.arms[0].g.rotation.z, 0.5, dt*5);
+  V.arms[0].elbow.rotation.x = lerp(V.arms[0].elbow.rotation.x, -0.85, dt*5);
+  V.arms[1].g.rotation.x = lerp(V.arms[1].g.rotation.x, holdX - reachK*0.5, dt*7);
+  V.arms[1].g.rotation.z = lerp(V.arms[1].g.rotation.z, -0.5 + reachK*0.15, dt*7);
+  V.arms[1].elbow.rotation.x = lerp(V.arms[1].elbow.rotation.x, -0.85 - reachK*0.35, dt*7);
+
+  // the book rides between the two hands
+  V.arms[0].hand.getWorldPosition(_a);
+  V.arms[1].hand.getWorldPosition(_b);
+  book.position.lerpVectors(_a, _b, 0.5);
+  book.position.y += 0.02;
+  book.rotation.y = V.g.rotation.y;
+  book.rotation.x = -0.5 - pondering*0.25;        // tilted to the eyes; sags pondering
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
