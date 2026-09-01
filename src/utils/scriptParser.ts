@@ -768,11 +768,12 @@ export function getCursorContext(script: string, cursorPos: number): {
 export function getAutoCompleteSuggestions(
   script: string,
   cursorPos: number,
-  game: { 
-    actors?: { id: string; name: string }[]; 
-    scenes?: { id: string; name: string }[]; 
-    buttons?: { id: string; name: string }[]; 
+  game: {
+    actors?: { id: string; name: string; skinId?: string }[];
+    scenes?: { id: string; name: string }[];
+    buttons?: { id: string; name: string }[];
     sfx?: { id: string; name: string }[];
+    skins?: { id: string; animations: string[] }[];
     info?: { worldState?: Record<string, unknown>; customPoses?: string[]; customExpressions?: string[] };
   },
   defaultPoses: string[] = [],
@@ -829,10 +830,26 @@ export function getAutoCompleteSuggestions(
     }
     
     case 'pose': {
-      const allPoses = [...defaultPoses, ...(game.info?.customPoses || [])];
+      // The actor's skin animations are poses too: resolve the actor id from
+      // the current [POSE actor ...] line and pull its skin's manifest —
+      // non-standard clips included.
+      const currentLine = script.substring(context.lineStart, cursorPos);
+      const poseActorId = currentLine.match(/^\[POSE\s+(\w+)/i)?.[1];
+      const actor = poseActorId
+        ? (game.actors || []).find(a => a.id.toLowerCase() === poseActorId.toLowerCase())
+        : undefined;
+      const skinAnims = actor?.skinId
+        ? (game.skins || []).find(s => s.id === actor.skinId)?.animations || []
+        : [];
+      const allPoses = [...new Set([...skinAnims, ...defaultPoses, ...(game.info?.customPoses || [])])];
       return allPoses
         .filter(p => p.toLowerCase().startsWith(prefix))
-        .map(p => ({ label: p, insertText: p, category: 'pose' as const }));
+        .map(p => ({
+          label: p,
+          insertText: p,
+          category: 'pose' as const,
+          ...(skinAnims.includes(p) ? { description: 'skin animation' } : {}),
+        }));
     }
     
     case 'expression': {

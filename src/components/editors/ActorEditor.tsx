@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
+import { isSkinAllowed } from '@/utils/skins';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
 
@@ -1089,6 +1090,35 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
             Browse
           </button>
         </div>
+      </section>
+
+      {/* Skin Assignment (blocked types disabled under world lockdown) */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Skin
+        </h3>
+        <select
+          value={selectedActor.skinId || ''}
+          onChange={(e) => updateActor(selectedActor.id, { skinId: e.target.value || undefined })}
+          className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-2 text-sm text-diesel-paper focus:outline-none focus:border-diesel-gold/50"
+        >
+          <option value="">— no skin —</option>
+          {(game.skins ?? []).map((s) => {
+            const blocked = !isSkinAllowed(s, game.info.allowedSkinTypes);
+            return (
+              <option key={s.id} value={s.id} disabled={blocked}>
+                {s.name}
+                {s.skinType ? ` [${s.skinType}]` : ''} — {s.animations.length} anims
+                {blocked ? ' (blocked by lockdown)' : ''}
+              </option>
+            );
+          })}
+        </select>
+        {selectedActor.skinId && (
+          <p className="text-diesel-steel/60 text-[10px] mt-1">
+            The skin's animation clips are offered as poses in the Dramscript editor.
+          </p>
+        )}
       </section>
 
       {/* Actions */}

@@ -40,6 +40,7 @@ const makeGame = (scene: Scene): GameData => ({
   }],
   episodes: [],
   subplots: [],
+  skins: [],
 });
 
 const makeScene = (): Scene => ({

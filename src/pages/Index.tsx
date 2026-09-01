@@ -34,6 +34,7 @@ import {
   LogIn,
   Layers,
   Drama,
+  Shirt,
 } from "lucide-react";
 import { SettingsEditor } from "@/components/editors/SettingsEditor";
 import { ActorEditor } from "@/components/editors/ActorEditor";
@@ -44,6 +45,7 @@ import { SfxEditor } from "@/components/editors/SfxEditor";
 import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
 import { NarratonEditor } from "@/components/editors/NarratonEditor";
+import { SkinEditor } from "@/components/editors/SkinEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
 import {
@@ -344,6 +346,14 @@ const Index = () => {
       abbrev: "DR",
       color: "text-diesel-paper",
       count: game?.drops?.length ?? 0,
+    },
+    {
+      type: "skin" as const,
+      icon: Shirt,
+      label: "Skins",
+      abbrev: "SK",
+      color: "text-diesel-gold",
+      count: game?.skins?.length ?? 0,
     },
     {
       type: "item" as const,
@@ -745,6 +755,7 @@ const Index = () => {
               {selection.type === "item" && "ITEM EDITOR"}
               {selection.type === "sfx" && "SFX EDITOR"}
               {selection.type === "narraton" && "NARRATON EDITOR"}
+              {selection.type === "skin" && "SKIN LIBRARY"}
             </h2>
 
             {selection.type === "actor" && (
@@ -788,6 +799,14 @@ const Index = () => {
             )}
             {selection.type === "button" && (
               <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === "skin" && (
+              <SkinEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+              />
             )}
             {selection.type === "narraton" && (
               <NarratonEditor

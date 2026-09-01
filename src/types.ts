@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton';
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -20,6 +20,9 @@ export interface GameInfo {
   enableAutosave: boolean;
   customPoses?: string[];
   customExpressions?: string[];
+  // Skin lockdown: when non-empty, only skins whose skinType is listed here
+  // may be assigned in this world (the "land can lock down skin types" rule).
+  allowedSkinTypes?: string[];
 }
 
 export interface ActorGraphic {
@@ -39,6 +42,24 @@ export interface Actor {
   referenceImageFullBody?: string;
   voiceId?: string;
   graphics: ActorGraphic[];
+  // 3-D skin worn by this actor (Vita); its animation manifest feeds pose
+  // autocomplete in Dramscript.
+  skinId?: string;
+  note?: string;
+  status?: AssetStatus;
+}
+
+// User-generated 3-D skin (GLB/glTF model). The editor stores the MANIFEST,
+// not the binary: the model file itself lives in the models/ folder (Dropbox)
+// per the stage-registry convention. animations lists EVERY clip found at
+// import, including non-standard ones — each is a valid [POSE ... pose=X]
+// argument for the wearing actor.
+export interface Skin {
+  id: string;
+  name: string;
+  skinType?: string;        // e.g. 'human', 'animal', 'machine' — lockdown unit
+  fileName?: string;        // source file the manifest was read from
+  animations: string[];
   note?: string;
   status?: AssetStatus;
 }
@@ -218,6 +239,7 @@ export interface GameData {
   buttons: Button[];
   episodes: Episode[];
   subplots: Subplot[];
+  skins: Skin[];
 }
 
 // Library Types for cross-game asset reuse
@@ -267,6 +289,11 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure subplots array exists (Narraton, added 2026-08-31)
   if (!migrated.subplots) {
     migrated.subplots = [];
+  }
+
+  // Ensure skins array exists (skin library, added 2026-08-31)
+  if (!migrated.skins) {
+    migrated.skins = [];
   }
 
   // Dramaton Editor 2.0 called drops "screens"; rename the collection and
@@ -333,4 +360,5 @@ export const createDefaultGame = (): GameData => ({
   buttons: [],
   episodes: [],
   subplots: [],
+  skins: [],
 });
