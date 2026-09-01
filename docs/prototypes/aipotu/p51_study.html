@@ -27,8 +27,24 @@
 </head>
 <body>
 <div id="chip">
-  <b>🛩️ P-51 Mustang Study</b> — the airshow display, v1<br>
-  <span class="hint">takeoff · low pass · victory roll · wingover · the squeak landing</span>
+  <b>🛩️ P-51 Mustang Study</b> — aerobatics on live dynamics, v2<br>
+  <span class="hint">pick a maneuver — she flies it on real pitch/roll/yaw rates,
+  trading speed for height; each repeats until you change it</span>
+  <select id="mnv" style="display:block;margin-top:6px;padding:5px 8px;border:0;
+    border-radius:7px;background:#3d6f96;color:#fff;font:12px system-ui;
+    cursor:pointer;min-width:230px;">
+    <option value="display">The airshow display (scripted)</option>
+    <option value="level">Straight &amp; level</option>
+    <option value="loop">Loop</option>
+    <option value="barrel">Barrel roll</option>
+    <option value="immelmann">Immelmann</option>
+    <option value="stall">Stall — mush, drop, recover</option>
+    <option value="hardleft">Violent turn LEFT</option>
+    <option value="hardright">Violent turn RIGHT</option>
+    <option value="dive">Dive &amp; pull-out</option>
+  </select>
+  <button id="flak" style="margin-top:6px;padding:5px 12px;border:0;border-radius:7px;
+    background:#c03a2a;color:#fff;font:12px system-ui;cursor:pointer;">💥 FLAK! (explode her)</button>
 </div>
 
 <script type="importmap">
@@ -265,50 +281,264 @@ function pathAt(f){
     return [lerp(-18, -26, smooth(k)), 0.9, 0];
   }
 }
+// ==========================================================================
+//  DEBRIS + THE FLAK HIT
+// ==========================================================================
+function puffTex(inner){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, inner); rg.addColorStop(1, 'rgba(60,60,60,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const smokes = [];
+{
+  const sm = new THREE.SpriteMaterial({ map:puffTex('rgba(70,70,72,0.75)'), transparent:true, depthWrite:false });
+  for(let i = 0; i < 60; i++){
+    const s = new THREE.Sprite(sm.clone());
+    s.visible = false;
+    scene.add(s);
+    smokes.push({ m:s, age:9, life:1 });
+  }
+}
+function smoke(pos, life, size){
+  const p = smokes.find(x => x.age > x.life); if(!p) return;
+  p.age = 0; p.life = life;
+  p.m.position.copy(pos);
+  p.m.scale.setScalar(size);
+  p.baseSize = size;
+  p.m.visible = true;
+}
+const fireball = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:puffTex('rgba(255,180,60,0.95)'), transparent:true, depthWrite:false }));
+fireball.visible = false;
+scene.add(fireball);
+let fireAge = 9;
+const debris = [];
+{
+  const silver2 = new THREE.MeshStandardMaterial({ color:0xb8bcc2, roughness:0.45, metalness:0.5 });
+  const charred = new THREE.MeshLambertMaterial({ color:0x3a3634 });
+  const shapes = [
+    new THREE.BoxGeometry(1.3, 0.1, 2.6),          // wing half
+    new THREE.BoxGeometry(1.1, 0.1, 2.0),          // other wing
+    new THREE.CylinderGeometry(0.4, 0.34, 1.8, 10),// fuselage chunk
+    new THREE.CylinderGeometry(0.3, 0.16, 1.4, 8), // tail chunk
+    new THREE.BoxGeometry(0.8, 1.0, 0.08),         // the fin
+    new THREE.ConeGeometry(0.3, 0.7, 10),          // spinner
+    new THREE.BoxGeometry(0.5, 0.3, 0.4),          // engine block
+    new THREE.BoxGeometry(0.4, 0.06, 0.9),         // a stabilizer
+    new THREE.BoxGeometry(0.3, 0.3, 0.3),          // a bit
+    new THREE.BoxGeometry(0.25, 0.2, 0.35),        // another bit
+  ];
+  for(const [i, g] of shapes.entries()){
+    const m = new THREE.Mesh(g, i%3 === 2 ? charred : silver2);
+    m.castShadow = true;
+    m.visible = false;
+    scene.add(m);
+    debris.push({ m, vel:new THREE.Vector3(), spin:new THREE.Vector3(), resting:false });
+  }
+}
+let exploded = false, explodeT = 0;
+const planeVel = new THREE.Vector3();
+function explode(){
+  if(exploded) return;
+  exploded = true; explodeT = 0;
+  PLANE.visible = false;
+  fireball.position.copy(PLANE.position);
+  fireball.visible = true;
+  fireAge = 0;
+  for(const d of debris){
+    d.m.visible = true;
+    d.resting = false;
+    d.m.position.copy(PLANE.position).add(new THREE.Vector3(
+      (Math.random() - 0.5)*1.2, (Math.random() - 0.5)*1.2, (Math.random() - 0.5)*1.2));
+    d.vel.copy(planeVel).multiplyScalar(0.5).add(new THREE.Vector3(
+      (Math.random() - 0.5)*7, Math.random()*5, (Math.random() - 0.5)*7));
+    d.spin.set((Math.random() - 0.5)*8, (Math.random() - 0.5)*8, (Math.random() - 0.5)*8);
+  }
+}
+document.getElementById('flak').addEventListener('click', explode);
+
+// ==========================================================================
+//  FLIGHT DYNAMICS — position integrated from speed + orientation;
+//  each maneuver commands pitch/roll/yaw RATES; speed trades with climb.
+// ==========================================================================
+let mode = 'display';
+let mT = 0, stallPhase = 0;
+document.getElementById('mnv').addEventListener('change', e => {
+  mode = e.target.value; mT = 0; stallPhase = 0;
+  if(mode !== 'display'){
+    // start every maneuver from clean level flight at altitude
+    PLANE.position.set(-20, 14, 0);
+    PLANE.rotation.set(0, 0, 0);
+    speed = 22;
+  } else phT = 0;
+});
+let speed = 22;
 let phT = 0;
 let propSpin = 0;
-const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3();
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _fwdW = new THREE.Vector3();
+const _lvl = new THREE.Quaternion(), _e = new THREE.Euler();
 const clock = new THREE.Clock();
+
+function levelToward(dt, k = 1.2){
+  // ease the attitude toward wings-level, nose-level on the current heading
+  _fwdW.set(1, 0, 0).applyQuaternion(PLANE.quaternion);
+  const heading = Math.atan2(-_fwdW.z, _fwdW.x);
+  _lvl.setFromEuler(_e.set(0, heading, 0));
+  PLANE.quaternion.slerp(_lvl, Math.min(1, dt*k));
+}
+function flyManeuver(dt){
+  mT += dt;
+  let pitchR = 0, rollR = 0, yawR = 0, done = false;
+  if(mode === 'level'){
+    levelToward(dt, 1.6);
+    if(PLANE.position.y < 13) pitchR = 0.12;
+    else if(PLANE.position.y > 15) pitchR = -0.08;
+  } else if(mode === 'loop'){
+    if(mT < 2*Math.PI/1.15) pitchR = 1.15;
+    else done = true;
+  } else if(mode === 'barrel'){
+    if(mT < 2*Math.PI/1.7){ rollR = 1.7; pitchR = 0.32; }
+    else done = true;
+  } else if(mode === 'immelmann'){
+    if(mT < Math.PI/1.15) pitchR = 1.15;                 // the half loop
+    else if(mT < Math.PI/1.15 + Math.PI/2.2) rollR = 2.2; // roll off the top
+    else done = true;
+  } else if(mode === 'stall'){
+    if(stallPhase === 0){                                 // haul the nose up
+      pitchR = 1.0;
+      speed -= dt*9;
+      if(speed < 8) stallPhase = 1;
+    } else if(stallPhase === 1){                          // the mush + the drop
+      pitchR = -1.5;
+      rollR = Math.sin(mT*7)*0.7;                         // that ugly wing-rock
+      speed += dt*2;
+      _fwdW.set(1, 0, 0).applyQuaternion(PLANE.quaternion);
+      if(_fwdW.y < -0.65) stallPhase = 2;
+    } else {                                              // speed back, pull out
+      speed += dt*6;
+      pitchR = 1.0;
+      rollR = -PLANE.rotation.x*2;
+      _fwdW.set(1, 0, 0).applyQuaternion(PLANE.quaternion);
+      if(_fwdW.y > -0.05) done = true;
+    }
+  } else if(mode === 'hardleft' || mode === 'hardright'){
+    const s = mode === 'hardleft' ? 1 : -1;
+    if(mT < 0.7) rollR = s*2.6;                           // SNAP into the bank
+    else if(mT < 4.2){ yawR = s*0.85; pitchR = 0.35; }    // haul it around
+    else if(mT < 5.0) rollR = -s*2.4;                     // snap out
+    else done = true;
+  } else if(mode === 'dive'){
+    if(mT < 1.6){ pitchR = -0.9; speed += dt*8; }         // push over, howling
+    else if(PLANE.position.y > 5 && stallPhase === 0){ speed += dt*10; }
+    else { stallPhase = 1; pitchR = 1.25; speed -= dt*4;  // the pull-out
+      _fwdW.set(1, 0, 0).applyQuaternion(PLANE.quaternion);
+      if(_fwdW.y > 0.05) done = true; }
+  }
+  if(done){ mT = 0; stallPhase = 0; levelToward(dt, 2); } // breathe, then again
+  PLANE.rotateZ(pitchR*dt);
+  PLANE.rotateX(rollR*dt);
+  PLANE.rotateY(yawR*dt);
+  // energy: diving buys speed, climbing spends it
+  _fwdW.set(1, 0, 0).applyQuaternion(PLANE.quaternion);
+  speed += (-_fwdW.y*6.5 + (20 - speed)*0.25)*dt;
+  speed = clamp(speed, 6, 42);
+  PLANE.position.addScaledVector(_fwdW, speed*dt*0.55);
+  // never fly into the dirt; drift back toward the field
+  if(PLANE.position.y < 3.2){ PLANE.position.y = 3.2; levelToward(dt, 3); }
+  if(PLANE.position.y > 30) PLANE.position.y = 30;
+  const R = Math.hypot(PLANE.position.x, PLANE.position.z);
+  if(R > 70) PLANE.position.multiplyScalar(70/R);
+  planeVel.copy(_fwdW).multiplyScalar(speed*0.55);
+}
+
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   const t = clock.elapsedTime;
-  phT = (phT + dt) % T_TOTAL;
-  const f = phT;
 
-  _p1.fromArray(pathAt(f));
-  _p2.fromArray(pathAt(Math.min(T_TOTAL - 0.001, f + 0.08)));
-  PLANE.position.copy(_p1);
-  // orient: nose along the velocity
-  const vel = _p2.clone().sub(_p1);
-  if(vel.lengthSq() > 1e-8){
-    const heading = Math.atan2(-vel.z, vel.x);
-    const pitch = Math.atan2(vel.y, Math.hypot(vel.x, vel.z));
-    // bank: scripted per segment
-    let bank = 0;
-    if(f >= 5 && f < 12) bank = -0.7*Math.sin((f - 5)/7*Math.PI);          // climbing turn
-    else if(f >= 16 && f < 21){                                            // VICTORY ROLL
-      const k = clamp(((f - 16) - 1.2)/2.6, 0, 1);
-      bank = k*Math.PI*4;                                                  // two full rolls
+  if(exploded){
+    explodeT += dt;
+    fireAge += dt;
+    const fk = clamp(fireAge/0.9, 0, 1);
+    fireball.scale.setScalar(2 + fk*7);
+    fireball.material.opacity = (1 - fk)*0.95;
+    if(fk >= 1) fireball.visible = false;
+    for(const d of debris){
+      if(d.resting) continue;
+      d.vel.y -= 8*dt;
+      d.m.position.addScaledVector(d.vel, dt);
+      d.m.rotation.x += d.spin.x*dt;
+      d.m.rotation.y += d.spin.y*dt;
+      d.m.rotation.z += d.spin.z*dt;
+      if(Math.random() < 0.25) smoke(d.m.position, 1.6, 0.5);
+      if(d.m.position.y < 0.15){
+        d.m.position.y = 0.15;
+        d.resting = true;
+        smoke(d.m.position, 2.2, 0.9);
+      }
     }
-    else if(f >= 21 && f < 30) bank = 0.85*Math.sin((f - 21)/9*Math.PI);   // the wingover
-    PLANE.rotation.set(0, 0, 0);
-    PLANE.rotateY(heading);
-    PLANE.rotateZ(pitch);
-    PLANE.rotateX(bank);
+    if(explodeT > 7){                          // the next ship rolls out
+      exploded = false;
+      PLANE.visible = true;
+      for(const d of debris) d.m.visible = false;
+      if(mode === 'display') phT = 0;
+      else { PLANE.position.set(-20, 14, 0); PLANE.rotation.set(0, 0, 0); speed = 22; mT = 0; stallPhase = 0; }
+    }
+  } else if(mode === 'display'){
+    phT = (phT + dt) % T_TOTAL;
+    const f = phT;
+    _p1.fromArray(pathAt(f));
+    _p2.fromArray(pathAt(Math.min(T_TOTAL - 0.001, f + 0.08)));
+    PLANE.position.copy(_p1);
+    const vel = _p2.clone().sub(_p1);
+    planeVel.copy(vel).multiplyScalar(1/0.08);
+    if(vel.lengthSq() > 1e-8){
+      const heading = Math.atan2(-vel.z, vel.x);
+      const pitch = Math.atan2(vel.y, Math.hypot(vel.x, vel.z));
+      let bank = 0;
+      if(f >= 5 && f < 12) bank = -0.7*Math.sin((f - 5)/7*Math.PI);
+      else if(f >= 16 && f < 21){
+        const k = clamp(((f - 16) - 1.2)/2.6, 0, 1);
+        bank = k*Math.PI*4;
+      }
+      else if(f >= 21 && f < 30) bank = 0.85*Math.sin((f - 21)/9*Math.PI);
+      PLANE.rotation.set(0, 0, 0);
+      PLANE.rotateY(heading);
+      PLANE.rotateZ(pitch);
+      PLANE.rotateX(bank);
+    }
+  } else {
+    flyManeuver(dt);
   }
-  // prop
-  const flying = f > 0.2 && f < 39.5;
+
+  // prop + gear
+  const inDisplay = mode === 'display' && !exploded;
+  const flying = exploded ? false : (inDisplay ? (phT > 0.2 && phT < 39.5) : true);
   propSpin = lerp(propSpin, flying ? 34 : 6, dt*1.5);
   prop.rotation.x += propSpin*dt;
   blur.material.opacity = clamp((propSpin - 14)/20, 0, 0.35);
   prop.visible = propSpin < 20;
-  // gear tucks after liftoff, drops for approach
-  const gearOut = f < 6 || f > 29;
+  const gearOut = inDisplay ? (phT < 6 || phT > 29) : false;
   gear.scale.y = lerp(gear.scale.y, gearOut ? 1 : 0.05, dt*3);
   gear.visible = gear.scale.y > 0.1;
 
-  controls.target.lerp(new THREE.Vector3(PLANE.position.x, Math.max(1.5, PLANE.position.y), PLANE.position.z), dt*2.4);
+  // smoke pool
+  for(const p of smokes){
+    if(p.age > p.life) continue;
+    p.age += dt;
+    p.m.position.y += dt*0.5;
+    const k = p.age/p.life;
+    p.m.scale.setScalar((p.baseSize || 0.5)*(1 + k*2));
+    p.m.material.opacity = (1 - k)*0.55;
+    if(p.age >= p.life) p.m.visible = false;
+  }
+
+  const focus = exploded ? fireball.position : PLANE.position;
+  controls.target.lerp(new THREE.Vector3(focus.x, Math.max(1.5, focus.y), focus.z), dt*2.4);
   controls.update();
   renderer.render(scene, camera);
 }
