@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     GEORGEOTRON PARTS STUDY — the machine's parts, in 3D, for George
+     World. Filed 2026-08-31. Standalone; vendored three (r160), game
+     importmap.
+
+     Doug's brief: 3-D objects of all the parts developed for the 2-D
+     Georgeotron model, modeled after the CURRENT in-game imagery, with
+     METADATA for where the ports, gauges and knobs are.
+
+     Faithful to the game's machine vocabulary (georgeworld.html):
+     metal grey-blue bodies (0x8f99a3 / 0xb1bac3) · the slate DIAL
+     PLATE (#2b3138 face, #7c8894 ring, 8 tick marks) · the WORK-NOTCH
+     lever (0x3a4046; HOT = 0xff7a5c with ember emissive when clamped)
+     · the RED COIL SPRING and translucent GREEN PIPE connector pair
+     (v0.35's standard) with flow beads · gauges and trait knobs.
+
+     EIGHT PARTS on plinths, each with a label and its ANCHOR METADATA
+     in window.GEORGEOTRON_PARTS (ports / gauges / knobs: name, local
+     position, direction) — the contract an integrator wires against.
+     Toggle "show anchors" to see every port glow in place.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Georgeotron Parts Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#22282e; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(14,18,22,0.82); color:#e8f0f4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:300px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip label { font-size:12px; opacity:0.9; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>⚙ Georgeotron Parts</b> — the machine kit in 3D, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · anchor metadata lives in <code>window.GEORGEOTRON_PARTS</code> (also logged to the console)</span><br>
+  <label><input id="anchors" type="checkbox"> show port/gauge/knob anchors</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x262c32), 40, 220);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(4, 4.2, 11);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 40;
+controls.maxPolarAngle = 1.52;
+
+// the workshop: dark floor grid, cool light — the Georgeotron's blueprint air
+scene.add(new THREE.HemisphereLight(0x9ab4c8, 0x3a4048, 0.9));
+const key = new THREE.DirectionalLight(0xdce8f4, 1.9);
+key.position.set(10, 16, 8);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -12; key.shadow.camera.right = 12;
+key.shadow.camera.top = 12; key.shadow.camera.bottom = -12;
+scene.add(key);
+{
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(200, 40),
+    new THREE.MeshLambertMaterial({ color:0x2e343a }));
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const grid = new THREE.GridHelper(40, 40, 0x4a5a68, 0x39434c);
+  grid.position.y = 0.01;
+  scene.add(grid);
+}
+
+// ---------- the game's exact machine materials -----------------------------
+const matMetalBody = new THREE.MeshLambertMaterial({ color:0x8f99a3, flatShading:true });
+const matMetalHead = new THREE.MeshLambertMaterial({ color:0xb1bac3, flatShading:true });
+const matNotch = new THREE.MeshLambertMaterial({ color:0x3a4046, flatShading:true });
+const matNotchHot = new THREE.MeshLambertMaterial({ color:0xff7a5c, emissive:0x8a2413, flatShading:true });
+const matSpring = new THREE.MeshLambertMaterial({ color:0xd84f4f, transparent:true, opacity:0.85 });
+const matPipe = new THREE.MeshLambertMaterial({ color:0x2fa05a, transparent:true, opacity:0.7 });
+const matBead = new THREE.MeshBasicMaterial({ color:0x7ef0a0 });
+const matBrass = new THREE.MeshStandardMaterial({ color:0xc9a12e, metalness:0.7, roughness:0.4 });
+const matDark = new THREE.MeshLambertMaterial({ color:0x2b3138, flatShading:true });
+
+// the dial-plate face, painted exactly like the game's plateCv
+function dialPlateTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const p = cv.getContext('2d');
+  p.fillStyle = '#2b3138';
+  p.beginPath(); p.arc(64,64,58,0,Math.PI*2); p.fill();
+  p.strokeStyle = '#7c8894'; p.lineWidth = 6;
+  p.beginPath(); p.arc(64,64,55,0,Math.PI*2); p.stroke();
+  p.lineWidth = 3;
+  for(let i=0;i<8;i++){
+    const a = Math.PI*0.75 + i*(Math.PI*1.5/7);
+    p.beginPath();
+    p.moveTo(64+Math.cos(a)*40, 64+Math.sin(a)*40);
+    p.lineTo(64+Math.cos(a)*48, 64+Math.sin(a)*48);
+    p.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function label(text, parent, y){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48;
+  const g = cv.getContext('2d');
+  g.fillStyle = 'rgba(14,18,22,0.7)'; g.fillRect(0,0,256,48);
+  g.fillStyle = '#cfe0ec'; g.font = '700 22px system-ui';
+  g.textAlign = 'center'; g.fillText(text, 128, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent:true }));
+  sp.scale.set(1.7, 0.32, 1);
+  sp.position.y = y;
+  parent.add(sp);
+}
+
+// ==========================================================================
+//  THE METADATA CONTRACT — filled as each part is built. Every anchor is
+//  { name, pos:[x,y,z] (part-local), dir:[x,y,z] } — dir is the plug/read
+//  direction an integrator should approach from.
+// ==========================================================================
+window.GEORGEOTRON_PARTS = {};
+const anchorMarkers = [];
+function anchor(partName, kind, name, pos, dir, host){
+  const P = window.GEORGEOTRON_PARTS[partName] ??= { ports:[], gauges:[], knobs:[] };
+  P[kind].push({ name, pos: pos.slice(), dir: dir.slice() });
+  const mk = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6),
+    new THREE.MeshBasicMaterial({ color: kind === 'ports' ? 0x7ef0a0 : kind === 'gauges' ? 0xffd94a : 0xff9ad5 }));
+  mk.position.set(...pos);
+  mk.visible = false;
+  host.add(mk);
+  anchorMarkers.push(mk);
+}
+
+// plinth helper — each part stands on one, slowly turning
+const spinners = [];
+function plinth(x, z, name){
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1, 0.3, 12), matDark);
+  base.position.y = 0.15;
+  base.receiveShadow = true;
+  g.add(base);
+  const spin = new THREE.Group();
+  spin.position.y = 0.3;
+  g.add(spin);
+  label(name, g, 2.6);
+  scene.add(g);
+  spinners.push(spin);
+  return spin;
+}
+
+// ---------- 1 THE MACHINE BODY (the whole small machine) -------------------
+{
+  const s = plinth(-6, -1.5, 'MACHINE BODY');
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.6, 6, 12), matMetalBody);
+  body.position.y = 0.85;
+  body.castShadow = true;
+  s.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), matMetalHead);
+  head.position.y = 1.75;
+  head.castShadow = true;
+  s.add(head);
+  const plate = new THREE.Mesh(new THREE.CircleGeometry(0.26, 20),
+    new THREE.MeshLambertMaterial({ map: dialPlateTex() }));
+  plate.position.set(0, 1.75, 0.315);
+  s.add(plate);
+  // the notch on the back, gauges on the flank, feed port at the base
+  const notch = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.14), matNotch);
+  notch.position.set(0, 1.15, -0.46);
+  s.add(notch);
+  anchor('machine_body', 'ports', 'work_notch_clamp', [0, 1.15, -0.6], [0, 0, -1], s);
+  anchor('machine_body', 'ports', 'feed_in',          [0, 0.45, 0.46], [0, 0, 1], s);
+  anchor('machine_body', 'ports', 'output_out',       [0.45, 0.85, 0], [1, 0, 0], s);
+  anchor('machine_body', 'gauges', 'hunger',          [-0.45, 0.95, 0.12], [-1, 0, 0], s);
+  anchor('machine_body', 'gauges', 'energy',          [-0.45, 0.72, 0.12], [-1, 0, 0], s);
+  anchor('machine_body', 'knobs', 'dial_face',        [0, 1.75, 0.34], [0, 0, 1], s);
+}
+// ---------- 2 THE DIAL PLATE ----------------------------------------------
+let needle;
+{
+  const s = plinth(-3.6, -1.5, 'DIAL PLATE');
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 24), matMetalHead);
+  rim.rotation.x = Math.PI/2;
+  rim.position.y = 1.2;
+  rim.castShadow = true;
+  s.add(rim);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.56, 24),
+    new THREE.MeshLambertMaterial({ map: dialPlateTex() }));
+  face.position.set(0, 1.2, 0.065);
+  s.add(face);
+  needle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.42, 0.02), matBrass);
+  needle.geometry.translate(0, 0.18, 0);
+  needle.position.set(0, 1.2, 0.08);
+  s.add(needle);
+  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), matBrass);
+  hub.position.set(0, 1.2, 0.08);
+  s.add(hub);
+  anchor('dial_plate', 'gauges', 'needle_value', [0, 1.2, 0.1], [0, 0, 1], s);
+  anchor('dial_plate', 'ports', 'shaft_mount', [0, 1.2, -0.08], [0, 0, -1], s);
+}
+// ---------- 3 THE WORK-NOTCH (normal + HOT) -------------------------------
+{
+  const s = plinth(-1.2, -1.5, 'WORK-NOTCH');
+  for(const [x, mat, tag] of [[-0.42, matNotch, 'cold'], [0.42, matNotchHot, 'hot']]){
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.22), mat);
+    base.position.set(x, 1.1, 0);
+    base.castShadow = true;
+    s.add(base);
+    const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 6), mat);
+    peg.rotation.x = Math.PI/2;
+    peg.position.set(x, 1.1, 0.28);
+    peg.castShadow = true;
+    s.add(peg);
+    anchor('work_notch', 'ports', `spring_clamp_${tag}`, [x, 1.1, 0.55], [0, 0, 1], s);
+  }
+  anchor('work_notch', 'knobs', 'goal_level', [0, 1.35, 0], [0, 1, 0], s);
+}
+// ---------- 4 THE COIL SPRING (the claim connector) ------------------------
+{
+  const s = plinth(1.2, -1.5, 'COIL SPRING');
+  // a helix of torus segments — the game's red spring, hugging its pipe line
+  const N = 9;
+  for(let i = 0; i < N; i++){
+    const c = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.045, 6, 12), matSpring);
+    c.position.set(0, 0.6 + i*0.14, 0);
+    c.rotation.x = Math.PI/2 - 0.28;
+    c.castShadow = true;
+    s.add(c);
+  }
+  for(const [y, tag, dir] of [[0.5, 'grip_a', [0,-1,0]], [1.86, 'grip_b', [0,1,0]]]){
+    const jaw = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.14, 8), matDark);
+    jaw.position.y = y;
+    s.add(jaw);
+    anchor('coil_spring', 'ports', tag, [0, y, 0], dir, s);
+  }
+  anchor('coil_spring', 'gauges', 'tension', [0.3, 1.2, 0], [1, 0, 0], s);
+}
+// ---------- 5 THE GREEN PIPE (the flow connector) --------------------------
+const beads = [];
+{
+  const s = plinth(3.6, -1.5, 'GREEN PIPE');
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.5, 10, 1, true), matPipe);
+  pipe.material.side = THREE.DoubleSide;
+  pipe.position.y = 1.2;
+  s.add(pipe);
+  for(const [y, tag, dir] of [[0.45, 'flow_in', [0,-1,0]], [1.95, 'flow_out', [0,1,0]]]){
+    const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.1, 10), matDark);
+    flange.position.y = y;
+    s.add(flange);
+    anchor('green_pipe', 'ports', tag, [0, y, 0], dir, s);
+  }
+  for(let i = 0; i < 4; i++){
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), matBead);
+    s.add(b);
+    beads.push({ m: b, ph: i/4 });
+  }
+}
+// ---------- 6 THE GAUGE CLUSTER -------------------------------------------
+let gaugeFills = [];
+{
+  const s = plinth(6, -1.5, 'GAUGE CLUSTER');
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.12), matMetalBody);
+  back.position.y = 1.2;
+  back.castShadow = true;
+  s.add(back);
+  const defs = [['hunger', 0xffb340, -0.24], ['energy', 0x5fe3d8, 0.02], ['work', 0xff7a5c, 0.28]];
+  for(const [name, colr, x] of defs){
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.95, 0.05), matDark);
+    frame.position.set(x, 1.2, 0.08);
+    s.add(frame);
+    const fill = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.85, 0.03),
+      new THREE.MeshBasicMaterial({ color: colr }));
+    fill.geometry.translate(0, 0.425, 0);
+    fill.position.set(x, 0.78, 0.1);
+    s.add(fill);
+    gaugeFills.push({ m: fill, ph: x*7 });
+    anchor('gauge_cluster', 'gauges', name, [x, 1.2, 0.12], [0, 0, 1], s);
+  }
+}
+// ---------- 7 THE KNOB SET (the monkeyable trait dials) --------------------
+const knobs = [];
+{
+  const s = plinth(-4.8, 1.8, 'TRAIT KNOBS');
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 0.14), matMetalBody);
+  panel.position.y = 1.2;
+  panel.castShadow = true;
+  s.add(panel);
+  const defs = [['industry', -0.45], ['greed', 0], ['dominance', 0.45]];
+  for(const [name, x] of defs){
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.16, 10), matDark);
+    stem.rotation.x = Math.PI/2;
+    stem.position.set(x, 1.2, 0.14);
+    s.add(stem);
+    const cap = new THREE.Group();
+    cap.position.set(x, 1.2, 0.23);
+    const capM = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.07, 10), matBrass);
+    capM.rotation.x = Math.PI/2;
+    cap.add(capM);
+    const pointer = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.11, 0.03), matDark);
+    pointer.position.set(0, 0.07, 0.02);
+    cap.add(pointer);
+    s.add(cap);
+    knobs.push({ g: cap, ph: x*9 });
+    anchor('trait_knobs', 'knobs', name, [x, 1.2, 0.26], [0, 0, 1], s);
+  }
+}
+// ---------- 8 THE OUTPUT MANIFOLD (2-of-3 pipes to the boss) ---------------
+{
+  const s = plinth(4.8, 1.8, 'OUTPUT MANIFOLD');
+  const drum2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.44, 0.7, 12), matMetalBody);
+  drum2.position.y = 1.0;
+  drum2.castShadow = true;
+  s.add(drum2);
+  for(let i = 0; i < 3; i++){
+    const a = -0.7 + i*0.7;
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.4, 8), i < 2 ? matPipe : matDark);
+    stub.rotation.z = Math.PI/2 - a;
+    stub.position.set(Math.sin(a)*0.55, 1.25, 0);
+    stub.rotation.y = 0;
+    s.add(stub);
+    anchor('output_manifold', 'ports', i < 2 ? `to_boss_${i+1}` : 'kept_own',
+      [Math.sin(a)*0.75, 1.32, 0], [Math.sin(a), 0.4, 0], s);
+  }
+  anchor('output_manifold', 'gauges', 'tithe_split', [0, 0.62, 0.42], [0, 0, 1], s);
+}
+
+console.log('GEORGEOTRON_PARTS metadata:', JSON.parse(JSON.stringify(window.GEORGEOTRON_PARTS)));
+
+document.getElementById('anchors').addEventListener('change', e => {
+  anchorMarkers.forEach(m => m.visible = e.target.checked);
+});
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  for(const s of spinners) s.rotation.y = t * 0.3;
+  // live behaviors: needle sweeps, beads flow, gauges breathe, knobs seek
+  if(needle) needle.rotation.z = Math.sin(t*0.7) * 1.9;
+  for(const b of beads){
+    const f = (t*0.35 + b.ph) % 1;
+    b.m.position.y = 0.45 + f*1.5;
+    b.m.material.opacity = 1;
+  }
+  for(const g of gaugeFills) g.m.scale.y = 0.25 + 0.7*(0.5 + 0.5*Math.sin(t*0.9 + g.ph));
+  for(const k of knobs) k.g.rotation.z = Math.sin(t*0.5 + k.ph) * 1.2;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
