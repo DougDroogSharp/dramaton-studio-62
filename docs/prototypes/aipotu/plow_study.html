@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PLOW STUDY — a yoked ox team and the walking plow, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: some OXEN and a PLOW, a walking motion, and the plow
+     should CURL UP THE SOIL as it's pushed. Delivered: two heavy oxen
+     under a wooden neck-yoke, plodding a slow ox-walk (big head-nod,
+     deliberate diagonal steps, tail flicks), dragging a wooden
+     beam-plow held by a stand-in plowman Vita leaning on the handles.
+     THE SOIL CURLS: at the share, clods are born, ROLL OVER sideways
+     off the moldboard (each clod tumbling through ~140° as it rises
+     and falls), and settle into a persistent turned RIDGE beside a
+     dark open furrow — the field visibly fills with plowed line after
+     line as the team works its circuit.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plow Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e2d0; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,24,16,0.78); color:#f2eee0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐂 Plow Study</b> — the ox team turns the soil, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · watch the clods roll off the moldboard</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 8642;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4e0ce), 55, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(8, 5.5, 12);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 45;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0de), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xdbd7c4), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb4a67e, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(22, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 16;  sun.shadow.camera.bottom = -16;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xb9ab7a }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ---------- materials ------------------------------------------------------
+const matOx = new THREE.MeshLambertMaterial({ color:0x8a5f3c, flatShading:true });
+const matOxDk = new THREE.MeshLambertMaterial({ color:0x6e4a2e, flatShading:true });
+const matHorn = new THREE.MeshLambertMaterial({ color:0xd8cba8, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matIron = new THREE.MeshLambertMaterial({ color:0x4a4f55, flatShading:true });
+const matSoil = new THREE.MeshLambertMaterial({ color:0x5c4630, flatShading:true });
+const matSoilLt = new THREE.MeshLambertMaterial({ color:0x6e563c, flatShading:true });
+
+// ==========================================================================
+//  AN OX — heavy: barrel body, deep dewlap, big lyre horns, blunt muzzle,
+//  four two-joint legs, a rope tail with a tuft. Slow and mighty.
+// ==========================================================================
+function makeOx(){
+  const g = new THREE.Group();
+  const O = { g, legs: [] };
+  O.body = new THREE.Group();
+  O.body.position.y = 1.28;
+  g.add(O.body);
+  const barrelG = new THREE.CapsuleGeometry(0.55, 1.0, 10, 14);
+  barrelG.rotateX(Math.PI/2);
+  const barrel = new THREE.Mesh(barrelG, matOx);
+  barrel.castShadow = true;
+  O.body.add(barrel);
+  const hump = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), matOxDk);
+  hump.scale.set(1, 0.8, 0.9);
+  hump.position.set(0, 0.42, 0.55);
+  hump.castShadow = true;
+  O.body.add(hump);
+  // head on a thick neck
+  O.head = new THREE.Group();
+  O.head.position.set(0, 0.28, 0.95);
+  O.body.add(O.head);
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.4, 0.5), matOx);
+  skull.position.z = 0.22;
+  skull.castShadow = true;
+  O.head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.3, 8), matOxDk);
+  muzzle.rotation.x = Math.PI/2;
+  muzzle.position.set(0, -0.09, 0.55);
+  O.head.add(muzzle);
+  // the LYRE HORNS: out, then curving up-and-in
+  for(const s of [-1, 1]){
+    const h1 = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.4, 6), matHorn);
+    h1.rotation.z = s * 1.35;
+    h1.position.set(s*0.34, 0.22, 0.16);
+    O.head.add(h1);
+    const h2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.045, 0.34, 6), matHorn);
+    h2.rotation.z = s * 0.5;
+    h2.position.set(s*0.52, 0.42, 0.16);
+    O.head.add(h2);
+    // soft ears under the horns
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 6), matOxDk);
+    ear.scale.set(1.4, 0.5, 0.8);
+    ear.position.set(s*0.3, 0.06, 0.1);
+    O.head.add(ear);
+  }
+  // the DEWLAP: the loose chest fold, an ox signature
+  const dew = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 7), matOxDk);
+  dew.scale.set(0.7, 1.5, 0.8);
+  dew.position.set(0, -0.42, 0.7);
+  O.body.add(dew);
+  // legs: shoulder/hip + knee, cloven dark hooves
+  for(const [x, z] of [[-0.33, 0.6], [0.33, 0.6], [-0.35, -0.6], [0.35, -0.6]]){
+    const hip = new THREE.Group();
+    hip.position.set(x, -0.3, z);
+    O.body.add(hip);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.55, 7), matOx);
+    up.position.y = -0.26;
+    up.castShadow = true;
+    hip.add(up);
+    const knee = new THREE.Group();
+    knee.position.y = -0.52;
+    hip.add(knee);
+    const low = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.45, 7), matOxDk);
+    low.position.y = -0.21;
+    low.castShadow = true;
+    knee.add(low);
+    const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.12, 7), matIron);
+    hoof.position.y = -0.46;
+    knee.add(hoof);
+    O.legs.push({ hip, knee, front: z > 0 });
+  }
+  // rope tail with the tuft
+  O.tail = new THREE.Group();
+  O.tail.position.set(0, 0.25, -1.0);
+  const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.8, 5), matOxDk);
+  tl.position.y = -0.4;
+  O.tail.add(tl);
+  const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5), matOxDk);
+  tuft.scale.set(1, 1.6, 1);
+  tuft.position.y = -0.86;
+  O.tail.add(tuft);
+  O.body.add(O.tail);
+  return O;
+}
+
+// ==========================================================================
+//  THE RIG — team + yoke + beam + plow + plowman, one group on the circuit
+// ==========================================================================
+const rig = new THREE.Group();
+scene.add(rig);
+const oxL = makeOx(), oxR = makeOx();
+oxL.g.position.set(-0.75, 0, 2.6);
+oxR.g.position.set(0.75, 0, 2.6);
+rig.add(oxL.g, oxR.g);
+{
+  // the neck YOKE with its bows
+  const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.2, 8), matWood);
+  yoke.rotation.z = Math.PI/2;
+  yoke.position.set(0, 1.85, 3.15);
+  yoke.castShadow = true;
+  rig.add(yoke);
+  for(const s of [-1, 1]){
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.045, 6, 12, Math.PI), matWood);
+    bow.rotation.x = Math.PI;
+    bow.position.set(s*0.75, 1.82, 3.15);
+    rig.add(bow);
+  }
+  // the DRAFT BEAM back to the plow
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 3.4, 7), matWood);
+  beam.rotation.x = Math.PI/2 + 0.13;
+  beam.position.set(0, 1.35, 1.35);
+  beam.castShadow = true;
+  rig.add(beam);
+}
+// the PLOW: frame, share, moldboard, two handles
+const plow = new THREE.Group();
+plow.position.set(0, 0, -0.4);
+rig.add(plow);
+{
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 1.15), matWood);
+  frame.position.y = 0.5;
+  frame.castShadow = true;
+  plow.add(frame);
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.55, 0.12), matWood);
+  leg.position.set(0, 0.22, -0.15);
+  plow.add(leg);
+  const share = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.5, 4), matIron);
+  share.rotation.x = Math.PI/2 - 0.35;
+  share.rotation.y = Math.PI/4;
+  share.position.set(0, -0.02, 0.12);
+  share.castShadow = true;
+  plow.add(share);
+  // the MOLDBOARD: the curved cheek that rolls the slice over (to +x)
+  const mbG = new THREE.CylinderGeometry(0.34, 0.34, 0.5, 10, 1, true, 0, 1.9);
+  const mb = new THREE.Mesh(mbG, matIron);
+  mb.rotation.z = Math.PI/2 + 0.5;
+  mb.rotation.y = -0.7;
+  mb.position.set(0.16, 0.14, -0.1);
+  mb.material = matIron.clone();
+  mb.material.side = THREE.DoubleSide;
+  mb.castShadow = true;
+  plow.add(mb);
+  for(const s of [-1, 1]){
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.35, 6), matWood);
+    handle.rotation.x = -0.7;
+    handle.position.set(s*0.16, 0.95, -0.75);
+    handle.castShadow = true;
+    plow.add(handle);
+  }
+}
+// the PLOWMAN: leaning on the handles, walking behind
+const plowman = { g: new THREE.Group(), legs: [] };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x9a7b5a });
+  const skin = new THREE.MeshLambertMaterial({ color:0xffd9b3 });
+  const hips = new THREE.Group();
+  plowman.hips = hips;
+  plowman.g.add(hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.62; barrel.castShadow = true; hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 1.28; head.castShadow = true; hips.add(head);
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0.42, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.3, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.24; shin.castShadow = true;
+    leg.add(shin);
+    hips.add(leg);
+    plowman.legs.push(leg);
+  }
+  for(const s of [-1, 1]){
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    arm.rotation.x = -1.15;
+    arm.position.set(s*0.3, 0.85, 0.24);
+    hips.add(arm);
+  }
+  hips.rotation.x = 0.2;   // the lean into the handles
+  plowman.g.position.set(0, 0, -1.75);
+  rig.add(plowman.g);
+}
+
+// ==========================================================================
+//  THE SOIL — two pools:
+//  · CURLING CLODS: born at the share, each rolls ~140° sideways off the
+//    moldboard as it rises and falls — the CURL, live.
+//  · THE TURNED FIELD: settled clods + dark furrow strips left behind,
+//    a big recycled pool so the field visibly fills with worked line.
+// ==========================================================================
+const curls = [];
+{
+  for(let i = 0; i < 22; i++){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(rand(0.13, 0.2), rand(0.09, 0.14), rand(0.16, 0.26)),
+      Math.random() < 0.5 ? matSoil : matSoilLt);
+    m.visible = false;
+    m.castShadow = true;
+    scene.add(m);
+    curls.push({ m, t: 9 });
+  }
+}
+const settled = [];
+{
+  for(let i = 0; i < 260; i++){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(rand(0.13, 0.2), rand(0.07, 0.12), rand(0.16, 0.24)),
+      Math.random() < 0.5 ? matSoil : matSoilLt);
+    m.visible = false;
+    scene.add(m);
+    settled.push(m);
+  }
+}
+let settledI = 0;
+const furrows = [];
+{
+  for(let i = 0; i < 160; i++){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.6),
+      new THREE.MeshLambertMaterial({ color:0x3f3020 }));
+    m.rotation.x = -Math.PI/2;
+    m.visible = false;
+    scene.add(m);
+    furrows.push(m);
+  }
+}
+let furrowI = 0;
+
+// ---------- the circuit -----------------------------------------------------
+const TRACK_R = 7;
+let trackA = 0, dist = 0, clodT = 0, furrowT = 0;
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  const speed = 0.85;                 // the ox pace: slow and certain
+  dist += speed * dt;
+  trackA += speed * dt / TRACK_R;
+  rig.position.set(Math.cos(trackA)*TRACK_R, 0, -Math.sin(trackA)*TRACK_R);
+  rig.rotation.y = trackA;
+
+  // ---------- the ox walk: ponderous diagonal steps + the head NOD ----------
+  const ph = dist * 2.6;
+  for(const [ox, off] of [[oxL, 0], [oxR, Math.PI*0.9]]){   // slightly out of step
+    ox.body.position.y = 1.28 + Math.abs(Math.sin(ph + off))*0.03;
+    ox.body.rotation.z = Math.sin(ph + off)*0.025;           // the heavy roll
+    ox.head.rotation.x = 0.15 + Math.sin(ph + off)*0.1;      // the working nod
+    ox.tail.rotation.z = Math.sin(t*1.3 + off)*0.3;          // fly-flick
+    ox.legs.forEach((leg, i) => {
+      const lp = ph + off + ((i === 0 || i === 3) ? 0 : Math.PI);
+      leg.hip.rotation.x = Math.sin(lp) * 0.4;
+      leg.knee.rotation.x = Math.max(0, -Math.sin(lp)) * 0.5;
+    });
+  }
+  // the plow bites and trembles
+  plow.rotation.z = Math.sin(t*17)*0.006;
+  plow.position.y = Math.sin(t*13)*0.01;
+  // the plowman walks the furrow
+  plowman.legs[0].rotation.x = Math.sin(ph*1.6)*0.5;
+  plowman.legs[1].rotation.x = -Math.sin(ph*1.6)*0.5;
+  plowman.hips.position.y = Math.abs(Math.cos(ph*1.6))*0.03;
+
+  // ---------- THE CURL: clods born at the share, rolling over sideways ----
+  clodT -= dt;
+  if(clodT <= 0){
+    clodT = 0.14;
+    const c = curls.find(c => c.t > 1.1);
+    if(c){
+      c.t = 0;
+      c.m.visible = true;
+      // world position of the share
+      const sharePos = new THREE.Vector3(0, 0.1, -0.3).applyMatrix4(rig.matrixWorld);
+      c.m.position.copy(sharePos);
+      c.m.rotation.set(0, rig.rotation.y, 0);
+    }
+  }
+  for(const c of curls){
+    if(c.t > 1.1){ c.m.visible = false; continue; }
+    c.t += dt;
+    const f = c.t / 1.1;
+    // the roll: up, OVER (~140° around the travel axis), and down to the side
+    const side = new THREE.Vector3(Math.cos(rig.rotation.y), 0, -Math.sin(rig.rotation.y));
+    c.m.position.addScaledVector(side, dt * 0.42);
+    c.m.position.y = 0.1 + Math.sin(f*Math.PI) * 0.3;
+    c.m.rotateOnWorldAxis(new THREE.Vector3(Math.sin(rig.rotation.y), 0, Math.cos(rig.rotation.y)), dt * 2.4);
+    if(f >= 0.97){
+      // settle into the permanent ridge
+      const s = settled[settledI++ % settled.length];
+      s.visible = true;
+      s.position.copy(c.m.position);
+      s.position.y = 0.08;
+      s.rotation.copy(c.m.rotation);
+    }
+  }
+  // ---------- the dark open furrow left behind ----------
+  furrowT -= dt;
+  if(furrowT <= 0){
+    furrowT = 0.55 / speed;
+    const f2 = furrows[furrowI++ % furrows.length];
+    f2.visible = true;
+    const sharePos = new THREE.Vector3(0, 0.02, -0.45).applyMatrix4(rig.matrixWorld);
+    f2.position.set(sharePos.x, 0.02, sharePos.z);
+    f2.rotation.z = rig.rotation.y;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
