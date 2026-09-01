@@ -3,9 +3,9 @@ import { GameData, Scene, ScenePhase } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { useScriptRunner, VarChange } from '@/hooks/useScriptRunner';
-import { rankScenes, scoreKey } from '@/utils/narraton';
+import { narratonRank, scoreKey } from '@/utils/narraton';
 import { SetCommand } from '@/utils/scriptParser';
-import { X, RotateCcw, Play, Drama } from 'lucide-react';
+import { X, RotateCcw, Play, Drama, FastForward } from 'lucide-react';
 
 // Narraton TEST MODE: play a scene sandboxed (world state is snapshotted, the
 // real game.info.worldState is never touched), with a live panel showing
@@ -52,6 +52,13 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
 }) => {
   const scriptRunner = useScriptRunner({ game, startSceneId: startScene.id });
   const { state } = scriptRunner;
+  // Narraton Drive: when on, the director chains scenes itself at scene end.
+  const [driveMode, setDriveMode] = useState(false);
+  // The story trail: every scene visited this run, in order.
+  const [trail, setTrail] = useState<string[]>([startScene.id]);
+  useEffect(() => {
+    setTrail(prev => (prev[prev.length - 1] === state.currentSceneId ? prev : [...prev, state.currentSceneId]));
+  }, [state.currentSceneId]);
 
   const currentScene = game.scenes.find(s => s.id === state.currentSceneId);
   const background = currentScene?.dropId
@@ -61,9 +68,24 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
     ? game.actors.find(a => a.id === state.activeDialogue?.actorId)
     : undefined;
 
-  // Selector view against the SANDBOX world state — "what could this lead to".
-  const ranking = rankScenes(game.scenes, state.worldState);
-  const topPick = ranking.find(m => !m.excluded && m.scene.id !== state.currentSceneId);
+  // Director's view against the SANDBOX world state: consumed scenes are out,
+  // phases gate, the last subplot pays the rotation penalty.
+  const playedSceneIds = trail.slice(0, -1);
+  const lastPlayed = playedSceneIds.length > 0
+    ? game.scenes.find(s => s.id === playedSceneIds[playedSceneIds.length - 1])
+    : undefined;
+  const ranking = narratonRank(game.scenes, state.worldState, {
+    playedSceneIds,
+    lastSubplotId: lastPlayed?.subplotId,
+  });
+  const topPick = ranking.find(m => !m.ineligible && m.scene.id !== state.currentSceneId);
+
+  // Narraton Drive: auto-continue to the director's pick at scene end.
+  useEffect(() => {
+    if (!driveMode || !state.isComplete || state.activeDialogue || state.choices || !topPick) return;
+    const timer = setTimeout(() => scriptRunner.goToScene(topPick.scene.id), 1500);
+    return () => clearTimeout(timer);
+  }, [driveMode, state.isComplete, state.activeDialogue, state.choices, topPick, scriptRunner]);
   const currentStats = currentScene?.key && Object.keys(currentScene.key).length > 0
     ? scoreKey(currentScene.key, state.worldState)
     : null;
@@ -105,6 +127,18 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
           >
             <RotateCcw size={12} />
             Restart
+          </button>
+          <button
+            onClick={() => setDriveMode(d => !d)}
+            title="At scene end, Narraton jumps to its own pick automatically"
+            className={`flex items-center gap-1 px-3 py-1 border text-xs font-bold uppercase ${
+              driveMode
+                ? 'border-diesel-cyan bg-diesel-cyan/20 text-diesel-cyan'
+                : 'border-diesel-border text-diesel-steel hover:border-diesel-cyan hover:text-diesel-cyan'
+            }`}
+          >
+            <FastForward size={12} />
+            Narraton Drive
           </button>
         </div>
         <button onClick={onClose} className="p-2 text-diesel-steel hover:text-diesel-paper transition-colors">
@@ -180,10 +214,13 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                 <p className="text-diesel-steel text-sm uppercase tracking-wider mb-1">— End of Scene —</p>
                 {topPick ? (
                   <p className="text-diesel-cyan text-xs mb-3 font-mono">
-                    Narraton would pick: {topPick.scene.name} (Δ² {topPick.score})
+                    Narraton would pick: {topPick.scene.name} (Δ² {topPick.adjustedScore})
+                    {driveMode && ' — driving there…'}
                   </p>
                 ) : (
-                  <p className="text-diesel-steel/60 text-xs mb-3">No eligible keyed scene to go to.</p>
+                  <p className="text-diesel-steel/60 text-xs mb-3">
+                    The board is exhausted — no eligible keyed scene remains.
+                  </p>
                 )}
                 <div className="flex items-center justify-center gap-3">
                   {topPick && (
@@ -324,7 +361,28 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
             )}
           </div>
 
-          {/* Where this could lead */}
+          {/* The story so far */}
+          <div className={panelSection}>
+            <div className={panelTitle}>Story so far</div>
+            {trail.map((id, i) => {
+              const s = game.scenes.find(x => x.id === id);
+              return (
+                <div key={`${id}-${i}`} className="text-[11px] py-0.5 flex items-center gap-1">
+                  <span className="text-diesel-steel/60 font-mono">{i + 1}.</span>
+                  <span className={i === trail.length - 1 ? 'text-diesel-paper font-bold' : 'text-diesel-steel'}>
+                    {s?.name ?? id}
+                  </span>
+                  {s?.subplotId && (
+                    <span className="text-[9px] text-diesel-purple">
+                      {game.subplots?.find(sp => sp.id === s.subplotId)?.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Where this could lead — the director's live board */}
           <div className={panelSection}>
             <div className={panelTitle}>Where this could lead</div>
             {ranking.length === 0 ? (
@@ -334,7 +392,7 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                 <div
                   key={m.scene.id}
                   className={`flex justify-between text-[11px] py-0.5 ${
-                    m.excluded
+                    m.ineligible
                       ? 'text-diesel-steel/40'
                       : m.scene.id === state.currentSceneId
                         ? 'text-diesel-steel'
@@ -346,8 +404,14 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                   <span className="truncate mr-2">
                     {i + 1}. {m.scene.name}
                     {m.scene.id === state.currentSceneId && ' (here)'}
+                    {m.sameSubplot && !m.ineligible && ' ↻'}
                   </span>
-                  <span className="font-mono shrink-0">{m.excluded ? 'EXCL' : `Δ² ${m.score}`}</span>
+                  <span className="font-mono shrink-0">
+                    {m.ineligible === 'played' && 'PLAYED'}
+                    {m.ineligible === 'wrong-phase' && 'PHASE'}
+                    {m.ineligible === 'big-miss' && 'MISS'}
+                    {!m.ineligible && `Δ² ${m.adjustedScore}`}
+                  </span>
                 </div>
               ))
             )}

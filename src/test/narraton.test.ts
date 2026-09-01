@@ -5,6 +5,8 @@ import {
   scoreKey,
   rankScenes,
   pickNextScene,
+  narratonRank,
+  narratonDirect,
   DEFAULT_MAX_MISS,
 } from '../utils/narraton';
 
@@ -99,6 +101,67 @@ describe('rankScenes', () => {
     ];
     const ranked = rankScenes(withLocals, { mood: 50, secret: 0 });
     expect(ranked[0].score).toBe(0);
+  });
+});
+
+describe('narratonRank / narratonDirect (the director)', () => {
+  // Two subplots, both keyed at the same distance so structure decides.
+  const world = { tension: 50 };
+  const board: Scene[] = [
+    scene('pinky_open', { tension: 50 }, { subplotId: 'pinky', phase: 'BEGINNING' }),
+    scene('pinky_mid', { tension: 50 }, { subplotId: 'pinky', phase: 'MIDDLE' }),
+    scene('pinky_end', { tension: 50 }, { subplotId: 'pinky', phase: 'END' }),
+    scene('tony_open', { tension: 50 }, { subplotId: 'tony', phase: 'BEGINNING' }),
+    scene('freefloat', { tension: 55 }), // unphased, no subplot
+  ];
+
+  it('never repeats a played scene', () => {
+    const ranked = narratonRank(board, world, { playedSceneIds: ['pinky_open'] });
+    const entry = ranked.find(m => m.scene.id === 'pinky_open');
+    expect(entry?.ineligible).toBe('played');
+  });
+
+  it('gates phases: MIDDLE waits for its subplot BEGINNING, END for MIDDLE', () => {
+    const fresh = narratonRank(board, world, { playedSceneIds: [] });
+    expect(fresh.find(m => m.scene.id === 'pinky_mid')?.ineligible).toBe('wrong-phase');
+    expect(fresh.find(m => m.scene.id === 'pinky_end')?.ineligible).toBe('wrong-phase');
+    expect(fresh.find(m => m.scene.id === 'pinky_open')?.ineligible).toBeUndefined();
+
+    const after = narratonRank(board, world, { playedSceneIds: ['pinky_open'] });
+    expect(after.find(m => m.scene.id === 'pinky_mid')?.ineligible).toBeUndefined();
+    expect(after.find(m => m.scene.id === 'pinky_end')?.ineligible).toBe('wrong-phase');
+  });
+
+  it('unphased scenes are always phase-eligible', () => {
+    const ranked = narratonRank(board, world, { playedSceneIds: [] });
+    expect(ranked.find(m => m.scene.id === 'freefloat')?.ineligible).toBeUndefined();
+  });
+
+  it('rotation: the last subplot pays a score penalty, so owners braid', () => {
+    // pinky_open played (subplot pinky); pinky_mid and tony_open both score 0.
+    const pick = narratonDirect(board, world, {
+      playedSceneIds: ['pinky_open'],
+      lastSubplotId: 'pinky',
+    });
+    expect(pick?.scene.id).toBe('tony_open');
+    // With rotation disabled, same-subplot pinky_mid can tie-lead again.
+    const noRotation = narratonDirect(board, world, {
+      playedSceneIds: ['pinky_open'],
+      lastSubplotId: 'pinky',
+    }, { rotationPenalty: 0 });
+    expect(['pinky_mid', 'tony_open']).toContain(noRotation?.scene.id);
+  });
+
+  it('big-miss exclusion carries through as a reason', () => {
+    const ranked = narratonRank([scene('far', { tension: 100 })], { tension: 0 }, { playedSceneIds: [] });
+    expect(ranked[0].ineligible).toBe('big-miss');
+  });
+
+  it('returns null when the board is exhausted', () => {
+    const pick = narratonDirect(board, world, {
+      playedSceneIds: ['pinky_open', 'pinky_mid', 'pinky_end', 'tony_open', 'freefloat'],
+    });
+    expect(pick).toBeNull();
   });
 });
 

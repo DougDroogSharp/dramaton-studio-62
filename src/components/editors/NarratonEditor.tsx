@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { GameData, Scene, ScenePhase, SelectionState, Subplot } from '@/types';
-import { rankScenes } from '@/utils/narraton';
+import { narratonRank } from '@/utils/narraton';
 import { CyberInput } from '@/components/CyberInput';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -140,8 +140,10 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
     );
   }
 
-  // ── Master view: ranking + unkeyed scenes + subplots + world state ──
-  const ranked = rankScenes(scenes, worldState);
+  // ── Master view: director ranking + unkeyed scenes + subplots + world state ──
+  // Empty history = the story's opening board: phase gating shows which
+  // scenes could START (MIDDLE/END wait for their subplot's earlier phases).
+  const ranked = narratonRank(scenes, worldState);
   const keyedIds = new Set(ranked.map(m => m.scene.id));
   const unkeyed = scenes.filter(s => !keyedIds.has(s.id));
   const subplotName = (id?: string) => subplots.find(sp => sp.id === id)?.name;
@@ -200,7 +202,7 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
                     key={match.scene.id}
                     onClick={() => onSelect('narraton', match.scene.id)}
                     className={`flex items-center gap-2 p-2 rounded cursor-pointer border transition-colors ${
-                      match.excluded
+                      match.ineligible
                         ? 'border-transparent opacity-40 hover:opacity-60'
                         : i === 0
                           ? 'bg-diesel-cyan/10 border-diesel-cyan/40 hover:border-diesel-cyan'
@@ -215,7 +217,10 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
                       <span className="text-[10px] text-diesel-purple">{subplotName(match.scene.subplotId)}</span>
                     )}
                     <span className="ml-auto font-mono text-xs text-diesel-steel">
-                      {match.excluded ? 'EXCLUDED' : `Δ² ${match.score}`}
+                      {match.ineligible === 'big-miss' && 'BIG MISS'}
+                      {match.ineligible === 'wrong-phase' && 'WAITS FOR PHASE'}
+                      {match.ineligible === 'played' && 'PLAYED'}
+                      {!match.ineligible && `Δ² ${match.score}`}
                     </span>
                     {Object.entries(match.scene.key || {}).map(([v, t]) => (
                       <span key={v} className="text-[9px] font-mono text-diesel-gold/70 hidden xl:inline">
@@ -381,19 +386,41 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
         World variables
       </div>
       <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1">
-        {Object.entries(worldState).map(([name, value]) => (
-          <div key={name} className="flex items-center gap-2 p-1 font-mono text-xs">
-            <span className="text-diesel-gold">{name}</span>
-            <span className="text-diesel-paper ml-auto">{String(value)}</span>
-            <button
-              onClick={() => removeVar(name)}
-              className="text-diesel-rust/60 hover:text-diesel-rust"
-              title="Remove variable"
-            >
-              <Trash2 size={11} />
-            </button>
-          </div>
-        ))}
+        {Object.entries(worldState).map(([name, value]) => {
+          // What-if scrubber: numeric variables get a slider so Doug can
+          // drag a value and watch the director's ranking reorder live.
+          const numeric = typeof value === 'number' ? value : Number(value);
+          const sliderable = typeof value !== 'boolean' && String(value).trim() !== '' && Number.isFinite(numeric);
+          return (
+            <div key={name} className="flex items-center gap-2 p-1 font-mono text-xs">
+              <span className="text-diesel-gold shrink-0">{name}</span>
+              {sliderable && (
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.min(100, Math.max(0, numeric))}
+                  onChange={e =>
+                    onChange({
+                      ...game,
+                      info: { ...game.info, worldState: { ...worldState, [name]: Number(e.target.value) } },
+                    })
+                  }
+                  className="flex-1 min-w-0 accent-[#c9a227]"
+                  title="What-if: scrub and watch the ranking"
+                />
+              )}
+              <span className="text-diesel-paper ml-auto shrink-0">{String(value)}</span>
+              <button
+                onClick={() => removeVar(name)}
+                className="text-diesel-rust/60 hover:text-diesel-rust"
+                title="Remove variable"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          );
+        })}
         <div className="flex gap-1 pt-1">
           <input
             value={newVar}
