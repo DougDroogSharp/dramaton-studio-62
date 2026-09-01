@@ -73,6 +73,14 @@ export interface SceneAudio {
 // AGENCY = the player acts; WITNESS = the player watches, but reacts.
 export type SceneType = 'AGENCY' | 'WITNESS';
 
+// Narraton (King-of-Chicago mechanism, CGDC 1989): each scene may carry a KEY —
+// target values (0–100) for one or more world-state variables. The selector
+// ranks candidate scenes by least-squares distance from the live world state.
+export type SceneKey = Record<string, number>;
+
+// Phase marker within a subplot's arc (KoC: position in a sequence's bag).
+export type ScenePhase = 'BEGINNING' | 'MIDDLE' | 'END';
+
 export interface Scene {
   id: string;
   name: string;
@@ -84,6 +92,13 @@ export interface Scene {
   audioData?: Record<string, string>;
   note?: string;
   status?: AssetStatus;
+  // Narraton fields — all optional; absent on scenes the selector ignores.
+  key?: SceneKey;
+  phase?: ScenePhase;
+  subplotId?: string;
+  // In-scene variables: scene-local initial values, invisible to the Narraton
+  // selector and never written to info.worldState.
+  localVars?: Record<string, string | number | boolean>;
 }
 
 export interface Drop {
@@ -172,6 +187,17 @@ export interface Button {
   status?: AssetStatus;
 }
 
+// Subplot: an owned bag of scenes (KoC "sequence"). Narraton braids subplots
+// by rotating unpredictably between owners' bags when picking the next scene.
+export interface Subplot {
+  id: string;
+  name: string;
+  owner?: string;          // whose subplot this is (KoC: Pinky's, Tony's, ...)
+  description?: string;
+  note?: string;
+  status?: AssetStatus;
+}
+
 // Episode type for organizing scenes into releases
 export interface Episode {
   id: string;
@@ -191,6 +217,7 @@ export interface GameData {
   sfx: Sfx[];
   buttons: Button[];
   episodes: Episode[];
+  subplots: Subplot[];
 }
 
 // Library Types for cross-game asset reuse
@@ -235,6 +262,11 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure buttons array exists
   if (!migrated.buttons) {
     migrated.buttons = [];
+  }
+
+  // Ensure subplots array exists (Narraton, added 2026-08-31)
+  if (!migrated.subplots) {
+    migrated.subplots = [];
   }
 
   // Dramaton Editor 2.0 called drops "screens"; rename the collection and
@@ -300,4 +332,5 @@ export const createDefaultGame = (): GameData => ({
   sfx: [],
   buttons: [],
   episodes: [],
+  subplots: [],
 });
