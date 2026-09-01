@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     INLAND WATER STUDY — still and flowing water ON THE LAND.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: flowing and still water on the land — a LAKE, a
+     SPRING, a CREEK, a RIVER — stylistically matched to the waves and
+     ocean treatment (vertex-animated lambert surfaces, foam painted
+     into vertex color, the same blue family, no textures).
+
+     One valley scene holds the whole water cycle: the SPRING bubbles
+     from a rock cleft high on the slope (rings + bubble motes, foam
+     at the source), feeds a narrow quick CREEK that riffles down over
+     stones (fast ripple, white riffle-foam painted where it crosses
+     the rocks), joins the broad slow RIVER (long lazy downstream
+     waves, drifting current lines, gentle bank foam) which opens into
+     the still LAKE (near-mirror: the faintest breathing ripple, a
+     brighter sky-sheen band, reeds at the margin). All four surfaces
+     run the ocean study's method — per-vertex height + color per
+     frame — so they belong to the same world by construction.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inland Water Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dde8dc; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(18,28,26,0.78); color:#e8f4ee; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:290px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>💧 Inland Water Study</b> — spring · creek · river · lake, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · follow the water downhill: the spring bubbles up, the creek riffles, the river slides, the lake barely breathes</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 61616;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdbe6da), 55, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(12, 9, 18);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light (the waves study's daylight) -----------------------
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f5e8), zenith = new THREE.Color(0x6cb0dd),
+        below = new THREE.Color(0xd2ddc8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 30, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -22; sun.shadow.camera.right = 22;
+sun.shadow.camera.top = 22;  sun.shadow.camera.bottom = -22;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 100;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ==========================================================================
+//  THE VALLEY — a sloped ground the watercourse is carved into.
+//  Heights: spring shelf ~3.2 → creek slope → river flat 0.5 → lake 0.15.
+// ==========================================================================
+function groundH(x, z){
+  // the master slope, high in the -z corner, flattening to the lake at +z
+  let h = 3.4 * clamp((-z + 14) / 30, 0, 1);
+  h += Math.sin(x*0.3)*0.25 + Math.sin(z*0.4 + 1)*0.2;
+  // the carved channel: a smooth trench along the watercourse path
+  const cx = coursePath(z).x;
+  const d = Math.abs(x - cx);
+  const w = courseWidth(z);
+  h -= Math.max(0, 1 - Math.pow(d / w, 2)) * 0.9;
+  // the lake basin
+  const ld = Math.hypot(x - LAKE.x, z - LAKE.z);
+  h -= Math.max(0, 1 - Math.pow(ld / LAKE.r, 2)) * 1.4;
+  return h;
+}
+const LAKE = { x: 2, z: 13, r: 8.5 };
+function coursePath(z){   // the stream's centerline wanders as it descends
+  return { x: Math.sin(z*0.28)*2.2 + Math.sin(z*0.11 + 2)*1.4 };
+}
+function courseWidth(z){  // creek narrow up high → river broad below
+  return lerp(0.7, 3.2, clamp((z + 10) / 20, 0, 1));
+}
+{
+  const G = 90, SZ = 46;
+  const geo = new THREE.PlaneGeometry(SZ, SZ, G, G);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, col = [];
+  const grass = new THREE.Color(0x9cb060), dry = new THREE.Color(0xbcae76),
+        bank = new THREE.Color(0x8a744e), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = groundH(x, z);
+    pos.setY(i, h);
+    const cx = coursePath(z).x;
+    const nearWater = Math.abs(x - cx) < courseWidth(z) + 0.8 ||
+      Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 1;
+    c.copy(nearWater ? bank : grass).lerp(dry, clamp(h/3.4, 0, 1)*0.5);
+    c.offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const g = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  g.receiveShadow = true;
+  scene.add(g);
+}
+const SPRING = { x: coursePath(-13).x, z: -13 };
+function waterLevel(z){   // the surface height the water sits at, by station
+  if(z < -10) return 3.0;
+  return lerp(3.0, 0.42, clamp((z + 10) / 20, 0, 1));
+}
+// the SPRING ROCKS: a cleft outcrop where the water is born
+{
+  const matRock = new THREE.MeshLambertMaterial({ color:0x7c766a, flatShading:true });
+  for(let i = 0; i < 7; i++){
+    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.5, 1.1), 0), matRock);
+    const a = (i/7)*Math.PI*2;
+    r.position.set(SPRING.x + Math.cos(a)*rand(0.8, 1.5), groundH(SPRING.x, SPRING.z) + rand(0, 0.5), SPRING.z + Math.sin(a)*rand(0.7, 1.3));
+    r.castShadow = true;
+    scene.add(r);
+  }
+}
+// creek stones + lakeside reeds
+const creekStones = [];
+{
+  const matStone = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+  for(let i = 0; i < 12; i++){
+    const z = rand(-9, 2);
+    const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.18, 0.4), 0), matStone);
+    s.position.set(coursePath(z).x + rand(-0.5, 0.5), waterLevel(z) + rand(-0.05, 0.15), z);
+    s.castShadow = true;
+    scene.add(s);
+    creekStones.push(s);
+  }
+  const matReed = new THREE.MeshLambertMaterial({ color:0x7d9a4e, flatShading:true });
+  window.__reeds = [];
+  for(let i = 0; i < 26; i++){
+    const a = rand(0, Math.PI*2);
+    const rr = LAKE.r + rand(-0.6, 0.9);
+    const x = LAKE.x + Math.cos(a)*rr, z = LAKE.z + Math.sin(a)*rr;
+    if(groundH(x, z) > 0.6) continue;
+    const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, rand(0.7, 1.2), 4), matReed);
+    reed.position.set(x, 0.5, z);
+    reed.rotation.z = rand(-0.1, 0.1);
+    scene.add(reed);
+    window.__reeds.push({ m: reed, ph: rand(0, 9) });
+  }
+}
+// ==========================================================================
+//  THE WATER — one mesh per body, all run the ocean method: per-vertex
+//  height + vertex-color foam each frame. The same blue family as the
+//  waves study; motion tempo tells you which water you're looking at.
+// ==========================================================================
+const DEEP = new THREE.Color(0x2a6f9e), SHALLOW = new THREE.Color(0x4fa8c4),
+      FOAM = new THREE.Color(0xf2fbfd), SHEEN = new THREE.Color(0x9fd0e4);
+function waterMesh(w, l, gx, gz){
+  const geo = new THREE.PlaneGeometry(w, l, gx, gz);
+  geo.rotateX(-Math.PI/2);
+  const n = geo.attributes.position.count;
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n*3), 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors:true, transparent:true, opacity:0.9 }));
+  scene.add(m);
+  return m;
+}
+// THE COURSE (creek + river as one ribbon following the path)
+const course = waterMesh(8, 26, 16, 78);
+course.position.set(0, 0, 1);
+// THE LAKE
+const lake = waterMesh(20, 20, 40, 40);
+lake.position.set(LAKE.x, 0, LAKE.z);
+// THE SPRING POOL
+const springPool = waterMesh(3.2, 3.2, 14, 14);
+springPool.position.set(SPRING.x, 0, SPRING.z);
+
+// spring bubbles + rings
+const bubbles = [];
+{
+  const mat = new THREE.MeshBasicMaterial({ color:0xeaf6fa, transparent:true, opacity:0.7 });
+  for(let i = 0; i < 10; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(rand(0.03, 0.07), 6, 5), mat.clone());
+    m.visible = false;
+    scene.add(m);
+    bubbles.push({ m, t: 9 });
+  }
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ---------- THE COURSE: creek riffle up high, river glide below ----------
+  {
+    const pos = course.geometry.attributes.position;
+    const col = course.geometry.attributes.color;
+    for(let i = 0; i < pos.count; i++){
+      const lx = pos.getX(i), lz = pos.getZ(i);
+      const z = lz + course.position.z;
+      const cx = coursePath(z).x;
+      const w = courseWidth(z);
+      const d = Math.abs(lx - cx);
+      const inWater = d < w;
+      const speedF = lerp(1, 0.28, clamp((z + 10) / 20, 0, 1));   // creek fast → river slow
+      let y = waterLevel(z) - 0.06;
+      let foam = 0;
+      if(inWater){
+        // downstream travelling waves — short and quick up high, long and
+        // lazy below (the ocean study's phase trick, aimed down the course)
+        y += Math.sin(z*(2.8*speedF + 0.7) - t*(2.2 + 4.5*speedF))*0.05*(0.4 + speedF)
+           + Math.sin(z*1.3 - t*(1.2 + 2*speedF) + lx*2)*0.03;
+        // banks pinch the surface down
+        y -= Math.pow(d/w, 3)*0.12;
+        // RIFFLE FOAM where the creek crosses its stones
+        for(const s of creekStones){
+          const sd = Math.hypot(lx - s.position.x, z - s.position.z);
+          if(sd < 0.55) foam = Math.max(foam, (1 - sd/0.55) * (0.5 + 0.5*Math.sin(z*4 - t*6)));
+        }
+        // bank foam threads on the river
+        if(speedF < 0.6 && d > w*0.82) foam = Math.max(foam, 0.3*Math.sin(z*2 - t*1.4)*clamp((d - w*0.82)/(w*0.18), 0, 1));
+        foam = clamp(foam, 0, 1);
+      } else {
+        y = groundH(lx, z) - 0.35;   // tuck under the banks
+      }
+      pos.setY(i, y);
+      const c = DEEP.clone().lerp(SHALLOW, clamp(1 - d/w, 0, 1)*0.7 + 0.15)
+        .lerp(FOAM, foam);
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    pos.needsUpdate = true; col.needsUpdate = true;
+    course.geometry.computeVertexNormals();
+  }
+
+  // ---------- THE LAKE: near-mirror stillness ----------
+  {
+    const pos = lake.geometry.attributes.position;
+    const col = lake.geometry.attributes.color;
+    for(let i = 0; i < pos.count; i++){
+      const lx = pos.getX(i) + LAKE.x, lz = pos.getZ(i) + LAKE.z;
+      const d = Math.hypot(lx - LAKE.x, lz - LAKE.z);
+      if(d > LAKE.r){ pos.setY(i, groundH(lx, lz) - 0.4); col.setXYZ(i, DEEP.r, DEEP.g, DEEP.b); continue; }
+      // the faintest breathing ripple — a tenth of the river's motion
+      const y = 0.42 + Math.sin(lx*0.8 + t*0.5)*0.012 + Math.sin(lz*0.6 + t*0.38)*0.01;
+      pos.setY(i, y);
+      // sky-sheen band down the middle (the mirror shine), shore shallows pale
+      const sheen = Math.exp(-Math.pow((lx - LAKE.x - 1)/2.4, 2)) * 0.45;
+      const c = DEEP.clone().lerp(SHALLOW, clamp(1 - d/LAKE.r, 0, 1)*0.35 + 0.1)
+        .lerp(SHEEN, sheen)
+        .lerp(FOAM, d > LAKE.r - 0.5 ? 0.18 : 0);   // the thinnest shore line
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    pos.needsUpdate = true; col.needsUpdate = true;
+    lake.geometry.computeVertexNormals();
+  }
+
+  // ---------- THE SPRING: the upwelling ----------
+  {
+    const pos = springPool.geometry.attributes.position;
+    const col = springPool.geometry.attributes.color;
+    for(let i = 0; i < pos.count; i++){
+      const lx = pos.getX(i), lz = pos.getZ(i);
+      const d = Math.hypot(lx, lz);
+      // concentric rings spreading FROM the source + the boil at the center
+      const y = 3.0 + Math.sin(d*7 - t*4)*0.04*clamp(1 - d/1.6, 0, 1)
+        + Math.max(0, Math.sin(t*3))*0.06*clamp(1 - d/0.4, 0, 1);
+      pos.setY(i, y);
+      const boil = clamp(1 - d/0.5, 0, 1) * (0.5 + 0.3*Math.sin(t*5));
+      const c = SHALLOW.clone().lerp(FOAM, boil);
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    pos.needsUpdate = true; col.needsUpdate = true;
+  }
+  // bubbles popping up at the source
+  if(Math.random() < dt*7){
+    const b = bubbles.find(b => b.t > 0.9);
+    if(b){
+      b.t = 0;
+      b.m.visible = true;
+      b.m.position.set(SPRING.x + rand(-0.2, 0.2), 3.0, SPRING.z + rand(-0.2, 0.2));
+    }
+  }
+  for(const b of bubbles){
+    if(b.t > 0.9){ b.m.visible = false; continue; }
+    b.t += dt;
+    b.m.position.y += dt*0.35;
+    b.m.material.opacity = 0.7*(1 - b.t/0.9);
+  }
+  // the reeds lean on the same breeze the lake breathes with
+  for(const r of window.__reeds)
+    r.m.rotation.z = Math.sin(t*1.1 + r.ph)*0.06;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
