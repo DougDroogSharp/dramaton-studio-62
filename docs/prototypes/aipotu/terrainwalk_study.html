@@ -35,9 +35,11 @@
 </head>
 <body>
 <div id="chip">
-  <b>⛰️ Terrain Walk Study</b> — ankles on the normal, v1<br>
-  <span class="hint">the planted foot rotates its ankle to lie on the slope's
-  normal; the swinging foot relaxes · drag to orbit, the camera follows</span><br>
+  <b>⛰️ Terrain Walk Study</b> — full leg IK on the normal, v2<br>
+  <span class="hint">two-bone leg IK plants each foot on its own ground sample —
+  uphill leg bends, downhill leg extends, pelvis absorbs the rest; the ankle
+  layer rolls each sole onto the slope · the camera follows</span><br>
+  <button id="legik" class="on">LEG IK: ON</button>
   <button id="ankle" class="on">ANKLE LAYER: ON</button>
   <button id="normals">show normals</button>
 </div>
@@ -333,10 +335,68 @@ mixer.clipAction(walkClip).play();
 //   5. slerp toward it by w (and relax to neutral as w falls)
 // ==========================================================================
 let ankleOn = true;
+let legIKOn = true;
 const _fw = new THREE.Vector3(), _pq = new THREE.Quaternion(),
       _tq = new THREE.Quaternion(), _m = new THREE.Matrix4(),
       _right = new THREE.Vector3(), _up = new THREE.Vector3(),
       _fwd = new THREE.Vector3(), _neutral = new THREE.Quaternion();
+
+// ==========================================================================
+//  FULL LEG IK — Doug's side-hill challenge. Runs after the mixer (which
+//  rewrites the leg bones from the clip every frame, so there is no
+//  feedback loop): for each leg, take where the CLIP put the ankle, keep
+//  its horizontal position and its swing lift, but re-plant its height on
+//  the terrain sampled AT THAT FOOT — then solve two-bone IK (thigh +
+//  shin, law of cosines, knee bending forward) so the leg actually
+//  reaches it. Across a slope the uphill knee bends, the downhill leg
+//  extends; if even full extension can't reach, the PELVIS drops to
+//  cover the difference (smoothed, so gentle hills stay jitter-free).
+// ==========================================================================
+const L1 = 0.26, L2 = 0.26;                  // thigh, shin bone lengths
+let pelvisDrop = 0;
+const _A = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(),
+      _dir = new THREE.Vector3(), _po = new THREE.Vector3(), _thigh = new THREE.Vector3(),
+      _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3(),
+      _wq = new THREE.Quaternion(), _hq = new THREE.Quaternion(), _m2 = new THREE.Matrix4();
+function legIK(dt, heading){
+  // last frame's pelvis drop rides on top of the clip's fresh hips pose
+  B.mixamorigHips.position.y -= pelvisDrop;
+  V.updateMatrixWorld(true);
+  if(!legIKOn){ pelvisDrop = lerp(pelvisDrop, 0, Math.min(1, dt*6)); return; }
+  let excess = 0;
+  for(const S of ['Left', 'Right']){
+    const up = B[`mixamorig${S}UpLeg`], lo = B[`mixamorig${S}Leg`],
+          ft = B[`mixamorig${S}Foot`];
+    ft.getWorldPosition(_A);                 // the CLIP's ankle (pre-IK this frame)
+    const localY = V.worldToLocal(_A.clone()).y;
+    const lift = Math.max(0, localY - 0.115);       // how high the clip swings it
+    _T.set(_A.x, terrainH(_A.x, _A.z) + 0.105 + lift, _A.z);
+    up.getWorldPosition(_H);
+    let d = _H.distanceTo(_T);
+    const reach = L1 + L2 - 0.015;
+    if(d > reach){ excess = Math.max(excess, d - reach); d = reach; }
+    d = Math.max(d, 0.12);
+    _dir.copy(_T).sub(_H).normalize();
+    // knee pole: the body's forward, made perpendicular to the hip-ankle line
+    _po.set(Math.sin(heading), 0, Math.cos(heading))
+       .addScaledVector(_dir, -_dir.dot(new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading))))
+       .normalize();
+    const a1 = Math.acos(clamp((L1*L1 + d*d - L2*L2)/(2*L1*d), -1, 1));
+    const interior = Math.acos(clamp((L1*L1 + L2*L2 - d*d)/(2*L1*L2), -1, 1));
+    // thigh: the hip-ankle line, tipped toward the pole so the knee leads
+    _thigh.copy(_dir).multiplyScalar(Math.cos(a1)).addScaledVector(_po, Math.sin(a1)).normalize();
+    _by.copy(_thigh).negate();               // bone local -Y runs down the thigh
+    _bz.copy(_po).addScaledVector(_by, -_po.dot(_by)).normalize();
+    _bx.crossVectors(_by, _bz);
+    _m2.makeBasis(_bx, _by, _bz);
+    _wq.setFromRotationMatrix(_m2);
+    up.parent.getWorldQuaternion(_hq);
+    up.quaternion.copy(_hq.invert().multiply(_wq));
+    lo.quaternion.setFromEuler(new THREE.Euler(Math.PI - interior, 0, 0));
+  }
+  pelvisDrop = lerp(pelvisDrop, excess, Math.min(1, dt*8));
+  V.updateMatrixWorld(true);                 // fresh matrices for the ankle layer
+}
 function ankleLayer(dt, heading){
   for(const S of ['Left', 'Right']){
     const foot = B[`mixamorig${S}Foot`];
@@ -369,6 +429,11 @@ let pathA = 0;
 const SPEED = 1.05;                          // units/sec along the ring
 const bodyQ = new THREE.Quaternion(), yawQ = new THREE.Quaternion(),
       pitchQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion();
+document.getElementById('legik').addEventListener('click', e => {
+  legIKOn = !legIKOn;
+  e.target.textContent = 'LEG IK: ' + (legIKOn ? 'ON' : 'off');
+  e.target.classList.toggle('on', legIKOn);
+});
 document.getElementById('ankle').addEventListener('click', e => {
   ankleOn = !ankleOn;
   e.target.textContent = 'ANKLE LAYER: ' + (ankleOn ? 'ON' : 'off');
@@ -401,8 +466,8 @@ function animate(){
   V.quaternion.slerp(bodyQ, Math.min(1, dt*6));
 
   mixer.update(dt);
-  V.updateMatrixWorld(true);                 // fresh bone matrices for the layer
-  ankleLayer(dt, heading);
+  legIK(dt, heading);                        // plants each foot on its own ground
+  ankleLayer(dt, heading);                   // then rolls each sole onto the slope
 
   // camera tags along
   controls.target.lerp(new THREE.Vector3(px, terrainH(px, pz) + 0.9, pz), dt*2.5);
