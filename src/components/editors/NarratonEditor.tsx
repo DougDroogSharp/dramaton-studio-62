@@ -367,8 +367,15 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
   const addVar = () => {
     const name = newVar.trim();
     if (!name || name in worldState) return;
-    const num = Number(newVal);
-    const value = newVal.trim() !== '' && Number.isFinite(num) ? num : newVal;
+    // Typed true/false makes a real boolean; numbers stay numbers.
+    const raw = newVal.trim();
+    let value: string | number | boolean;
+    if (raw === 'true') value = true;
+    else if (raw === 'false') value = false;
+    else {
+      const num = Number(raw);
+      value = raw !== '' && Number.isFinite(num) ? num : newVal;
+    }
     onChange({ ...game, info: { ...game.info, worldState: { ...worldState, [name]: value } } });
     setNewVar('');
     setNewVal('0');
@@ -394,6 +401,24 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
           return (
             <div key={name} className="flex items-center gap-2 p-1 font-mono text-xs">
               <span className="text-diesel-gold shrink-0">{name}</span>
+              {typeof value === 'boolean' && (
+                <button
+                  onClick={() =>
+                    onChange({
+                      ...game,
+                      info: { ...game.info, worldState: { ...worldState, [name]: !value } },
+                    })
+                  }
+                  title="Toggle (booleans match keys as 0/100)"
+                  className={`ml-auto px-2 py-0.5 border rounded text-[10px] font-bold uppercase ${
+                    value
+                      ? 'border-diesel-green text-diesel-green bg-diesel-green/10'
+                      : 'border-diesel-steel/50 text-diesel-steel'
+                  }`}
+                >
+                  {String(value)}
+                </button>
+              )}
               {sliderable && (
                 <input
                   type="range"
@@ -410,7 +435,9 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
                   title="What-if: scrub and watch the ranking"
                 />
               )}
-              <span className="text-diesel-paper ml-auto shrink-0">{String(value)}</span>
+              {typeof value !== 'boolean' && (
+                <span className="text-diesel-paper ml-auto shrink-0">{String(value)}</span>
+              )}
               <button
                 onClick={() => removeVar(name)}
                 className="text-diesel-rust/60 hover:text-diesel-rust"
@@ -433,8 +460,9 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
             value={newVal}
             onChange={e => setNewVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addVar()}
-            placeholder="0"
-            className="w-14 bg-diesel-panel border border-diesel-border rounded px-2 py-1 text-xs font-mono text-diesel-paper placeholder:text-diesel-steel/50 focus:outline-none focus:border-diesel-gold/50"
+            placeholder="0 / true"
+            title="Numbers make sliders; true/false makes a toggle"
+            className="w-16 bg-diesel-panel border border-diesel-border rounded px-2 py-1 text-xs font-mono text-diesel-paper placeholder:text-diesel-steel/50 focus:outline-none focus:border-diesel-gold/50"
           />
           <Button
             onClick={addVar}
