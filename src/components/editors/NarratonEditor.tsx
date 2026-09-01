@@ -36,6 +36,7 @@ const sectionLabel = 'text-[10px] text-diesel-steel uppercase tracking-widest mb
 
 export const NarratonEditor = ({ game, selection, onChange, onSelect }: NarratonEditorProps) => {
   const [testSceneId, setTestSceneId] = useState<string | null>(null);
+  const [newSceneEpisodeId, setNewSceneEpisodeId] = useState<string>(game.episodes?.[0]?.id ?? '');
   const scenes = game.scenes ?? [];
   const subplots = game.subplots ?? [];
   const worldState = game.info.worldState ?? {};
@@ -67,6 +68,8 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
     });
   };
 
+  // New scenes join the picked episode so they are immediately playable
+  // within it (Doug's ask 8); with no episode picked they are project-only.
   const handleCreateScene = () => {
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
@@ -77,9 +80,22 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
       status: 'new',
       key: {},
     };
-    onChange({ ...game, scenes: [...scenes, newScene] });
+    const episode = (game.episodes ?? []).find(e => e.id === newSceneEpisodeId);
+    onChange({
+      ...game,
+      scenes: [...scenes, newScene],
+      episodes: episode
+        ? game.episodes.map(e =>
+            e.id === episode.id ? { ...e, sceneIds: [...e.sceneIds, newScene.id] } : e
+          )
+        : game.episodes,
+    });
     onSelect('narraton', newScene.id);
-    toast.success('Scene created — tag it so Narraton can find it');
+    toast.success(
+      episode
+        ? `Scene created in "${episode.name}" — tag it so Narraton can find it`
+        : 'Scene created — tag it so Narraton can find it'
+    );
   };
 
   const handleCreateSubplot = (name: string, owner: string) => {
@@ -138,14 +154,31 @@ export const NarratonEditor = ({ game, selection, onChange, onSelect }: Narraton
           <h2 className="text-lg font-bold text-diesel-paper uppercase tracking-wider">Narraton</h2>
           <span className="text-diesel-steel text-xs">least-squares scene selector</span>
         </div>
-        <Button
-          onClick={handleCreateScene}
-          size="sm"
-          className="bg-diesel-cyan/20 border border-diesel-cyan text-diesel-cyan hover:bg-diesel-cyan/30"
-        >
-          <Plus size={14} className="mr-1" />
-          New Scene
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {(game.episodes ?? []).length > 0 && (
+            <select
+              value={newSceneEpisodeId}
+              onChange={e => setNewSceneEpisodeId(e.target.value)}
+              title="Episode the new scene joins"
+              className="bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs text-diesel-paper focus:outline-none focus:border-diesel-cyan/50"
+            >
+              <option value="">— no episode —</option>
+              {game.episodes.map(ep => (
+                <option key={ep.id} value={ep.id}>
+                  in {ep.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button
+            onClick={handleCreateScene}
+            size="sm"
+            className="bg-diesel-cyan/20 border border-diesel-cyan text-diesel-cyan hover:bg-diesel-cyan/30"
+          >
+            <Plus size={14} className="mr-1" />
+            New Scene
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
