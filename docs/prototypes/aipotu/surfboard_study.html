@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SURFBOARD STUDY — three boards for George World's surfers.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: three different surfboards. The classic quiver:
+     · THE LOG — a 9'6 longboard: cream deck, wooden center stringer,
+       rounded nose, big single fin. Dignified glide.
+     · THE THRUSTER — a modern shortboard: pointed nose, three fins,
+       a red lightning spray and a black traction pad. For the punchy
+       stuff.
+     · THE FISH — a retro twin-fin: wide, stubby, SWALLOW TAIL, warm
+       seventies sunset panels. Fast and skatey.
+     Racked nose-up in the sand on a slow turntable, plus one at rest
+     bobbing on the water so the read-in-scene is proven.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surfboard Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#d8ecf2; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(16,30,38,0.78); color:#e8f4fa;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🏄 Surfboard Study</b> — the log · the thruster · the fish, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd6eaf0), 50, 260);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(3.4, 2.6, 6.4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 30;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeef6f8), zenith = new THREE.Color(0x5cabdd),
+        below = new THREE.Color(0xcfe2e8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.58)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf8, 0xc0b088, 1.05));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(18, 24, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8;  sun.shadow.camera.bottom = -8;
+scene.add(sun);
+
+// ---------- beach + water --------------------------------------------------
+let sea;
+{
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xdcc78e }));
+  sand.rotation.x = -Math.PI/2;
+  sand.receiveShadow = true;
+  scene.add(sand);
+  const geo = new THREE.PlaneGeometry(120, 60, 40, 24);
+  geo.rotateX(-Math.PI/2);
+  sea = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    color:0x3f8bb5, transparent:true, opacity:0.9 }));
+  sea.position.set(0, 0.12, -16);
+  scene.add(sea);
+}
+
+// ==========================================================================
+//  A BOARD — one lofted outline, parameterized. The outline is a set of
+//  half-widths along the length; deck painted per-design on a canvas.
+// ==========================================================================
+function makeBoard(spec){
+  const { len, widths, tailNotch = 0, deckPaint, fins } = spec;
+  // build the outline as a shape (half-widths mirrored), extrude thin
+  const N = widths.length;
+  const shape = new THREE.Shape();
+  const xs = [];
+  for(let i = 0; i < N; i++) xs.push(-len/2 + (i/(N-1)) * len);
+  shape.moveTo(xs[0], 0);
+  for(let i = 0; i < N; i++) shape.lineTo(xs[i], widths[i]);
+  for(let i = N-1; i >= 0; i--) shape.lineTo(xs[i], -widths[i]);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true,
+    bevelThickness: 0.02, bevelSize: 0.025, bevelSegments: 2 });
+  geo.rotateX(-Math.PI/2);   // flat, nose +x
+  // the swallow tail: carve the notch with two extra triangles of absence —
+  // cheat: a sand-colored wedge boolean is overkill; a dark wedge overlay reads
+  // deck canvas
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  deckPaint(cv.getContext('2d'));
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const g = new THREE.Group();
+  const board = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex }));
+  // UVs from extrude are in shape space; remap roughly to 0..1
+  {
+    const uv = geo.attributes.uv, pos = geo.attributes.position;
+    for(let i = 0; i < uv.count; i++){
+      uv.setXY(i, (pos.getX(i) + len/2) / len, (pos.getZ(i) + 0.4) / 0.8);
+    }
+  }
+  board.castShadow = true;
+  g.add(board);
+  if(tailNotch){
+    const notch = new THREE.Mesh(new THREE.ConeGeometry(tailNotch, 0.32, 3),
+      new THREE.MeshLambertMaterial({ color:0xdcc78e }));
+    notch.rotation.z = -Math.PI/2;
+    notch.rotation.x = Math.PI/2;
+    notch.scale.set(1, 1, 0.6);
+    notch.position.set(-len/2 + 0.02, 0.05, 0);
+    g.add(notch);
+  }
+  // fins: [ [xOffsetFromTail, zOffset, height], … ]
+  for(const [fx, fz, fh] of fins){
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(fh*0.55, fh, 3),
+      new THREE.MeshLambertMaterial({ color:0x2c3438 }));
+    fin.rotation.z = 2.35;             // raked back
+    fin.scale.set(0.22, 1, 1);
+    fin.position.set(-len/2 + fx, -fh*0.35, fz);
+    g.add(fin);
+  }
+  return g;
+}
+
+// THE LOG — 9'6 longboard: cream deck, wood stringer, single fin
+const log = makeBoard({
+  len: 3.0,
+  widths: [0.02, 0.16, 0.25, 0.29, 0.30, 0.29, 0.26, 0.2, 0.12],
+  fins: [[0.25, 0, 0.34]],
+  deckPaint(g){
+    g.fillStyle = '#efe6cc'; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = '#8a6134'; g.fillRect(0, 61, 256, 6);      // the stringer
+    g.strokeStyle = '#c9a05c'; g.lineWidth = 3;
+    g.strokeRect(6, 6, 244, 116);                            // pinline
+  },
+});
+// THE THRUSTER — shortboard: white, red lightning spray, 3 fins, tail pad
+const thruster = makeBoard({
+  len: 1.9,
+  widths: [0.01, 0.09, 0.16, 0.2, 0.21, 0.19, 0.15, 0.1, 0.06],
+  fins: [[0.16, 0, 0.22], [0.3, 0.12, 0.18], [0.3, -0.12, 0.18]],
+  deckPaint(g){
+    g.fillStyle = '#f4f6f6'; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = '#d8352c';                                 // the lightning
+    g.beginPath();
+    g.moveTo(40, 20); g.lineTo(130, 50); g.lineTo(100, 58);
+    g.lineTo(200, 100); g.lineTo(96, 74); g.lineTo(126, 64); g.lineTo(30, 32);
+    g.closePath(); g.fill();
+    g.fillStyle = '#1c1c1c'; g.fillRect(6, 44, 34, 40);      // traction pad at the tail
+  },
+});
+// THE FISH — retro twin: wide, stubby, swallow tail, sunset panels
+const fish = makeBoard({
+  len: 1.75,
+  widths: [0.03, 0.14, 0.22, 0.26, 0.27, 0.26, 0.24, 0.21, 0.16],
+  tailNotch: 0.14,
+  fins: [[0.2, 0.15, 0.2], [0.2, -0.15, 0.2]],
+  deckPaint(g){
+    const grad = g.createLinearGradient(0, 0, 256, 0);
+    grad.addColorStop(0, '#d8352c');
+    grad.addColorStop(0.45, '#e88a2e');
+    grad.addColorStop(1, '#f2ce4a');
+    g.fillStyle = grad; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    g.fillRect(0, 58, 256, 12);                              // the seventies band
+  },
+});
+
+// rack the log + thruster nose-up in the sand; the fish bobs at rest
+const rack = new THREE.Group();
+scene.add(rack);
+function plant(board, x, lean){
+  const holder = new THREE.Group();
+  holder.position.set(x, 0, 0);
+  board.rotation.z = Math.PI/2 - lean;   // nose up
+  board.position.y = 1.3;
+  holder.add(board);
+  rack.add(holder);
+  return holder;
+}
+plant(log, -1.5, 0.12);
+plant(thruster, 0, 0.18);
+const bobber = new THREE.Group();
+bobber.add(fish);
+bobber.position.set(2.2, 0.16, -6);
+scene.add(bobber);
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.elapsedTime;
+  rack.rotation.y = t * 0.22;            // the slow turntable
+  // the fish rides the ripple
+  bobber.position.y = 0.16 + Math.sin(t*1.4)*0.05;
+  bobber.rotation.z = Math.sin(t*1.1)*0.07;
+  bobber.rotation.x = Math.sin(t*1.7 + 1)*0.05;
+  {
+    const pos = sea.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, Math.sin(x*0.5 + t*1.2)*0.06 + Math.sin(z*0.7 + t*0.9)*0.05);
+    }
+    pos.needsUpdate = true;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
