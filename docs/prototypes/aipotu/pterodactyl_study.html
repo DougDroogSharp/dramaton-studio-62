@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PTERODACTYL STUDY — a Pteranodon on the wing, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The animal: toothless beak, backswept crest, short tail, membrane
+     wings on a long wing-finger — inner bone to the wrist, outer bone
+     to the tip, membrane panels tapering behind both.
+
+     The loop: SOAR (banked circles, glide with flap bursts when the
+     line sags) → LAND (a bezier approach onto the sea-stack perch,
+     full FLARE — pitch up, wings thrown wide, legs reaching) → IDLE
+     folded up on legs and wing-knuckles, scanning, preening → LAUNCH
+     (the quadrupedal leap pteranodons actually used) → CLIMB, hard
+     flapping, back onto the circle. Wingspan ~3.4 units. Chip: Fly and
+     Land overrides, follow camera.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pterodactyl Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dde4d8; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,28,24,0.78); color:#eef2ec; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#5a6a52; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#708464; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+  #chip label { font-size:12px; opacity:0.85; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦖 Pterodactyl Study</b> — Pteranodon, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="fly">Fly</button><button data-m="land">Land</button><br>
+  <label><input id="follow" type="checkbox"> follow camera</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 68000001;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+const V3 = (x,y,z) => new THREE.Vector3(x,y,z);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdbe2d4), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(9, 6, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f2e0), zenith = new THREE.Color(0x74acd8),
+        below = new THREE.Color(0xccd2c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa682, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(22, 30, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xb2b284 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+  for(let i=0;i<20;i++){
+    const a = rand(0, Math.PI*2), r = rand(6, 30);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.14,0.22), rand(0.4,0.8), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.2, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+// the PERCH: a stack of weathered rock, flat pad on top
+const PERCH = V3(3.2, 1.72, 3.2);
+{
+  const rockMat = new THREE.MeshLambertMaterial({ color:0x8f8878, flatShading:true });
+  let y = 0;
+  for(const [r, h] of [[1.1, 0.8], [0.85, 0.7], [0.6, 0.5]]){
+    const blk = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rockMat);
+    blk.position.set(PERCH.x + rand(-0.08, 0.08), y + h*0.5, PERCH.z + rand(-0.08, 0.08));
+    blk.scale.y = h/r;
+    blk.rotation.y = rand(0, 3);
+    blk.castShadow = true;
+    scene.add(blk);
+    y += h*0.62;
+  }
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.16, 9), rockMat);
+  pad.position.set(PERCH.x, PERCH.y - 0.1, PERCH.z);
+  pad.castShadow = true;
+  scene.add(pad);
+}
+
+// ==========================================================================
+//  THE ANIMAL — forward +Z, wingspan ~3.4.
+// ==========================================================================
+const matHide = new THREE.MeshLambertMaterial({ color:0xb08a5a, flatShading:true });
+const matHideDk = new THREE.MeshLambertMaterial({ color:0x8f6e46, flatShading:true });
+const matCrest = new THREE.MeshLambertMaterial({ color:0x9a4030, flatShading:true });
+const matBeak = new THREE.MeshLambertMaterial({ color:0x6e5a3a, flatShading:true });
+const matMemb = new THREE.MeshLambertMaterial({ color:0xc9a878, flatShading:true, side:THREE.DoubleSide });
+const P = { g: new THREE.Group() };
+scene.add(P.g);
+{
+  const bodyG = new THREE.CapsuleGeometry(0.16, 0.42, 6, 10);
+  bodyG.rotateX(Math.PI/2);
+  const body = new THREE.Mesh(bodyG, matHide);
+  body.castShadow = true;
+  P.g.add(body);
+  // neck + the head with beak and crest
+  P.head = new THREE.Group();
+  P.head.position.set(0, 0.1, 0.36);
+  P.g.add(P.head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.22, 7), matHide);
+  neck.rotation.x = 1.1;
+  neck.position.set(0, -0.02, -0.06);
+  P.head.add(neck);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), matHide);
+  skull.castShadow = true;
+  P.head.add(skull);
+  const beakG = new THREE.ConeGeometry(0.055, 0.55, 7);
+  beakG.rotateX(Math.PI/2);
+  const beak = new THREE.Mesh(beakG, matBeak);
+  beak.position.set(0, -0.02, 0.35);
+  beak.castShadow = true;
+  P.head.add(beak);
+  const crestG = new THREE.ConeGeometry(0.05, 0.45, 6);
+  crestG.rotateX(-Math.PI/2);
+  const crest = new THREE.Mesh(crestG, matCrest);
+  crest.position.set(0, 0.09, -0.24);
+  crest.scale.set(0.5, 1.6, 1);
+  crest.castShadow = true;
+  P.head.add(crest);
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x2a2018 }));
+    eye.position.set(s*0.085, 0.03, 0.06);
+    P.head.add(eye);
+  }
+  // stubby pteranodon tail
+  const tailG = new THREE.ConeGeometry(0.05, 0.22, 6);
+  tailG.rotateX(-Math.PI/2);
+  const tail = new THREE.Mesh(tailG, matHideDk);
+  tail.position.set(0, 0.02, -0.38);
+  P.g.add(tail);
+  // WINGS: shoulder → wrist (inner), wrist → tip (the wing-finger)
+  P.wings = [];
+  for(const s of [-1, 1]){
+    const shoulder = new THREE.Group();
+    shoulder.position.set(s*0.14, 0.08, 0.12);
+    P.g.add(shoulder);
+    const innerG = new THREE.CapsuleGeometry(0.045, 0.5, 4, 7);
+    innerG.rotateZ(Math.PI/2);
+    innerG.translate(s*0.28, 0, 0);
+    const inner = new THREE.Mesh(innerG, matHide);
+    inner.castShadow = true;
+    shoulder.add(inner);
+    const membIn = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.015, 0.42), matMemb);
+    membIn.position.set(s*0.28, 0, -0.19);
+    membIn.castShadow = true;
+    shoulder.add(membIn);
+    const wrist = new THREE.Group();
+    wrist.position.set(s*0.56, 0, 0);
+    shoulder.add(wrist);
+    const outerG = new THREE.CapsuleGeometry(0.032, 0.95, 4, 7);
+    outerG.rotateZ(Math.PI/2);
+    outerG.translate(s*0.5, 0, 0);
+    const outer = new THREE.Mesh(outerG, matHide);
+    outer.castShadow = true;
+    wrist.add(outer);
+    // tapering outer membrane: wide at the wrist, nothing at the tip
+    const membOutG = new THREE.BoxGeometry(1.0, 0.012, 0.38);
+    const mp = membOutG.attributes.position;
+    for(let i=0;i<mp.count;i++)
+      if(mp.getZ(i) < 0 && mp.getX(i)*s > 0.4) mp.setZ(i, mp.getZ(i)*0.15);
+    const membOut = new THREE.Mesh(membOutG, matMemb);
+    membOut.position.set(s*0.5, 0, -0.16);
+    membOut.castShadow = true;
+    wrist.add(membOut);
+    P.wings.push({ shoulder, wrist, s });
+  }
+  // legs: trail in flight, stand at the perch
+  P.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.09, -0.1, -0.18);
+    const limbG = new THREE.CapsuleGeometry(0.035, 0.26, 4, 7);
+    limbG.translate(0, -0.16, 0);
+    const limb = new THREE.Mesh(limbG, matHideDk);
+    limb.castShadow = true;
+    leg.add(limb);
+    P.g.add(leg);
+    P.legs.push(leg);
+  }
+}
+
+// ==========================================================================
+//  FLIGHT — soar circle · bezier landing · perch idle · leap launch · climb
+// ==========================================================================
+const C = V3(0, 5.4, 0), RAD = 6, OMEGA = 0.5;
+let phase = 'soar', ph = 0, ang = 0, soarT = 0;
+let fold = 0, flapPow = 0.2, flapPh = 0, pitch = 0, bank = 0, yaw = 0;
+const bez = { p0: V3(0,0,0), p1: V3(0,0,0), p2: V3(0,0,0), p3: V3(0,0,0) };
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
+function bezAt(u, out){
+  const w = 1-u;
+  out.set(0,0,0)
+    .addScaledVector(bez.p0, w*w*w)
+    .addScaledVector(bez.p1, 3*w*w*u)
+    .addScaledVector(bez.p2, 3*w*u*u)
+    .addScaledVector(bez.p3, u*u*u);
+  return out;
+}
+function circleAt(a, out){
+  return out.set(C.x + Math.cos(a)*RAD, C.y + Math.sin(a*1.7)*0.4, C.z + Math.sin(a)*RAD);
+}
+function startLanding(){
+  circleAt(ang, bez.p0);
+  circleAt(ang + 0.45, bez.p1);                  // carry the line out of the turn
+  bez.p2.copy(PERCH).add(V3(0, 2.0, 0)).addScaledVector(V3(Math.sin(yaw), 0, Math.cos(yaw)), -2.2);
+  bez.p3.copy(PERCH).add(V3(0, 0.34, 0));
+  phase = 'land'; ph = 0;
+}
+let want = 'fly';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ want = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('fly');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  let foldT = 0, pitchT = 0, bankT = 0, flapT = 0.2, legT = 0.9;   // legs trailed
+  if(phase === 'soar'){
+    ang += OMEGA*dt;
+    soarT += dt;
+    circleAt(ang, _a);
+    P.g.position.copy(_a);
+    circleAt(ang + 0.02, _b);
+    yaw = Math.atan2(_b.x - _a.x, _b.z - _a.z);
+    bankT = -0.4;                                 // laid into the circle
+    // glide with flap bursts: flap while the wobble line is climbing
+    flapT = Math.sin(ang*1.7) > 0.2 ? 0.85 : 0.12;
+    pitchT = -0.06;
+    if((want === 'land' || soarT > 14) && Math.sin(ang*1.7) < 0){ startLanding(); soarT = 0; }
+  } else if(phase === 'land'){
+    ph += dt/4.4;
+    const u = smooth(clamp(ph, 0, 1));
+    bezAt(u, _a);
+    P.g.position.copy(_a);
+    bezAt(Math.min(1, u + 0.02), _b);
+    _b.sub(_a);
+    if(_b.lengthSq() > 1e-6) yaw = Math.atan2(_b.x, _b.z);
+    bankT = lerp(-0.3, 0, u);
+    if(u < 0.7){ flapT = 0.3; pitchT = -0.1; }
+    else {                                        // the FLARE
+      flapT = 1;
+      pitchT = lerp(-0.1, 0.85, smooth((u - 0.7)/0.3));
+      legT = lerp(0.9, -0.5, smooth((u - 0.7)/0.3));   // legs reach for the rock
+    }
+    if(ph >= 1){ phase = 'idle'; ph = 0; }
+  } else if(phase === 'idle'){
+    ph += dt;
+    P.g.position.copy(PERCH).add(V3(0, 0.34, 0));
+    foldT = 1; flapT = 0; pitchT = 0.6; legT = -0.35;  // upright on legs + knuckles
+    // scanning, and one long preen down the wing
+    P.head.rotation.y = Math.sin(ph*0.8)*0.7;
+    P.head.rotation.z = ph % 5 > 3.6 ? Math.sin((ph%5 - 3.6)*4.5)*0.4 : 0;
+    if(want === 'fly' && ph > 6){ phase = 'launch'; ph = 0; }
+  } else if(phase === 'launch'){
+    ph += dt/1.1;
+    const u = clamp(ph, 0, 1);
+    foldT = 1 - smooth(clamp(u*2.5, 0, 1));      // wings snap open
+    flapT = u > 0.3 ? 1 : 0;
+    // the quad leap: crouch, then up and out
+    const crouch = u < 0.28 ? Math.sin(u/0.28*Math.PI)* -0.12 : 0;
+    const rise = u < 0.28 ? 0 : smooth((u - 0.28)/0.72);
+    _a.copy(PERCH).add(V3(0, 0.34 + crouch, 0));
+    _b.set(PERCH.x + Math.sin(yaw)*2.2, PERCH.y + 2.1, PERCH.z + Math.cos(yaw)*2.2);
+    P.g.position.lerpVectors(_a, _b, rise);
+    pitchT = lerp(0.6, -0.25, rise);
+    legT = lerp(-0.35, 0.9, rise);
+    if(ph >= 1){
+      phase = 'climb'; ph = 0;
+      ang = Math.atan2(P.g.position.z - C.z, P.g.position.x - C.x);
+    }
+  } else {                                        // CLIMB back to the circle
+    ph += dt/2.6;
+    const u = smooth(clamp(ph, 0, 1));
+    ang += OMEGA*dt*u;
+    circleAt(ang, _b);
+    _a.copy(P.g.position);
+    P.g.position.lerpVectors(_a, _b, Math.min(1, dt*(1 + u*3)));
+    circleAt(ang + 0.02, _c);
+    const wantYaw = Math.atan2(_c.x - P.g.position.x, _c.z - P.g.position.z);
+    yaw += shortestArc(yaw, wantYaw) * Math.min(1, dt*3);
+    flapT = 1; pitchT = -0.18; bankT = -0.15;
+    if(ph >= 1) phase = 'soar';
+  }
+
+  // ---- shared body/wing dynamics ----
+  fold = lerp(fold, foldT, Math.min(1, dt*4));
+  flapPow = lerp(flapPow, flapT, Math.min(1, dt*3));
+  pitch = lerp(pitch, pitchT, Math.min(1, dt*4));
+  bank = lerp(bank, bankT, Math.min(1, dt*2.5));
+  P.g.rotation.set(-pitch, yaw, bank, 'YXZ');
+
+  flapPh += dt * (2.2 + flapPow*4.5);
+  const beat = Math.sin(flapPh);
+  for(const w of P.wings){
+    const s = w.s;
+    // dihedral + flap, then the fold takes over on the ground
+    const flap = 0.1 + beat*0.5*flapPow;
+    w.shoulder.rotation.z = s * lerp(-flap, 1.05, fold);
+    w.wrist.rotation.z = s * lerp(-Math.sin(flapPh - 0.6)*0.35*flapPow - 0.06, -0.5, fold);
+    w.wrist.rotation.y = s * lerp(0, 2.5, fold);  // the finger folds back along the body
+  }
+  for(const leg of P.legs)
+    leg.rotation.x = lerp(leg.rotation.x, legT, Math.min(1, dt*5));
+  if(phase !== 'idle'){
+    P.head.rotation.y = lerp(P.head.rotation.y, 0, dt*3);
+    P.head.rotation.z = lerp(P.head.rotation.z, 0, dt*3);
+    P.head.rotation.x = lerp(P.head.rotation.x, pitch*0.4, dt*4);
+  }
+
+  if(document.getElementById('follow').checked)
+    controls.target.lerp(P.g.position, Math.min(1, dt*3));
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
