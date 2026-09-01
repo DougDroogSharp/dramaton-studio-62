@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WRIGHT FLYER STUDY — twelve seconds of history, for George World.
+     Filed 2026-08-31, Doug's transport batch. The 1903 Flyer, proper:
+     two stacked muslin wings with interplane struts and cross-bracing
+     wires, the biplane CANARD elevator out front on its outriggers,
+     twin PUSHER propellers behind the wings turning opposite ways,
+     landing skids, and the pilot LYING PRONE on the lower wing with
+     the wing-warping cradle. The flight, as at Kill Devil Hills:
+     props spin up to a blur, she rushes down the LAUNCH RAIL, lifts
+     — and flies that famous WOBBLY low hop, porpoising gently, the
+     canard working the whole way — then settles onto her skids in
+     the sand. Ground crew walks her back and history repeats.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wright Flyer Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e8e4d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,26,18,0.78); color:#f2f2e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>✈️ Wright Flyer Study</b> — the twelve-second hop, v1<br>
+  <span class="hint">down the rail, the wobbly low flight, skids in the sand — then again</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1903;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4e0cc), 60, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(6, 3.5, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.53;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2ecd8), zenith = new THREE.Color(0x88b0d0),
+        below = new THREE.Color(0xdcd4bc), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xe4ecf0, 0xb8a888, 1.0));
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.2);
+sun.position.set(12, 18, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -6;
+scene.add(sun);
+{
+  // Kill Devil Hills: sand, with a low dune line behind
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xdcc9a2 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const duneM = new THREE.MeshLambertMaterial({ color:0xd4bf94, flatShading:true });
+  for(const [x, z, s] of [[-14, -14, 5], [-4, -18, 7], [8, -16, 4.5], [18, -12, 6]]){
+    const dune = new THREE.Mesh(new THREE.SphereGeometry(s, 12, 8), duneM);
+    dune.scale.y = 0.28;
+    dune.position.set(x, -s*0.06, z);
+    scene.add(dune);
+  }
+  // beach grass tufts
+  const grassM = new THREE.MeshLambertMaterial({ color:0xa8a468, flatShading:true });
+  for(let i = 0; i < 40; i++){
+    const tf = new THREE.Mesh(new THREE.ConeGeometry(rand(0.04, 0.08), rand(0.25, 0.5), 4), grassM);
+    tf.position.set(rand(-24, 24), 0.15, rand(-14, 8));
+    tf.rotation.z = rand(-0.2, 0.2);
+    scene.add(tf);
+  }
+}
+// THE LAUNCH RAIL — the sixty-foot "junction railroad"
+{
+  const railM = new THREE.MeshLambertMaterial({ color:0x6a5438, flatShading:true });
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 14), railM);
+  rail.position.set(-8, 0.1, 0);
+  rail.rotation.y = Math.PI/2;
+  rail.castShadow = true;
+  scene.add(rail);
+  for(let i = 0; i < 9; i++){
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.14), railM);
+    tie.position.set(-14 + i*1.7, 0.04, 0);
+    scene.add(tie);
+  }
+}
+
+// ==========================================================================
+//  THE FLYER
+// ==========================================================================
+const FLYER = new THREE.Group();
+scene.add(FLYER);
+const muslinM = new THREE.MeshLambertMaterial({ color:0xe8dfc8, side:THREE.DoubleSide });
+const sprucM = new THREE.MeshLambertMaterial({ color:0x9a7a4e, flatShading:true });
+let prop1, prop2, blur1, blur2, canard, pilotHips;
+{
+  const SPAN = 6.4, CHORD = 1.0, GAP = 0.62;
+  // two wings with a gentle camber (bent plane)
+  function wing(y){
+    const geo = new THREE.PlaneGeometry(SPAN, CHORD, 24, 4);
+    const pos = geo.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const v = pos.getY(i);                     // chordwise before rotation
+      pos.setZ(i, Math.sin((v/CHORD + 0.5)*Math.PI)*0.05);
+    }
+    geo.rotateX(-Math.PI/2);
+    const w = new THREE.Mesh(geo, muslinM);
+    w.position.y = y;
+    w.castShadow = true;
+    FLYER.add(w);
+    return w;
+  }
+  wing(0.55); wing(0.55 + GAP);
+  // interplane struts + bracing wires
+  const wireM = new THREE.LineBasicMaterial({ color:0x3a3226 });
+  for(let i = 0; i <= 6; i++){
+    const x = -SPAN/2 + i*(SPAN/6);
+    for(const z of [-0.32, 0.32]){
+      const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, GAP, 5), sprucM);
+      strut.position.set(x, 0.55 + GAP/2, z);
+      FLYER.add(strut);
+    }
+    if(i < 6){
+      const x2 = -SPAN/2 + (i + 1)*(SPAN/6);
+      for(const z of [-0.32, 0.32]){
+        const g1 = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, 0.55, z), new THREE.Vector3(x2, 0.55 + GAP, z)]);
+        const g2 = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, 0.55 + GAP, z), new THREE.Vector3(x2, 0.55, z)]);
+        FLYER.add(new THREE.Line(g1, wireM));
+        FLYER.add(new THREE.Line(g2, wireM));
+      }
+    }
+  }
+  // the CANARD — biplane elevator on outriggers, out front
+  canard = new THREE.Group();
+  canard.position.set(0, 0.7, 2.25);
+  FLYER.add(canard);
+  for(const y of [0, 0.3]){
+    const c = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.45), muslinM);
+    c.rotation.x = -Math.PI/2;
+    c.position.y = y;
+    c.castShadow = true;
+    canard.add(c);
+  }
+  for(const x of [-0.9, 0.9]){
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 5), sprucM);
+    st.position.set(x, 0.15, 0);
+    canard.add(st);
+  }
+  for(const [y, z] of [[0.5, 0], [0.85, 0]]){
+    for(const x of [-0.5, 0.5]){
+      const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.3, 5), sprucM);
+      boom.rotation.x = Math.PI/2 - 0.12;
+      boom.position.set(x, y, 1.15);
+      FLYER.add(boom);
+    }
+  }
+  // twin rudders aft
+  for(const x of [-0.35, 0.35]){
+    const r = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.8), muslinM);
+    r.position.set(x, 0.95, -2.3);
+    r.castShadow = true;
+    FLYER.add(r);
+    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.0, 5), sprucM);
+    boom.rotation.x = Math.PI/2 + 0.1;
+    boom.position.set(x, 0.75, -1.3);
+    FLYER.add(boom);
+  }
+  // skids
+  for(const x of [-0.5, 0.5]){
+    const skid = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 3.4), sprucM);
+    skid.position.set(x, 0.12, 0.4);
+    FLYER.add(skid);
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.5), sprucM);
+    tip.position.set(x, 0.25, 2.2);
+    tip.rotation.x = -0.5;
+    FLYER.add(tip);
+    for(const z of [-0.8, 0.6]){
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.42, 5), sprucM);
+      leg.position.set(x, 0.34, z);
+      FLYER.add(leg);
+    }
+  }
+  // the engine (offset right of center, as she was) + chain guards
+  const engine = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.24, 0.3),
+    new THREE.MeshStandardMaterial({ color:0x5a5a62, roughness:0.5, metalness:0.5 }));
+  engine.position.set(0.55, 0.68, -0.1);
+  engine.castShadow = true;
+  FLYER.add(engine);
+  // THE PILOT — prone on the lower wing, left of center
+  pilotHips = new THREE.Group();
+  pilotHips.position.set(-0.45, 0.66, 0);
+  FLYER.add(pilotHips);
+  const coat = new THREE.MeshLambertMaterial({ color:0x4a4a52 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.5, 6, 10), coat);
+  torso.rotation.x = Math.PI/2;
+  torso.castShadow = true;
+  pilotHips.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), skin);
+  head.position.set(0, 0.06, 0.42);
+  pilotHips.add(head);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.135, 8, 5, 0, Math.PI*2, 0, 1.1),
+    new THREE.MeshLambertMaterial({ color:0x2e2a24 }));
+  cap.position.set(0, 0.1, 0.42);
+  pilotHips.add(cap);
+  for(const s of [-1, 1]){
+    const legM = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.4, 4, 8), coat);
+    legM.rotation.x = Math.PI/2;
+    legM.position.set(s*0.07, 0, -0.5);
+    pilotHips.add(legM);
+  }
+  // THE PUSHER PROPS — behind the wings, turning opposite ways
+  function makeProp(x){
+    const P = new THREE.Group();
+    P.position.set(x, 0.55 + GAP/2, -1.15);
+    for(const a of [0, Math.PI]){
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.15, 0.03), sprucM);
+      blade.position.y = Math.cos(a)*0.55 * 0 ;
+      const bg = new THREE.Group();
+      bg.rotation.z = a;
+      blade.position.y = 0.55;
+      blade.rotation.y = 0.4;
+      bg.add(blade);
+      P.add(bg);
+    }
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), sprucM);
+    P.add(hub);
+    FLYER.add(P);
+    // the blur disc for speed
+    const blur = new THREE.Mesh(new THREE.CircleGeometry(1.15, 20),
+      new THREE.MeshBasicMaterial({ color:0xcabf9e, transparent:true, opacity:0, side:THREE.DoubleSide }));
+    blur.position.copy(P.position);
+    FLYER.add(blur);
+    return { P, blur };
+  }
+  ({ P: prop1, blur: blur1 } = makeProp(-1.35));
+  ({ P: prop2, blur: blur2 } = makeProp(1.35));
+}
+
+// ---------- the flight -----------------------------------------------------
+// 0–3 spin-up · 3–6 down the rail · 6–15 THE HOP (wobbly, low) ·
+// 15–17 skid landing · 17–20 rolls out, rests · 20–22 walked back (fade)
+let phT = 0;
+const RAIL_START = new THREE.Vector3(-14, 0.28, 0);
+const RAIL_END = new THREE.Vector3(-6.5, 0.28, 0);
+const TOUCH = new THREE.Vector3(12, 0.28, 0.8);
+let propSpin = 0;
+const clock = new THREE.Clock();
+function setOpacity(o){
+  FLYER.traverse(x => {
+    if(x.material && x.material.transparent !== undefined){
+      if(!x.userData.baseOpacity) x.userData.baseOpacity = x.material.opacity ?? 1;
+      x.material.transparent = true;
+      x.material.opacity = Math.min(x.userData.baseOpacity, o);
+    }
+  });
+}
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 22;
+  const f = phT;
+
+  // prop speed
+  const want = f < 3 ? smooth(f/3)*18 : f < 17 ? 26 : 0;
+  propSpin = lerp(propSpin, want, dt*2);
+  prop1.rotation.z += propSpin*dt;
+  prop2.rotation.z -= propSpin*dt;
+  const blurO = clamp((propSpin - 10)/16, 0, 0.4);
+  blur1.material.opacity = blurO;
+  blur2.material.opacity = blurO;
+  prop1.visible = prop2.visible = propSpin < 16;
+
+  if(f < 3){                                  // trembling at the rail head
+    FLYER.position.copy(RAIL_START);
+    FLYER.position.y += Math.sin(t*23)*0.004*propSpin/18;
+    FLYER.rotation.set(0, -Math.PI/2, 0);
+    setOpacity(1);
+  } else if(f < 6){                           // down the rail — accelerating
+    const p = (f - 3)/3;
+    FLYER.position.lerpVectors(RAIL_START, RAIL_END, p*p);
+    FLYER.rotation.set(0, -Math.PI/2, 0);
+  } else if(f < 15){                          // THE HOP
+    const p = (f - 6)/9;
+    FLYER.position.x = lerp(RAIL_END.x, TOUCH.x, p);
+    FLYER.position.z = lerp(RAIL_END.z, TOUCH.z, p);
+    // low, and famously porpoising: base arc + wobble
+    FLYER.position.y = 0.28 + Math.sin(p*Math.PI)*2.2
+      + Math.sin(p*Math.PI*4.5)*0.5*Math.sin(p*Math.PI);
+    FLYER.rotation.y = -Math.PI/2;
+    // pitch follows the porpoise; the canard visibly chasing it
+    const pitch = Math.cos(p*Math.PI*4.5)*0.14*Math.sin(p*Math.PI) + 0.03;
+    FLYER.rotation.z = -pitch;                 // (nose along -x when yawed -90°)
+    canard.rotation.x = -pitch*2.4;            // the elevator working
+    FLYER.rotation.x = Math.sin(t*1.3)*0.02;   // a breath of roll
+  } else if(f < 17){                          // the skid landing
+    const p = smooth((f - 15)/2);
+    FLYER.position.x = lerp(TOUCH.x, TOUCH.x + 2.2, p);
+    FLYER.position.y = lerp(FLYER.position.y, 0.28, Math.min(1, dt*6));
+    FLYER.rotation.z = lerp(FLYER.rotation.z, 0.0, dt*5);
+    canard.rotation.x = lerp(canard.rotation.x, 0, dt*5);
+    // the little skid-plow kick as she bites the sand
+    if(f < 15.5) FLYER.rotation.z = 0.05*Math.sin((f - 15)*12);
+  } else if(f < 20){                          // at rest — twelve seconds, gentlemen
+    setOpacity(1);
+  } else {                                    // the crew walks her back
+    const p = (f - 20)/2;
+    setOpacity(p < 0.5 ? 1 - p*2 : (p - 0.5)*2);
+    if(p >= 0.5) FLYER.position.copy(RAIL_START);
+  }
+
+  controls.target.lerp(new THREE.Vector3(FLYER.position.x, FLYER.position.y + 0.8, FLYER.position.z), dt*2.2);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
