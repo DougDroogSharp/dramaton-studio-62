@@ -1,23 +1,22 @@
 <!DOCTYPE html>
 <!-- ======================================================================
-     SKIN TEST STUDY — a foreign humanoid skin on the name contract.
-     Filed 2026-08-31. Standalone; vendored three (r160) + GLTFLoader.
-     The guest: Xbot.glb from the official three.js examples (r160 tag) —
-     the classic Mixamo test character, skeleton bones named mixamorig*,
-     shipped with a library of real Mixamo clips (idle, walk, run, agree,
-     headShake, sad_pose, sneak_pose...).
-     The test, BOTH directions at once: pick any clip — ours or Xbot's —
-     and it plays on OUR canonical NEW BODY and on Xbot simultaneously,
-     addressed purely by bone name. Retarget rule proven here:
-     QUATERNION tracks travel between rigs; POSITION tracks stay home
-     (each rig keeps its own hip height — different proportions, same
-     names, no sinking, no orbiting).
+     SKIN GALLERY — the skin library on one skeleton, for George World.
+     Filed 2026-08-31 (v2 — Doug: a library of skins + cascading menus).
+     ONE canonical Mixamo-named skeleton; a MENU of swappable bodies
+     bound to it (three Vita palettes + two UNSMOOTHED flat-shaded
+     aliens); and a cascading MODEL ▸ ANIMATION menu — each model's
+     clips grouped under it: the canonical rig's authored clips, and
+     Xbot's bundled real-Mixamo library (idle, walk, run, agree...).
+     Any clip you pick plays on the chosen skin AND on Xbot standing
+     beside it, bound purely by bone name. Retarget rule: quaternion
+     tracks travel between rigs; position tracks stay home.
+     Xbot.glb vendored from the official three.js r160 examples.
      ====================================================================== -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Skin Test Study</title>
+<title>Skin Gallery</title>
 <style>
   html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
   #chip { position:fixed; top:12px; left:12px; z-index:10;
@@ -26,23 +25,21 @@
     max-width:330px; }
   #chip b { font-size:14px; }
   #chip .hint { opacity:0.7; }
-  #chip button { margin:3px 3px 0 0; padding:3px 9px; border:0; border-radius:6px;
-    background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer; }
-  #chip button.on { background:#e8963c; color:#241d06; font-weight:700; }
-  #chip button.guest { background:#5c7a3f; }
-  #chip button.guest.on { background:#e8963c; }
-  #chip .lbl { opacity:0.65; font-size:11px; margin-top:7px; }
+  #chip .lbl { opacity:0.65; font-size:11px; margin-top:8px; }
+  #chip select { display:block; margin-top:3px; padding:5px 8px; border:0;
+    border-radius:7px; background:#3d6f96; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:250px; }
 </style>
 </head>
 <body>
 <div id="chip">
-  <b>👥 Skin Test</b> — one clip, two bodies, v1<br>
-  <span class="hint">every clip plays on BOTH rigs at once, bound by bone name ·
-  quaternions travel, positions stay home</span>
-  <div class="lbl">our clips (authored on the canonical rig)</div>
-  <div id="ours"></div>
-  <div class="lbl">Xbot's clips (real Mixamo library, from the .glb)</div>
-  <div id="theirs">loading Xbot.glb…</div>
+  <b>👥 Skin Gallery</b> — one skeleton, many bodies, v2<br>
+  <span class="hint">every clip plays on the chosen skin AND Xbot, bound by
+  bone name · quaternions travel, positions stay home</span>
+  <div class="lbl">SKIN (the body — same skeleton underneath)</div>
+  <select id="skinsel"></select>
+  <div class="lbl">MODEL ▸ ANIMATION (each model cascades its clips)</div>
+  <select id="animsel"></select>
 </div>
 
 <script type="importmap">
@@ -108,8 +105,7 @@ scene.add(sun);
 }
 
 // ==========================================================================
-//  OUR BODY — the canonical rig + THE NEW BODY skin (verbatim from
-//  vita_rig_study.html), standing stage left.
+//  THE CANONICAL SKELETON (verbatim from vita_rig_study.html)
 // ==========================================================================
 const B = {};
 function bone(name, parentName, x, y, z){
@@ -166,9 +162,11 @@ function partGeo(geoFn, boneName, colorHex){
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return g;
 }
-let ourMesh;
-{
-  const pal = { shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e };
+
+// ==========================================================================
+//  THE SKIN LIBRARY — every body binds to the SAME skeleton.
+// ==========================================================================
+function buildChibi(pal){
   const skinDk = new THREE.Color(pal.skin).offsetHSL(0, 0.02, -0.05).getHex();
   const shirtDk = new THREE.Color(pal.shirt).offsetHSL(0, 0, -0.07).getHex();
   const parts = [];
@@ -218,17 +216,97 @@ let ourMesh;
     parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.095, 12, 9);
       g.scale(1, 0.62, 1.05); g.translate(0, -0.035, 0.055); return g; }, `mixamorig${S}ToeBase`, 0xf2f2f0));
   }
-  const merged = mergeGeometries(parts, false);
-  ourMesh = new THREE.SkinnedMesh(merged,
+  return new THREE.SkinnedMesh(mergeGeometries(parts, false),
     new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
-  ourMesh.castShadow = true;
-  ourMesh.frustumCulled = false;
-  ourMesh.add(rootBone);
-  ourMesh.bind(skeleton);
-  ourRoot.add(ourMesh);
 }
+// the alien — deliberately UNSMOOTHED: flat-shaded, low-poly, angular
+function buildAlien(pal){
+  const BLACK = 0x14181c, CLAW = 0xd8dcc8, GLOW = pal.glow;
+  const parts = [];
+  const P = (fn, bn, col) => parts.push(partGeo(fn, bn, col));
+  P(() => { const g = new THREE.SphereGeometry(0.17, 7, 5);
+    g.scale(1.1, 0.75, 0.95); return g; }, 'mixamorigHips', pal.body);
+  P(() => { const g = new THREE.ConeGeometry(0.06, 0.24, 5);
+    g.rotateX(2.1); g.translate(0, -0.06, -0.2); return g; }, 'mixamorigHips', pal.dark);
+  P(() => { const g = new THREE.ConeGeometry(0.04, 0.18, 5);
+    g.rotateX(2.5); g.translate(0, -0.14, -0.33); return g; }, 'mixamorigHips', pal.dark);
+  P(() => { const g = new THREE.CylinderGeometry(0.115, 0.14, 0.16, 7);
+    g.translate(0, 0.02, 0); return g; }, 'mixamorigSpine', pal.body);
+  P(() => { const g = new THREE.IcosahedronGeometry(0.21, 1);
+    g.scale(1.15, 1.0, 0.85); g.translate(0, 0.04, 0); return g; }, 'mixamorigSpine1', pal.body);
+  P(() => { const g = new THREE.CylinderGeometry(0.07, 0.08, 0.36, 6);
+    g.rotateZ(Math.PI/2); g.translate(0, 0.05, 0); return g; }, 'mixamorigSpine2', pal.body);
+  P(() => { const g = new THREE.CylinderGeometry(0.055, 0.075, 0.18, 6);
+    g.translate(0, 0.05, 0); return g; }, 'mixamorigNeck', pal.body);
+  P(() => { const g = new THREE.IcosahedronGeometry(0.34, 1);
+    g.scale(0.95, 1.4, 1.05); g.translate(0, 0.3, 0.02); return g; }, 'mixamorigHead', pal.body);
+  P(() => { const g = new THREE.SphereGeometry(0.2, 7, 5);
+    g.scale(0.62, 0.5, 0.72); g.translate(0, 0.03, 0.09); return g; }, 'mixamorigHead', pal.body);
+  for(const s of [-1, 1]){
+    P(() => { const g = new THREE.SphereGeometry(0.115, 8, 6);
+      g.scale(1.25, 0.7, 0.5); g.rotateZ(s*0.45); g.rotateY(s*0.5);
+      g.translate(s*0.17, 0.3, 0.26); return g; }, 'mixamorigHead', BLACK);
+    P(() => { const g = new THREE.CylinderGeometry(0.012, 0.02, 0.3, 4);
+      g.rotateZ(-s*0.45); g.translate(s*0.14, 0.68, 0); return g; }, 'mixamorigHead', pal.dark);
+    P(() => { const g = new THREE.SphereGeometry(0.035, 6, 4);
+      g.translate(s*0.205, 0.81, 0); return g; }, 'mixamorigHead', GLOW);
+  }
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    P(() => { const g = new THREE.CapsuleGeometry(0.045, 0.16, 3, 5);
+      g.rotateZ(s*0.2); g.translate(s*0.04, -0.09, 0); return g; }, `mixamorig${S}Arm`, pal.body);
+    P(() => { const g = new THREE.CapsuleGeometry(0.04, 0.2, 3, 5);
+      g.translate(s*0.02, -0.12, 0); return g; }, `mixamorig${S}ForeArm`, pal.body);
+    P(() => { const g = new THREE.SphereGeometry(0.055, 6, 5);
+      g.scale(1, 1.1, 0.8); g.translate(0, -0.04, 0); return g; }, `mixamorig${S}Hand`, pal.body);
+    for(const [dz, rx] of [[-0.035, -0.22], [0, 0], [0.035, 0.22]]){
+      P(() => { const g = new THREE.CapsuleGeometry(0.016, 0.1, 3, 4);
+        g.rotateX(rx); g.translate(0, -0.14, dz); return g; }, `mixamorig${S}Hand`, pal.dark);
+    }
+    P(() => { const g = new THREE.CapsuleGeometry(0.016, 0.06, 3, 4);
+      g.rotateZ(-s*0.9); g.translate(-s*0.055, -0.04, 0.02); return g; }, `mixamorig${S}Hand`, pal.dark);
+    P(() => { const g = new THREE.CapsuleGeometry(0.075, 0.16, 4, 6);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}UpLeg`, pal.body);
+    P(() => { const g = new THREE.CapsuleGeometry(0.055, 0.16, 4, 6);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}Leg`, pal.body);
+    P(() => { const g = new THREE.SphereGeometry(0.08, 6, 5);
+      g.scale(0.9, 0.6, 1.5); g.translate(0, -0.04, 0.04); return g; }, `mixamorig${S}Foot`, pal.body);
+    for(const dx of [-0.032, 0.032]){
+      P(() => { const g = new THREE.ConeGeometry(0.028, 0.1, 4);
+        g.rotateX(1.45); g.translate(dx, -0.045, 0.09); return g; }, `mixamorig${S}ToeBase`, CLAW);
+    }
+  }
+  return new THREE.SkinnedMesh(mergeGeometries(parts, false),
+    new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.85, flatShading:true }));
+}
+const SKINLIB = [
+  { name:'Vita — blue',  build: () => buildChibi({ shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e }) },
+  { name:'Vita — red',   build: () => buildChibi({ shirt:0xc0392b, pants:0x4c5666, skin:0xeab98f, hair:0x2e2620 }) },
+  { name:'Vita — royal', build: () => buildChibi({ shirt:0x7d3fa8, pants:0x3c3050, skin:0xf2c299, hair:0x8a5a28 }) },
+  { name:'Alien — green (unsmoothed)', build: () => buildAlien({ body:0x9cb87c, dark:0x7a9660, glow:0xd8e848 }) },
+  { name:'Alien — gray (unsmoothed)',  build: () => buildAlien({ body:0xb2bab4, dark:0x8a948c, glow:0x6ce4e8 }) },
+];
+// build them all, bind them all to the ONE skeleton, show one at a time
+const meshes = SKINLIB.map((def, i) => {
+  const m = def.build();
+  m.castShadow = true;
+  m.frustumCulled = false;
+  if(i === 0) m.add(rootBone);            // the bones live under the first body
+  m.bind(skeleton);
+  m.visible = i === 0;
+  ourRoot.add(m);
+  return m;
+});
+const skinSel = document.getElementById('skinsel');
+SKINLIB.forEach((def, i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = def.name;
+  skinSel.appendChild(o);
+});
+skinSel.addEventListener('change', () => {
+  meshes.forEach((m, i) => m.visible = i === +skinSel.value);
+});
 
-// ---------- our test clips (from the rig study) ----------------------------
+// ---------- our test clips (authored on the canonical rig) -----------------
 function quatTrack(boneName, times, eulers){
   const vals = [];
   for(const e of eulers){
@@ -285,21 +363,17 @@ const OURS = [];
 }
 
 // ==========================================================================
-//  THE GUEST — Xbot.glb (three.js examples, r160). Mixamo skeleton,
-//  Mixamo clip library, standing stage right.
+//  THE GUEST — Xbot.glb, and the cascading MODEL ▸ ANIMATION menu.
 // ==========================================================================
-const ourMixer = new THREE.AnimationMixer(ourMesh);
+const ourMixer = new THREE.AnimationMixer(meshes[0]);
 let guestMixer = null, guestClips = [];
 let ourAction = null, guestAction = null;
-const oursEl = document.getElementById('ours');
-const theirsEl = document.getElementById('theirs');
+const animSel = document.getElementById('animsel');
 
-// THE RETARGET RULE: quaternion tracks travel between rigs;
-// position tracks stay on the rig the clip was authored for.
+// THE RETARGET RULE: quaternion tracks travel; position tracks stay home.
 function quatsOnly(clip){
-  const c = new THREE.AnimationClip(clip.name, clip.duration,
+  return new THREE.AnimationClip(clip.name, clip.duration,
     clip.tracks.filter(tr => !tr.name.endsWith('.position') && !tr.name.endsWith('.scale')));
-  return c;
 }
 function normNames(clip){
   for(const tr of clip.tracks) tr.name = tr.name.replace('mixamorig:', 'mixamorig');
@@ -309,25 +383,28 @@ function playBoth(clip, fromGuest){
   if(ourAction) ourAction.stop();
   if(guestAction) guestAction.stop();
   const forUs = fromGuest ? quatsOnly(clip) : clip;
-  ourAction = ourMixer.clipAction(forUs, ourMesh);
+  ourAction = ourMixer.clipAction(forUs, meshes[0]);
   ourAction.reset().play();
   if(guestMixer){
     const forGuest = fromGuest ? clip : quatsOnly(clip);
     guestAction = guestMixer.clipAction(forGuest);
     guestAction.reset().play();
   }
-  [...oursEl.children, ...theirsEl.children].forEach(b =>
-    b.classList.toggle('on', b.dataset.clip === clip.name));
 }
-function button(clip, fromGuest, host){
-  const b = document.createElement('button');
-  b.textContent = clip.name;
-  b.dataset.clip = clip.name;
-  if(fromGuest) b.classList.add('guest');
-  b.addEventListener('click', () => playBoth(clip, fromGuest));
-  host.appendChild(b);
-}
-for(const c of OURS) button(c, false, oursEl);
+// the cascade: one <select>, an <optgroup> per MODEL, its clips inside
+const ogOurs = document.createElement('optgroup');
+ogOurs.label = '★ Canonical Vita rig — authored clips';
+OURS.forEach((c, i) => {
+  const o = document.createElement('option');
+  o.value = 'ours:' + i; o.textContent = c.name;
+  ogOurs.appendChild(o);
+});
+animSel.appendChild(ogOurs);
+animSel.addEventListener('change', () => {
+  const [src, i] = animSel.value.split(':');
+  if(src === 'ours') playBoth(OURS[+i], false);
+  else playBoth(guestClips[+i], true);
+});
 
 new GLTFLoader().load('./vendor/models/Xbot.glb', gltf => {
   const guest = gltf.scene;
@@ -336,10 +413,21 @@ new GLTFLoader().load('./vendor/models/Xbot.glb', gltf => {
   scene.add(guest);
   guestMixer = new THREE.AnimationMixer(guest);
   guestClips = (gltf.animations || []).map(c => normNames(c));
-  theirsEl.textContent = '';
-  for(const c of guestClips) button(c, true, theirsEl);
-  playBoth(OURS[0], false);                 // open on our walk, both bodies
-}, undefined, err => { theirsEl.textContent = 'Xbot failed to load: ' + err; });
+  const og = document.createElement('optgroup');
+  og.label = 'Xbot — real Mixamo library (from the .glb)';
+  guestClips.forEach((c, i) => {
+    const o = document.createElement('option');
+    o.value = 'xbot:' + i; o.textContent = c.name;
+    og.appendChild(o);
+  });
+  animSel.appendChild(og);
+  playBoth(OURS[0], false);               // open on our walk, both bodies
+}, undefined, err => {
+  const o = document.createElement('option');
+  o.textContent = 'Xbot failed to load';
+  animSel.appendChild(o);
+  playBoth(OURS[0], false);
+});
 
 const clock = new THREE.Clock();
 function animate(){
