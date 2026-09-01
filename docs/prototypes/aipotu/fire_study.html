@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FIRE STUDY — the campfire and the king's hearth, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+
+     Doug's brief: a REALISTIC CAMPFIRE with great variety — crackling,
+     little BLUE highlights low in the flame, tongues LICKING upward —
+     that answers the WIND, and when the wind is high it BLOWS SMOKE.
+     Then a ROARING FIRE in a REGAL FIREPLACE fit to install in the
+     castle. Two scenes; the campfire carries calm / breeze / high-wind.
+
+     The flame system: a pool of licking TONGUES (stretched cones, each
+     living a short life — born fat and yellow at the coals, rising,
+     thinning, reddening, dying), BLUE FLICKERS hugging the log line
+     (combustion's blue base, brief and low), EMBER SPARKS that crack
+     upward off the coals on an audible-feeling random schedule, coal-
+     bed glow breathing underneath, SMOKE puffs that only really come
+     when the wind bends the fire — then the whole flame body LEANS
+     and the smoke streams downwind.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#1c1a20; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(30,22,14,0.8); color:#f4ece0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#a8622a; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#c2763a; }
+  #chip button.on { background:#ffb340; color:#241206; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🔥 Fire Study</b> — campfire · the king's hearth, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · watch the blue at the log line</span><br>
+  <button data-m="camp0">Campfire · calm</button><button data-m="camp1">· breeze</button><button
+    data-m="camp2">· high wind</button><button data-m="hearth">The hearth</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 451451;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene ---------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x201d24), 30, 120);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 500);
+camera.position.set(3.4, 2.4, 5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.5;
+controls.maxDistance = 26;
+controls.maxPolarAngle = 1.53;
+
+// ---------- the dusk world -------------------------------------------------
+scene.add(new THREE.HemisphereLight(0x3a4460, 0x2a241c, 0.55));
+const moon = new THREE.DirectionalLight(0x9db4d8, 0.35);
+moon.position.set(-20, 30, -10);
+scene.add(moon);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 40),
+    new THREE.MeshLambertMaterial({ color:0x4a4438 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  SHARED FLAME RIG — builds a fire at a mount point, scaled; returns an
+//  update(dt, t, wind) that runs tongues, blue base, sparks, smoke, glow.
+// ==========================================================================
+function makeFire(mount, scale, big){
+  const F = { mount, scale };
+  // the COAL BED: glowing lumps that breathe
+  F.coals = [];
+  const coalMat0 = new THREE.MeshStandardMaterial({ color:0x4a2410, emissive:0xff5a1e, emissiveIntensity:0.7, roughness:0.9 });
+  for(let i = 0; i < 8; i++){
+    const c = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.08, 0.15)*scale, 0), coalMat0.clone());
+    const a = rand(0, Math.PI*2), r = rand(0, 0.28)*scale;
+    c.position.set(Math.cos(a)*r, 0.05*scale, Math.sin(a)*r);
+    mount.add(c);
+    F.coals.push({ m: c, ph: rand(0, 9) });
+  }
+  // TONGUES: the licking flames
+  F.tongues = [];
+  for(let i = 0; i < (big ? 26 : 18); i++){
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.16*scale, 0.7*scale, 6),
+      new THREE.MeshBasicMaterial({ color:0xffa626, transparent:true, opacity:0.9 }));
+    m.visible = false;
+    mount.add(m);
+    F.tongues.push({ m, t: 9, life: 1, x0:0, z0:0, wob: rand(0, 9) });
+  }
+  // BLUE FLICKERS: brief, low, hugging the log line
+  F.blues = [];
+  for(let i = 0; i < 7; i++){
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.07*scale, 0.22*scale, 5),
+      new THREE.MeshBasicMaterial({ color:0x5a8aff, transparent:true, opacity:0 }));
+    m.visible = false;
+    mount.add(m);
+    F.blues.push({ m, t: 9 });
+  }
+  // EMBER SPARKS: the crackle
+  F.sparks = [];
+  for(let i = 0; i < 16; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.018*scale, 4, 3),
+      new THREE.MeshBasicMaterial({ color:0xffc36b }));
+    m.visible = false;
+    mount.add(m);
+    F.sparks.push({ m, t: 9, vx:0, vy:0, vz:0 });
+  }
+  // SMOKE
+  F.smoke = [];
+  for(let i = 0; i < 20; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.16*scale, 7, 6),
+      new THREE.MeshLambertMaterial({ color:0x55504a, transparent:true, opacity:0 }));
+    m.visible = false;
+    mount.add(m);
+    F.smoke.push({ m, t: 9 });
+  }
+  // the LIGHT
+  F.light = new THREE.PointLight(0xff9c3c, 0, 10*scale);
+  F.light.position.y = 0.5*scale;
+  mount.add(F.light);
+
+  F.update = function(dt, t, wind){
+    const lean = wind * 0.55;
+    // coals breathe
+    for(const c of F.coals)
+      c.m.material.emissiveIntensity = 0.5 + 0.35*Math.sin(t*3.1 + c.ph) + 0.15*Math.sin(t*8.7 + c.ph*2);
+    // tongues: born at the coals, rise, thin, redden, die
+    if(Math.random() < dt * (big ? 34 : 22)){
+      const tg = F.tongues.find(x => x.t > x.life);
+      if(tg){
+        tg.t = 0;
+        tg.life = rand(0.45, 0.85);
+        const a = rand(0, Math.PI*2), r = rand(0, 0.24)*scale;
+        tg.x0 = Math.cos(a)*r; tg.z0 = Math.sin(a)*r;
+        tg.m.visible = true;
+      }
+    }
+    for(const tg of F.tongues){
+      if(tg.t > tg.life){ tg.m.visible = false; continue; }
+      tg.t += dt;
+      const f = tg.t / tg.life;
+      const rise = f * (big ? 1.15 : 0.85) * scale;
+      tg.m.position.set(
+        tg.x0 + lean*rise + Math.sin(t*11 + tg.wob)*0.05*scale*f,
+        0.2*scale + rise,
+        tg.z0 + Math.sin(t*9 + tg.wob*2)*0.04*scale*f);
+      tg.m.rotation.z = -lean*0.8 + Math.sin(t*13 + tg.wob)*0.1;
+      const sc = (1 - f*0.75) * (0.8 + 0.4*Math.sin(t*17 + tg.wob));
+      tg.m.scale.set(sc, 1 + f*0.9, sc);   // thinning as it licks up
+      // yellow → orange → deep red through the life
+      tg.m.material.color.setHSL(0.09 - f*0.075, 1, 0.62 - f*0.28);
+      tg.m.material.opacity = 0.92 * (1 - f*f);
+    }
+    // blue flickers at the log line
+    if(Math.random() < dt * 6){
+      const b = F.blues.find(x => x.t > 0.35);
+      if(b){
+        b.t = 0;
+        b.m.visible = true;
+        const a = rand(0, Math.PI*2), r = rand(0.1, 0.3)*scale;
+        b.m.position.set(Math.cos(a)*r, 0.12*scale, Math.sin(a)*r);
+        b.m.rotation.z = rand(-0.4, 0.4);
+      }
+    }
+    for(const b of F.blues){
+      if(b.t > 0.35){ b.m.visible = false; continue; }
+      b.t += dt;
+      b.m.material.opacity = 0.75 * Math.sin(clamp(b.t/0.35, 0, 1) * Math.PI);
+    }
+    // sparks CRACK upward
+    if(Math.random() < dt * (big ? 6 : 4)){
+      const s = F.sparks.find(x => x.t > 1.3);
+      if(s){
+        s.t = 0;
+        s.m.visible = true;
+        s.m.position.set(rand(-0.15, 0.15)*scale, 0.25*scale, rand(-0.15, 0.15)*scale);
+        s.vx = rand(-0.4, 0.4)*scale + wind*1.4*scale;
+        s.vy = rand(1.6, 3.2)*scale;
+        s.vz = rand(-0.4, 0.4)*scale;
+      }
+    }
+    for(const s of F.sparks){
+      if(s.t > 1.3){ s.m.visible = false; continue; }
+      s.t += dt;
+      s.vy -= 2.2*scale*dt;
+      s.m.position.x += s.vx*dt; s.m.position.y += s.vy*dt; s.m.position.z += s.vz*dt;
+      s.m.material.color.setHSL(0.08, 1, clamp(0.7 - s.t*0.4, 0.2, 0.7));
+    }
+    // smoke: mostly when the wind bends the fire — streaming downwind
+    const smokeRate = 1.5 + wind*14;
+    if(Math.random() < dt * smokeRate){
+      const p = F.smoke.find(x => x.t > 3.2);
+      if(p){
+        p.t = 0;
+        p.m.visible = true;
+        p.m.position.set(rand(-0.1, 0.1)*scale, (big ? 1.2 : 0.9)*scale, rand(-0.1, 0.1)*scale);
+        p.m.scale.setScalar(rand(0.6, 1));
+      }
+    }
+    for(const p of F.smoke){
+      if(p.t > 3.2){ p.m.visible = false; continue; }
+      p.t += dt;
+      p.m.position.y += (0.55 - wind*0.25)*scale*dt;
+      p.m.position.x += wind*2.4*scale*dt;
+      p.m.scale.multiplyScalar(1 + dt*0.4);
+      p.m.material.opacity = clamp((p.t < 0.5 ? p.t*0.7 : 0.35 - (p.t - 0.5)*0.13), 0, 1) * (0.35 + wind*0.5);
+    }
+    // the flickering light
+    F.light.intensity = (big ? 9 : 5.5) * (1 + 0.22*Math.sin(t*11) + 0.12*Math.sin(t*23) + 0.08*Math.sin(t*41));
+    F.light.position.x = lean*0.6*scale;
+  };
+  return F;
+}
+
+// ==========================================================================
+//  SCENE 1 — THE CAMPFIRE: stone ring, teepee logs, dark beach night
+// ==========================================================================
+const campG = new THREE.Group();
+scene.add(campG);
+{
+  const matStone = new THREE.MeshLambertMaterial({ color:0x6b655c, flatShading:true });
+  for(let i = 0; i < 9; i++){
+    const a = (i/9)*Math.PI*2;
+    const st = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.12, 0.18), 0), matStone);
+    st.position.set(Math.cos(a)*0.62, 0.08, Math.sin(a)*0.62);
+    st.castShadow = true;
+    campG.add(st);
+  }
+  const matLog = new THREE.MeshLambertMaterial({ color:0x4a3520, flatShading:true });
+  for(let i = 0; i < 5; i++){
+    const a = (i/5)*Math.PI*2 + 0.3;
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.85, 6), matLog);
+    log.position.set(Math.cos(a)*0.2, 0.32, Math.sin(a)*0.2);
+    log.rotation.z = Math.cos(a)*1.05;
+    log.rotation.x = -Math.sin(a)*1.05;
+    log.castShadow = true;
+    campG.add(log);
+  }
+}
+const campFire = makeFire(campG, 1, false);
+
+// ==========================================================================
+//  SCENE 2 — THE KING'S HEARTH: a regal stone fireplace, carved mantel,
+//  gold trim, heraldic shield, andirons, a ROARING fire
+// ==========================================================================
+const hearthG = new THREE.Group();
+hearthG.position.set(0, 0, -30);   // parked away; swapped in by mode
+scene.add(hearthG);
+{
+  const matStone = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+  const matStoneDk = new THREE.MeshLambertMaterial({ color:0x5c574e, flatShading:true });
+  const matGold = new THREE.MeshStandardMaterial({ color:0xd9a929, metalness:0.75, roughness:0.35 });
+  const matIron = new THREE.MeshLambertMaterial({ color:0x2c2926 });
+  // back wall + firebox
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(7, 5.2, 0.4), matStone);
+  wall.position.set(0, 2.6, -1.2);
+  hearthG.add(wall);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 1.2), matStoneDk);
+  box.position.set(0, 1.2, -0.55);
+  hearthG.add(box);
+  const cavity = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.9, 1.1),
+    new THREE.MeshBasicMaterial({ color:0x0c0806 }));
+  cavity.position.set(0, 0.95, -0.45);
+  hearthG.add(cavity);
+  // jambs + the carved MANTEL with gold trim
+  for(const s of [-1, 1]){
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.55, 2.6, 0.7), matStone);
+    jamb.position.set(s*1.7, 1.3, -0.35);
+    hearthG.add(jamb);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.85), matGold);
+    cap.position.set(s*1.7, 2.72, -0.3);
+    hearthG.add(cap);
+  }
+  const mantel = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.35, 1.0), matStone);
+  mantel.position.set(0, 3.0, -0.3);
+  hearthG.add(mantel);
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.08, 1.05), matGold);
+  trim.position.set(0, 3.2, -0.3);
+  hearthG.add(trim);
+  // the heraldic SHIELD over the mantel (royal purple + gold chevron)
+  const shield = new THREE.Group();
+  shield.position.set(0, 4.1, -0.9);
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.1, 1.15, 3),
+    new THREE.MeshLambertMaterial({ color:0x9a3fd8, flatShading:true }));
+  sh.rotation.z = Math.PI;
+  sh.scale.z = 0.25;
+  shield.add(sh);
+  const chev = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.1), matGold);
+  chev.position.y = 0.1;
+  shield.add(chev);
+  hearthG.add(shield);
+  // hearthstone + ANDIRONS + the log stack
+  const hs = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.16, 2), matStoneDk);
+  hs.position.set(0, 0.08, 0.3);
+  hearthG.add(hs);
+  for(const s of [-1, 1]){
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), matIron);
+    post.position.set(s*0.85, 0.4, 0.35);
+    hearthG.add(post);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), matGold);
+    ball.position.set(s*0.85, 0.8, 0.35);
+    hearthG.add(ball);
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 6), matIron);
+    rail.rotation.x = Math.PI/2;
+    rail.position.set(s*0.85, 0.25, -0.15);
+    hearthG.add(rail);
+  }
+  const matLog = new THREE.MeshLambertMaterial({ color:0x4a3520, flatShading:true });
+  for(let i = 0; i < 3; i++){
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.5, 7), matLog);
+    log.rotation.z = Math.PI/2;
+    log.position.set(0, 0.28 + i*0.2, -0.2 - i*0.08);
+    hearthG.add(log);
+  }
+}
+const hearthMount = new THREE.Group();
+hearthMount.position.set(0, 0.3, -0.35);
+hearthG.add(hearthMount);
+const hearthFire = makeFire(hearthMount, 1.35, true);
+
+// ---------- modes -----------------------------------------------------------
+let mode = 'camp0';
+const WINDS = { camp0: 0, camp1: 0.25, camp2: 0.8 };
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  mode = m;
+  const hearth = m === 'hearth';
+  campG.position.z = hearth ? -60 : 0;
+  hearthG.position.z = hearth ? 0 : -60;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('camp0');
+
+let wind = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  const targW = mode === 'hearth' ? 0.04 : WINDS[mode];
+  // the wind itself gusts
+  wind = lerp(wind, targW * (1 + 0.35*Math.sin(t*0.8) + 0.2*Math.sin(t*2.1)), Math.min(1, dt*2));
+  if(mode === 'hearth') hearthFire.update(dt, t, wind);
+  else campFire.update(dt, t, wind);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
