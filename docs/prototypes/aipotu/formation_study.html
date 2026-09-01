@@ -247,15 +247,24 @@ function makeSoldier(pal){
   const root = new THREE.Group();
   root.add(mesh);
   scene.add(root);
-  // the spear on the right hand
-  const spear = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.9, 6), woodM);
-  spear.add(shaft);
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), steelM);
-  head.position.y = 1.0;
-  spear.add(head);
-  spear.position.set(0, -0.05, 0.05);
-  B.mixamorigRightHand.add(spear);
+  // the simplified GARAND, shouldered on the right (Doug: rifles, not spears)
+  const rifle = new THREE.Group();
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.09), woodM);
+  stock.position.y = 0.1;
+  rifle.add(stock);
+  const butt = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.16, 0.12), woodM);
+  butt.position.y = -0.16;
+  butt.rotation.x = 0.2;
+  rifle.add(butt);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.5, 6), steelM);
+  barrel.position.y = 0.55;
+  rifle.add(barrel);
+  const sight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.02), steelM);
+  sight.position.set(0, 0.78, 0.02);
+  rifle.add(sight);
+  rifle.position.set(0, -0.02, 0.04);
+  rifle.rotation.x = -0.12;                    // riding nearly vertical at the shoulder
+  B.mixamorigRightHand.add(rifle);
   // metrics for the IK
   root.updateMatrixWorld(true);
   const p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), p3 = new THREE.Vector3();
