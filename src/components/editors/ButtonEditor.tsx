@@ -249,7 +249,59 @@ export const ButtonEditor: React.FC<ButtonEditorProps> = ({ game, selection, onC
         <h3 className="text-sm font-bold text-diesel-paper uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
           On Click Actions
         </h3>
-        
+
+        {/* World state effects */}
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-diesel-gold uppercase">
+              Set Variables <span className="text-diesel-steel normal-case">(value: literal or expression — "1 - singleTax" toggles)</span>
+            </label>
+            <button
+              onClick={() => updateButton(selectedButton.id, {
+                effects: [...(selectedButton.effects || []), { variable: '', value: '1' }],
+              })}
+              className="px-2 py-0.5 text-diesel-gold hover:text-diesel-paper text-xs border border-diesel-border"
+            >
+              + add
+            </button>
+          </div>
+          {(selectedButton.effects || []).map((effect, i) => (
+            <div key={i} className="flex gap-1 items-center">
+              <input
+                type="text"
+                value={effect.variable}
+                placeholder="variable"
+                onChange={(e) => {
+                  const effects = [...(selectedButton.effects || [])];
+                  effects[i] = { ...effects[i], variable: e.target.value };
+                  updateButton(selectedButton.id, { effects });
+                }}
+                className="flex-1 min-w-0 bg-diesel-black border border-diesel-border text-diesel-paper p-1.5 text-xs focus:outline-none focus:border-diesel-gold"
+              />
+              <span className="text-diesel-steel text-xs">=</span>
+              <input
+                type="text"
+                value={effect.value}
+                placeholder="value or expression"
+                onChange={(e) => {
+                  const effects = [...(selectedButton.effects || [])];
+                  effects[i] = { ...effects[i], value: e.target.value };
+                  updateButton(selectedButton.id, { effects });
+                }}
+                className="flex-1 min-w-0 bg-diesel-black border border-diesel-border text-diesel-paper p-1.5 text-xs focus:outline-none focus:border-diesel-gold"
+              />
+              <button
+                onClick={() => updateButton(selectedButton.id, {
+                  effects: (selectedButton.effects || []).filter((_, j) => j !== i),
+                })}
+                className="px-1.5 text-diesel-rust hover:text-diesel-paper text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
         {/* Link to Scene */}
         <div className="space-y-2 mb-4">
           <label className="text-xs text-diesel-gold uppercase flex items-center gap-1">

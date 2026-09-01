@@ -1,11 +1,18 @@
 import React, { useRef, useCallback } from 'react';
-import { GameData, Scene, StageElement, Actor, Drop, Sfx, Button } from '@/types';
+import { GameData, Scene, StageElement, StageElementOverride, Actor, Drop, Sfx, Button } from '@/types';
+import { SliderCommand, GaugeCommand } from '@/utils/scriptParser';
+import { DieselSlider, DieselGauge } from '@/components/theater/Instruments';
 import { User, Package, MessageSquare } from 'lucide-react';
 
 interface StageProps {
   scene: Scene;
   game: GameData;
   background?: Drop;
+  // [BACKDROP]: mid-scene drop swap, crossfaded over `background`
+  scriptBackdrop?: Drop;
+  backdropDuration?: number;
+  // [CAMERA]: zoom/pan applied to the whole stage
+  camera?: { zoom: number; x: number; y: number; duration: number } | null;
   // Editor mode props
   editable?: boolean;
   selectedElementId?: string | null;
@@ -24,17 +31,25 @@ interface StageProps {
   onButtonMouseDown?: (e: React.MouseEvent, buttonId: string) => void;
   onButtonUpdate?: (buttonId: string, updates: Partial<Button>) => void;
   // Theater mode props
-  animatingElements?: Map<string, { x: number; y: number }>;
+  elementOverrides?: Map<string, StageElementOverride>; // script-driven element state (ENTER/MOVE/POSE/BIND)
   activeEffects?: Map<string, string[]>; // element id -> active sfx ids
   hideElement?: Set<string>; // elements to hide (for EXIT command)
   activeButtons?: string[]; // button ids that are currently active/visible
   onButtonClick?: (button: Button) => void; // callback when button is clicked
+  // Instrument panel (script-declared SLIDERs/GAUGEs)
+  sliders?: SliderCommand[];
+  gauges?: GaugeCommand[];
+  worldState?: Record<string, string | number | boolean>;
+  onSliderChange?: (variable: string, value: number) => void;
 }
 
 export const Stage: React.FC<StageProps> = ({
   scene,
   game,
   background,
+  scriptBackdrop,
+  backdropDuration,
+  camera,
   editable = false,
   selectedElementId,
   draggingId,
@@ -52,11 +67,15 @@ export const Stage: React.FC<StageProps> = ({
   onButtonMouseDown,
   onButtonUpdate,
   // Theater mode props
-  animatingElements,
+  elementOverrides,
   activeEffects,
   hideElement,
   activeButtons,
   onButtonClick,
+  sliders,
+  gauges,
+  worldState,
+  onSliderChange,
 }) => {
   const internalCanvasRef = useRef<HTMLDivElement>(null);
   const canvasRef = externalCanvasRef || internalCanvasRef;
@@ -83,8 +102,11 @@ export const Stage: React.FC<StageProps> = ({
         case 'electric':
           classes.push('animate-[sfx-electric_0.3s_ease-in-out_infinite]');
           break;
+        case 'flame':
+          classes.push('animate-[sfx-flame_0.4s_ease-in-out_infinite]');
+          break;
         case 'glow':
-          classes.push('shadow-[0_0_20px_hsl(var(--diesel-gold))]');
+          classes.push('animate-[sfx-glow_1.2s_ease-in-out_infinite]');
           break;
         case 'fade':
           classes.push('opacity-50');
@@ -98,22 +120,37 @@ export const Stage: React.FC<StageProps> = ({
   const renderElement = (element: StageElement) => {
     // Check if element should be hidden
     if (hideElement?.has(element.id)) return null;
-    
-    const actor = element.type === 'ACTOR' ? game.actors.find(a => a.id === element.assetId) : null;
-    const item = element.type === 'ITEM' ? game.items.find(i => i.id === element.assetId) : null;
-    
-    // Find the matching graphic based on pose/expression/angle stored on the element
-    const actorGraphic = actor?.graphics.find(g => 
-      g.pose === element.pose && 
-      g.expression === element.expression && 
-      g.angle === element.spriteAngle
+
+    // Merge script-driven overrides (ENTER/MOVE/POSE/BIND) over the
+    // editor-authored element
+    // CAPTIONS DO NOT GO ON THE PICTURE.
+    //
+    // A `*_sign` balloon is a dateline — "NORMANDY, EARLY 1066" — and
+    // laying it over the art looked wrong on every device. It belongs
+    // with the other words, on the plate, and Theater renders it there.
+    //
+    // Only captions. Every other balloon is a label on something IN the
+    // scene — THE GRANARY, the newspaper tickers, the machine part
+    // names, the place markers on the map — and those are part of the
+    // picture, so they stay.
+    //
+    // The editor still draws them, because you cannot position a thing
+    // you cannot see.
+    if (!editable && element.type === 'BALLOON' && /_sign$/i.test(element.id)) return null;
+
+    const override = elementOverrides?.get(element.id);
+    const el: StageElement = override ? { ...element, ...override } : element;
+
+    const actor = el.type === 'ACTOR' ? game.actors.find(a => a.id === el.assetId) : null;
+    const item = el.type === 'ITEM' ? game.items.find(i => i.id === el.assetId) : null;
+
+    // Find the matching graphic based on pose/expression/angle
+    const actorGraphic = actor?.graphics.find(g =>
+      g.pose === el.pose &&
+      g.expression === el.expression &&
+      g.angle === el.spriteAngle
     ) || actor?.graphics[0];
 
-    // Get position (use animation override if present)
-    const animPos = animatingElements?.get(element.id);
-    const x = animPos?.x ?? element.x;
-    const y = animPos?.y ?? element.y;
-    
     const sfxClasses = getSfxClasses(element.id);
 
     return (
@@ -122,22 +159,27 @@ export const Stage: React.FC<StageProps> = ({
         className={`absolute select-none transition-all duration-200 ${
           editable ? 'cursor-move' : ''
         } ${
-          editable && selectedElementId === element.id 
-            ? 'ring-2 ring-diesel-gold ring-offset-2 ring-offset-transparent' 
+          editable && selectedElementId === element.id
+            ? 'ring-2 ring-diesel-gold ring-offset-2 ring-offset-transparent'
             : ''
         } ${
           editable && draggingId === element.id ? 'z-50' : ''
         } ${sfxClasses}`}
         style={{
-          left: `${x}%`,
-          top: `${y}%`,
-          transform: `translate(-50%, -50%) scale(${element.scale}) rotate(${element.rotation}deg)`,
-          zIndex: draggingId === element.id ? 1000 : element.zIndex,
+          left: `${el.x}%`,
+          top: `${el.y}%`,
+          transform: `translate(-50%, -50%) scale(${el.scale}) rotate(${el.rotation}deg)`,
+          zIndex: draggingId === element.id ? 1000 : el.zIndex,
+          ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
+          // MOVE animates at its scripted duration; ENTER snaps (0)
+          ...(override?.transitionDuration !== undefined
+            ? { transitionDuration: `${override.transitionDuration}s` }
+            : {}),
         }}
         onMouseDown={editable ? (e) => onElementMouseDown?.(e, element.id) : undefined}
         onDoubleClick={editable ? () => onElementDoubleClick?.(element, actor || undefined) : undefined}
       >
-        {element.type === 'ACTOR' && (
+        {el.type === 'ACTOR' && (
           actorGraphic?.image ? (
             <img
               src={actorGraphic.image}
@@ -152,7 +194,7 @@ export const Stage: React.FC<StageProps> = ({
           )
         )}
 
-        {element.type === 'ITEM' && (
+        {el.type === 'ITEM' && (
           item?.visualAsset ? (
             <img
               src={item.visualAsset}
@@ -167,15 +209,15 @@ export const Stage: React.FC<StageProps> = ({
           )
         )}
 
-        {element.type === 'BALLOON' && (
+        {el.type === 'BALLOON' && (
           <div
             className={`px-3 py-2 max-w-48 text-sm ${
-              element.balloonType === 'THOUGHT'
+              el.balloonType === 'THOUGHT'
                 ? 'bg-diesel-paper/90 rounded-full border-2 border-dashed border-diesel-steel text-diesel-black'
                 : 'bg-diesel-paper/90 border-2 border-diesel-steel text-diesel-black'
             }`}
           >
-            {element.text || (
+            {el.text || (
               editable && <span className="text-diesel-steel italic">Empty balloon</span>
             )}
           </div>
@@ -214,7 +256,8 @@ export const Stage: React.FC<StageProps> = ({
           width: `${button.width}%`,
           height: `${button.height}%`,
           transform: 'translate(-50%, -50%)',
-          zIndex: isDragging ? 1000 : 100,
+          // Above instruments (200): navigation must never be buried
+          zIndex: isDragging ? 1000 : 250,
         }}
         onMouseDown={editable ? (e) => {
           e.stopPropagation();
@@ -233,14 +276,33 @@ export const Stage: React.FC<StageProps> = ({
   return (
     <div
       ref={canvasRef}
-      className={`relative w-full bg-diesel-panel ${editable ? 'cursor-crosshair' : ''}`}
-      style={{ aspectRatio: '16/9' }}
+      // ALWAYS clip. This used to be `camera ? 'overflow-hidden' : ''`,
+      // so the stage only contained its contents while a CAMERA was
+      // active -- and the rest of the time a tall actor simply hung out
+      // of the picture and stood on the cabinet. It was invisible
+      // against a black page and obvious the moment the stage sat on
+      // cream inside a bezel: William's legs continued below the
+      // backdrop onto the frame.
+      //
+      // A stage is a window. What does not fit is not shown.
+      className={`relative w-full overflow-hidden bg-diesel-panel ${editable ? 'cursor-crosshair' : ''}`}
+      style={{
+        aspectRatio: '16/9',
+        // [CAMERA]: scale the whole stage about the focus point
+        ...(camera ? {
+          transform: `scale(${camera.zoom})`,
+          transformOrigin: `${camera.x}% ${camera.y}%`,
+          transition: `transform ${camera.duration}s ease-in-out`,
+        } : {}),
+      }}
       onMouseMove={editable ? onMouseMove : undefined}
       onMouseUp={editable ? onMouseUp : undefined}
       onMouseLeave={editable ? onMouseUp : undefined}
       onClick={editable ? onCanvasClick : undefined}
     >
-      {/* Background Drop */}
+      {/* Background Drop. A script-driven [BACKDROP] swap crossfades
+          over the scene's own drop: both layers render, the new one
+          fades in on top. */}
       {background?.image ? (
         <img
           src={background.image}
@@ -254,12 +316,40 @@ export const Stage: React.FC<StageProps> = ({
           </span>
         </div>
       )}
+      {scriptBackdrop?.image && (
+        <img
+          key={scriptBackdrop.id}
+          src={scriptBackdrop.image}
+          alt={scriptBackdrop.name}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none animate-[backdrop-in_var(--backdrop-dur)_ease-in-out_forwards]"
+          style={{ ['--backdrop-dur' as string]: `${backdropDuration ?? 0}s` }}
+        />
+      )}
 
       {/* Stage Elements */}
       {scene.stage?.map(renderElement)}
-      
+
       {/* Buttons */}
       {game.buttons?.map(renderButton)}
+
+      {/* Instrument panel (theater mode; declared by script) */}
+      {sliders?.map(s => {
+        const raw = worldState?.[s.variable];
+        const value = typeof raw === 'number' ? raw : Number(raw) || s.min;
+        return (
+          <DieselSlider
+            key={`slider_${s.variable}`}
+            config={s}
+            value={value}
+            onChange={v => onSliderChange?.(s.variable, v)}
+          />
+        );
+      })}
+      {gauges?.map(g => {
+        const raw = worldState?.[g.variable];
+        const value = typeof raw === 'number' ? raw : Number(raw) || g.min;
+        return <DieselGauge key={`gauge_${g.variable}`} config={g} value={value} />;
+      })}
     </div>
   );
 };

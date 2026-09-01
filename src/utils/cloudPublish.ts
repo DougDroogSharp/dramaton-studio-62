@@ -6,7 +6,7 @@ const BUCKET_NAME = 'game-assets';
 /**
  * Check if a string is a base64 data URL
  */
-function isBase64DataUrl(str: string | undefined): str is string {
+function isBase64DataUrl(str: string | null | undefined): str is string {
   return !!str && str.startsWith('data:');
 }
 

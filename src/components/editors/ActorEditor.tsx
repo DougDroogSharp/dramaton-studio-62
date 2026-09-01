@@ -12,6 +12,7 @@ import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { identityLine, pickIdentityRef } from '@/utils/actorIdentity';
 
 
 interface ActorEditorProps {
@@ -55,8 +56,12 @@ export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onCha
     
     const angleDescription = getAngleDescription(graphic.angle);
     
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    const description = actor.note?.trim()
+      ? `\nDESCRIPTION: ${actor.note.trim()}\n`
+      : '';
 
+    let prompt = `${identityLine(actor)}
+${description}
 POSE & EXPRESSION:
 - Pose: ${graphic.pose}
 - Expression: ${graphic.expression}
@@ -64,13 +69,13 @@ POSE & EXPRESSION:
 
 FRAMING: ${frameInstruction}
 
-ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+ART STYLE: Match the provided style reference images exactly.
 
 CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
 
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += `
 
 MANDATORY ART STYLE (STRICTLY ENFORCE):
@@ -368,8 +373,12 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     
     const angleDescription = getAngleDescription(genAngle);
     
-    let prompt = `IDENTITY: Generate a character portrait of "${actor.name}".
+    const description = actor.note?.trim()
+      ? `\nDESCRIPTION: ${actor.note.trim()}\n`
+      : '';
 
+    let prompt = `${identityLine(actor)}
+${description}
 POSE & EXPRESSION:
 - Pose: ${genPose}
 - Expression: ${genExpression}
@@ -377,13 +386,13 @@ POSE & EXPRESSION:
 
 FRAMING: ${frameInstruction}
 
-ART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.
+ART STYLE: Match the provided style reference images exactly.
 
 CRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.
 
 NEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += `
 
 MANDATORY ART STYLE (STRICTLY ENFORCE):
@@ -408,20 +417,30 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     // Use custom prompt if edited, otherwise build from parameters
     const finalPrompt = genPrompt.trim() || buildGeneratorPrompt(selectedActor);
 
+    // Identity lock. A new expression or pose must be the SAME person:
+    // the surest reference is a sprite this actor already has, so
+    // prefer one in the pose we're generating (expression change only),
+    // then any sprite, then the uploaded body reference. Without this
+    // each variant is generated from scratch and comes back as a
+    // different face and costume.
+    const identityRef = pickIdentityRef(selectedActor, genPose);
+
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: selectedActor.referenceImageCloseUp,
-            referenceImageFullBody: selectedActor.referenceImageFullBody,
+            // The actor's own sprite wins over the uploaded body photo:
+            // it is already in the game's art style, so the model has
+            // less to invent and drifts less.
+            referenceImageFullBody: identityRef,
             styleGuide,
             enforceStyleGuide: styleLock && !genPrompt.trim(),
           }),
@@ -461,15 +480,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: generatedPreview,
             editMode: true,
@@ -700,9 +718,14 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
 
       {/* Pose Generator */}
       <section className="bg-diesel-black border border-diesel-gold/50 p-4">
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2">
-          <Sparkles size={14} className="inline mr-2" />
-          Pose Generator
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-3 border-b border-diesel-gold/30 pb-2 flex items-center justify-between">
+          <span>
+            <Sparkles size={14} className="inline mr-2" />
+            Pose Generator
+          </span>
+          <span className={`text-[10px] normal-case tracking-normal font-mono ${game.info.stylePack ? 'text-diesel-steel' : 'text-diesel-rust'}`}>
+            {game.info.stylePack ? `style: ${game.info.stylePack}` : '⚠ no style pack — set one in GA'}
+          </span>
         </h3>
         
         {/* Preview Image - At Top */}
@@ -848,22 +871,20 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           {/* Generate Button */}
           <button
             onClick={handleGeneratePreview}
-            disabled={isGenerating || !selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody}
+            disabled={isGenerating}
             className="flex-1 py-1 px-3 bg-diesel-green/20 border border-diesel-green text-diesel-green font-bold uppercase text-[10px] hover:bg-diesel-green/30 disabled:opacity-50 flex items-center justify-center gap-1"
-            title={!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody 
-              ? "Upload both Face and Full Body reference images first" 
-              : "Generate character graphic"}
+            title="Generate character graphic"
           >
             <Sparkles size={10} />
             Generate
           </button>
         </div>
-        
-        {/* Reference images warning */}
+
+        {/* Reference images hint (optional: they improve consistency across poses) */}
         {(!selectedActor.referenceImageCloseUp || !selectedActor.referenceImageFullBody) && (
-          <div className="text-diesel-rust text-xs mb-2 flex items-center gap-1">
-            <span>⚠️</span>
-            <span>Upload both Face and Full Body reference images below to enable generation.</span>
+          <div className="text-diesel-steel text-xs mb-2 flex items-center gap-1">
+            <span>ℹ️</span>
+            <span>Optional: Face and Full Body reference images below keep the character consistent across poses.</span>
           </div>
         )}
         

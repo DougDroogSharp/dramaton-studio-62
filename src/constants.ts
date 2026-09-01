@@ -31,7 +31,7 @@ export const EXPRESSIONS = [
 export const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 export const SFX_TYPES: Record<'ATTACH' | 'DO', string[]> = {
-  ATTACH: ['glow', 'pulse', 'jiggle', 'electric'],
+  ATTACH: ['glow', 'pulse', 'jiggle', 'electric', 'flame'],
   DO: ['shake', 'fade'],
 };
 

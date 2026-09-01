@@ -25,6 +25,7 @@ const CATEGORY_COLORS: Record<CommandDoc['category'], string> = {
   effect: 'bg-purple-500/30 text-purple-400 border-purple-500/50',
   scene: 'bg-blue-500/30 text-blue-400 border-blue-500/50',
   button: 'bg-orange-500/30 text-orange-400 border-orange-500/50',
+  instrument: 'bg-diesel-gold/30 text-diesel-gold border-diesel-gold/50',
   choice: 'bg-pink-500/30 text-pink-400 border-pink-500/50',
 };
 
