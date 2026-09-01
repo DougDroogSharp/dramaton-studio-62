@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WINDMILL STUDY — the grain mill, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A stone-and-timber tower mill: tapered tower, thatched cap that
+     faces the wind, FOUR LATTICE SAILS driven by the shared wind rig
+     (breeze / wind / STORM — scary fast, per Doug), a little balcony,
+     and the MILLER at work: carries a grain sack up the path and in,
+     comes out dusted with a flour sack, stacks it on the cart. Sacks
+     accumulate — the mill visibly produces.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windmill Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e8d6; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,28,18,0.78); color:#f0f4e6; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#4a7050; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌬 Windmill Study</b> — the mill grinds, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the miller hauls grain in, flour out</span><br>
+  <button data-w="0.2">Breeze</button><button data-w="0.55">Wind</button><button data-w="1">STORM</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1738;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e6d4), 50, 280);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(9, 6.5, 13);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f4e4), zenith = new THREE.Color(0x7cb0da),
+        below = new THREE.Color(0xd6dcc6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 30, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcc084 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 9),
+    new THREE.MeshLambertMaterial({ color:0xc0ab7c }));
+  path.rotation.x = -Math.PI/2; path.position.set(2.2, 0.01, 4.5);
+  path.rotation.z = -0.18;
+  scene.add(path);
+}
+
+// ---------- THE MILL -------------------------------------------------------
+const matStone = new THREE.MeshLambertMaterial({ color:0xc4b898, flatShading:true });
+const matStoneDk = new THREE.MeshLambertMaterial({ color:0xa89c80, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matThatch = new THREE.MeshLambertMaterial({ color:0x9a8a5c, flatShading:true });
+const matCanvas = new THREE.MeshLambertMaterial({ color:0xece4d0, flatShading:true, side:THREE.DoubleSide });
+const matDoor = new THREE.MeshLambertMaterial({ color:0x1c1610 });
+{
+  // tapered tower with a stone-band look
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.2, 6.5, 12), matStone);
+  tower.position.y = 3.25;
+  tower.castShadow = true; tower.receiveShadow = true;
+  scene.add(tower);
+  for(let i = 0; i < 3; i++){
+    const band = new THREE.Mesh(new THREE.TorusGeometry(lerp(2.05, 1.62, i/2), 0.07, 6, 18), matStoneDk);
+    band.rotation.x = Math.PI/2;
+    band.position.y = 1.2 + i*1.9;
+    scene.add(band);
+  }
+  // the rotating CAP (faces the wind) carries the sail hub
+  window.__cap = new THREE.Group();
+  window.__cap.position.y = 6.9;
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(1.62, 12, 8, 0, Math.PI*2, 0, Math.PI/2), matThatch);
+  cap.castShadow = true;
+  window.__cap.add(cap);
+  // the sail HUB, on the cap's windward face
+  window.__hub = new THREE.Group();
+  window.__hub.position.set(0, 0.35, 1.75);
+  window.__cap.add(window.__hub);
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.2, 8), matWood);
+  axle.rotation.x = Math.PI/2;
+  axle.position.z = -0.5;
+  window.__hub.add(axle);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), matWood);
+  window.__hub.add(nose);
+  // FOUR LATTICE SAILS: frame bars + canvas panels
+  for(let i = 0; i < 4; i++){
+    const arm = new THREE.Group();
+    arm.rotation.z = i * Math.PI/2;
+    const spar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.4, 0.1), matWood);
+    spar.position.y = 1.8;
+    spar.castShadow = true;
+    arm.add(spar);
+    for(let r = 0; r < 5; r++){
+      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.06, 0.05), matWood);
+      rung.position.set(0.32, 0.6 + r*0.62, 0);
+      arm.add(rung);
+    }
+    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 2.7), matCanvas);
+    canvas.position.set(0.4, 1.85, 0.03);
+    canvas.castShadow = true;
+    arm.add(canvas);
+    window.__hub.add(arm);
+  }
+  scene.add(window.__cap);
+  // balcony + door
+  const balc = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.08, 6, 18, Math.PI), matWood);
+  balc.rotation.x = Math.PI/2;
+  balc.position.y = 2.3;
+  balc.rotation.z = Math.PI/2;
+  scene.add(balc);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.5, 0.1), matDoor);
+  door.position.set(1.05, 0.75, 1.62);
+  door.rotation.y = 0.6;
+  scene.add(door);
+  // the flour CART where sacks stack
+  const cartBed = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 1.1), matWood);
+  cartBed.position.set(4.2, 0.55, 6.6);
+  cartBed.castShadow = true;
+  scene.add(cartBed);
+  for(const s of [-1, 1]){
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.05, 6, 14), matWood);
+    wheel.position.set(4.2 + s*0.85, 0.36, 6.6);
+    wheel.rotation.y = Math.PI/2;
+    scene.add(wheel);
+  }
+}
+// grain pile by the path + stacked flour sacks (the mill's visible output)
+const matGrainSack = new THREE.MeshLambertMaterial({ color:0x9a7b4a, flatShading:true });
+const matFlourSack = new THREE.MeshLambertMaterial({ color:0xe8e0cc, flatShading:true });
+function sackMesh(mat){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 7), mat);
+  m.scale.set(1, 1.25, 0.8);
+  m.castShadow = true;
+  return m;
+}
+{
+  for(let i = 0; i < 3; i++){
+    const s = sackMesh(matGrainSack);
+    s.position.set(3.6 + rand(-0.2, 0.2), 0.3, 2.6 + i*0.5);
+    scene.add(s);
+  }
+}
+const flourStack = [];
+for(let i = 0; i < 6; i++){
+  const s = sackMesh(matFlourSack);
+  s.visible = false;
+  scene.add(s);
+  flourStack.push(s);
+}
+let flourN = 0;
+
+// ---------- THE MILLER -----------------------------------------------------
+const M = { g: new THREE.Group() };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x6b8e9e });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  M.hips = new THREE.Group(); M.hips.position.y = 0.42; M.g.add(M.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; M.hips.add(barrel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  head.position.y = 0.8; head.castShadow = true; M.hips.add(head);
+  M.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26; shin.castShadow = true;
+    leg.add(shin);
+    M.hips.add(leg); M.legs.push(leg);
+  }
+  M.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    M.hips.add(arm); M.arms.push(arm);
+  }
+  // the shoulder sack (swapped grain/flour/hidden)
+  M.sack = sackMesh(matGrainSack);
+  M.sack.position.set(0.28, 0.85, -0.1);
+  M.sack.scale.multiplyScalar(0.9);
+  M.hips.add(M.sack);
+  scene.add(M.g);
+}
+
+// ---------- wind + the loop ------------------------------------------------
+let W = 0.2, Wt = 0.2, sailA = 0;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  Wt = parseFloat(b.dataset.w);
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+let phT = 0;
+const T_IN = 3.2, T_MILL = 2.6, T_OUT = 3.6, T_BACK = 2.8;
+const TOTAL = T_IN + T_MILL + T_OUT + T_BACK;
+const DOOR = new THREE.Vector3(1.4, 0.1, 2.2);
+const GRAIN = new THREE.Vector3(3.4, 0.1, 3.0);
+const CART = new THREE.Vector3(3.6, 0.1, 6.2);
+
+function walkCycle(t, sp = 1){
+  const ph = t*8*sp;
+  M.legs[0].rotation.x = Math.sin(ph)*0.45;
+  M.legs[1].rotation.x = -Math.sin(ph)*0.45;
+  M.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.025;
+}
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  W = lerp(W, Wt, Math.min(1, dt*1.2));
+  const gust = W * (0.8 + 0.2*Math.sin(t*0.6) + 0.12*Math.sin(t*1.9));
+
+  // SAILS: speed scales with the wind — a lazy breeze turn to the storm blur
+  sailA += dt * (0.4 + gust*5.2);
+  window.__hub.rotation.z = sailA;
+  // the cap hunts the gusting wind a little
+  window.__cap.rotation.y = Math.sin(t*0.3)*0.12*W;
+  // storm shudder in the tower top
+  if(W > 0.8) window.__cap.position.x = Math.sin(t*23)*0.012;
+
+  // ---------- the miller's round ----------
+  phT = (phT + dt) % TOTAL;
+  let f = phT;
+  if(f < T_IN){                       // grain sack: pile → door
+    const p = smooth(f/T_IN);
+    M.g.position.lerpVectors(GRAIN, DOOR, p);
+    M.g.rotation.y = Math.atan2(DOOR.x - GRAIN.x, DOOR.z - GRAIN.z);
+    walkCycle(t);
+    M.sack.visible = true;
+    M.sack.material = matGrainSack;
+    M.arms[1].rotation.x = -1.6;      // steadying the shoulder sack
+    M.arms[0].rotation.x = 0;
+    M.hips.rotation.z = -0.06;        // the load lean
+    if(p > 0.97) M.g.visible = true;
+  } else if((f -= T_IN) < T_MILL){    // inside: the mill takes it
+    M.g.visible = false;              // gone in the door
+  } else if((f -= T_MILL) < T_OUT){   // out with FLOUR, to the cart
+    M.g.visible = true;
+    const p = smooth(f/T_OUT);
+    M.g.position.lerpVectors(DOOR, CART, p);
+    M.g.rotation.y = Math.atan2(CART.x - DOOR.x, CART.z - DOOR.z);
+    walkCycle(t, 0.9);
+    M.sack.visible = true;
+    M.sack.material = matFlourSack;   // dusted white now
+    M.arms[1].rotation.x = -1.6;
+    M.hips.rotation.z = -0.07;
+    if(p > 0.96 && M.sack.visible){
+      // stack it: one more sack on the cart
+      M.sack.visible = false;
+      const s2 = flourStack[flourN % flourStack.length];
+      s2.visible = true;
+      s2.position.set(4.2 + (flourN % 2)*0.5 - 0.25, 0.85 + Math.floor((flourN % 6)/2)*0.55, 6.6);
+      flourN++;
+    }
+  } else {                            // back to the grain pile, empty-handed
+    const p = smooth((f - T_OUT)/T_BACK);
+    M.g.position.lerpVectors(CART, GRAIN, p);
+    M.g.rotation.y = Math.atan2(GRAIN.x - CART.x, GRAIN.z - CART.z);
+    walkCycle(t, 1.1);
+    M.sack.visible = false;
+    M.arms[1].rotation.x = lerp(M.arms[1].rotation.x, -Math.sin(t*8)*0.35, dt*6);
+    M.arms[0].rotation.x = lerp(M.arms[0].rotation.x, Math.sin(t*8)*0.35, dt*6);
+    M.hips.rotation.z = 0;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
