@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ROMAN STUDY — the legion at work, for George World's imperial arc.
+     Filed 2026-08-31, Doug's batch. Eight legionaries on the canonical
+     armature with the big CURVED SCUTA (red, gold boss), gladii and
+     pila. Two scenes:
+     · THE CHARGE — the line advances in step, HALTS, hurls a pilum
+       volley (real arcs, they stick where they land), draws gladius,
+       and CHARGES the practice stakes — shields up, short stabbing
+       thrusts over the rim, the way legions actually fought.
+     · THE TESTUDO — nine lock shields front, flank and OVERHEAD into
+       the tortoise and creep toward the tall wall while two archers
+       on the rampart rain arrows that BOUNCE off the shield roof.
+       Tick. Tick. Nothing gets through.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roman Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
+    border-radius:7px; background:#8a2e2a; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:230px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🛡️ Roman Study</b> — the legion, v1<br>
+  <span class="hint">pila fly real arcs; arrows bounce off the tortoise</span>
+  <select id="scene">
+    <option value="charge">The charge — volley, gladius, stakes</option>
+    <option value="testudo">The testudo — shields locked, to the wall</option>
+  </select>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene3 = new THREE.Scene();
+scene3.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 50, 280);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(8, 5, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene3.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene3.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(16, 22, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+scene3.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8ab74 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene3.add(g);
+}
+
+// ---------- the sets -------------------------------------------------------
+// practice stakes for the charge
+const stakes = new THREE.Group();
+scene3.add(stakes);
+{
+  const woodM = new THREE.MeshLambertMaterial({ color:0x6a4a2a, flatShading:true });
+  for(let i = 0; i < 5; i++){
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 1.7, 7), woodM);
+    st.position.set(-3.2 + i*1.6, 0.85, -6.5);
+    st.castShadow = true;
+    stakes.add(st);
+    const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.5, 8),
+      new THREE.MeshLambertMaterial({ color:0xc8b06a, flatShading:true }));
+    wrap.position.set(-3.2 + i*1.6, 1.15, -6.5);
+    stakes.add(wrap);
+  }
+}
+// the tall wall + rampart + two archers for the testudo
+const wallSet = new THREE.Group();
+scene3.add(wallSet);
+const archers = [];
+{
+  const stoneM = new THREE.MeshLambertMaterial({ color:0x9a948a, flatShading:true });
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(14, 5, 1.4), stoneM);
+  wall.position.set(0, 2.5, -9);
+  wall.castShadow = true;
+  wallSet.add(wall);
+  for(let i = 0; i < 10; i++){
+    const merlon = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1.4), stoneM);
+    merlon.position.set(-6.2 + i*1.38, 5.35, -9);
+    wallSet.add(merlon);
+  }
+  // two simple archers on the rampart
+  for(const x of [-3, 3]){
+    const A = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.4, 6, 8),
+      new THREE.MeshLambertMaterial({ color:0x4a5a6a }));
+    body.position.y = 0.6;
+    A.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8),
+      new THREE.MeshLambertMaterial({ color:0xe0ba92 }));
+    head.position.y = 1.05;
+    A.add(head);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.34, 4, 6),
+      new THREE.MeshLambertMaterial({ color:0xe0ba92 }));
+    arm.position.set(0.2, 0.75, 0.15);
+    arm.rotation.x = -1.4;
+    A.add(arm);
+    A.position.set(x, 5.05, -9);
+    wallSet.add(A);
+    archers.push(A);
+  }
+}
+
+// ---------- the legionary --------------------------------------------------
+const steelM = new THREE.MeshStandardMaterial({ color:0x9aa2ac, roughness:0.4, metalness:0.55 });
+const woodM = new THREE.MeshLambertMaterial({ color:0x6a4a2a, flatShading:true });
+function makeLegionary(crest){
+  const B = {};
+  function bone(name, parentName, x, y, z){
+    const b = new THREE.Bone();
+    b.name = name; b.position.set(x, y, z);
+    if(parentName) B[parentName].add(b);
+    B[name] = b; return b;
+  }
+  const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
+  bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
+  bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
+  bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
+  bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
+  bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
+    bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
+    bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
+    bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
+    bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
+    bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
+    bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
+    bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
+  }
+  const allBones = Object.values(B);
+  const skeleton = new THREE.Skeleton(allBones);
+  const boneIndex = {};
+  allBones.forEach((b, i) => boneIndex[b.name] = i);
+  const tmp = new THREE.Group();
+  tmp.add(rootBone);
+  rootBone.updateMatrixWorld(true);
+  const bWorld = {};
+  for(const b of allBones)
+    bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  tmp.remove(rootBone);
+  function partGeo(geoFn, boneName, colorHex){
+    let g = geoFn();
+    if(g.index) g = g.toNonIndexed();
+    const p = bWorld[boneName];
+    g.translate(p.x, p.y, p.z);
+    const n = g.attributes.position.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const col = new Float32Array(n*3);
+    const c = new THREE.Color(colorHex);
+    for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  const TUNIC = 0x9a2e2a, ARMOR = 0x9aa2ac, SKIN = 0xe0ba92, HELM = 0xb0a86a;
+  const parts = [];
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.23, 12, 8);
+    g.scale(1.34, 0.8, 1.0); g.translate(0, -0.02, 0); return g; }, 'mixamorigHips', TUNIC));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.215, 0.245, 0.16, 10);
+    g.translate(0, 0.02, 0); return g; }, 'mixamorigSpine', TUNIC));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.26, 12, 9);
+    g.scale(1.22, 0.98, 0.9); g.translate(0, 0.04, 0.01); return g; }, 'mixamorigSpine1', ARMOR));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.1, 0.115, 0.44, 8);
+    g.rotateZ(Math.PI/2); g.translate(0, 0.05, 0); return g; }, 'mixamorigSpine2', ARMOR));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.38, 14, 10);
+    g.translate(0, 0.24, 0); return g; }, 'mixamorigHead', SKIN));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.41, 14, 8, 0, Math.PI*2, 0, Math.PI*0.52);
+    g.translate(0, 0.26, 0); return g; }, 'mixamorigHead', HELM));
+  parts.push(partGeo(() => { const g = new THREE.BoxGeometry(0.1, 0.16, 0.5);
+    g.translate(0, 0.02, -0.22); return g; }, 'mixamorigHead', HELM));   // neck guard
+  if(crest){
+    parts.push(partGeo(() => { const g = new THREE.BoxGeometry(0.08, 0.24, 0.62);
+      g.translate(0, 0.62, 0); return g; }, 'mixamorigHead', 0xc03a2a));
+  }
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.08, 0.22, 4, 6);
+      g.rotateZ(s*0.25); g.translate(s*0.07, -0.1, 0); return g; }, `mixamorig${S}Arm`, TUNIC));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.065, 0.13, 4, 6);
+      g.translate(s*0.028, -0.09, 0); return g; }, `mixamorig${S}ForeArm`, SKIN));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.085, 8, 6);
+      g.translate(0, -0.05, 0); return g; }, `mixamorig${S}Hand`, SKIN));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.13, 0.15, 5, 8);
+      g.translate(0, -0.13, 0.01); return g; }, `mixamorig${S}UpLeg`, SKIN));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.082, 0.15, 5, 7);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}Leg`, SKIN));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.12, 9, 6);
+      g.scale(1, 0.7, 1.25); g.translate(0, -0.02, 0.03); return g; }, `mixamorig${S}Foot`, 0x6a4a2a));
+  }
+  const mesh = new THREE.SkinnedMesh(mergeGeometries(parts, false),
+    new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
+  mesh.castShadow = true;
+  mesh.frustumCulled = false;
+  mesh.add(rootBone);
+  mesh.bind(skeleton);
+  const root = new THREE.Group();
+  root.add(mesh);
+  scene3.add(root);
+  // THE SCUTUM — a curved slab (cylinder segment), red with the gold boss
+  const shield = new THREE.Group();
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.05, 12, 1, true, -0.6, 1.2),
+    new THREE.MeshLambertMaterial({ color:0x9a2e2a, side:THREE.DoubleSide }));
+  face.castShadow = true;
+  shield.add(face);
+  const boss = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8),
+    new THREE.MeshStandardMaterial({ color:0xd8b84c, roughness:0.35, metalness:0.6 }));
+  boss.position.set(0, 0, 0.56);
+  shield.add(boss);
+  shield.position.set(0.02, -0.1, 0.1);
+  shield.rotation.y = Math.PI;
+  B.mixamorigLeftForeArm.add(shield);
+  // the GLADIUS (hidden until drawn)
+  const gladius = new THREE.Group();
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.015), steelM);
+  blade.position.y = -0.3;
+  gladius.add(blade);
+  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 6), woodM);
+  hilt.position.y = -0.03;
+  gladius.add(hilt);
+  gladius.visible = false;
+  B.mixamorigRightHand.add(gladius);
+  // the PILUM (thrown; hidden after the volley)
+  const pilum = new THREE.Group();
+  const pshaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.017, 1.7, 5), woodM);
+  pilum.add(pshaft);
+  const ptip = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.5, 5), steelM);
+  ptip.position.y = 1.05;
+  pilum.add(ptip);
+  pilum.position.set(0, -0.05, 0.04);
+  B.mixamorigRightHand.add(pilum);
+  return { root, B, shield, gladius, pilum,
+    mixer: new THREE.AnimationMixer(mesh), action:null, state:null };
+}
+function quatTrack(bn, times, eulers){
+  const vals = [];
+  for(const e of eulers){
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+    vals.push(q.x, q.y, q.z, q.w);
+  }
+  return new THREE.QuaternionKeyframeTrack(bn + '.quaternion', times, vals);
+}
+// clips: march (shield forward), throw, charge-run (shield up), thrust, testudo poses
+const marchClip = new THREE.AnimationClip('march', 1.3, [
+  quatTrack('mixamorigLeftUpLeg', [0,0.325,0.65,0.975,1.3], [[0.55,0,0],[0,0,0],[-0.55,0,0],[0,0,0],[0.55,0,0]]),
+  quatTrack('mixamorigRightUpLeg', [0,0.325,0.65,0.975,1.3], [[-0.55,0,0],[0,0,0],[0.55,0,0],[0,0,0],[-0.55,0,0]]),
+  quatTrack('mixamorigLeftLeg', [0,0.325,0.65,0.975,1.3], [[0,0,0],[0.55,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+  quatTrack('mixamorigRightLeg', [0,0.325,0.65,0.975,1.3], [[0,0,0],[0.05,0,0],[0,0,0],[0.55,0,0],[0,0,0]]),
+  quatTrack('mixamorigLeftArm', [0,1.3], [[-0.75,0.35,0.35],[-0.75,0.35,0.35]]),     // shield carried front
+  quatTrack('mixamorigLeftForeArm', [0,1.3], [[-0.85,0,0],[-0.85,0,0]]),
+  quatTrack('mixamorigRightArm', [0,1.3], [[0.15,0,-0.35],[0.15,0,-0.35]]),          // pilum at the slope
+  quatTrack('mixamorigSpine', [0,1.3], [[0.06,0,0],[0.06,0,0]]),
+  new THREE.VectorKeyframeTrack('mixamorigHips.position', [0,0.325,0.65,0.975,1.3],
+    [0,0.62,0, 0,0.66,0, 0,0.62,0, 0,0.66,0, 0,0.62,0]),
+]);
+const throwClip = new THREE.AnimationClip('throw', 1.4, [
+  quatTrack('mixamorigRightArm', [0, 0.5, 0.75, 1.4],
+    [[0.15,0,-0.35],[-2.7,0,-0.4],[-1.1,0,0.15],[0.15,0,-0.35]]),
+  quatTrack('mixamorigRightForeArm', [0, 0.5, 0.75, 1.4],
+    [[0,0,0],[-0.6,0,0],[-0.1,0,0],[0,0,0]]),
+  quatTrack('mixamorigSpine', [0, 0.5, 0.75, 1.4],
+    [[0.06,0,0],[-0.12,0.35,0],[0.2,-0.25,0],[0.06,0,0]]),
+  new THREE.VectorKeyframeTrack('mixamorigHips.position', [0, 0.5, 0.75, 1.4],
+    [0,0.62,0, 0,0.66,0, 0,0.58,0.05, 0,0.62,0]),
+]);
+const chargeClip = new THREE.AnimationClip('charge', 0.88, [
+  quatTrack('mixamorigLeftUpLeg', [0,0.22,0.44,0.66,0.88], [[0.95,0,0],[0,0,0],[-0.8,0,0],[0,0,0],[0.95,0,0]]),
+  quatTrack('mixamorigRightUpLeg', [0,0.22,0.44,0.66,0.88], [[-0.8,0,0],[0,0,0],[0.95,0,0],[0,0,0],[-0.8,0,0]]),
+  quatTrack('mixamorigLeftLeg', [0,0.22,0.44,0.66,0.88], [[0.15,0,0],[1.1,0,0],[0.2,0,0],[0.1,0,0],[0.15,0,0]]),
+  quatTrack('mixamorigRightLeg', [0,0.22,0.44,0.66,0.88], [[0.2,0,0],[0.1,0,0],[0.15,0,0],[1.1,0,0],[0.2,0,0]]),
+  quatTrack('mixamorigLeftArm', [0,0.88], [[-0.85,0.4,0.3],[-0.85,0.4,0.3]]),        // shield UP front
+  quatTrack('mixamorigLeftForeArm', [0,0.88], [[-0.95,0,0],[-0.95,0,0]]),
+  quatTrack('mixamorigRightArm', [0,0.88], [[-0.35,0,-0.4],[-0.35,0,-0.4]]),         // gladius cocked low
+  quatTrack('mixamorigRightForeArm', [0,0.88], [[-1.0,0,0],[-1.0,0,0]]),
+  quatTrack('mixamorigSpine', [0,0.88], [[0.24,0,0],[0.24,0,0]]),
+  new THREE.VectorKeyframeTrack('mixamorigHips.position', [0,0.22,0.44,0.66,0.88],
+    [0,0.62,0, 0,0.7,0, 0,0.62,0, 0,0.7,0, 0,0.62,0]),
+]);
+const thrustClip = new THREE.AnimationClip('thrust', 0.9, [
+  quatTrack('mixamorigRightArm', [0, 0.25, 0.45, 0.9],
+    [[-0.35,0,-0.4],[-0.3,0,-0.3],[-1.15,0.3,0.1],[-0.35,0,-0.4]]),
+  quatTrack('mixamorigRightForeArm', [0, 0.25, 0.45, 0.9],
+    [[-1.0,0,0],[-1.2,0,0],[-0.15,0,0],[-1.0,0,0]]),
+  quatTrack('mixamorigSpine', [0, 0.25, 0.45, 0.9],
+    [[0.24,0,0],[0.2,0.2,0],[0.28,-0.2,0],[0.24,0,0]]),
+  quatTrack('mixamorigLeftArm', [0, 0.9], [[-0.85,0.4,0.3],[-0.85,0.4,0.3]]),
+  quatTrack('mixamorigLeftForeArm', [0, 0.9], [[-0.95,0,0],[-0.95,0,0]]),
+  new THREE.VectorKeyframeTrack('mixamorigHips.position', [0, 0.25, 0.45, 0.9],
+    [0,0.6,0, 0,0.62,-0.03, 0,0.58,0.07, 0,0.6,0]),
+]);
+// testudo: SIDE = shield out to the flank · TOP = shield flat overhead · FRONT = braced front
+function testudoClip(kind){
+  const L = kind === 'top'
+    ? { arm:[-2.75,0,0.15], fore:[-0.35,0,0] }
+    : kind === 'side'
+    ? { arm:[-1.35,0,0.95], fore:[-0.4,0,0] }
+    : { arm:[-0.8,0.35,0.35], fore:[-0.9,0,0] };
+  return new THREE.AnimationClip('testudo_' + kind, 1.6, [
+    quatTrack('mixamorigLeftUpLeg', [0,0.4,0.8,1.2,1.6], [[0.3,0,0],[0,0,0],[-0.3,0,0],[0,0,0],[0.3,0,0]]),
+    quatTrack('mixamorigRightUpLeg', [0,0.4,0.8,1.2,1.6], [[-0.3,0,0],[0,0,0],[0.3,0,0],[0,0,0],[-0.3,0,0]]),
+    quatTrack('mixamorigLeftLeg', [0,0.4,0.8,1.2,1.6], [[0,0,0],[0.3,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+    quatTrack('mixamorigRightLeg', [0,0.4,0.8,1.2,1.6], [[0,0,0],[0.05,0,0],[0,0,0],[0.3,0,0],[0,0,0]]),
+    quatTrack('mixamorigLeftArm', [0,1.6], [L.arm, L.arm]),
+    quatTrack('mixamorigLeftForeArm', [0,1.6], [L.fore, L.fore]),
+    quatTrack('mixamorigRightArm', [0,1.6], [[-0.5,0,-0.3],[-0.5,0,-0.3]]),
+    quatTrack('mixamorigSpine', [0,1.6], [[0.16,0,0],[0.16,0,0]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', [0,0.4,0.8,1.2,1.6],
+      [0,0.56,0, 0,0.575,0, 0,0.56,0, 0,0.575,0, 0,0.56,0]),
+  ]);
+}
+const tesTop = testudoClip('top'), tesSide = testudoClip('side'), tesFront = testudoClip('front');
+function play(S, clip, once){
+  if(S.action) S.action.stop();
+  S.action = S.mixer.clipAction(clip);
+  if(once){ S.action.setLoop(THREE.LoopOnce); S.action.clampWhenFinished = true; }
+  S.action.reset().play();
+}
+
+// the cohort: 9 men (index 0 = the centurion with the crest)
+const cohort = [];
+for(let i = 0; i < 9; i++) cohort.push(makeLegionary(i === 0));
+
+// flying pila + arrows (shared projectile pool)
+const projs = [];
+{
+  for(let i = 0; i < 14; i++){
+    const g = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 1.3, 5), woodM);
+    shaft.rotation.x = Math.PI/2;
+    g.add(shaft);
+    g.visible = false;
+    scene3.add(g);
+    projs.push({ m:g, vel:new THREE.Vector3(), live:false, stick:0 });
+  }
+}
+function hurl(from, to, tFlight){
+  const p = projs.find(x => !x.live && x.stick <= 0); if(!p) return null;
+  p.m.position.copy(from);
+  const d = to.clone().sub(from);
+  p.vel.set(d.x/tFlight, d.y/tFlight + 4.9*tFlight*0.5, d.z/tFlight);
+  p.live = true; p.m.visible = true;
+  return p;
+}
+
+// ---------- the scenes -----------------------------------------------------
+let mode = 'charge';
+let phT = 0;
+document.getElementById('scene').addEventListener('change', e => {
+  mode = e.target.value; phT = 0;
+  cohort.forEach(S => S.state = null);
+  for(const p of projs){ p.live = false; p.stick = 0; p.m.visible = false; }
+  enter();
+});
+function enter(){
+  stakes.visible = mode === 'charge';
+  wallSet.visible = mode === 'testudo';
+  cohort.forEach((S, i) => {
+    S.pilum.visible = mode === 'charge';
+    S.gladius.visible = false;
+    if(mode === 'charge'){
+      S.rank = Math.floor(i/4); S.file = i%4;
+      S.root.visible = i < 8;                 // two ranks of four
+    } else {
+      S.rank = Math.floor(i/3); S.file = i%3; // the 3×3 tortoise
+      S.root.visible = true;
+    }
+  });
+}
+enter();
+
+const clock = new THREE.Clock();
+let marchTime = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+  marchTime += dt;
+
+  if(mode === 'charge'){
+    const f = phT % 26;
+    cohort.forEach(S => {
+      if(!S.root.visible) return;
+      const baseX = (S.file - 1.5)*1.3, baseZ = 5 - S.rank*1.2;
+      if(f < 6){                              // the advance, in step
+        if(S.state !== 'march'){ play(S, marchClip); S.state = 'march'; S.pilum.visible = true; S.gladius.visible = false; S.thrown = false; }
+        S.mixer.setTime(marchTime % 1.3);
+        const p = f/6;
+        S.root.position.set(baseX, 0, baseZ - p*3.2);
+        S.root.rotation.y = Math.PI;
+      } else if(f < 8.6){                     // HALT — the volley (rank by rank)
+        const goT = 6.2 + S.rank*0.9;
+        if(f > goT && S.state !== 'throw'){ play(S, throwClip, true); S.state = 'throw'; }
+        if(S.state === 'throw' && !S.thrown && S.action.time > 0.55){
+          S.thrown = true;
+          S.pilum.visible = false;
+          const from = new THREE.Vector3();
+          S.B.mixamorigRightHand.getWorldPosition(from);
+          const targ = new THREE.Vector3(baseX + (Math.random() - 0.5)*1.5, 0.1, -6 + (Math.random() - 0.5)*1.5);
+          hurl(from, targ, 1.0);
+        }
+      } else if(f < 9.6){                     // draw gladius
+        S.gladius.visible = true;
+        if(S.state !== 'drawn'){ play(S, chargeClip); S.state = 'drawn'; S.action.paused = true; }
+      } else if(f < 13){                      // THE CHARGE
+        if(S.state !== 'charge'){ play(S, chargeClip); S.state = 'charge'; }
+        const p = smooth((f - 9.6)/3.4);
+        S.root.position.set(baseX, 0, lerp(baseZ - 3.2, -5.3 - S.rank*0.9, p));
+      } else if(f < 20){                      // at the stakes: thrust, thrust
+        if(S.state !== 'thrust' || (S.action.paused ?? false)){
+          if(S.state !== 'thrust'){ play(S, thrustClip); S.state = 'thrust';
+            S.action.startAt(Math.random()*0.5); }
+        }
+      } else {                                // walk it back, reform
+        if(S.state !== 'back'){ play(S, marchClip); S.state = 'back'; S.gladius.visible = false; }
+        S.mixer.setTime(marchTime % 1.3);
+        const p = smooth((f - 20)/6);
+        S.root.position.set(baseX, 0, lerp(-5.3 - S.rank*0.9, baseZ, p));
+        S.root.rotation.y = Math.PI;          // backing off, faces kept to the front
+      }
+      if(S.state !== 'march' && S.state !== 'back') S.mixer.update(dt);
+    });
+  } else {
+    // THE TESTUDO — form, creep to the wall, hold, withdraw
+    const f = phT % 24;
+    const blockZ = f < 4 ? 6 : f < 16 ? lerp(6, -6.2, smooth((f - 4)/12)) : f < 19 ? -6.2 : lerp(-6.2, 6, smooth((f - 19)/5));
+    cohort.forEach(S => {
+      const isFront = S.rank === 0;
+      const isEdge = S.file !== 1;
+      const clip = isFront ? tesFront : isEdge && S.rank === 1 ? tesSide : tesTop;
+      if(S.state !== clip.name){ play(S, clip); S.state = clip.name; }
+      S.mixer.setTime((marchTime*0.55) % 1.6);   // the slow shuffle, in step
+      S.root.position.set((S.file - 1)*0.85, 0, blockZ + S.rank*0.85);
+      S.root.rotation.y = Math.PI;
+      // shields: the top ranks turn theirs FLAT overhead
+      const flat = clip === tesTop;
+      S.shield.rotation.x = lerp(S.shield.rotation.x, flat ? 1.35 : 0, dt*4);
+    });
+    // the archers rain arrows on the roof
+    if(Math.random() < dt*1.4 && f > 3 && f < 19){
+      const A = archers[Math.floor(Math.random()*2)];
+      const from = new THREE.Vector3();
+      A.getWorldPosition(from);
+      from.y += 1.1;
+      const targ = new THREE.Vector3((Math.random() - 0.5)*2, 1.75, blockZ + 0.9 + (Math.random() - 0.5)*1.6);
+      const p = hurl(from, targ, 0.75);
+      if(p) p.roofBounce = true;
+    }
+    archers.forEach((A, i) => { A.rotation.y = Math.sin(t*0.7 + i*2)*0.3; });
+  }
+
+  // projectiles
+  for(const p of projs){
+    if(p.live){
+      p.vel.y -= 9.8*dt*0.55;
+      p.m.position.addScaledVector(p.vel, dt);
+      p.m.lookAt(p.m.position.clone().add(p.vel));
+      // the tortoise roof: arrows GLANCE OFF
+      if(p.roofBounce && mode === 'testudo' && p.m.position.y < 1.8 && p.vel.y < 0
+         && Math.abs(p.m.position.x) < 1.6){
+        p.vel.y = Math.abs(p.vel.y)*0.35;
+        p.vel.x += (Math.random() - 0.5)*3;
+        p.roofBounce = false;                  // one bounce, then it falls away
+      }
+      if(p.m.position.y <= 0.05){
+        p.live = false; p.stick = 3.5;
+        p.m.position.y = 0.05;
+      }
+    } else if(p.stick > 0){
+      p.stick -= dt;
+      if(p.stick <= 0) p.m.visible = false;
+    }
+  }
+  if(mode === 'charge'){
+    // march-synced mixers already set; update the throw/thrust ones happens above
+  } else {
+    // testudo mixers are time-set; nothing further
+  }
+
+  controls.update();
+  renderer.render(scene3, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
