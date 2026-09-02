@@ -4,9 +4,9 @@
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
-- **Repo:** `main` = `2a70e58` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
+- **Repo:** `main` = `968bd9c` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; **`narraton-editor` merged at `968bd9c`**, 390 tests green on the branch; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
 - **Branches:** `gw-studies` (merged; the GW STUDIES seat keeps working there) · `gw-dialogue` (the dialogue batch, in progress) · `narraton-editor` `ad780bd` (EDITOR lane merging main in now; DISPATCH fast-forwards main after) · `asset-foundry` (merged; foundry worktree now carries main).
-- **Stage:** 91 entries on `stage.html` (the 15 foundry studies + crab, turtle, dragon, flora, Georgeland 2 registered 2026-09-01). **Public stage not yet redeployed** with them.
+- **HvB Asset Stage** (renamed 2026-09-01; `stage.html`, v3): 91 entries; ◀ ▶ buttons and ← → keys step through every item whatever has focus; a NOTES box per item saves Doug's critiques to `docs/prototypes/aipotu/STAGE_NOTES.md` (+ `stage_notes.json`) through `serve_nocache.py`'s `POST /stage-notes`. **Sessions: read STAGE_NOTES.md for Doug's verdict on each asset.** Public copy redeployed with v3. Terrain Walk's blank-page crash (TDZ) fixed.
 - **Servers:** game + stage `http://10.0.0.137:8201/` (phone) · `http://localhost:8201/` (laptop). Public: `https://george-world-aipotu.netlify.app` (game, v0.79) · `https://dramaton-stage.netlify.app` (stage, STALE: 62 entries).
 - **Builder lock:** HvM Graphics (GW BUILDER) is the only session that edits `georgeworld.html`, in `C:\Users\dougs\dramaton-studio-62`. Ludo's mailbox entry declared a lock on the map/terrain layer "by HvM"; no BLOCK file exists.
 - **Names (ruled 2026-09-01):** Humans vs Billionaires is the game · **George World is the chapter** · a **Georgeland** is a loadable parcel · **Aipotu** is the first Georgeland (the current island) · a **run** is one playthrough · **Georgeotron** is the one name for the machine, page, bench and parts (Georgeomat retired).
@@ -15,7 +15,8 @@
 1. The three fixed cast names meaning ONE, TWO, THREE (is Mia one?). (#19)
 2. Approve the map/Georgeland contract once HvM Graphics posts the one-page proposal. (#23)
 3. Proper names for the Caldera, Ring Atoll, River Delta, Georgeland 2. (#17)
-4. Where the HvB master record lives after eviction from this repo (Dropbox HvB or the HvB chat project). (#10)
+4. ~~Where the HvB master record lives~~ — ruled 10b: repo `DougDroogSharp/hvb-design`, mirror Dropbox `HvB Design/`.
+5. **Two Narraton metadata shapes now coexist on Scene** after the editor merge: `key/phase/subplotId` (the editor's director) and `narraton` (the theater runtime from GitHub's line). Unify, or keep both? (EDITOR flagged it 2026-09-01.)
 
 ## LANES RUNNING (2026-09-01 evening)
 | Seat | Folder / branch | Doing |
