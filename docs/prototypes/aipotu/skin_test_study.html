@@ -53,6 +53,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';   // Mixamo FBX exports (2026-09-01, decision 35a)
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';   // retarget clips onto a foreign rig's rest pose
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
@@ -312,6 +313,10 @@ SKINLIB.forEach((def, i) => {
   skinSel.appendChild(o);
 });
 function showSkin(v){
+  if(String(v).startsWith('file~')){       // a listed-but-not-loaded skin: load it, then show it
+    loadPending(String(v).slice(5), si => { skinSel.value = 'dl:' + si; showSkin('dl:' + si); });
+    return;
+  }
   if(String(v).startsWith('dl:')){
     activeDL = +String(v).slice(3);
     meshes.forEach(m => m.visible = false);
@@ -438,7 +443,7 @@ function playAll(clip, src, si = -1){
     ourAction.reset().play();
   } else {
     const d = DL[activeDL];
-    d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : quatsOnly(clip));
+    d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : (d.mesh && (src === 'ours' || xbotMesh) ? retargetFor(d, clip, src) : quatsOnly(clip)));
     d.action.reset().play();
   }
   if(xbot){
@@ -447,6 +452,30 @@ function playAll(clip, src, si = -1){
   }
 }
 function replay(){ if(lastPick) playAll(lastPick.clip, lastPick.src, lastPick.si); }
+// RETARGET (2026-09-01): a Mixamo FBX rig stores a different REST pose from the
+// GLB rigs (Eve's thigh rest is 180 degrees from Xbot's), so absolute quaternion
+// tracks fold its limbs. SkeletonUtils.retargetClip re-samples the clip through
+// the source rig's world orientations onto the target's bind pose; both rigs
+// share the T-pose, so the result lands right. Cached per skin × clip.
+function skinnedOf(obj){ let m = null; obj.traverse(o => { if(!m && o.isSkinnedMesh) m = o; }); return m; }
+let xbotMesh = null;
+function retargetFor(d, clip, src){
+  const key = src + ':' + clip.uuid;
+  d.rt = d.rt || {};
+  if(d.rt[key]) return d.rt[key];
+  const srcMesh = src === 'xbot' ? xbotMesh : meshes[0];
+  let r;
+  // retargetClip poses the TARGET bones while sampling and leaves them there
+  // (position/scale too; FBX bind matrices carry a scale): snapshot + restore.
+  const saved = d.mesh.skeleton ? d.mesh.skeleton.bones.map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]) : [];
+  try {
+    r = quatsOnly(SkeletonUtils.retargetClip(d.mesh, srcMesh, clip, { hip:'mixamorigHips', preserveHipPosition:true }));
+    r.name = clip.name;
+  } catch(err){ console.warn('retarget failed for', d.name, err); r = quatsOnly(clip); }
+  for(const [b, p, q, s] of saved){ b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
+  d.obj.updateMatrixWorld(true);
+  return (d.rt[key] = r);
+}
 
 // the cascade: one <select>, an <optgroup> per MODEL, its clips inside
 const ogOurs = document.createElement('optgroup');
@@ -489,7 +518,8 @@ function registerSkin(name, gltf){
   obj.visible = false;
   scene.add(obj);
   const clips = (gltf.animations || []).map(normNames);
-  DL.push({ name, obj, mixer: new THREE.AnimationMixer(obj), clips, action:null });
+  const mesh = skinnedOf(obj);            // mixer root = the SkinnedMesh, so ".bones[x]" tracks bind
+  DL.push({ name, obj, mesh, mixer: new THREE.AnimationMixer(mesh || obj), clips, action:null });
   const si = DL.length - 1;
   dlHint.remove();                     // a real skin replaces the placeholder
   const o = document.createElement('option');
@@ -508,18 +538,39 @@ function registerSkin(name, gltf){
   return si;
 }
 
-// the manifest: any .glb dropped into vendor/models/ and listed there
+// the manifest: every skin in vendor/models/ is LISTED at once and LOADED only
+// when picked (some are 60 MB). A pending option's value is "file~<name>".
+const PENDING = {};
 fetch('./vendor/models/manifest.json')
   .then(r => r.ok ? r.json() : null)
   .then(man => {
     if(!man?.skins) return;
     for(const it of man.skins){
       if(it.file === 'Xbot.glb') continue;   // Xbot is the standing reference
-      loadAny('./vendor/models/' + it.file,
-        g => registerSkin(it.name || it.file, g),
-        err => console.warn('skin load failed', it.file, err));
+      dlHint.remove();
+      const o = document.createElement('option');
+      o.value = 'file~' + it.file;
+      o.dataset.name = it.name || it.file;
+      o.textContent = (it.name || it.file) + (it.mb ? ' (' + it.mb + ' MB)' : '');
+      ogDL.appendChild(o);
+      PENDING[it.file] = o;
     }
+    // the stage's #set=skinsel:file~<name> arrives before these options exist: apply it now
+    const want = (new URLSearchParams(location.hash.slice(1)).get('set') || '').split(',')
+      .map(p => p.split(/:(.*)/)).find(p => p[0] === 'skinsel' && String(p[1]).startsWith('file~'));
+    if(want){ skinSel.value = want[1]; showSkin(want[1]); }
   }).catch(() => {});
+function loadPending(file, then){
+  const o = PENDING[file];
+  const label = o ? o.dataset.name : file;
+  if(o) o.textContent = label + ' (loading…)';
+  loadAny('./vendor/models/' + file, g => {
+    const si = registerSkin(label, g);
+    if(o) o.remove();
+    delete PENDING[file];
+    then(si);
+  }, err => { if(o) o.textContent = label + ' (failed to load)'; console.warn('skin load failed', file, err); });
+}
 
 // drag a .glb from anywhere onto the page — instant audition
 addEventListener('dragover', e => e.preventDefault());
@@ -540,6 +591,7 @@ loader.load('./vendor/models/Xbot.glb', gltf => {
   guest.position.set(0.9, 0, 0);
   guest.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
   scene.add(guest);
+  xbotMesh = skinnedOf(guest);            // retarget source for Xbot's clips
   xbot = { mixer: new THREE.AnimationMixer(guest),
            clips: (gltf.animations || []).map(normNames), action:null };
   const og = document.createElement('optgroup');

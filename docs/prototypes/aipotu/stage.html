@@ -180,6 +180,9 @@
   <span id="count"></span>
   <button id="next" title="next item (→ key)">▶</button>
   <button id="notesbtn" title="your notes on this item">✎ Notes</button>
+  <button id="skinsbtn" title="jump to the Skin Gallery">🧍 Skins</button>
+  <button id="walkbtn" title="jump to the Terrain Walk">🚶 Walk</button>
+  <select id="skin" title="pick a skin for studies that take one (gallery, terrain walk)"><option value="">skin…</option></select>
 </div>
 <iframe id="frame" src="vita_anim_study.html"></iframe>
 <div id="notes">
@@ -273,13 +276,34 @@
     }
   }
   let loadN = 0;
+  // studies that take a skin through the stage's SKIN menu (#set=skinsel:file~<name>)
+  const SKINNABLE = { 'skin_test_study.html': 1, 'terrainwalk_study.html': 1 };
+  const skinSel = document.getElementById('skin');
   function load(){
     // the ?n= buster forces a real reload even when only the hash changed
-    const hash = (!anim.disabled && anim.value) ? '#' + anim.value : '';
-    frame.src = pick.value + '?n=' + (++loadN) + hash;
+    let sets = (!anim.disabled && anim.value) ? anim.value : '';
+    if(skinSel.value && SKINNABLE[pick.value]){
+      const s = 'skinsel:file~' + skinSel.value;
+      sets = sets ? (sets.startsWith('set=') ? sets + ',' + s : sets + '&set=' + s) : 'set=' + s;
+    }
+    frame.src = pick.value + '?n=' + (++loadN) + (sets ? '#' + sets : '');
     updateCount();
     showNote();
   }
+  document.getElementById('skinsbtn').addEventListener('click', () => { pick.value = 'skin_test_study.html'; fillAnim(); load(); });
+  document.getElementById('walkbtn').addEventListener('click', () => { pick.value = 'terrainwalk_study.html'; fillAnim(); load(); });
+  skinSel.addEventListener('change', () => {
+    if(!SKINNABLE[pick.value]){ countEl.textContent = 'no skin slot in this study yet'; return; }
+    load();
+  });
+  fetch('vendor/models/manifest.json?n=' + Date.now()).then(r => r.ok ? r.json() : null).then(man => {
+    for(const it of ((man && man.skins) || [])){
+      if(it.file === 'Xbot.glb') continue;
+      const o = document.createElement('option');
+      o.value = it.file; o.textContent = it.name || it.file;
+      skinSel.appendChild(o);
+    }
+  }).catch(() => {});
   pick.addEventListener('change', () => { fillAnim(); load(); });
   anim.addEventListener('change', load);
 

@@ -57,6 +57,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';   // Mixamo FBX exports (2026-09-01, decision 35a)
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';   // retarget the walk onto a foreign rig's rest pose
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
@@ -322,7 +323,17 @@ const walkClip = new THREE.AnimationClip('walk', 1.6, [
 // its own bundled walk (if any) would look better — this is the pipeline demo.
 
 // ---------- rig registration (measure the legs, wire the mixer) ------------
-function registerRig(name, node, B){
+function skinnedOf(obj){ let m = null; obj.traverse(o => { if(!m && o.isSkinnedMesh) m = o; }); return m; }
+function quatsOnly(clip){
+  return new THREE.AnimationClip(clip.name, clip.duration,
+    clip.tracks.filter(tr => !tr.name.endsWith('.position') && !tr.name.endsWith('.scale')));
+}
+function normNames(clip){
+  for(const tr of clip.tracks) tr.name = tr.name.replace('mixamorig:', 'mixamorig');
+  return clip;
+}
+let xbotMesh = null, xbotWalk = null;    // Xbot's own walk = the retarget SOURCE for imported skins
+function registerRig(name, node, B, foreign = false, anims = []){
   node.visible = false;
   V.add(node);
   V.updateMatrixWorld(true);
@@ -336,9 +347,34 @@ function registerRig(name, node, B){
   m.ankleY = V.worldToLocal(p3.clone()).y;      // rest ankle height above ground
   const ws = new THREE.Vector3();
   B.mixamorigHips.parent.getWorldScale(ws);      // local-unit → world-unit factor
-  const rig = { name, node, B, unit: ws.y || 1,
-    mixer: new THREE.AnimationMixer(node), ...m, hipsRestY: B.mixamorigHips.position.y };
-  rig.mixer.clipAction(walkClip).play();
+  // A foreign rig (Mixamo FBX) stores a different REST pose, so our absolute
+  // quaternion walk would fold its limbs (2026-09-01): retarget the clip through
+  // the canonical rig's world orientations onto the foreign bind pose. Mixer root
+  // = the SkinnedMesh so the retargeted ".bones[x]" tracks bind.
+  const mesh = foreign ? (skinnedOf(node) || node) : node;
+  let clip = walkClip;
+  if(name === 'Xbot'){
+    // Xbot's rest quaternions match the canonical rig's, so our clip plays as-is;
+    // and its bundled Mixamo walk becomes the source for every later import
+    xbotMesh = mesh;
+    const w = anims.find(c => /^walk$/i.test(c.name)) || anims.find(c => /walk/i.test(c.name));
+    if(w) xbotWalk = normNames(w);
+  } else if(foreign && xbotMesh && xbotWalk){
+    // A Mixamo FBX binds in a T-pose like Xbot but stores a different REST pose
+    // than the GLB rigs; retarget Xbot's walk through world orientations onto
+    // this rig's bind pose. (The canonical chibi binds with its arms hanging,
+    // so retargeting OUR walk from it would leave a T-posed import's arms up.)
+    // retargetClip poses the TARGET bones while sampling and leaves them there
+    // (position/scale included; FBX bind matrices carry a scale): snapshot + restore.
+    const saved = mesh.skeleton ? mesh.skeleton.bones.map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]) : [];
+    try { clip = quatsOnly(SkeletonUtils.retargetClip(mesh, xbotMesh, xbotWalk, { hip:'mixamorigHips', preserveHipPosition:true })); clip.name = 'walk'; }
+    catch(err){ console.warn('retarget failed for', name, err); }
+    for(const [b, p, q, s] of saved){ b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
+    node.updateMatrixWorld(true);
+  }
+  const rig = { name, node, B, unit: ws.y || 1, foreign,
+    mixer: new THREE.AnimationMixer(mesh), ...m, hipsRestY: B.mixamorigHips.position.y };
+  rig.mixer.clipAction(clip).play();
   rigs.push(rig);
   return rig;
 }
@@ -400,25 +436,48 @@ function adoptGltf(name, gltf){
     console.warn(name, 'lacks mixamorig leg bones — cannot IK this skin');
     return -1;
   }
-  const rig = registerRig(name, node, B);
-  rig.foreign = true;
+  const rig = registerRig(name, node, B, true, gltf.animations || []);
   const idx = rigs.length - 1;
   const o = document.createElement('option');
   o.value = idx; o.textContent = name + ' (imported)';
   skinSel.appendChild(o);
   return idx;
 }
-skinSel.addEventListener('change', () => activate(+skinSel.value));
+// a listed skin loads only when picked (value "file~<name>"); Xbot loads eagerly
+skinSel.addEventListener('change', () => {
+  const v = String(skinSel.value);
+  if(v.startsWith('file~')){
+    const file = v.slice(5);
+    const o = skinSel.selectedOptions[0];
+    const label = o ? o.dataset.name : file;
+    if(o) o.textContent = label + ' (loading…)';
+    loadAny('./vendor/models/' + file, g => {
+      const idx = adoptGltf(label, g);
+      if(o) o.remove();
+      if(idx >= 0){ skinSel.value = idx; activate(idx); }
+    }, err => { if(o) o.textContent = label + ' (failed to load)'; console.warn('skin load failed', file, err); });
+    return;
+  }
+  if(v === '' || isNaN(+v)) return;       // a stage hash for a not-yet-listed skin lands here first
+  activate(+v);
+});
 window.TW = { rigs, get active(){ return active; }, scene, activate };   // debug handle
+loadAny('./vendor/models/Xbot.glb', g => adoptGltf('Xbot', g), err => console.warn('Xbot load failed', err));
 fetch('./vendor/models/manifest.json')
   .then(r => r.ok ? r.json() : null)
   .then(man => {
-    const files = [{ file:'Xbot.glb', name:'Xbot' }, ...((man && man.skins) || [])];
-    for(const it of files){
-      loadAny('./vendor/models/' + it.file,
-        g => adoptGltf(it.name || it.file, g),
-        err => console.warn('skin load failed', it.file, err));
+    for(const it of ((man && man.skins) || [])){
+      if(it.file === 'Xbot.glb') continue;
+      const o = document.createElement('option');
+      o.value = 'file~' + it.file;
+      o.dataset.name = it.name || it.file;
+      o.textContent = (it.name || it.file) + (it.mb ? ' (' + it.mb + ' MB)' : '');
+      skinSel.appendChild(o);
     }
+    // the stage's #set=skinsel:file~<name> arrives before these options exist: apply it now
+    const want = (new URLSearchParams(location.hash.slice(1)).get('set') || '').split(',')
+      .map(p => p.split(/:(.*)/)).find(p => p[0] === 'skinsel' && String(p[1]).startsWith('file~'));
+    if(want){ skinSel.value = want[1]; skinSel.dispatchEvent(new Event('change')); }
   }).catch(() => {});
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
