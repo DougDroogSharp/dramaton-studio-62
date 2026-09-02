@@ -29,6 +29,9 @@ Filed 2026-09-01 17:39 (-07:00) by DISPATCH (decision 11). Terse on purpose: thi
 - Name hierarchy: Humans vs Billionaires (game) > George World (chapter) > Georgeland (parcel; Aipotu is the first) > run (one playthrough).
 - This repo is George World + the Dramaton editor. HvB design material lives in its own home, not here.
 
+## Cross-project routing (Doug, 2026-09-01)
+- **Anything in Doug's voice notes or dictation that touches Phrog, the Pad, the pond, BIRO, SPIF or ALDO gets folded, never dropped.** Whoever folds a walk/ride/evening note into DESIGN.md or the HvB record also appends each such item, in Doug's verbatim words with a pointer to the source file, to `Dropbox\Droog Claude Projects\CrossProjectComm\TO_PHROG.md` (`## YYYY-MM-DD — [from Game] — <note>`). The Phrog side reads that file at the start of every session and folds it into `Consolidated\Phrog_Design.md` / `Projects\BIRO\NOTES.md`. Mark nothing handled on their behalf.
+
 ## Pointers
 - Read `docs/george-world/STATUS.md` first, then `docs/prototypes/aipotu/README.md`, `docs/george-world/DESIGN.md` and `docs/george-world/STUDY_PIPELINE.md` (the last two are moving in from Dropbox `Consolidated/Projects/AIPOTU/`; until they land, read the Dropbox copies).
 - Study style contract: `docs/prototypes/aipotu/STYLE.md`. Editor scripting: `docs/DRAM_SCRIPT.md` (generated; edit `src/utils/scriptDocs.ts`). Bridge: `docs/DRAM_BRIDGE.md` on the `narraton-editor` branch.
