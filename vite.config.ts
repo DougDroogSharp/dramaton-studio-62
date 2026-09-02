@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import os from "os";
 import { dramDocsPlugin } from "./vite-plugin-dram-docs";
+import { dramBridgePlugin } from "./vite-plugin-dram-bridge";
 import { fluxPlugin } from "./vite-plugin-flux";
 import { voicePlugin } from "./vite-plugin-voice";
 
@@ -31,6 +32,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     dramDocsPlugin(),
+    // DRAM bridge: the live document mirrored to the dev server for AI
+    // co-editing (dev-only; no-op in production builds)
+    dramBridgePlugin(),
     // Server-side Flux image bridge; reads BFL_API_KEY / FLUX_MODEL
     // from .env.local without exposing them to the client
     fluxPlugin(loadEnv(mode, process.cwd(), "")),

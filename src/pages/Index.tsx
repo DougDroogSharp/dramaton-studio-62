@@ -8,6 +8,7 @@ import { loadGameFromDB, saveGameToDB, clearGameFromDB, getRecentGames, addRecen
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjectCapture } from "@/hooks/useProjectCapture";
+import { useDramBridge } from "@/hooks/useDramBridge";
 import { saveFileWithPicker, openFileWithPicker, DRAM_FILE_OPTIONS } from "@/utils/filePicker";
 import { toast } from "sonner";
 import {
@@ -33,6 +34,8 @@ import {
   LogOut,
   LogIn,
   Layers,
+  Drama,
+  Shirt,
 } from "lucide-react";
 import { SettingsEditor } from "@/components/editors/SettingsEditor";
 import { ActorEditor } from "@/components/editors/ActorEditor";
@@ -42,6 +45,8 @@ import { ItemEditor } from "@/components/editors/ItemEditor";
 import { SfxEditor } from "@/components/editors/SfxEditor";
 import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
+import { NarratonDirector } from "@/components/editors/NarratonDirector";
+import { SkinEditor } from "@/components/editors/SkinEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
 import {
@@ -123,6 +128,10 @@ const Index = () => {
     });
     getRecentGames().then(setRecentGames);
   }, []);
+
+  // DRAM bridge: mirror the live document to the dev server for AI
+  // collaboration (dev-only; no-op in production builds)
+  useDramBridge(game, setGame, isLoaded);
 
   // Open one of the shipped HvB games straight from public/ — the
   // files are large (art is embedded), so show progress and never
@@ -403,12 +412,28 @@ const Index = () => {
       count: game?.episodes?.length ?? 0,
     },
     {
+      type: "narraton" as const,
+      icon: Drama,
+      label: "Narraton",
+      abbrev: "NA",
+      color: "text-diesel-cyan",
+      count: game?.scenes?.filter((s) => s.key && Object.keys(s.key).length > 0).length ?? 0,
+    },
+    {
       type: "drop" as const,
       icon: Monitor,
       label: "Drops",
       abbrev: "DR",
       color: "text-diesel-paper",
       count: game?.drops?.length ?? 0,
+    },
+    {
+      type: "skin" as const,
+      icon: Shirt,
+      label: "Skins",
+      abbrev: "SK",
+      color: "text-diesel-gold",
+      count: game?.skins?.length ?? 0,
     },
     {
       type: "item" as const,
@@ -859,6 +884,8 @@ const Index = () => {
               {selection.type === "drop" && "DROP EDITOR"}
               {selection.type === "item" && "ITEM EDITOR"}
               {selection.type === "sfx" && "SFX EDITOR"}
+              {selection.type === "narraton" && "NARRATON EDITOR"}
+              {selection.type === "skin" && "SKIN LIBRARY"}
             </h2>
 
             {selection.type === "actor" && (
@@ -902,6 +929,22 @@ const Index = () => {
             )}
             {selection.type === "button" && (
               <ButtonEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
+            {selection.type === "skin" && (
+              <SkinEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+              />
+            )}
+            {selection.type === "narraton" && (
+              <NarratonDirector
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+              />
             )}
             {selection.type === "episode" && (
               <EpisodeEditor

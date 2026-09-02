@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode';
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -24,6 +24,9 @@ export interface GameInfo {
   enableAutosave: boolean;
   customPoses?: string[];
   customExpressions?: string[];
+  // Skin lockdown: when non-empty, only skins whose skinType is listed here
+  // may be assigned in this world (the "land can lock down skin types" rule).
+  allowedSkinTypes?: string[];
   // Era coin for {var:money} in meter commentary: pence (Norman
   // England), francs, dollars1929, dollars, plain.
   moneyFormat?: string;
@@ -59,6 +62,74 @@ export interface Actor {
   referenceImageFullBody?: string;
   voiceId?: string;
   graphics: ActorGraphic[];
+  // 3-D skin worn by this actor (Vita); its animation manifest feeds pose
+  // autocomplete in Dramscript.
+  skinId?: string;
+  // Vita instrumentation, exposed to scripting via world variables.
+  gauges?: Gauge[];
+  knobs?: Knob[];
+  note?: string;
+  status?: AssetStatus;
+}
+
+// Vita instrumentation: every Vita exposes its gauges and knobs as script
+// variables. A GAUGE is a live meter (level) with a danger threshold
+// (redLine) and a target (goal); a KNOB is a behavior dial. All 0-100 by
+// convention. Exposed variable names: <actorId>_<gauge> (level),
+// <actorId>_<gauge>_redline, <actorId>_<gauge>_goal, <actorId>_<knob>.
+export interface Gauge {
+  name: string;
+  level: number;
+  redLine: number;
+  goal: number;
+}
+
+export interface Knob {
+  name: string;
+  value: number;
+}
+
+// Named bundle of gauge/knob settings (Happy Voracious, Starving Lazy, ...).
+// Presets are the friendly surface; advanced users edit the raw values.
+export interface VitaPreset {
+  id: string;
+  name: string;
+  gauges: Gauge[];
+  knobs: Knob[];
+  note?: string;
+}
+
+// User-generated 3-D skin (GLB/glTF model). The editor stores the MANIFEST,
+// not the binary: the model file itself lives in the models/ folder (Dropbox)
+// per the stage-registry convention. animations lists EVERY clip found at
+// import, including non-standard ones — each is a valid [POSE ... pose=X]
+// argument for the wearing actor.
+// One joint in a skin's rig, flattened: parent is the nearest ancestor joint
+// (undefined for roots). Enough structure for an AI to author clips against.
+export interface ArmatureJoint {
+  name: string;
+  parent?: string;
+}
+
+// An animation authored INSIDE the pipeline (e.g. by an AI collaborator over
+// the bridge) rather than baked into the model file. `clip` is an opaque
+// three.js AnimationClip.toJSON() object — the runtime plays it with
+// AnimationClip.parse on the skin's armature. The name joins the skin's pose
+// vocabulary exactly like an imported clip.
+export interface AuthoredClip {
+  name: string;
+  clip: unknown;
+  note?: string;
+}
+
+export interface Skin {
+  id: string;
+  name: string;
+  skinType?: string;        // e.g. 'human', 'animal', 'machine' — lockdown unit
+  fileName?: string;        // source file the manifest was read from
+  animations: string[];
+  armature?: ArmatureJoint[];
+  authoredAnimations?: AuthoredClip[];
   note?: string;
   status?: AssetStatus;
 }
@@ -99,6 +170,13 @@ export interface SceneAudio {
 // AGENCY = the player acts; WITNESS = the player watches, but reacts.
 export type SceneType = 'AGENCY' | 'WITNESS';
 
+// Narraton (King-of-Chicago mechanism, CGDC 1989): each scene may carry a KEY —
+// target values (0–100) for one or more world-state variables. The selector
+// ranks candidate scenes by least-squares distance from the live world state.
+export type SceneKey = Record<string, number>;
+
+// Phase marker within a subplot's arc (KoC: position in a sequence's bag).
+export type ScenePhase = 'BEGINNING' | 'MIDDLE' | 'END';
 // ============ NARRATON ============
 // The 1986 King of Chicago storyteller: scenes carry selection keys and
 // the [NARRATON pool=x] command picks the scene whose keys least-squares
@@ -150,6 +228,13 @@ export interface Scene {
   narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
+  // Narraton fields — all optional; absent on scenes the selector ignores.
+  key?: SceneKey;
+  phase?: ScenePhase;
+  subplotId?: string;
+  // In-scene variables: scene-local initial values, invisible to the Narraton
+  // selector and never written to info.worldState.
+  localVars?: Record<string, string | number | boolean>;
 }
 
 // What a world variable MEANS, in words, so a moving gauge can explain
@@ -279,6 +364,17 @@ export interface Button {
   status?: AssetStatus;
 }
 
+// Subplot: an owned bag of scenes (KoC "sequence"). Narraton braids subplots
+// by rotating unpredictably between owners' bags when picking the next scene.
+export interface Subplot {
+  id: string;
+  name: string;
+  owner?: string;          // whose subplot this is (KoC: Pinky's, Tony's, ...)
+  description?: string;
+  note?: string;
+  status?: AssetStatus;
+}
+
 // Episode type for organizing scenes into releases
 export interface Episode {
   id: string;
@@ -320,6 +416,9 @@ export interface GameData {
   sfx: Sfx[];
   buttons: Button[];
   episodes: Episode[];
+  subplots: Subplot[];
+  skins: Skin[];
+  vitaPresets: VitaPreset[];
   // What the world variables MEAN, for the live meter panel
   meters?: MeterMeaning[];
   quotes?: Quote[];
@@ -361,9 +460,61 @@ export const createDefaultLibrary = (): AssetLibrary => ({
   episodes: [],
 });
 
-// Migrate old game data to current format
+// Starter Vita presets (Doug's naming style: mood + appetite). Editable
+// starting points; delete or reshape freely.
+export const createStarterVitaPresets = (): VitaPreset[] => [
+  {
+    id: 'preset_happy_voracious',
+    name: 'Happy Voracious',
+    gauges: [
+      { name: 'hunger', level: 25, redLine: 90, goal: 20 },
+      { name: 'energy', level: 80, redLine: 10, goal: 75 },
+    ],
+    knobs: [
+      { name: 'appetite', value: 90 },
+      { name: 'laziness', value: 15 },
+    ],
+  },
+  {
+    id: 'preset_starving_lazy',
+    name: 'Starving Lazy',
+    gauges: [
+      { name: 'hunger', level: 85, redLine: 90, goal: 20 },
+      { name: 'energy', level: 30, redLine: 10, goal: 75 },
+    ],
+    knobs: [
+      { name: 'appetite', value: 40 },
+      { name: 'laziness', value: 90 },
+    ],
+  },
+];
+
+// Migrate old game data to current format. Also the shape gate for
+// UNTRUSTED documents (bridge PUTs, hand-edited .dram files): throws on
+// hopeless input, repairs missing top-level pieces, so a bad document can
+// never white-screen the editor.
 export const migrateGameData = (data: any): GameData => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Not a game document (expected a JSON object)');
+  }
   const migrated = { ...data };
+
+  // Ensure info exists with a sane core; keep whatever the document carried.
+  const defaultInfo = createDefaultGame().info;
+  migrated.info =
+    migrated.info && typeof migrated.info === 'object' && !Array.isArray(migrated.info)
+      ? { ...defaultInfo, ...migrated.info }
+      : { ...defaultInfo };
+  if (!migrated.info.worldState || typeof migrated.info.worldState !== 'object' || Array.isArray(migrated.info.worldState)) {
+    migrated.info.worldState = {};
+  }
+
+  // Ensure every top-level collection is an array.
+  for (const collection of ['actors', 'scenes', 'items', 'sfx'] as const) {
+    if (!Array.isArray(migrated[collection])) {
+      migrated[collection] = [];
+    }
+  }
 
   // Hydrate shared sprites. A pose matrix usually reuses one image
   // across several pose/expression triples (the same worker sprite for
@@ -400,6 +551,22 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure buttons array exists
   if (!migrated.buttons) {
     migrated.buttons = [];
+  }
+
+  // Ensure subplots array exists (Narraton, added 2026-08-31)
+  if (!migrated.subplots) {
+    migrated.subplots = [];
+  }
+
+  // Ensure skins array exists (skin library, added 2026-08-31)
+  if (!migrated.skins) {
+    migrated.skins = [];
+  }
+
+  // Seed the starter Vita presets (added 2026-08-31). Values are editable
+  // starting points, not canon.
+  if (!migrated.vitaPresets) {
+    migrated.vitaPresets = createStarterVitaPresets();
   }
 
   // Dramaton Editor 2.0 called drops "screens"; rename the collection and
@@ -465,4 +632,7 @@ export const createDefaultGame = (): GameData => ({
   sfx: [],
   buttons: [],
   episodes: [],
+  subplots: [],
+  skins: [],
+  vitaPresets: createStarterVitaPresets(),
 });

@@ -112,12 +112,67 @@ export const openFileWithPicker = async (
   });
 };
 
+// Open a binary file (e.g. GLB skin) with native picker (with fallback)
+export const openBinaryFileWithPicker = async (
+  options: FilePickerOptions
+): Promise<{ data: ArrayBuffer; name: string } | null> => {
+  if (isFileSystemAccessSupported()) {
+    try {
+      const [handle] = await (window as any).showOpenFilePicker({
+        types: options.types,
+        multiple: false,
+      });
+      const file = await handle.getFile();
+      const data = await file.arrayBuffer();
+      return { data, name: file.name };
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return null;
+      }
+      console.error('File open error:', err);
+      // Fall through to legacy method
+    }
+  }
+
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = options.types
+      ?.flatMap(t => Object.values(t.accept).flat())
+      .join(',') || '*';
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const data = await file.arrayBuffer();
+      resolve({ data, name: file.name });
+    };
+
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+};
+
 // DRAM file options
 export const DRAM_FILE_OPTIONS: FilePickerOptions = {
   types: [{
     description: 'Dramaton Game Files',
     accept: {
       'application/json': ['.dram', '.json'],
+    },
+  }],
+};
+
+// Skin model file options (GLB / glTF / VRM)
+export const SKIN_FILE_OPTIONS: FilePickerOptions = {
+  types: [{
+    description: '3D Skin Models',
+    accept: {
+      'model/gltf-binary': ['.glb', '.vrm'],
+      'model/gltf+json': ['.gltf'],
     },
   }],
 };

@@ -1,9 +1,24 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } from '@/types';
-import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, ChoiceOption, findActorByName } from '@/utils/scriptParser';
+import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, ChoiceOption, SetCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
 import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
 import { AbilitySettings, DEFAULT_ABILITY_SETTINGS } from '@/utils/accessibility';
+
+export type VarScope = 'world' | 'local';
+
+// One recorded variable change, for the Narraton test-mode panel.
+export interface VarChange {
+  variable: string;
+  scope: VarScope;
+  from: string | number | boolean | undefined;
+  to: string | number | boolean;
+  sceneId: string;
+}
+
+// The change log is a window, not an archive: a TICK-driven simulation
+// writes every few hundred milliseconds for as long as the show runs.
+const VAR_LOG_LIMIT = 500;
 
 // Properties BIND may drive on a stage element
 const BINDABLE_PROPERTIES = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'zIndex']);
@@ -126,6 +141,11 @@ export interface ScriptRunnerState {
   activeDialogue: ActiveDialogue | null;
   choices: ChoiceState | null;
   worldState: Record<string, string | number | boolean>;
+  // In-scene variables: seeded from Scene.localVars on scene entry, reset on
+  // every scene change, never written back to worldState (invisible to the
+  // Narraton selector and to the meters).
+  localState: Record<string, string | number | boolean>;
+  varLog: VarChange[];
   hiddenElements: Set<string>;
   elementOverrides: Map<string, StageElementOverride>;
   activeEffects: Map<string, string[]>;
@@ -186,12 +206,21 @@ export function useScriptRunner({
   // settings, even mid-scene when the player changes them.
   const abilityRef = useRef(ability);
   abilityRef.current = ability;
+
+  // In-scene variables (Scene.localVars). Same ref discipline as the world
+  // state below: a [SET] followed by an [IF] in one pass must see the write.
+  const localsRef = useRef<WorldVars>({ ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) });
+  // Which scene a command belongs to, for the change log. state.currentSceneId
+  // is stale inside the synchronous pass that crosses a scene boundary.
+  const currentSceneIdRef = useRef(startSceneId);
+
   const [state, setState] = useState<ScriptRunnerState>(() => ({
     currentSceneId: startSceneId,
     currentCommandIndex: 0,
     activeDialogue: null,
     choices: null,
     worldState: { ...game.info.worldState },
+    varLog: [],
     hiddenElements: new Set(),
     elementOverrides: new Map(),
     activeEffects: new Map(),
@@ -202,6 +231,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
     isWaiting: false,
     isComplete: false,
@@ -241,6 +271,51 @@ export function useScriptRunner({
   // state.worldState mirrors this ref for rendering.
   const worldStateRef = useRef<WorldVars>({ ...game.info.worldState });
 
+  // What a script READS: world state with the scene's locals laid over it.
+  // A local shadows a world variable of the same name for the scene's
+  // duration; the world copy is untouched.
+  const readVars = useCallback((): WorldVars => (
+    Object.keys(localsRef.current).length === 0
+      ? worldStateRef.current
+      : { ...worldStateRef.current, ...localsRef.current }
+  ), []);
+
+  // Route a write to its store: local when the current scene DECLARED the
+  // variable in localVars; everything else is world state.
+  const writeVar = useCallback((variable: string, to: string | number | boolean): VarChange => {
+    const scope: VarScope = variable in localsRef.current ? 'local' : 'world';
+    const from = scope === 'local' ? localsRef.current[variable] : worldStateRef.current[variable];
+    if (scope === 'local') localsRef.current = { ...localsRef.current, [variable]: to };
+    else worldStateRef.current = { ...worldStateRef.current, [variable]: to };
+    return { variable, scope, from, to, sceneId: currentSceneIdRef.current };
+  }, []);
+
+  // Apply a SET (plain, += or -=) synchronously and report the change.
+  const applySetCommand = useCallback((cmd: SetCommand): VarChange => {
+    const vars = readVars();
+    const resolved = resolveSetValue(cmd, vars);
+    let to: string | number | boolean = resolved;
+    if (cmd.op === '+=' || cmd.op === '-=') {
+      const base = Number(vars[cmd.variable] ?? 0);
+      const delta = Number(resolved);
+      const safeBase = Number.isFinite(base) ? base : 0;
+      const safeDelta = Number.isFinite(delta) ? delta : 0;
+      to = cmd.op === '+=' ? safeBase + safeDelta : safeBase - safeDelta;
+    }
+    return writeVar(cmd.variable, to);
+  }, [readVars, writeVar]);
+
+  // Entering a scene: reset its in-scene variables to their declared values.
+  const enterScene = useCallback((sceneId: string) => {
+    currentSceneIdRef.current = sceneId;
+    localsRef.current = { ...(game.scenes.find(s => s.id === sceneId)?.localVars || {}) };
+  }, [game.scenes]);
+
+  const appendLog = (log: VarChange[], change: VarChange): VarChange[] => {
+    const next = log.length >= VAR_LOG_LIMIT ? log.slice(log.length - VAR_LOG_LIMIT + 1) : log;
+    return [...next, change];
+  };
+
   // Games load asynchronously in Theater: the hook initializes before
   // the real game arrives, so seed newly-appearing initial variables
   // into the ref without clobbering values the script already wrote.
@@ -253,9 +328,17 @@ export function useScriptRunner({
         changed = true;
       }
     }
+    const localSeed = game.scenes.find(s => s.id === currentSceneIdRef.current)?.localVars || {};
+    for (const key of Object.keys(localSeed)) {
+      if (!(key in localsRef.current)) {
+        localsRef.current = { ...localsRef.current, [key]: localSeed[key] };
+        changed = true;
+      }
+    }
     if (changed) {
       const snapshot = worldStateRef.current;
-      setState(prev => ({ ...prev, worldState: snapshot }));
+      const locals = localsRef.current;
+      setState(prev => ({ ...prev, worldState: snapshot, localState: locals }));
     }
   }, [game]);
 
@@ -343,7 +426,7 @@ export function useScriptRunner({
     if (bindingsRef.current.size === 0) return;
     const results: Array<{ elementId: string; property: string; value: number }> = [];
     for (const binding of bindingsRef.current.values()) {
-      let value = evaluateExpressionSource(binding.expression, worldStateRef.current);
+      let value = evaluateExpressionSource(binding.expression, readVars());
       if (binding.property === 'opacity') value = Math.min(1, Math.max(0, value));
       if (binding.property === 'zIndex') value = Math.round(value);
       results.push({ elementId: binding.elementId, property: binding.property, value });
@@ -413,7 +496,7 @@ export function useScriptRunner({
         // numbers come out of the characters' mouths. Resolved at
         // speak time against the live world state.
         const spokenText = command.text.includes('{')
-          ? interpolateText(command.text, worldStateRef.current)
+          ? interpolateText(command.text, readVars())
           : command.text;
 
         // Animate the speaker: an explicit (Pose/Expression) tag wins;
@@ -905,6 +988,7 @@ export function useScriptRunner({
       case 'SCENE': {
         clearTimeouts();
         bindingsRef.current = new Map();
+        enterScene(command.sceneId);
         onSceneChange?.(command.sceneId);
         setState(prev => ({
           ...prev,
@@ -922,6 +1006,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
           isWaiting: false,
           isComplete: false,
@@ -937,7 +1022,7 @@ export function useScriptRunner({
         // simulation decides what the player is even able to try.
         const available = command.options.filter(o => !o.condition || evaluateIfCondition(
           { type: 'IF', ...o.condition, commands: [] } as IfCommand,
-          worldStateRef.current,
+          readVars(),
         ));
         if (available.length === 0) {
           warnOnce('CHOICE: every option was gated out; continuing past the choice');
@@ -956,6 +1041,7 @@ export function useScriptRunner({
             choiceTimeoutRef.current = null;
             clearTimeouts();
             bindingsRef.current = new Map();
+            enterScene(target);
             onSceneChange?.(target);
             setState(prev => ({
               ...prev,
@@ -973,6 +1059,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
               isWaiting: false,
               isComplete: false,
@@ -985,26 +1072,26 @@ export function useScriptRunner({
       case 'SET': {
         // Write the ref synchronously (so later commands in this pass
         // see it), then mirror into state for rendering.
-        const before = worldStateRef.current[command.variable];
-        const resolved = resolveSetValue(command, worldStateRef.current);
-        worldStateRef.current = { ...worldStateRef.current, [command.variable]: resolved };
+        const change = applySetCommand(command);
         const snapshot = worldStateRef.current;
+        const locals = localsRef.current;
         // Record the move so the meter panel can show what this scene
         // touched, and by how much. Numbers only; a changed string is
-        // not a gauge.
-        const from = typeof before === 'number' ? before : Number(before);
-        const to = typeof resolved === 'number' ? resolved : Number(resolved);
-        const moved = Number.isFinite(from) && Number.isFinite(to) && from !== to;
+        // not a gauge, and an in-scene local is not a meter.
+        const from = typeof change.from === 'number' ? change.from : Number(change.from);
+        const to = typeof change.to === 'number' ? change.to : Number(change.to);
+        const moved = change.scope === 'world' && Number.isFinite(from) && Number.isFinite(to) && from !== to;
         meterSeqRef.current += 1;
         const seq = meterSeqRef.current;
         setState(prev => {
-          if (!moved) return { ...prev, worldState: snapshot };
+          const logged = { ...prev, worldState: snapshot, localState: locals, varLog: appendLog(prev.varLog, change) };
+          if (!moved) return logged;
           const meterMoves = new Map(prev.meterMoves);
           // Keep the ORIGINAL from-value for this scene so a variable
           // nudged repeatedly by a TICK shows its whole journey.
           const prior = meterMoves.get(command.variable);
           meterMoves.set(command.variable, { from: prior?.from ?? from, to, seq });
-          return { ...prev, worldState: snapshot, meterMoves };
+          return { ...logged, meterMoves };
         });
         applyBindings();
         return true;
@@ -1041,7 +1128,7 @@ export function useScriptRunner({
         // Non-blocking narration. Consecutive duplicates are dropped so
         // a 1s TICK can narrate a condition without flooding; each new
         // line gets a fresh id so screen readers re-announce it.
-        const text = interpolateText(command.text, worldStateRef.current);
+        const text = interpolateText(command.text, readVars());
         if (!text.trim()) return true;
         if (stateRef.current.ambientNarration?.text === text) return true;
         narrateSeqRef.current += 1;
@@ -1058,7 +1145,7 @@ export function useScriptRunner({
       }
 
       case 'SET_TEXT': {
-        const text = interpolateText(command.text, worldStateRef.current);
+        const text = interpolateText(command.text, readVars());
         setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(command.elementId) || {};
@@ -1157,6 +1244,7 @@ export function useScriptRunner({
         // Transition exactly like SCENE
         clearTimeouts();
         bindingsRef.current = new Map();
+        enterScene(winner.id);
         onSceneChange?.(winner.id);
         setState(prev => ({
           ...prev,
@@ -1174,6 +1262,7 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
           isWaiting: false,
           isComplete: false,
@@ -1189,7 +1278,7 @@ export function useScriptRunner({
     // but strict mode wants it stated. Continue rather than yield: an
     // unhandled command must never stop the show.
     return true;
-  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts, applyBindings]);
+  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts, applyBindings, readVars, applySetCommand, enterScene]);
 
   // Execute a TICK body: non-blocking commands only, run against the
   // live worldState ref, never touching the yield/advance machinery.
@@ -1233,12 +1322,12 @@ export function useScriptRunner({
           continue;
         }
         case 'IF': {
-          if (evaluateIfCondition(cmd, worldStateRef.current)) {
+          if (evaluateIfCondition(cmd, readVars())) {
             if (executeTickBody(cmd.commands)) return true;
           } else {
             const arm = (cmd.elifs ?? []).find(e => evaluateIfCondition(
               { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as IfCommand,
-              worldStateRef.current,
+              readVars(),
             ));
             if (arm) { if (executeTickBody(arm.commands)) return true; }
             else if (cmd.elseCommands) { if (executeTickBody(cmd.elseCommands)) return true; }
@@ -1263,7 +1352,7 @@ export function useScriptRunner({
       }
     }
     return false; // ran to the end without a scene change
-  }, [executeCommand]);
+  }, [executeCommand, readVars]);
 
   // CAMERA follow: keep the camera centered on a tracked element as
   // its overrides move it (MOVE tweens, BINDs). Cheap: only runs while
@@ -1360,7 +1449,7 @@ export function useScriptRunner({
 
       // IF test node: on false, jump past the flattened body
       if (node.cmd.type === 'IF') {
-        const met = evaluateIfCondition(node.cmd as IfCommand, worldStateRef.current);
+        const met = evaluateIfCondition(node.cmd as IfCommand, readVars());
         i = met ? i + 1 : (node.jumpTo ?? i + 1);
         continue;
       }
@@ -1389,7 +1478,7 @@ export function useScriptRunner({
 
     // Reached end of script
     setState(prev => ({ ...prev, currentCommandIndex: i, isComplete: true }));
-  }, [flatCommands, executeCommand]);
+  }, [flatCommands, executeCommand, readVars]);
   runFromRef.current = runFrom;
 
   // Advance to next command (user input / auto-play)
@@ -1425,18 +1514,22 @@ export function useScriptRunner({
     // Side-effects first: the choice writes the world, then the world
     // travels with us into the target scene.
     if (option.effects?.length) {
-      for (const effect of option.effects) {
-        const value = resolveSetValue(effect, worldStateRef.current);
-        worldStateRef.current = { ...worldStateRef.current, [effect.variable]: value };
-      }
+      const changes = option.effects.map(effect => applySetCommand(effect));
       const snapshot = worldStateRef.current;
-      setState(prev => ({ ...prev, worldState: snapshot }));
+      const locals = localsRef.current;
+      setState(prev => ({
+        ...prev,
+        worldState: snapshot,
+        localState: locals,
+        varLog: changes.reduce(appendLog, prev.varLog),
+      }));
       applyBindings();
     }
 
     // Navigate to target scene
     clearTimeouts();
     bindingsRef.current = new Map();
+    enterScene(option.target);
     onSceneChange?.(option.target);
     setState(prev => ({
       ...prev,
@@ -1454,11 +1547,12 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));
-  }, [state.choices, onSceneChange, clearTimeouts, applyBindings]);
+  }, [state.choices, onSceneChange, clearTimeouts, applyBindings, applySetCommand, enterScene]);
 
   // Auto-advance when in auto-play mode
   useEffect(() => {
@@ -1494,6 +1588,7 @@ export function useScriptRunner({
   const goToScene = useCallback((sceneId: string) => {
     clearTimeouts();
     bindingsRef.current = new Map();
+    enterScene(sceneId);
     onSceneChange?.(sceneId);
     setState(prev => ({
       ...prev,
@@ -1511,11 +1606,12 @@ export function useScriptRunner({
       backdrop: null,
       camera: null,
       meterMoves: new Map(),
+      localState: localsRef.current,
       frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));
-  }, [onSceneChange, clearTimeouts]);
+  }, [onSceneChange, clearTimeouts, enterScene]);
 
   // Toggle auto-play
   const toggleAutoPlay = useCallback(() => {
@@ -1525,11 +1621,12 @@ export function useScriptRunner({
   // External worldState write (sliders, debug tools). Re-evaluates
   // BINDs immediately so dragging drives the stage live.
   const setVariable = useCallback((name: string, value: string | number | boolean) => {
-    worldStateRef.current = { ...worldStateRef.current, [name]: value };
+    const change = writeVar(name, value);
     const snapshot = worldStateRef.current;
-    setState(prev => ({ ...prev, worldState: snapshot }));
+    const locals = localsRef.current;
+    setState(prev => ({ ...prev, worldState: snapshot, localState: locals, varLog: appendLog(prev.varLog, change) }));
     applyBindings();
-  }, [applyBindings]);
+  }, [applyBindings, writeVar]);
 
   // Forget which scenes the Narraton has already chosen (fresh show)
   const resetNarratonHistory = useCallback(() => {

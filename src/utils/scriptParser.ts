@@ -157,9 +157,14 @@ export interface ChoiceCommand {
   timeout?: { seconds: number; target: string };
 }
 
+// SET operators: plain assignment, or the KoC-style twiddles += / -= that
+// nudge a numeric variable at a decision point.
+export type SetOperator = '=' | '+=' | '-=';
+
 export interface SetCommand {
   type: 'SET';
   variable: string;
+  op?: SetOperator;    // undefined means '=' (plain assignment)
   // Literal value, or raw expression source text when isExpression is set.
   value: string | number | boolean;
   isExpression?: boolean;
@@ -595,9 +600,11 @@ function parseLine(line: string): ScriptCommand | null {
     }
     
     // SET variable = value  (value may be a literal or an expression)
-    const setMatch = content.match(/^SET\s+(\w+)\s*=\s*(.+)$/i);
+    // SET variable += amount / -= amount  (increment / decrement)
+    const setMatch = content.match(/^SET\s+(\w+)\s*(\+=|-=|=)\s*(.+)$/i);
     if (setMatch) {
-      const raw = setMatch[2].trim();
+      const op = setMatch[2] as SetOperator;
+      const raw = setMatch[3].trim();
       let value: string | number | boolean = raw;
       let isExpression = false;
       // Literal fast-paths keep every existing script byte-compatible
@@ -618,6 +625,7 @@ function parseLine(line: string): ScriptCommand | null {
       return {
         type: 'SET',
         variable: setMatch[1],
+        ...(op !== '=' ? { op } : {}),
         value,
         ...(isExpression ? { isExpression } : {}),
       };
@@ -1212,7 +1220,7 @@ export function commandToString(cmd: ScriptCommand): string {
       if (cmd.isExpression) valStr = String(cmd.value); // raw expression source, unquoted
       else if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
       else valStr = String(cmd.value);
-      return `[SET ${cmd.variable} = ${valStr}]`;
+      return `[SET ${cmd.variable} ${cmd.op || '='} ${valStr}]`;
     }
     case 'IF': {
       const condStr = (c: { variable: string; operator: string; value: string | number | boolean; isExpression?: boolean }) => {
@@ -1521,11 +1529,12 @@ export function getCursorContext(script: string, cursorPos: number): {
 export function getAutoCompleteSuggestions(
   script: string,
   cursorPos: number,
-  game: { 
-    actors?: { id: string; name: string }[]; 
-    scenes?: { id: string; name: string }[]; 
-    buttons?: { id: string; name: string }[]; 
+  game: {
+    actors?: { id: string; name: string; skinId?: string }[];
+    scenes?: { id: string; name: string }[];
+    buttons?: { id: string; name: string }[];
     sfx?: { id: string; name: string }[];
+    skins?: { id: string; animations: string[]; authoredAnimations?: { name: string }[] }[];
     info?: { worldState?: Record<string, unknown>; customPoses?: string[]; customExpressions?: string[] };
   },
   defaultPoses: string[] = [],
@@ -1571,10 +1580,27 @@ export function getAutoCompleteSuggestions(
     }
     
     case 'pose': {
-      const allPoses = [...defaultPoses, ...(game.info?.customPoses || [])];
+      // The actor's skin animations are poses too: resolve the actor id from
+      // the current [POSE actor ...] line and pull its skin's manifest —
+      // non-standard clips included.
+      const currentLine = script.substring(context.lineStart, cursorPos);
+      const poseActorId = currentLine.match(/^\[POSE\s+(\w+)/i)?.[1];
+      const actor = poseActorId
+        ? (game.actors || []).find(a => a.id.toLowerCase() === poseActorId.toLowerCase())
+        : undefined;
+      const actorSkin = actor?.skinId ? (game.skins || []).find(s => s.id === actor.skinId) : undefined;
+      const skinAnims = actorSkin
+        ? [...actorSkin.animations, ...(actorSkin.authoredAnimations ?? []).map(c => c.name)]
+        : [];
+      const allPoses = [...new Set([...skinAnims, ...defaultPoses, ...(game.info?.customPoses || [])])];
       return allPoses
         .filter(p => p.toLowerCase().startsWith(prefix))
-        .map(p => ({ label: p, insertText: p, category: 'pose' as const }));
+        .map(p => ({
+          label: p,
+          insertText: p,
+          category: 'pose' as const,
+          ...(skinAnims.includes(p) ? { description: 'skin animation' } : {}),
+        }));
     }
     
     case 'expression': {

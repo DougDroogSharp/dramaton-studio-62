@@ -275,14 +275,14 @@ Alice (thinking): "What should I do next?"`,
     type: 'CHOICE',
     category: 'choice',
     syntax: '[CHOICE]  |  [CHOICE 10s -> fallback_scene]\n- "Option text" [(if condition)] -> target_scene [[SET var = value] ...]\n[/CHOICE]',
-    description: 'Presents the player with branching dialogue options; each navigates to a scene. A single option is not a decision: it renders as a plain statement of what the player does and takes itself after a short reading pause. Options may carry a (if condition) gate — same grammar as IF — and only show when it holds; if every option is gated out, the choice is skipped with a warning. Options may carry trailing [SET ...] effects, applied to world state at selection time, before the jump. A timed header ([CHOICE 10s -> scene]) jumps to the fallback scene if the player hesitates.',
+    description: 'Presents the player with branching dialogue options; each navigates to a scene. A single option is not a decision: it renders as a plain statement of what the player does and takes itself after a short reading pause. Options may carry a (if condition) gate — same grammar as IF — and only show when it holds; if every option is gated out, the choice is skipped with a warning. Options may carry trailing [SET ...] effects (a Narraton decision point), applied to in-scene or world variables at selection time, before the jump; the editor\'s test mode marks each option with the variables it twiddles. A timed header ([CHOICE 10s -> scene]) jumps to the fallback scene if the player hesitates.',
     parameters: [
       { name: 'options', type: 'array', description: 'List of choice options with text, optional gate, target scene, and optional SET effects' },
       { name: 'timeout', type: 'string', description: 'Optional header form: duration and fallback scene, e.g. [CHOICE 10s -> scene]' },
     ],
     example: `[CHOICE]
 - "Investigate the desk" -> desk_scene
-- "Bribe the clerk" (if gold >= 50) -> bribe_scene [SET gold = gold - 50] [SET suspicion = suspicion + 10]
+- "Bribe the clerk" (if gold >= 50) -> bribe_scene [SET gold -= 50] [SET suspicion += 10]
 - "Leave the room" -> hallway
 [/CHOICE]
 
@@ -319,10 +319,11 @@ Alice (thinking): "What should I do next?"`,
   {
     type: 'SET',
     category: 'flow',
-    syntax: '[SET variable = value_or_expression]',
-    description: 'Sets a world state variable that persists across scenes. The right side can be a literal (string, number, boolean) or an arithmetic expression over other variables. Expressions support + - * / ( ), numeric literals, variable names, and the functions clamp(x,min,max), min(...), max(...), abs(x), floor(x), rand() (0 to 1), rand(max) (0 to max), rand(min,max). A bare variable name copies that variable\'s value. Bad expressions and unknown variables resolve to 0 with a console warning — scripts never crash.',
+    syntax: '[SET variable = value_or_expression]  or  [SET variable += amount]  or  [SET variable -= amount]',
+    description: 'Sets a variable. If the variable is declared in the scene\'s in-scene variables it stays scene-local, invisible to the Narraton selector and the meters, and resets when the scene is re-entered; otherwise it is world state that persists across scenes. += and -= increment or decrement a numeric variable (missing or non-numeric values count as 0). The right side can be a literal (string, number, boolean) or an arithmetic expression over other variables. Expressions support + - * / ( ), numeric literals, variable names, and the functions clamp(x,min,max), min(...), max(...), abs(x), floor(x), rand() (0 to 1), rand(max) (0 to max), rand(min,max). A bare variable name copies that variable\'s value. Bad expressions and unknown variables resolve to 0 with a console warning — scripts never crash.',
     parameters: [
       { name: 'variable', type: 'string', description: 'The variable name (alphanumeric, no spaces)' },
+      { name: 'operator', type: 'string', description: '= to assign, += to add, -= to subtract' },
       { name: 'value', type: 'any', description: 'A literal (string, number, boolean) or an arithmetic expression' },
     ],
     example: `[SET hasKey = true]
@@ -330,7 +331,9 @@ Alice (thinking): "What should I do next?"`,
 [SET playerName = "Alex"]
 [SET product = laborForce * productivity]
 [SET wages = max(product - rent, survivalFloor)]
-[SET rent = clamp(product * rentShare, 0, product)]`,
+[SET rent = clamp(product * rentShare, 0, product)]
+[SET boss_rep += 10]
+[SET gang_morale -= 5]`,
     implemented: true,
   },
   {

@@ -4,7 +4,7 @@ import { identityLine, pickIdentityRef } from '@/utils/actorIdentity';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2, Archive, Eye } from 'lucide-react';
+import { Plus, Trash2, Video, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, MessageSquare, User, Package, X, Sparkles, Wand2, Check, Lock, ZoomIn, Music, Upload, Play, Pause, Volume2, Archive, Eye, FileText } from 'lucide-react';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import { NotesSection } from '@/components/NotesSection';
 import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
 import { DramScriptEditor } from '@/components/editors/DramScriptEditor';
+import { SceneTextPanel } from '@/components/editors/SceneTextPanel';
 import { NarratonEditor } from '@/components/editors/NarratonEditor';
 
 interface SceneEditorProps {
@@ -64,6 +65,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const [styleLock, setStyleLock] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showScenePreview, setShowScenePreview] = useState(false);
+  const [showAllText, setShowAllText] = useState(false);
   // Combine default poses/expressions with custom ones from settings
   const allPoses = [...POSES, ...(game.info.customPoses || [])];
   const allExpressions = [...EXPRESSIONS, ...(game.info.customExpressions || [])];
@@ -785,6 +787,14 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             onChange={(status) => setSceneStatus(selectedScene.id, status)} 
           />
           <button
+            onClick={() => setShowAllText(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-diesel-gold/20 border border-diesel-gold text-diesel-gold text-xs font-bold uppercase hover:bg-diesel-gold/30 transition-colors"
+            title="Every line of text in this scene, in one editable list"
+          >
+            <FileText size={14} />
+            All Text
+          </button>
+          <button
             onClick={() => setShowScenePreview(true)}
             className="flex items-center gap-1 px-3 py-1.5 bg-diesel-green/20 border border-diesel-green text-diesel-green text-xs font-bold uppercase hover:bg-diesel-green/30 transition-colors"
             title="Preview this scene"
@@ -1232,6 +1242,22 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           )}
         </DialogContent>
       </Dialog>
+
+      {/* All Text - every string in the scene, in one editable list */}
+      {showAllText && selectedScene && (
+        <SceneTextPanel
+          scene={selectedScene}
+          game={game}
+          onSceneChange={(updates) => updateScene(selectedScene.id, updates)}
+          onButtonLabelChange={(buttonId, label) => {
+            onChange({
+              ...game,
+              buttons: game.buttons.map(b => b.id === buttonId ? { ...b, label } : b),
+            });
+          }}
+          onClose={() => setShowAllText(false)}
+        />
+      )}
 
       {/* Scene Preview Modal */}
       {showScenePreview && selectedScene && (
