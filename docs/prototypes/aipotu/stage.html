@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <!-- ======================================================================
-     THE STAGE v2 — one screen for every George World object & animation,
-     now with a CASCADING menu: pick the ITEM, then pick its ANIMATION /
+     HvB ASSET STAGE v3 — one screen for every George World object & animation,
+     with a CASCADING menu: pick the ITEM, then pick its ANIMATION /
      scene / skin from the second pulldown (populated per item). The
      second menu drives the study through the #set=/#click= hash the
      studies understand (the "stage remote-control" snippet).
+     v3 (2026-09-01, Doug): ◀ ▶ buttons and ← → keys step through every item
+     no matter what has focus (the iframe's keydown is hooked, same-origin);
+     a NOTES box per item saves as you type — to localStorage, and through
+     POST /stage-notes on serve_nocache.py to stage_notes.json + STAGE_NOTES.md
+     beside the studies, so the sessions can read Doug's critiques.
      Serve from the aipotu folder (serve_nocache.py :8201/stage.html).
      ====================================================================== -->
 <html lang="en">
@@ -31,6 +36,31 @@
   #anim:disabled { opacity:0.45; }
   #frame { position:fixed; top:44px; left:0; right:0; bottom:0;
     width:100%; height:calc(100% - 44px); border:0; }
+  body.notes-open #frame { bottom:150px; height:calc(100% - 44px - 150px); }
+  /* prev / next / notes controls (v3, 2026-09-01) */
+  #bar button {
+    padding:6px 11px; border:0; border-radius:8px; cursor:pointer;
+    background:#4d545d; color:#fff; font:13px system-ui; white-space:nowrap;
+  }
+  #bar button:hover { background:#5d656f; }
+  #count { font:12px Consolas, monospace; color:#aab4be; white-space:nowrap; }
+  #notesbtn.has { background:#8a6d1f; }
+  #notes {
+    position:fixed; left:0; right:0; bottom:0; height:150px; z-index:20;
+    display:none; flex-direction:column; gap:6px; padding:8px 12px;
+    background:linear-gradient(0deg,#232a30,#1a2025); border-top:1px solid #3a444c;
+    color:#e8f0f4; font:13px system-ui, sans-serif;
+  }
+  body.notes-open #notes { display:flex; }
+  #notes .row { display:flex; align-items:center; gap:10px; }
+  #notes .row b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #notestat { font:11px Consolas, monospace; color:#aab4be; margin-left:auto; white-space:nowrap; }
+  #note {
+    flex:1; resize:none; border:1px solid #3a444c; border-radius:8px; padding:8px;
+    background:#0f1316; color:#f2f6fa; font:14px system-ui, sans-serif;
+  }
+  #notes button { padding:4px 9px; border:0; border-radius:7px; cursor:pointer;
+    background:#4d545d; color:#fff; font:12px system-ui; }
 </style>
 </head>
 <body>
@@ -146,8 +176,21 @@
     </optgroup>
   </select>
   <select id="anim"></select>
+  <button id="prev" title="previous item (← key)">◀</button>
+  <span id="count"></span>
+  <button id="next" title="next item (→ key)">▶</button>
+  <button id="notesbtn" title="your notes on this item">✎ Notes</button>
 </div>
 <iframe id="frame" src="vita_anim_study.html"></iframe>
+<div id="notes">
+  <div class="row">
+    <b id="notelabel"></b>
+    <span id="notestat"></span>
+    <button id="copyall" title="copy every note as markdown">Copy all notes</button>
+    <button id="notesclose">✕</button>
+  </div>
+  <textarea id="note" placeholder="Your reaction to this item. Saved as you type; ← → still move to the next item."></textarea>
+</div>
 <script>
   // Second-level menus: file → [[hash, label], ...]. The hash rides the
   // iframe URL; the study's stage-remote-control snippet applies it.
@@ -234,10 +277,119 @@
     // the ?n= buster forces a real reload even when only the hash changed
     const hash = (!anim.disabled && anim.value) ? '#' + anim.value : '';
     frame.src = pick.value + '?n=' + (++loadN) + hash;
+    updateCount();
+    showNote();
   }
   pick.addEventListener('change', () => { fillAnim(); load(); });
   anim.addEventListener('change', load);
+
+  // ---- v3 (2026-09-01): step through EVERY item with ← → or the ◀ ▶ buttons,
+  // no matter what has focus (the iframe, a button, the page) ----
+  const items = Array.from(pick.options);           // flat list across optgroups
+  const countEl = document.getElementById('count');
+  function updateCount(){ countEl.textContent = (pick.selectedIndex+1) + ' / ' + items.length; }
+  function step(d){
+    const n = items.length;
+    pick.selectedIndex = ((pick.selectedIndex + d) % n + n) % n;
+    fillAnim(); load();
+  }
+  document.getElementById('prev').addEventListener('click', () => step(-1));
+  document.getElementById('next').addEventListener('click', () => step(1));
+  function isTyping(t){
+    return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.isContentEditable);
+  }
+  function onKey(e){
+    if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if(isTyping(e.target)) return;          // the pulldowns and the notes box keep their own arrows
+    e.preventDefault();
+    step(e.key === 'ArrowRight' ? 1 : -1);
+  }
+  window.addEventListener('keydown', onKey);
+  // the studies are same-origin: hook the iframe's own document on every load,
+  // so arrows work after you've clicked a button INSIDE a study
+  frame.addEventListener('load', () => {
+    try { frame.contentWindow.addEventListener('keydown', onKey); } catch(err) {}
+  });
+
+  // ---- v3: per-item NOTES. Saved as you type to localStorage AND, when the
+  // local server is serving (serve_nocache.py), POSTed to /stage-notes so it
+  // writes stage_notes.json + STAGE_NOTES.md beside the studies for the
+  // sessions to read. On the public Netlify copy there is no server: notes
+  // stay in this browser, and "Copy all notes" hands them over as markdown. ----
+  const KEY = 'hvb_stage_notes';
+  let NOTES = {};
+  try { NOTES = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch(err) { NOTES = {}; }
+  const notesEl = document.getElementById('notes');
+  const noteEl = document.getElementById('note');
+  const noteLabel = document.getElementById('notelabel');
+  const noteStat = document.getElementById('notestat');
+  const notesBtn = document.getElementById('notesbtn');
+  for(const o of items) o.dataset.label = o.textContent;
+  function markOptions(){
+    let n = 0;
+    for(const o of items){
+      const has = !!(NOTES[o.value] && (NOTES[o.value].text || '').trim());
+      o.textContent = (has ? '✎ ' : '') + o.dataset.label;
+      if(has) n++;
+    }
+    notesBtn.textContent = '✎ Notes' + (n ? ' (' + n + ')' : '');
+    notesBtn.classList.toggle('has', !!(NOTES[pick.value] && (NOTES[pick.value].text || '').trim()));
+  }
+  function showNote(){
+    const o = items[pick.selectedIndex];
+    noteLabel.textContent = o ? o.dataset.label : '';
+    noteEl.value = (NOTES[pick.value] && NOTES[pick.value].text) || '';
+    noteStat.textContent = NOTES[pick.value] && NOTES[pick.value].ts ? 'saved ' + NOTES[pick.value].ts : '';
+    markOptions();
+  }
+  function stamp(){
+    const d = new Date(), p = x => String(x).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  let saveT = null;
+  async function saveNotes(){
+    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err) {}
+    try {
+      const r = await fetch('/stage-notes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(NOTES) });
+      noteStat.textContent = r.ok ? 'saved to STAGE_NOTES.md ' + stamp() : 'saved in this browser only';
+    } catch(err) {
+      noteStat.textContent = 'saved in this browser only (no local server)';
+    }
+    markOptions();
+  }
+  noteEl.addEventListener('input', () => {
+    const o = items[pick.selectedIndex];
+    NOTES[pick.value] = { label: o ? o.dataset.label : pick.value, text: noteEl.value, ts: stamp() };
+    noteStat.textContent = 'saving…';
+    clearTimeout(saveT); saveT = setTimeout(saveNotes, 600);
+  });
+  function toggleNotes(open){
+    document.body.classList.toggle('notes-open', open);
+    if(open) noteEl.focus();
+  }
+  notesBtn.addEventListener('click', () => toggleNotes(!document.body.classList.contains('notes-open')));
+  document.getElementById('notesclose').addEventListener('click', () => toggleNotes(false));
+  document.getElementById('copyall').addEventListener('click', async () => {
+    const lines = ['# HvB Asset Stage notes — ' + stamp(), ''];
+    for(const o of items){
+      const n = NOTES[o.value];
+      if(n && (n.text || '').trim()){ lines.push('## ' + o.dataset.label + '  `' + o.value + '`', '_' + n.ts + '_', '', n.text.trim(), ''); }
+    }
+    const md = lines.join('\n');
+    try { await navigator.clipboard.writeText(md); noteStat.textContent = 'all notes copied as markdown'; }
+    catch(err) { noteEl.value = md; noteEl.select(); noteStat.textContent = 'select-all + copy from the box'; }
+  });
+  // merge notes the local server already holds (typed on another device on the LAN)
+  fetch('stage_notes.json?n=' + Date.now()).then(r => r.ok ? r.json() : null).then(srv => {
+    if(!srv) return;
+    for(const k in srv){ if(!NOTES[k] || (srv[k].ts || '') >= (NOTES[k].ts || '')) NOTES[k] = srv[k]; }
+    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err) {}
+    showNote();
+  }).catch(() => {});
+
   fillAnim();
+  updateCount();
+  showNote();
 </script>
 </body>
 </html>
