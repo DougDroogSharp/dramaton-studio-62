@@ -1,6 +1,6 @@
 # GEORGE WORLD — STATUS
 
-**Rewritten 2026-09-01 17:51 PDT by DISPATCH** (consolidation step 2 landed: DESIGN, CHANGELOG, STUDY_PIPELINE, READMEs, CLAUDE.md all in the repo). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
+**Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
@@ -34,6 +34,10 @@
 
 ## BUILDER QUEUE (ruled order)
 map loader → Georgeotron round trip (long-press entry; any-layer default; king-only as a switch) → industry/steam engine → births/weddings/child-labour. In parallel: dialogue batch (own worktree). Editor lane: Populous builder after the loader. Studies seat: foundry queue (16 pending), beaver/pig/dolphins, coal/iron art.
+
+## PARKED / RESOLVED (flag only, per the 2026-09-02 fold instruction)
+- **narraton-editor → main** and **asset-foundry's 16 studies → main**: the fold instruction asked to record both as parked and perform neither. Both had already been performed on 2026-09-01 (decisions 37 and 7a; merge commits `968bd9c` and `995583e`, pushed). Nothing was performed on 2026-09-02. Editor-lane spine: `docs/editor/STATUS.md`, `docs/editor/DESIGN.md`.
+- **Foundry queue:** 16 of Doug's asset requests from 2026-08-31 are still unbuilt (list in DESIGN.md, "DEBRIEFS FOLDED"), plus `artillery_study.html` uncommitted in the foundry worktree. The foundry restarts as a terminal session (7b).
 
 ## IN FLIGHT
 - Uncommitted copies of the nine studies still sit untracked in the main checkout (identical to `gw-studies`); owning sessions should move to the `gw-studies` worktree.

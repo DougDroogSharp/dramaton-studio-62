@@ -1,0 +1,36 @@
+# DRAMATON EDITOR — Design Record
+
+**Created 2026-09-02 08:45 PDT by DISPATCH**, additive fold of `THREAD_SUMMARIES_2026-09-01.md` §1 (the narraton-editor session), `IDEAS_DIGEST_2026-08-31_to_09-01.md`, and `DECISIONS_2026-09-01.md` (Dropbox `Consolidated/Projects/AIPOTU/`, the dated sources of record; nothing in them is deleted or superseded by this file). Provenance tags: **(D)** = Doug, verbatim or near-verbatim; **(C)** = Claude's reading, not canon until Doug blesses it. Keystones that bind the editor to George World are quoted from `docs/george-world/DESIGN.md` rather than restated.
+
+## CANON — as of the 2026-09-01 merge
+- **The editor is where scenes, Vitas and skins are authored; George World is a Dramaton runtime.** From the George World record (D, 2026-08-30): "I want to be able to edit the scenes in the Dramaton editor." Scenes become data the Narraton Editor edits and George World plays; "the chronicle IS a Dramaton script" (time as a script); saves are Dramaton files (`public/hvb-william.json` shape) — never a bespoke format.
+- **Narraton = the King of Chicago selector, reborn.** Scenes carry keys (0–100 targets per world variable), a phase (BEGINNING/MIDDLE/END) and a subplot; the selector ranks by least-squares distance to live world state; the director consumes played scenes (no repeats), gates phases within a subplot, and rotates subplots. Built 2026-08-31.
+- **Skins are imported finished, never modeled here.** (D, 2026-08-31 21:40) "I don't want a 3-D skin editor because that would drive me crazy. If I can't find a free one I'll get someone to create it for money." The editor imports GLB/VRM/glTF, harvests every animation clip (non-standard ones included) and the armature, and stops there. Standing rule in root `CLAUDE.md`.
+- **Vitas expose their instruments.** (D, 21:24) "All Vitas will expose their port variables, the variables of their gauges including level and red line, goal, and expose the knobs for coding and scripting purposes; we'll create a set of presets with names like Happy Voracious and Starving Lazy but will let advanced users dive in." Materialized as world variables (`george_hunger`, `george_hunger_redline`, `george_hunger_goal`, `george_appetite`), so `[SET]`/`[IF]`, Narraton keys, autocomplete and test mode all see them.
+- **An AI collaborator edits the same living document.** (D, 21:26) "I want to collaborate with an AI as I create a game, so I want to expose all the world and creature variables and text… a general-purpose editor that has access to anything editable in the editor. Does that mean an API?" (C, adopted): everything editable is one JSON document; the DRAM bridge (`GET`/`PUT /bridge/game`, read-modify-write through `migrateGameData`) is the whole API; an MCP wrapper is the polished form, not yet built.
+- **Voice-authored animations.** (D, 21:28) "I'd like to create animations with my voice in collaboration with an AI. So I want access to armatures and skins' armatures." The skin manifest carries the joint hierarchy; AI-written clips are three.js `AnimationClip` JSON stored on the skin and become poses; the runtime plays them with `AnimationClip.parse` (GW BUILDER's side). The voice loop itself = a Claude session on the bridge; not yet exercised.
+- **Player-made Vitas pick skins; a Georgeland can lock skin types.** (D, 21:02) "When a player creates a Vita let them pick from a library of skins; a user-generated land can lock down the skin types if needed; when importing a skin make sure to look at all its animations even non-standard ones and let them be arguments for poses." Built: per-world allowed-skin-types list; unlisted skins show BLOCKED.
+- **The George World Builder is this lane's** (decision 31, 2026-09-01): Populous-style placement of Vitas, resources and switches on an existing terrain, writing a Georgeland file; terraforming second; after the map loader lands.
+- **Full control of a Georgeland brings up parts of the Dramaton editor**, including a 3-D scene inside the editor (D, 2026-08-31 walk; George World DESIGN "GEORGELAND"). Direction, not built.
+- **One session per folder; this lane works in a worktree; merges through the builder for the game file** (decision 33). STATUS rewritten at every editor commit (decision 2 applied to this lane).
+
+## DIRECTIONS (not built)
+- MCP wrapper over the bridge (typed tools for any Claude surface).
+- Etag/version guard on bridge PUT.
+- The Builder (decision 31), phases one and two.
+- Externalizing George World's `SCENE_DEFS` as Dramaton scene data the Narraton editor opens (the keystone's game-side half).
+- Unifying the two Narraton metadata shapes (editor director vs theater runtime) — open decision.
+- Publishing the editor itself on Netlify.
+- Voice → animation loop exercised end to end.
+
+## LOG (dated, additive)
+
+### 2026-08-31 17:57–23:32 — the narraton-editor session (from THREAD_SUMMARIES §1)
+Built and committed on `narraton-editor`: the Narraton editor (NA tab) with the KoC selector, keys/phase/subplot, test mode; Dramscript upgrades (`+=`/`-=`, inline choice `[SET]`, scene-local variables; stale `[IF]`-after-`[SET]` bug fixed); skin library (SK tab); Vita instrumentation; armature harvest + authored clips + the DRAM bridge; the director (bags, phase gating, rotation, what-if sliders, Narraton Drive); booleans; an Opus review with fixes; two Netlify deploys; the Asset Foundry brief. Doug's words from that thread, kept verbatim in THREAD_SUMMARIES §1 "Doug's ideas": the skin-library idea (21:02), the port-variables idea (21:24), the AI-collaborator question (21:26), the voice-animation ask (21:28), the no-3-D-skin-editor rule (21:40), "We should be damn proud of this editor and game" (21:42), "I'd like to keep improving the Dramaton editor, especially the Narraton editor" (22:30), the show-a-friend ask (22:32) and "be sure to include Boolean variables" (22:35), "I'd like to publish the Dramaton stage on the net so I could play all the games" (22:56).
+Open threads it left: merge parked (later done 2026-09-01, `968bd9c`); runtime notes for GW BUILDER (posted); bridge etag; one wrong claim corrected (the foundry was local, not cloud).
+
+### 2026-09-01 — decisions that touch this lane (from DECISIONS_2026-09-01.md)
+#2 STATUS.md as the entry point (applied here as `docs/editor/STATUS.md`) · #11 root CLAUDE.md · #31 the Builder is the EDITOR lane's, after the map loader · #33 one builder on the game file, worktree per session · #37 merge narraton-editor now (done, `968bd9c`) · S1 long-lived terminal lane sessions · 10b HvB material moved to `hvb-design` (out of this repo).
+
+### 2026-09-02 — fold instruction (Doug, confirmed)
+Editor / Narraton / bridge / skin-library / Vita-instrumentation content from the three debrief files is captured in this record and `docs/editor/STATUS.md`. The two items the instruction asked to flag as parked (narraton-editor merge; asset-foundry studies onto main) had both already been performed on 2026-09-01 (`968bd9c`, `995583e`); they are recorded as resolved in both STATUS files and nothing was performed on 2026-09-02.
