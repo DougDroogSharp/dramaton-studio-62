@@ -4,8 +4,9 @@
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
-- **Repo:** `main` = `58d650e` (GitHub main merged in 2026-09-01 at `852ac98`, then the consolidation docs; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`.
-- **Branches:** `gw-studies` `a357170` (nine orphaned studies committed + FBX loader vendored) · `gw-dialogue` (new, empty, the dialogue batch) · `narraton-editor` `ad780bd` (editor lane, merge parked) · `asset-foundry` `52bdab2` local / `828d1e4` GitHub (16 foundry studies, to be moved onto main).
+- **Repo:** `main` = `2a70e58` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
+- **Branches:** `gw-studies` (merged; the GW STUDIES seat keeps working there) · `gw-dialogue` (the dialogue batch, in progress) · `narraton-editor` `ad780bd` (EDITOR lane merging main in now; DISPATCH fast-forwards main after) · `asset-foundry` (merged; foundry worktree now carries main).
+- **Stage:** 91 entries on `stage.html` (the 15 foundry studies + crab, turtle, dragon, flora, Georgeland 2 registered 2026-09-01). **Public stage not yet redeployed** with them.
 - **Servers:** game + stage `http://10.0.0.137:8201/` (phone) · `http://localhost:8201/` (laptop). Public: `https://george-world-aipotu.netlify.app` (game, v0.79) · `https://dramaton-stage.netlify.app` (stage, STALE: 62 entries).
 - **Builder lock:** HvM Graphics (GW BUILDER) is the only session that edits `georgeworld.html`, in `C:\Users\dougs\dramaton-studio-62`. Ludo's mailbox entry declared a lock on the map/terrain layer "by HvM"; no BLOCK file exists.
 - **Names (ruled 2026-09-01):** Humans vs Billionaires is the game · **George World is the chapter** · a **Georgeland** is a loadable parcel · **Aipotu** is the first Georgeland (the current island) · a **run** is one playthrough · **Georgeotron** is the one name for the machine, page, bench and parts (Georgeomat retired).
