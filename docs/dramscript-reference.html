@@ -1,0 +1,1324 @@
+<title>DramScript Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+:root {
+  --ink:        #1b1a17;
+  --ink-soft:   #4a4740;
+  --foolscap:   #efe9dc;
+  --card:       #f7f3e9;
+  --rule:       #d3cab5;
+  --pencil-red: #b3241f;
+  --pencil-grn: #2f6b4f;
+  --stamp:      #8a7b53;
+  --shadow:     rgba(27, 26, 23, .09);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:        #e8e2d4;
+    --ink-soft:   #a29a89;
+    --foolscap:   #16161a;
+    --card:       #1e1e23;
+    --rule:       #34333b;
+    --pencil-red: #e8635c;
+    --pencil-grn: #6fbf95;
+    --stamp:      #b7a678;
+    --shadow:     rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  --ink:        #e8e2d4;
+  --ink-soft:   #a29a89;
+  --foolscap:   #16161a;
+  --card:       #1e1e23;
+  --rule:       #34333b;
+  --pencil-red: #e8635c;
+  --pencil-grn: #6fbf95;
+  --stamp:      #b7a678;
+  --shadow:     rgba(0, 0, 0, .4);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--foolscap);
+  color: var(--ink);
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+code, pre, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+h1, h2, h3, .cond {
+  font-family: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 3rem) 1.5rem;
+  max-width: 78rem; margin: 0 auto;
+}
+.slug {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--stamp); margin-bottom: 1rem;
+}
+.masthead h1 {
+  margin: 0; line-height: .92;
+  font-size: clamp(2.8rem, 9vw, 6rem);
+  letter-spacing: -.02em; text-transform: uppercase;
+}
+.masthead h1 em {
+  font-style: normal; color: var(--pencil-red);
+}
+.lede {
+  max-width: 34em; margin: 1.25rem 0 0;
+  font-size: 1.06rem; color: var(--ink-soft);
+}
+.stats {
+  display: flex; flex-wrap: wrap; gap: 0 2.5rem;
+  margin-top: 1.75rem; padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-family: "IBM Plex Mono", monospace; font-size: .78rem;
+  color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.stats b { color: var(--ink); font-weight: 600; }
+
+/* ---- layout ---- */
+.wrap {
+  max-width: 78rem; margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 3rem) 6rem;
+  display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem);
+}
+@media (max-width: 60rem) { .wrap { grid-template-columns: 1fr; } nav.index { position: static; max-height: none; } }
+
+nav.index {
+  position: sticky; top: 0; align-self: start;
+  max-height: 100vh; overflow-y: auto;
+  padding: 2rem 0; font-size: .8rem;
+}
+nav.index ul { list-style: none; margin: 0; padding: 0; }
+.nav-group { margin-bottom: 1.25rem; }
+.nav-cat {
+  display: block; font-family: "IBM Plex Sans Condensed", sans-serif;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  font-size: .72rem; color: var(--stamp); margin-bottom: .35rem;
+}
+.nav-group ul { display: flex; flex-wrap: wrap; gap: .15rem .5rem; }
+nav.index a {
+  color: var(--ink-soft); text-decoration: none;
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  border-bottom: 1px solid transparent;
+}
+nav.index a:hover, nav.index a:focus-visible {
+  color: var(--pencil-red); border-bottom-color: var(--pencil-red); outline: none;
+}
+
+main { padding-top: 2rem; min-width: 0; }
+
+/* ---- prologue ---- */
+.prologue {
+  border-left: 3px solid var(--pencil-grn);
+  padding: .25rem 0 .25rem 1.25rem; margin-bottom: 3.5rem;
+  max-width: 40em;
+}
+.prologue p { margin: 0 0 .9rem; }
+.prologue p:last-child { margin-bottom: 0; }
+.prologue strong { font-weight: 500; color: var(--pencil-grn); }
+
+/* ---- categories ---- */
+.cat { margin-bottom: 4rem; scroll-margin-top: 1rem; }
+.cat-head { border-top: 2px solid var(--ink); padding-top: .75rem; margin-bottom: 1.75rem; }
+.cat-head h2 {
+  margin: 0; font-size: clamp(1.4rem, 3.4vw, 2rem);
+  text-transform: uppercase; letter-spacing: -.01em;
+}
+.cat-head p { margin: .25rem 0 0; color: var(--ink-soft); font-size: .95rem; max-width: 40em; }
+
+/* ---- command cards ---- */
+.cmd {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1.25rem 1.35rem 1.35rem;
+  margin-bottom: 1.1rem;
+  box-shadow: 0 1px 2px var(--shadow);
+  scroll-margin-top: 1rem;
+}
+.cmd-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; }
+.cmd-head h3 {
+  margin: 0; font-size: 1.25rem; letter-spacing: .02em;
+  text-transform: uppercase; color: var(--pencil-red);
+}
+.syntax {
+  flex: 1 1 22rem; min-width: 0; margin: 0;
+  overflow-x: auto; padding: .45rem .6rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 2px; font-size: .8rem; line-height: 1.7;
+}
+.desc { margin: .85rem 0 0; max-width: 46em; }
+
+.params { margin: 1rem 0 0; display: grid; gap: .3rem; }
+.param { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: .75rem; align-items: baseline; }
+@media (max-width: 40rem) { .param { grid-template-columns: 1fr; gap: .1rem; } }
+.param dt { margin: 0; }
+.param dt code { font-size: .82rem; font-weight: 600; }
+.ptype {
+  display: block; font-family: "IBM Plex Mono", monospace;
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--stamp);
+}
+.param dd { margin: 0; font-size: .92rem; color: var(--ink-soft); }
+
+.example { margin-top: 1.1rem; }
+.ex-label {
+  display: block; font-family: "IBM Plex Mono", monospace;
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--stamp); margin-bottom: .35rem;
+}
+.example pre {
+  margin: 0; overflow-x: auto;
+  padding: .8rem .9rem;
+  border-left: 2px solid var(--pencil-grn);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  font-size: .82rem; line-height: 1.75;
+}
+
+/* ---- syntax tint ---- */
+.s-key    { color: var(--pencil-red); font-weight: 600; }
+.s-brk    { color: var(--stamp); }
+.s-arg    { color: var(--ink); }
+.s-actor  { color: var(--pencil-grn); font-weight: 600; }
+.s-tag    { color: var(--stamp); }
+.s-str    { color: var(--ink-soft); font-style: italic; }
+.s-cmd    { color: var(--pencil-red); }
+.s-target { color: var(--pencil-grn); }
+.s-gate   { color: var(--stamp); }
+
+footer.colophon {
+  max-width: 78rem; margin: 0 auto;
+  padding: 2rem clamp(1rem, 4vw, 3rem) 4rem;
+  border-top: 1px solid var(--rule);
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  color: var(--stamp); max-width: 78rem;
+}
+</style>
+
+<header class="masthead">
+  <div class="slug">Dramaton Engine · Language Reference · 43 commands</div>
+  <h1>Dram<em>Script</em></h1>
+  <p class="lede">
+    A line-based language for directing actors, backdrops, cameras and an economy at
+    the same time. Every line is either a stage direction in brackets or a character
+    speaking — the whole grammar fits on a page, and a scene reads like a script.
+  </p>
+  <div class="stats">
+    <span><b>43</b> commands</span>
+    <span><b>9</b> categories</span>
+    <span>Lineage: <b>1986</b> King of Chicago → GODinabox → Dramaton</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="index" aria-label="Command index">
+    <ul>
+    <li class="nav-group">
+      <span class="nav-cat">Dialogue Commands</span>
+      <ul><li><a href="#cmd-dialogue">DIALOGUE</a></li><li><a href="#cmd-narrate">NARRATE</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Scene Commands</span>
+      <ul><li><a href="#cmd-scene">SCENE</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Actor Commands</span>
+      <ul><li><a href="#cmd-enter">ENTER</a></li><li><a href="#cmd-exit">EXIT</a></li><li><a href="#cmd-move">MOVE</a></li><li><a href="#cmd-pose">POSE</a></li><li><a href="#cmd-tween">TWEEN</a></li><li><a href="#cmd-backdrop">BACKDROP</a></li><li><a href="#cmd-frame">FRAME</a></li><li><a href="#cmd-animate">ANIMATE</a></li><li><a href="#cmd-stop_animate">STOP_ANIMATE</a></li><li><a href="#cmd-face">FACE</a></li><li><a href="#cmd-camera">CAMERA</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Choice Commands</span>
+      <ul><li><a href="#cmd-choice">CHOICE</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Flow Control</span>
+      <ul><li><a href="#cmd-wait">WAIT</a></li><li><a href="#cmd-set">SET</a></li><li><a href="#cmd-if">IF</a></li><li><a href="#cmd-elseif">ELSEIF</a></li><li><a href="#cmd-else">ELSE</a></li><li><a href="#cmd-endif">ENDIF</a></li><li><a href="#cmd-label">LABEL</a></li><li><a href="#cmd-goto">GOTO</a></li><li><a href="#cmd-random">RANDOM</a></li><li><a href="#cmd-tick">TICK</a></li><li><a href="#cmd-narraton">NARRATON</a></li><li><a href="#cmd-autoplay">AUTOPLAY</a></li><li><a href="#cmd-comment">COMMENT</a></li><li><a href="#cmd-unknown">UNKNOWN</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Instrument Commands</span>
+      <ul><li><a href="#cmd-slider">SLIDER</a></li><li><a href="#cmd-gauge">GAUGE</a></li><li><a href="#cmd-hide_slider">HIDE_SLIDER</a></li><li><a href="#cmd-hide_gauge">HIDE_GAUGE</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Effect Commands</span>
+      <ul><li><a href="#cmd-effect">EFFECT</a></li><li><a href="#cmd-clear_effect">CLEAR_EFFECT</a></li><li><a href="#cmd-bind">BIND</a></li><li><a href="#cmd-unbind">UNBIND</a></li><li><a href="#cmd-set_text">SET_TEXT</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Audio Commands</span>
+      <ul><li><a href="#cmd-bgm">BGM</a></li><li><a href="#cmd-ambience">AMBIENCE</a></li><li><a href="#cmd-sfx">SFX</a></li></ul>
+    </li>
+    <li class="nav-group">
+      <span class="nav-cat">Button Commands</span>
+      <ul><li><a href="#cmd-button">BUTTON</a></li><li><a href="#cmd-hide_button">HIDE_BUTTON</a></li></ul>
+    </li></ul>
+  </nav>
+
+  <main>
+    <div class="prologue">
+      <p><strong>One command per line.</strong> Bracketed lines are directions —
+      <code>[ENTER]</code>, <code>[MOVE]</code>, <code>[SET]</code>. Unbracketed lines are speech:
+      a name, a colon, the words. That is the whole shape of the language.</p>
+      <p><strong>Nothing crashes.</strong> A malformed expression evaluates to 0 and warns,
+      an unknown label falls through, a missing graphic keeps the current look. Scripts
+      degrade; the theater keeps running.</p>
+      <p><strong>The world is one bag of variables.</strong> <code>SET</code> writes it,
+      <code>IF</code> reads it, <code>TICK</code> evolves it, <code>BIND</code> wires it to what
+      you see, gauges display it, and <code>NARRATON</code> uses it to choose what happens next.</p>
+    </div>
+    
+    <section class="cat" id="cat-dialogue">
+      <div class="cat-head">
+        <h2>Dialogue Commands</h2>
+        <p>Commands for displaying character dialogue and narration.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-dialogue">
+      <header class="cmd-head">
+        <h3>DIALOGUE</h3>
+        <pre class="syntax"><code><span class="s-actor">ACTOR_NAME</span>: <span class="s-str">"text"  |  ACTOR_NAME (Expression): "text"  |  ACTOR_NAME (Pose/Expression): "text"  |  ACTOR_NAME (thinking): "text"</span></code></pre>
+      </header>
+      <p class="desc">Displays dialogue spoken by an actor. An optional acting tag switches the speaker's stage sprite (and portrait) to the matching graphic for this utterance: (Angry) picks any graphic with that expression; (Pointing/Angry) pins the exact pose too. Without a tag, speakers with multiple graphics auto-vary per utterance. Missing graphics warn and keep the current look. (thinking) renders as a thought balloon. Text supports {variable} interpolation against the live world state, resolved at speak time — numbers round to 1 decimal, unknown variables show ?? with a warning (the 1986 SAY_VAR, reborn).</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>actorName</code><span class="ptype">string</span></dt>
+          <dd>The name of the speaking actor (case-sensitive, starts with uppercase)</dd>
+        </div>
+        <div class="param">
+          <dt><code>acting tag</code><span class="ptype">string · optional</span></dt>
+          <dd>Optional: thinking, an Expression, or Pose/Expression — must match a graphic in the actor's pose library</dd>
+        </div>
+        <div class="param">
+          <dt><code>text</code><span class="ptype">string</span></dt>
+          <dd>The dialogue text to display (in quotes)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-actor">Detective</span>: <span class="s-str">"I've seen things you wouldn't believe."</span>
+<span class="s-actor">Detective </span><span class="s-tag">(Angry)</span>: <span class="s-str">"You lied to me."</span>
+<span class="s-actor">Detective </span><span class="s-tag">(Pointing/Angry)</span>: <span class="s-str">"It was YOU."</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"The rain continued to fall."</span>
+<span class="s-actor">Alice </span><span class="s-tag">(thinking)</span>: <span class="s-str">"What should I do next?"</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-narrate">
+      <header class="cmd-head">
+        <h3>NARRATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">NARRATE</span><span class="s-arg"> "text" [for duration</span><span class="s-brk">]</span>]</code></pre>
+      </header>
+      <p class="desc">Says something WITHOUT waiting for a click — the one speech form allowed inside a TICK body, so a running simulation can describe itself. The line appears at the foot of the stage, is announced to screen readers, and clears itself after the duration (default 4s). Supports {variable} interpolation. Consecutive identical lines are suppressed, so a 1s tick can narrate a standing condition without flooding. Use it to explain what a change MEANS as the model propagates it, and as the audio-description channel for blind players.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>text</code><span class="ptype">string</span></dt>
+          <dd>The line to narrate; {variables} interpolate</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string · optional</span></dt>
+          <dd>How long it stays up (default 4s)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">TICK</span><span class="s-arg"> 3s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> hoard = hoard + squeeze * 0.4</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> hoard &gt; 70</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">NARRATE</span><span class="s-arg"> "The hoard swells to {hoard}. Upstairs, nothing is spent; downstairs, the rent still comes due." for 6s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">/TICK</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-scene">
+      <div class="cat-head">
+        <h2>Scene Commands</h2>
+        <p>Commands for transitioning between scenes and managing backgrounds.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-scene">
+      <header class="cmd-head">
+        <h3>SCENE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">SCENE</span><span class="s-arg"> scene_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Transitions to a different scene immediately.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>scene_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the target scene</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">SCENE</span><span class="s-arg"> forest_clearing</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SCENE</span><span class="s-arg"> chapter2_intro</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-actor">
+      <div class="cat-head">
+        <h2>Actor Commands</h2>
+        <p>Commands for controlling actor visibility, position, and appearance on stage.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-enter">
+      <header class="cmd-head">
+        <h3>ENTER</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ENTER</span><span class="s-arg"> actor_id at x,y</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Makes an actor appear on stage at the specified position (percentage of stage dimensions).</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>actor_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the actor</dd>
+        </div>
+        <div class="param">
+          <dt><code>x</code><span class="ptype">number</span></dt>
+          <dd>Horizontal position (0-100, percentage from left)</dd>
+        </div>
+        <div class="param">
+          <dt><code>y</code><span class="ptype">number</span></dt>
+          <dd>Vertical position (0-100, percentage from top)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">ENTER</span><span class="s-arg"> detective at 25,50</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENTER</span><span class="s-arg"> witness at 75,50</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-exit">
+      <header class="cmd-head">
+        <h3>EXIT</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">EXIT</span><span class="s-arg"> actor_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Removes an actor from the stage.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>actor_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the actor to remove</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">EXIT</span><span class="s-arg"> detective</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-move">
+      <header class="cmd-head">
+        <h3>MOVE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">MOVE</span><span class="s-arg"> actor_id to x,y over duration</span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">MOVE</span><span class="s-arg"> actor_id to TARGET over duration</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Animates an actor moving to a new position over the specified duration. The destination may be literal coordinates, another stage element, or a named backdrop anchor — an object identified inside the backdrop art, like BOAT1 or RUBBER_TREE; unresolvable names warn and fall back to coordinates. Walk cycle: if the actor's graphics include poses named Walk1 and Walk2, the runner flips between those two frames every 250ms while the move is in flight, then restores the prior pose on arrival. Directional sets: when Walk1/Walk2 exist at several sprite angles (0=right, 45=down-right, 90=down, 135=down-left, 180=left, 225=up-left, 270=up, 315=up-right), the pair whose angle is nearest the travel direction is used. Actors without walk frames glide unchanged.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>actor_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the actor</dd>
+        </div>
+        <div class="param">
+          <dt><code>x</code><span class="ptype">number</span></dt>
+          <dd>Target horizontal position (0-100)</dd>
+        </div>
+        <div class="param">
+          <dt><code>y</code><span class="ptype">number</span></dt>
+          <dd>Target vertical position (0-100)</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string · optional</span></dt>
+          <dd>Animation duration (e.g., "2s", "500ms")</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">MOVE</span><span class="s-arg"> detective to 50,50 over 1s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">MOVE</span><span class="s-arg"> witness to 25,50</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">MOVE</span><span class="s-arg"> aldric to RUBBER_TREE over 3s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-pose">
+      <header class="cmd-head">
+        <h3>POSE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">POSE</span><span class="s-arg"> actor_id pose=PoseName expression=ExpressionName</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Changes an actor's pose and/or expression.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>actor_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the actor</dd>
+        </div>
+        <div class="param">
+          <dt><code>pose</code><span class="ptype">string · optional</span></dt>
+          <dd>The pose name to switch to</dd>
+        </div>
+        <div class="param">
+          <dt><code>expression</code><span class="ptype">string · optional</span></dt>
+          <dd>The expression name to display</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">POSE</span><span class="s-arg"> detective pose=Thinking expression=Worried</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">POSE</span><span class="s-arg"> witness expression=Happy</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-tween">
+      <header class="cmd-head">
+        <h3>TWEEN</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">TWEEN</span><span class="s-arg"> element.property to value over duration</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Animates any numeric element property to a target value: scale, rotation, opacity, x, y, zIndex. Like MOVE but for everything else — grow the billionaire as his hoard rises, fade a ghost in, tip a falling tower. Non-blocking: the script continues immediately (follow with WAIT to hold for the animation). Unknown properties are ignored with a warning.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Stage element id</dd>
+        </div>
+        <div class="param">
+          <dt><code>property</code><span class="ptype">string</span></dt>
+          <dd>scale | rotation | opacity | x | y | zIndex</dd>
+        </div>
+        <div class="param">
+          <dt><code>value</code><span class="ptype">number</span></dt>
+          <dd>Target value</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string</span></dt>
+          <dd>Animation duration (default 1s)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">TWEEN</span><span class="s-arg"> billionaire.scale to 3 over 2s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">TWEEN</span><span class="s-arg"> ghost.opacity to 0 over 1.5s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">TWEEN</span><span class="s-arg"> tower.rotation to 75 over 3s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-backdrop">
+      <header class="cmd-head">
+        <h3>BACKDROP</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">BACKDROP</span><span class="s-arg"> drop_id [over duration</span><span class="s-brk">]</span>]</code></pre>
+      </header>
+      <p class="desc">Swaps the scene backdrop without changing scenes, crossfading over the given duration (instant when omitted). Day to night, before and after the fire, the same room ten years later. Unknown drop ids warn and keep the current backdrop.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>drop_id</code><span class="ptype">string</span></dt>
+          <dd>Id of a drop in the game</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string</span></dt>
+          <dd>Crossfade duration (default instant)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">BACKDROP</span><span class="s-arg"> wm_village_burnt over 2s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-frame">
+      <header class="cmd-head">
+        <h3>FRAME</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> fun|scary|sad|still</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Makes the CABINET around the stage react for a beat — a shudder and cold desaturation at something frightening, a warm swell at something good, a slow grieving dim. Use it sparingly: the frame is still almost all the time, and that stillness is what makes the exceptions land. [FRAME still] clears it. Suppressed entirely under reduced motion; an unknown mood is ignored.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>mood</code><span class="ptype">string</span></dt>
+          <dd>fun | scary | sad | still</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> scary</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> fun</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FRAME</span><span class="s-arg"> still</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-animate">
+      <header class="cmd-head">
+        <h3>ANIMATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> element Pose1 Pose2 ... [every duration</span><span class="s-brk">]</span> [repeat n]]</code></pre>
+      </header>
+      <p class="desc">Loops an element through named pose frames — embroidered flames flickering, a bird flapping across the sky, a machine pumping. Unlike the walk cycle this is not tied to movement: it runs until stopped or the scene changes. Non-blocking; the script continues immediately. Default 200ms per frame; omit "repeat" to loop forever. A second ANIMATE on the same element replaces the first rather than stacking. Under reduced-motion the first frame shows and holds.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Stage element id</dd>
+        </div>
+        <div class="param">
+          <dt><code>poses</code><span class="ptype">string</span></dt>
+          <dd>Two or more pose names, in cycle order</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string · optional</span></dt>
+          <dd>Time per frame (default 200ms)</dd>
+        </div>
+        <div class="param">
+          <dt><code>n</code><span class="ptype">number · optional</span></dt>
+          <dd>Number of full cycles; omitted means forever</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> granary_fire Flame1 Flame2 Flame3 every 180ms</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> gull Wings_Up Wings_Down every 250ms</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> door Shut Ajar Open every 400ms repeat 1</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-stop_animate">
+      <header class="cmd-head">
+        <h3>STOP_ANIMATE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">STOP_ANIMATE</span><span class="s-arg"> element</span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">ANIMATE</span><span class="s-arg"> element off</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Stops a looping ANIMATE on an element, leaving it on whatever frame it reached. Scene changes stop every animation automatically, so this is only needed to stop one mid-scene.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Stage element id</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">STOP_ANIMATE</span><span class="s-arg"> granary_fire</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-face">
+      <header class="cmd-head">
+        <h3>FACE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">FACE</span><span class="s-arg"> element toward target</span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">FACE</span><span class="s-arg"> element degrees</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Turns an actor to face something and snaps the sprite to the nearest directional graphic it actually has (this is facing, not mirroring — no flipped scars or sword hands). The target may be another stage element, an item on stage, or a named backdrop anchor — objects identified inside the backdrop art, like BOAT1 or RUBBER_TREE. Degrees are compass-style: 0 right, 90 down, 180 left, 270 up. Actors without directional art keep their current look, with a warning.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>The stage element that turns</dd>
+        </div>
+        <div class="param">
+          <dt><code>target</code><span class="ptype">string</span></dt>
+          <dd>Element id or backdrop anchor id to face</dd>
+        </div>
+        <div class="param">
+          <dt><code>degrees</code><span class="ptype">number</span></dt>
+          <dd>Explicit facing angle instead of a target</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">FACE</span><span class="s-arg"> aldric toward h_william</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FACE</span><span class="s-arg"> hereward toward BOAT1</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">FACE</span><span class="s-arg"> crowd 270</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-camera">
+      <header class="cmd-head">
+        <h3>CAMERA</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> shot wide|closeup|two [on element</span><span class="s-brk">]</span> [over duration]]  |  <span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> zoom 1.5 [at x,y</span><span class="s-brk">]</span> [over duration]]  |  <span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> follow element</span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> reset</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Moves the camera over the stage. Named shots are the 1986 King of Chicago cuts: wide (full stage), two (a two-shot), closeup (push in) — add "on element" to center them. Free form takes an explicit zoom factor and optional focus point. "follow element" tracks a moving element continuously (pairs with MOVE walk cycles). "reset" returns to the full stage.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>shot</code><span class="ptype">string</span></dt>
+          <dd>wide | closeup | two | reset</dd>
+        </div>
+        <div class="param">
+          <dt><code>element</code><span class="ptype">string</span></dt>
+          <dd>Element to center on or follow</dd>
+        </div>
+        <div class="param">
+          <dt><code>zoom</code><span class="ptype">number</span></dt>
+          <dd>Free zoom factor (1 = full stage)</dd>
+        </div>
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string</span></dt>
+          <dd>Move duration (default 1s)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> shot closeup on h_william over 1.5s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> follow h_peasant</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> zoom 1.8 at 30,40 over 2s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">CAMERA</span><span class="s-arg"> reset over 1s</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-choice">
+      <div class="cat-head">
+        <h2>Choice Commands</h2>
+        <p>Commands for presenting branching narrative choices to the player.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-choice">
+      <header class="cmd-head">
+        <h3>CHOICE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span>  |  <span class="s-brk">[</span><span class="s-key">CHOICE</span><span class="s-arg"> 10s -&gt; fallback_scene</span><span class="s-brk">]</span>
+- <span class="s-str">"Option text"</span> <span class="s-cmd">[<span class="s-gate">(if condition)</span>]</span> <span class="s-target">-&gt; target_scene</span> <span class="s-cmd">[[SET var = value]</span> ...]
+<span class="s-brk">[</span><span class="s-key">/CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Presents the player with branching dialogue options; each navigates to a scene. A single option is not a decision: it renders as a plain statement of what the player does and takes itself after a short reading pause. Options may carry a (if condition) gate — same grammar as IF — and only show when it holds; if every option is gated out, the choice is skipped with a warning. Options may carry trailing [SET ...] effects, applied to world state at selection time, before the jump. A timed header ([CHOICE 10s -&gt; scene]) jumps to the fallback scene if the player hesitates.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>options</code><span class="ptype">array</span></dt>
+          <dd>List of choice options with text, optional gate, target scene, and optional SET effects</dd>
+        </div>
+        <div class="param">
+          <dt><code>timeout</code><span class="ptype">string</span></dt>
+          <dd>Optional header form: duration and fallback scene, e.g. [CHOICE 10s -&gt; scene]</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span>
+- <span class="s-str">"Investigate the desk"</span> <span class="s-target">-&gt; desk_scene</span>
+- <span class="s-str">"Bribe the clerk"</span> <span class="s-gate">(if gold &gt;= 50)</span> <span class="s-target">-&gt; bribe_scene</span> <span class="s-cmd">[SET gold = gold - 50]</span> <span class="s-cmd">[SET suspicion = suspicion + 10]</span>
+- <span class="s-str">"Leave the room"</span> <span class="s-target">-&gt; hallway</span>
+<span class="s-brk">[</span><span class="s-key">/CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span>
+
+<span class="s-brk">[</span><span class="s-key">CHOICE</span><span class="s-arg"> 10s -&gt; they_decide_for_you</span><span class="s-brk">]</span>
+- <span class="s-str">"Give the order"</span> <span class="s-target">-&gt; burn_it</span> <span class="s-cmd">[SET ruthless = ruthless + 1]</span>
+- <span class="s-str">"Stay your hand"</span> <span class="s-target">-&gt; spare_it</span>
+<span class="s-brk">[</span><span class="s-key">/CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-flow">
+      <div class="cat-head">
+        <h2>Flow Control</h2>
+        <p>Commands for controlling script execution, variables, and conditionals.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-wait">
+      <header class="cmd-head">
+        <h3>WAIT</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">WAIT</span><span class="s-arg"> duration</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Pauses script execution for the specified duration.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>duration</code><span class="ptype">string</span></dt>
+          <dd>Wait time (e.g., "2s", "500ms", or just "2" for seconds)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">WAIT</span><span class="s-arg"> 2s</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">WAIT</span><span class="s-arg"> 500ms</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-set">
+      <header class="cmd-head">
+        <h3>SET</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> variable = value_or_expression</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Sets a world state variable that persists across scenes. The right side can be a literal (string, number, boolean) or an arithmetic expression over other variables. Expressions support + - * / ( ), numeric literals, variable names, and the functions clamp(x,min,max), min(...), max(...), abs(x), floor(x), rand() (0 to 1), rand(max) (0 to max), rand(min,max). A bare variable name copies that variable's value. Bad expressions and unknown variables resolve to 0 with a console warning — scripts never crash.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>variable</code><span class="ptype">string</span></dt>
+          <dd>The variable name (alphanumeric, no spaces)</dd>
+        </div>
+        <div class="param">
+          <dt><code>value</code><span class="ptype">any</span></dt>
+          <dd>A literal (string, number, boolean) or an arithmetic expression</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> hasKey = true</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> visitCount = 3</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> playerName = "Alex"</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> product = laborForce * productivity</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> wages = max(product - rent, survivalFloor)</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> rent = clamp(product * rentShare, 0, product)</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-if">
+      <header class="cmd-head">
+        <h3>IF</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> condition</span><span class="s-brk">]</span>
+...commands...
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Conditionally executes commands based on world state. The simple form compares one variable against a literal. Either side may also be an arithmetic expression (same grammar as SET), in which case both sides evaluate numerically. Booleans count as 1/0 in expressions.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>lhs</code><span class="ptype">string</span></dt>
+          <dd>The variable to check, or an arithmetic expression</dd>
+        </div>
+        <div class="param">
+          <dt><code>operator</code><span class="ptype">string</span></dt>
+          <dd>Comparison operator: ==, !=, &gt;, &lt;, &gt;=, &lt;=</dd>
+        </div>
+        <div class="param">
+          <dt><code>rhs</code><span class="ptype">any</span></dt>
+          <dd>A literal, variable, or arithmetic expression to compare against</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> hasKey == true</span><span class="s-brk">]</span>
+<span class="s-actor">Detective</span>: <span class="s-str">"I can unlock this door now."</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span>
+
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> wages &lt; survivalFloor + 10</span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"The humans are starving."</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span>
+
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> speculation * greed &gt; 5000</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">EFFECT</span><span class="s-arg"> shake on stage</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-elseif">
+      <header class="cmd-head">
+        <h3>ELSEIF</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ELSEIF</span><span class="s-arg"> condition</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Adds another conditional arm to an IF block: tried in order after the IF (and any earlier ELSEIFs) fail. Same condition grammar as IF. Must appear between [IF] and [ENDIF].</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>lhs</code><span class="ptype">string</span></dt>
+          <dd>The variable to check, or an arithmetic expression</dd>
+        </div>
+        <div class="param">
+          <dt><code>operator</code><span class="ptype">string</span></dt>
+          <dd>Comparison operator: ==, !=, &gt;, &lt;, &gt;=, &lt;=</dd>
+        </div>
+        <div class="param">
+          <dt><code>rhs</code><span class="ptype">any</span></dt>
+          <dd>A literal, variable, or arithmetic expression to compare against</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> heat &gt; 80</span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"The city is burning."</span>
+<span class="s-brk">[</span><span class="s-key">ELSEIF</span><span class="s-arg"> heat &gt; 50</span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"The streets simmer."</span>
+<span class="s-brk">[</span><span class="s-key">ELSE</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"An uneasy calm."</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-else">
+      <header class="cmd-head">
+        <h3>ELSE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ELSE</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">The fallback arm of an IF block: runs when the IF condition and every ELSEIF fail. Must appear between [IF] and [ENDIF], after any ELSEIFs.</p>
+      
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> singleTax == 1</span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"Rent flows to everyone."</span>
+<span class="s-brk">[</span><span class="s-key">ELSE</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-actor">Narrator</span>: <span class="s-str">"Rent flows to the landlord."</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-endif">
+      <header class="cmd-head">
+        <h3>ENDIF</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Marks the end of an IF conditional block (including any ELSEIF/ELSE arms).</p>
+      
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-label">
+      <header class="cmd-head">
+        <h3>LABEL</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">LABEL</span><span class="s-arg"> name</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Marks a named jump target in the current scene's script. Does nothing on its own; GOTO jumps to it.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>name</code><span class="ptype">string</span></dt>
+          <dd>Label name (letters, digits, underscore)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">LABEL</span><span class="s-arg"> bargain</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-goto">
+      <header class="cmd-head">
+        <h3>GOTO</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">GOTO</span><span class="s-arg"> name</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Jumps to [LABEL name] in the current scene — forwards or backwards. Good for retry loops and in-scene hubs without spinning up new scenes. Unknown labels warn and fall through. A GOTO chain that executes 10000 steps without yielding is stopped with a warning (runaway-loop guard). Not allowed inside TICK bodies.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>name</code><span class="ptype">string</span></dt>
+          <dd>The label to jump to</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">LABEL</span><span class="s-arg"> haggle</span><span class="s-brk">]</span>
+<span class="s-actor">Merchant</span>: <span class="s-str">"Best I can do."</span>
+<span class="s-brk">[</span><span class="s-key">CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span>
+- <span class="s-str">"Push harder"</span> <span class="s-target">-&gt; this_scene</span>
+<span class="s-brk">[</span><span class="s-key">/CHOICE</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">GOTO</span><span class="s-arg"> haggle</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-random">
+      <header class="cmd-head">
+        <h3>RANDOM</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">RANDOM</span><span class="s-arg"></span><span class="s-brk">]</span>
+...branch...
+<span class="s-brk">[</span><span class="s-key">OR</span><span class="s-arg"></span><span class="s-brk">]</span>
+...branch...
+<span class="s-brk">[</span><span class="s-key">/RANDOM</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Plays exactly one branch, chosen uniformly at random each time the block executes (the 1986 RNDSWITCH). Branches are separated by [OR] lines. Use it to keep repeated visits fresh — wrap alternate phrasings of a reply, or alternate small events. Nests inside IF/TICK and may contain them.</p>
+      
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">RANDOM</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-actor">Boss</span>: <span class="s-str">"You're doin a great job, Ben."</span>
+<span class="s-brk">[</span><span class="s-key">OR</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-actor">Boss</span>: <span class="s-str">"That's swell."</span>
+<span class="s-brk">[</span><span class="s-key">OR</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-actor">Boss</span>: <span class="s-str">"Can't we do any better?"</span>
+<span class="s-brk">[</span><span class="s-key">/RANDOM</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-tick">
+      <header class="cmd-head">
+        <h3>TICK</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">TICK</span><span class="s-arg"> interval</span><span class="s-brk">]</span>
+...commands...
+<span class="s-brk">[</span><span class="s-key">/TICK</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">A repeating block: the body runs every interval while the scene is active, concurrent with (never blocking) normal script and dialogue flow. Use it as a simulation heartbeat — typically SETs and IFs updating world state. One TICK block per scene; extra blocks are ignored with a warning. Blocking commands (DIALOGUE, CHOICE, WAIT, nested TICK) are skipped inside a tick body with a warning. The tick keeps running after the scene script completes and stops on scene transition.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>interval</code><span class="ptype">string</span></dt>
+          <dd>Repeat interval (e.g., "500ms", "2s")</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">TICK</span><span class="s-arg"> 500ms</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> productivity = productivity + 0.1</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET</span><span class="s-arg"> product = laborForce * productivity * (marginHeight / 100)</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> speculation &gt; 70</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">EFFECT</span><span class="s-arg"> shake on stage</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">/TICK</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-narraton">
+      <header class="cmd-head">
+        <h3>NARRATON</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">NARRATON</span><span class="s-arg"> pool=pool_name</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Yields flow control to the Narraton selector (the 1986 King of Chicago storyteller). It gathers every scene whose Narraton metadata names this pool, filters by hard requirements, play history (non-repeatable scenes play once), and subplot rotation (one scene per subplot, in order), then transitions to the survivor whose keys least-squares match the current world state: score = sum of ((current - target) / scale)^2 per key, divided by the scene's weight; lowest wins, exact ties break randomly. Scene metadata is set in the scene editor. Every selection decision (candidate pool, gates, per-key deltas, scores, winner) is logged to the console. If no scene is eligible, the script continues past the command with a warning.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>pool</code><span class="ptype">string · optional</span></dt>
+          <dd>The selection pool to draw from (default: main)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code># Let the storyteller pick what happens next
+<span class="s-brk">[</span><span class="s-key">NARRATON</span><span class="s-arg"> pool=main</span><span class="s-brk">]</span>
+
+# Era-specific pool
+<span class="s-brk">[</span><span class="s-key">NARRATON</span><span class="s-arg"> pool=era2_extraction</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-autoplay">
+      <header class="cmd-head">
+        <h3>AUTOPLAY</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">AUTOPLAY</span><span class="s-arg"> on|off</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Turns dialogue auto-advance on or off from script. Use for autopilot modes where the episode plays itself; the player can still toggle manually.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>state</code><span class="ptype">string</span></dt>
+          <dd>on or off</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">AUTOPLAY</span><span class="s-arg"> on</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SCENE</span><span class="s-arg"> the_machine</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-comment">
+      <header class="cmd-head">
+        <h3>COMMENT</h3>
+        <pre class="syntax"><code># comment text  OR  // comment text</code></pre>
+      </header>
+      <p class="desc">A comment line that is ignored during execution. Useful for notes and documentation.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>text</code><span class="ptype">string</span></dt>
+          <dd>Any comment text</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code># This is a comment
+// This is also a comment</code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-unknown">
+      <header class="cmd-head">
+        <h3>UNKNOWN</h3>
+        <pre class="syntax"><code>(any unrecognized text)</code></pre>
+      </header>
+      <p class="desc">Represents any line that could not be parsed. Skipped during execution.</p>
+      
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code>some unrecognized command</code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-instrument">
+      <div class="cat-head">
+        <h2>Instrument Commands</h2>
+        <p>Interactive sliders and read-only gauges wired to world state variables — the instrument panel.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-slider">
+      <header class="cmd-head">
+        <h3>SLIDER</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">SLIDER</span><span class="s-arg"> variable at x,y min=0 max=100 step=1 label="TEXT"</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Shows an interactive slider that writes its worldState variable continuously as the player drags. Position is a percentage of the stage. min/max default to 0/100, step to 1; label defaults to the variable name. Dragging re-evaluates BINDs immediately, so sliders drive the stage live.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>variable</code><span class="ptype">string</span></dt>
+          <dd>The worldState variable the slider writes</dd>
+        </div>
+        <div class="param">
+          <dt><code>x</code><span class="ptype">number</span></dt>
+          <dd>Horizontal position (0-100, percentage from left)</dd>
+        </div>
+        <div class="param">
+          <dt><code>y</code><span class="ptype">number</span></dt>
+          <dd>Vertical position (0-100, percentage from top)</dd>
+        </div>
+        <div class="param">
+          <dt><code>min</code><span class="ptype">number · optional</span></dt>
+          <dd>Minimum value (default 0)</dd>
+        </div>
+        <div class="param">
+          <dt><code>max</code><span class="ptype">number · optional</span></dt>
+          <dd>Maximum value (default 100)</dd>
+        </div>
+        <div class="param">
+          <dt><code>step</code><span class="ptype">number · optional</span></dt>
+          <dd>Drag increment (default 1)</dd>
+        </div>
+        <div class="param">
+          <dt><code>label</code><span class="ptype">string · optional</span></dt>
+          <dd>Panel label (default: variable name)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">SLIDER</span><span class="s-arg"> greed at 85,20 min=0 max=100 label="GREED"</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SLIDER</span><span class="s-arg"> rentShare at 85,35 min=0 max=1 step=0.05 label="RENT SHARE"</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-gauge">
+      <header class="cmd-head">
+        <h3>GAUGE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">GAUGE</span><span class="s-arg"> variable at x,y min=0 max=100 label="TEXT"</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Shows a read-only dial displaying one worldState variable, updating live as the variable changes (SET, TICK, sliders).</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>variable</code><span class="ptype">string</span></dt>
+          <dd>The worldState variable the gauge displays</dd>
+        </div>
+        <div class="param">
+          <dt><code>x</code><span class="ptype">number</span></dt>
+          <dd>Horizontal position (0-100, percentage from left)</dd>
+        </div>
+        <div class="param">
+          <dt><code>y</code><span class="ptype">number</span></dt>
+          <dd>Vertical position (0-100, percentage from top)</dd>
+        </div>
+        <div class="param">
+          <dt><code>min</code><span class="ptype">number · optional</span></dt>
+          <dd>Dial minimum (default 0)</dd>
+        </div>
+        <div class="param">
+          <dt><code>max</code><span class="ptype">number · optional</span></dt>
+          <dd>Dial maximum (default 100)</dd>
+        </div>
+        <div class="param">
+          <dt><code>label</code><span class="ptype">string · optional</span></dt>
+          <dd>Panel label (default: variable name)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">GAUGE</span><span class="s-arg"> wages at 15,80 min=0 max=100 label="WAGES"</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-hide_slider">
+      <header class="cmd-head">
+        <h3>HIDE_SLIDER</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">HIDE_SLIDER</span><span class="s-arg"> variable</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Hides the slider bound to the given variable.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>variable</code><span class="ptype">string</span></dt>
+          <dd>The variable whose slider to hide</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">HIDE_SLIDER</span><span class="s-arg"> greed</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-hide_gauge">
+      <header class="cmd-head">
+        <h3>HIDE_GAUGE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">HIDE_GAUGE</span><span class="s-arg"> variable</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Hides the gauge bound to the given variable.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>variable</code><span class="ptype">string</span></dt>
+          <dd>The variable whose gauge to hide</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">HIDE_GAUGE</span><span class="s-arg"> wages</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-effect">
+      <div class="cat-head">
+        <h2>Effect Commands</h2>
+        <p>Commands for applying and removing visual effects on actors and elements.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-effect">
+      <header class="cmd-head">
+        <h3>EFFECT</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">EFFECT</span><span class="s-arg"> sfx_id on target_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Applies a visual effect (shader, filter, animation) to an actor or element.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>sfx_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the SFX/effect to apply</dd>
+        </div>
+        <div class="param">
+          <dt><code>target_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the actor or element to affect</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">EFFECT</span><span class="s-arg"> glow on detective</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">EFFECT</span><span class="s-arg"> shake on stage</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-clear_effect">
+      <header class="cmd-head">
+        <h3>CLEAR_EFFECT</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">CLEAR_EFFECT</span><span class="s-arg"> sfx_id from target_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Removes a previously applied visual effect from an actor or element.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>sfx_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the SFX/effect to remove</dd>
+        </div>
+        <div class="param">
+          <dt><code>target_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the actor or element</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">CLEAR_EFFECT</span><span class="s-arg"> glow from detective</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-bind">
+      <header class="cmd-head">
+        <h3>BIND</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">BIND</span><span class="s-arg"> element_id.property to expression</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Live-binds a stage element property to an expression over world state variables. The binding re-evaluates whenever variables change (SET, TICK, sliders), driving the element continuously. Bindable properties: x, y, scale, rotation, opacity, zIndex. Bindings clear on scene change. Bad expressions evaluate to 0 with a console warning.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the stage element to drive</dd>
+        </div>
+        <div class="param">
+          <dt><code>property</code><span class="ptype">string</span></dt>
+          <dd>One of: x, y, scale, rotation, opacity, zIndex</dd>
+        </div>
+        <div class="param">
+          <dt><code>expression</code><span class="ptype">string</span></dt>
+          <dd>Arithmetic expression (same grammar as SET)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">BIND</span><span class="s-arg"> siphon_arm.rotation to rent * 0.9</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">BIND</span><span class="s-arg"> reservoir.scale to 0.5 + hoard / 200</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">BIND</span><span class="s-arg"> margin_floor.y to 80 - marginHeight</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">BIND</span><span class="s-arg"> prestige_shell.opacity to prestige / 100</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-unbind">
+      <header class="cmd-head">
+        <h3>UNBIND</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">UNBIND</span><span class="s-arg"> element_id.property</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Releases a property binding created with BIND. The element keeps its last driven value.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the stage element</dd>
+        </div>
+        <div class="param">
+          <dt><code>property</code><span class="ptype">string</span></dt>
+          <dd>The bound property to release</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">UNBIND</span><span class="s-arg"> siphon_arm.rotation</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-set_text">
+      <header class="cmd-head">
+        <h3>SET_TEXT</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">SET_TEXT</span><span class="s-arg"> element_id "text"</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Sets a stage element's text (balloons: news tickers, signs, counters). {variable} placeholders interpolate current worldState values at display time — numbers round to one decimal. Typically driven from a TICK body to make a live, non-blocking news readout. Repeated identical updates are free.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>element_id</code><span class="ptype">string</span></dt>
+          <dd>The ID of the stage element (usually a BALLOON)</dd>
+        </div>
+        <div class="param">
+          <dt><code>text</code><span class="ptype">string</span></dt>
+          <dd>The text to display; {varName} interpolates worldState</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">SET_TEXT</span><span class="s-arg"> news_ticker "WAGES FALL TO {wages} — RENT CLIMBS TO {rent}"</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">IF</span><span class="s-arg"> crisis == 1</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SET_TEXT</span><span class="s-arg"> news_ticker "PANIC! MARKETS SEIZE — PRODUCT HALVED"</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">ENDIF</span><span class="s-arg"></span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-audio">
+      <div class="cat-head">
+        <h2>Audio Commands</h2>
+        <p>Commands for playing music, ambient sounds, and sound effects.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-bgm">
+      <header class="cmd-head">
+        <h3>BGM</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">BGM</span><span class="s-arg">: "track_name" loop vol=XX%</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Plays background music. Can loop and set volume.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>track_name</code><span class="ptype">string</span></dt>
+          <dd>Name or ID of the music track</dd>
+        </div>
+        <div class="param">
+          <dt><code>loop</code><span class="ptype">flag · optional</span></dt>
+          <dd>Add "loop" to repeat the track</dd>
+        </div>
+        <div class="param">
+          <dt><code>vol</code><span class="ptype">percentage · optional</span></dt>
+          <dd>Volume level (0-100%)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">BGM</span><span class="s-arg">: "noir_jazz" loop vol=70%</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">BGM</span><span class="s-arg">: "tension" vol=50%</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-ambience">
+      <header class="cmd-head">
+        <h3>AMBIENCE</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">AMBIENCE</span><span class="s-arg">: "track_name" loop vol=XX%</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Plays ambient background sounds (rain, crowd noise, etc.).</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>track_name</code><span class="ptype">string</span></dt>
+          <dd>Name or ID of the ambient track</dd>
+        </div>
+        <div class="param">
+          <dt><code>loop</code><span class="ptype">flag · optional</span></dt>
+          <dd>Add "loop" to repeat the track</dd>
+        </div>
+        <div class="param">
+          <dt><code>vol</code><span class="ptype">percentage · optional</span></dt>
+          <dd>Volume level (0-100%)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">AMBIENCE</span><span class="s-arg">: "city_rain" loop vol=40%</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-sfx">
+      <header class="cmd-head">
+        <h3>SFX</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">SFX</span><span class="s-arg">: "effect_name" vol=XX%</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Plays a one-shot sound effect.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>effect_name</code><span class="ptype">string</span></dt>
+          <dd>Name or ID of the sound effect</dd>
+        </div>
+        <div class="param">
+          <dt><code>vol</code><span class="ptype">percentage · optional</span></dt>
+          <dd>Volume level (0-100%)</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">SFX</span><span class="s-arg">: "door_slam"</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">SFX</span><span class="s-arg">: "thunder" vol=80%</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+    <section class="cat" id="cat-button">
+      <div class="cat-head">
+        <h2>Button Commands</h2>
+        <p>Commands for showing and hiding interactive buttons.</p>
+      </div>
+      
+    <article class="cmd" id="cmd-button">
+      <header class="cmd-head">
+        <h3>BUTTON</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">BUTTON</span><span class="s-arg"> button_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Displays an interactive button on the stage. Buttons can navigate to scenes, play sounds, or open URLs.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>button_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the button to show</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">BUTTON</span><span class="s-arg"> examine_desk</span><span class="s-brk">]</span>
+<span class="s-brk">[</span><span class="s-key">BUTTON</span><span class="s-arg"> open_door</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    <article class="cmd" id="cmd-hide_button">
+      <header class="cmd-head">
+        <h3>HIDE_BUTTON</h3>
+        <pre class="syntax"><code><span class="s-brk">[</span><span class="s-key">HIDE_BUTTON</span><span class="s-arg"> button_id</span><span class="s-brk">]</span></code></pre>
+      </header>
+      <p class="desc">Hides and deactivates a previously shown button.</p>
+      <dl class="params">
+        <div class="param">
+          <dt><code>button_id</code><span class="ptype">string</span></dt>
+          <dd>The unique identifier of the button to hide</dd>
+        </div></dl>
+      <div class="example">
+        <span class="ex-label">Example</span>
+        <pre><code><span class="s-brk">[</span><span class="s-key">HIDE_BUTTON</span><span class="s-arg"> examine_desk</span><span class="s-brk">]</span></code></pre>
+      </div>
+    </article>
+    </section>
+  </main>
+</div>
+
+<footer class="colophon">
+  Generated from src/utils/scriptDocs.ts — the command registry is the single source of truth.
+  Regenerate with <code>npm run docs:dram:html</code>.
+</footer>

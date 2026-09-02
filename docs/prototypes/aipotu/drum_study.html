@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     DRUM STUDY — the ceremonial beat, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A great standing ceremonial drum — carved waisted shell, laced
+     rope tensioners, a skin head that visibly DENTS under each hit —
+     played two-handed by the DRUMMER on a steady processional beat
+     (LOUD-soft-soft-LOUD), with head-flash and ripple rings per hit.
+     THE POINT: three procession Vitas circle the drum and their STEPS
+     SYNC TO THE BEAT — each footfall lands on the drum hit, arms
+     swinging together, a little dip on the accented beat. Stop the
+     drummer and the procession drifts out of step into ordinary
+     walking; start again and they lock back on.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drum Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e2d0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,24,16,0.78); color:#f2f0e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a5a22; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#ffd94a; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🥁 Drum Study</b> — the beat that moves the feet, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · watch the steps LOCK to the hits</span><br>
+  <button data-m="play">Drum</button><button data-m="stop">Rest</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 808;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e0ce), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(5, 3.4, 7.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 32;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0de), zenith = new THREE.Color(0x86b0d6),
+        below = new THREE.Color(0xd8d6c2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcae7e }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the ceremony ring worn into the earth
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.4, 40),
+    new THREE.MeshLambertMaterial({ color:0xb0a070 }));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.y = 0.01;
+  scene.add(ring);
+}
+
+// ---------- THE DRUM -------------------------------------------------------
+const matShell = new THREE.MeshLambertMaterial({ color:0x6b4a26, flatShading:true });
+const matShellDk = new THREE.MeshLambertMaterial({ color:0x54381c, flatShading:true });
+const matRope2 = new THREE.MeshLambertMaterial({ color:0xc9a85c });
+let drumHead;
+{
+  // carved waisted shell (lathe)
+  const pts = [];
+  for(let i = 0; i <= 14; i++){
+    const f = i/14;
+    pts.push(new THREE.Vector2(0.52 - Math.sin(f*Math.PI)*0.14, f*1.05));
+  }
+  const shell = new THREE.Mesh(new THREE.LatheGeometry(pts, 18), matShell);
+  shell.material.side = THREE.DoubleSide;
+  shell.castShadow = true;
+  scene.add(shell);
+  // carved bands
+  for(const y of [0.16, 0.52, 0.9]){
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.52 - Math.sin(y/1.05*Math.PI)*0.14 + 0.015, 0.02, 6, 20), matShellDk);
+    band.rotation.x = Math.PI/2;
+    band.position.y = y;
+    scene.add(band);
+  }
+  // rope lacing: zig-zag tensioners
+  for(let i = 0; i < 10; i++){
+    const a = (i/10)*Math.PI*2;
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.0, 4), matRope2);
+    rope.position.set(Math.cos(a + 0.15)*0.46, 0.52, Math.sin(a + 0.15)*0.46);
+    rope.rotation.z = Math.cos(a)*0.28;
+    rope.rotation.x = Math.sin(a)*0.28;
+    scene.add(rope);
+  }
+  // THE HEAD: a disc that dents under each strike
+  const hg = new THREE.CircleGeometry(0.5, 24);
+  hg.rotateX(-Math.PI/2);
+  drumHead = new THREE.Mesh(hg, new THREE.MeshLambertMaterial({ color:0xe0d0ac }));
+  drumHead.position.y = 1.06;
+  scene.add(drumHead);
+}
+const flash = new THREE.PointLight(0xffe0a0, 0, 8);
+flash.position.set(0, 1.5, 0);
+scene.add(flash);
+const rings = [];
+for(let i = 0; i < 4; i++){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.018, 6, 24),
+    new THREE.MeshBasicMaterial({ color:0xfff0c8, transparent:true, opacity:0 }));
+  m.rotation.x = Math.PI/2;
+  m.position.y = 1.1;
+  scene.add(m);
+  rings.push({ m, t: 9 });
+}
+
+// ---------- people ---------------------------------------------------------
+function person(dressC){
+  const P = { g: new THREE.Group() };
+  const dress = new THREE.MeshLambertMaterial({ color: dressC });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  P.hips = new THREE.Group(); P.hips.position.y = 0.42; P.g.add(P.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; P.hips.add(barrel);
+  P.head = new THREE.Group(); P.head.position.y = 0.8; P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; P.head.add(skull);
+  P.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.34, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Group(); hand.position.y = -0.5; arm.add(hand);
+    P.hips.add(arm); P.arms.push({ g: arm, hand });
+  }
+  P.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    P.hips.add(leg); P.legs.push(leg);
+  }
+  scene.add(P.g);
+  return P;
+}
+const drummer = person(0xa03636);
+drummer.g.position.set(0, 0.1, -1.15);
+// beaters in the drummer's hands
+for(const a of drummer.arms){
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.4, 6), matShellDk);
+  stick.position.y = -0.1;
+  a.hand.add(stick);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), matRope2);
+  knob.position.y = -0.3;
+  a.hand.add(knob);
+}
+const procession = [person(0x7aa06a), person(0x4f9fd8), person(0xc9a85c)];
+
+// ---------- THE BEAT -------------------------------------------------------
+// pattern per bar (4 beats): LOUD soft soft LOUD — beat interval 0.55s
+let mode = 'play';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.m;
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+const BEAT = 0.55;
+let beatT = 0, beatN = 0, dent = 0, lock = 0;   // lock = how in-step the procession is
+function hit(loud){
+  dent = loud ? 1 : 0.55;
+  flash.intensity = loud ? 7 : 3;
+  const r = rings.find(r => r.t > 1);
+  if(r){ r.t = 0; r.m.scale.setScalar(loud ? 1.15 : 0.9); }
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  const playing = mode === 'play';
+  if(playing){
+    beatT += dt;
+    if(beatT >= BEAT){
+      beatT -= BEAT;
+      beatN++;
+      hit(beatN % 4 === 0 || beatN % 4 === 3);
+    }
+    lock = Math.min(1, lock + dt*0.5);           // they find the step
+  } else {
+    lock = Math.max(0, lock - dt*0.35);          // …and drift out of it
+  }
+
+  // drum head dents and recovers; flash decays; rings spread
+  dent = Math.max(0, dent - dt*7);
+  drumHead.position.y = 1.06 - dent*0.05;
+  drumHead.scale.setScalar(1 - dent*0.03);
+  flash.intensity = Math.max(0, flash.intensity - dt*30);
+  for(const r of rings){
+    if(r.t > 1){ r.m.material.opacity = 0; continue; }
+    r.t += dt;
+    r.m.scale.setScalar(r.m.scale.x + dt*3);
+    r.m.material.opacity = 0.5*(1 - r.t);
+  }
+
+  // THE DRUMMER: alternating two-handed strikes, big on the accents
+  if(playing){
+    const bp = beatT/BEAT;                        // 0..1 through this beat
+    const accent = (beatN % 4 === 3 || beatN % 4 === 2) ? 1 : 0.6;
+    const raise = Math.sin(bp*Math.PI);           // up between hits, down INTO the hit
+    const striking = beatN % 2 === 0 ? 0 : 1;
+    drummer.arms[striking].g.rotation.x = -1.5 + (1 - raise)*0.0 - raise*0.9*accent;
+    drummer.arms[1 - striking].g.rotation.x = -1.35;
+    drummer.hips.rotation.x = 0.08 + raise*0.05*accent;
+    drummer.hips.position.y = 0.42 - (1 - raise)*0.02;
+    drummer.head.rotation.x = 0.25;
+  } else {
+    drummer.arms[0].g.rotation.x = lerp(drummer.arms[0].g.rotation.x, -0.3, dt*4);
+    drummer.arms[1].g.rotation.x = lerp(drummer.arms[1].g.rotation.x, -0.3, dt*4);
+    drummer.hips.rotation.x = lerp(drummer.hips.rotation.x, 0, dt*4);
+  }
+
+  // THE PROCESSION: circle the drum; steps LOCK to the beat as lock→1.
+  // In-step: leg phase = the beat clock (footfall on the hit) + the dip on
+  // the accent. Out of step: each walks on its own clock.
+  const beatPhase = (beatN + beatT/BEAT) * Math.PI;   // one stride per beat
+  procession.forEach((p, i) => {
+    const a0 = t*0.32 + i*(Math.PI*2/3);
+    const R = 3.0;
+    p.g.position.set(Math.cos(a0)*R, 0.1, -Math.sin(a0)*R);
+    p.g.rotation.y = a0 + Math.PI;                 // facing travel (the fixed heading)
+    const ownPhase = t*7 + i*2.1;
+    const ph = lerp(ownPhase, beatPhase + (i%2)*Math.PI, lock);
+    p.legs[0].rotation.x = Math.sin(ph)*0.5;
+    p.legs[1].rotation.x = -Math.sin(ph)*0.5;
+    p.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.03
+      - (playing && beatN % 4 === 3 ? Math.max(0, Math.sin(beatT/BEAT*Math.PI))*0.05*lock : 0);   // the accent DIP
+    // arms swing together when locked — the processional look
+    p.arms[0].g.rotation.x = lerp(-Math.sin(ph)*0.35, Math.sin(beatPhase)*0.45, lock*0.8);
+    p.arms[1].g.rotation.x = lerp(Math.sin(ph)*0.35, Math.sin(beatPhase)*0.45, lock*0.8);
+    p.head.rotation.y = lerp(0, Math.atan2(-p.g.position.x, -p.g.position.z) - p.g.rotation.y, lock*0.4);
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

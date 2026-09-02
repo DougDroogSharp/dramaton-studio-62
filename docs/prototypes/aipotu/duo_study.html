@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     DUO STUDY — coordinated armature movement, for George World.
+     Filed 2026-08-31, Doug's batch: activities that take TWO bodies
+     moving together, authored as name-addressed clips on TWO canonical
+     rigs sharing one clock (perfect sync for free).
+     · THE HUG — walk to meet, arms wrap, a gentle sway, part with a
+       little shoulder pat.
+     · HAND IN HAND — a couple strolls a ring, inner arms reaching to
+       joined hands, strides locked in step.
+     · THE FRUG — the 1960s dance: knee bounce, punchy alternating
+       arm swings, head bob — two dancers mirrored.
+     Pick a duet from the menu.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duo Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,34,0.8); color:#eaf4f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:320px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
+    border-radius:7px; background:#3d6f96; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:230px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>💞 Duo Study</b> — two rigs, one clock, v1<br>
+  <span class="hint">coordinated clips on two canonical armatures</span>
+  <select id="duet">
+    <option value="hug">The hug</option>
+    <option value="hand">Hand in hand</option>
+    <option value="frug">The Frug</option>
+  </select>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2f0f6), 50, 260);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.05, 500);
+camera.position.set(0.6, 1.7, 4.8);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 0.8; controls.maxDistance = 26;
+controls.maxPolarAngle = 1.53;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeaf4f8), zenith = new THREE.Color(0x5fb0e4),
+        below = new THREE.Color(0xd7e8ee), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0xcbb98e, 1.05));
+const sun = new THREE.DirectionalLight(0xffeeda, 2.4);
+sun.position.set(10, 14, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -6; sun.shadow.camera.right = 6;
+sun.shadow.camera.top = 6; sun.shadow.camera.bottom = -2;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(160, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcb684 }));
+  g.rotation.x = -Math.PI/2;
+  g.receiveShadow = true;
+  scene.add(g);
+}
+
+// ==========================================================================
+//  makeRig(palette) — a full canonical Vita: skeleton + NEW BODY skin.
+//  Each call returns an independent rig with its own bones and mixer.
+// ==========================================================================
+function makeRig(pal){
+  const B = {};
+  function bone(name, parentName, x, y, z){
+    const b = new THREE.Bone();
+    b.name = name;
+    b.position.set(x, y, z);
+    if(parentName) B[parentName].add(b);
+    B[name] = b;
+    return b;
+  }
+  const rootBone = bone('mixamorigHips', null, 0, 0.62, 0);
+  bone('mixamorigSpine',  'mixamorigHips',  0, 0.10, 0);
+  bone('mixamorigSpine1', 'mixamorigSpine', 0, 0.12, 0);
+  bone('mixamorigSpine2', 'mixamorigSpine1',0, 0.12, 0);
+  bone('mixamorigNeck',   'mixamorigSpine2',0, 0.12, 0);
+  bone('mixamorigHead',   'mixamorigNeck',  0, 0.10, 0);
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    bone(`mixamorig${S}Shoulder`, 'mixamorigSpine2', s*0.16, 0.06, 0);
+    bone(`mixamorig${S}Arm`,      `mixamorig${S}Shoulder`, s*0.14, -0.02, 0);
+    bone(`mixamorig${S}ForeArm`,  `mixamorig${S}Arm`, s*0.09, -0.20, 0);
+    bone(`mixamorig${S}Hand`,     `mixamorig${S}ForeArm`, s*0.05, -0.18, 0);
+    bone(`mixamorig${S}UpLeg`,    'mixamorigHips', s*0.155, -0.06, 0);
+    bone(`mixamorig${S}Leg`,      `mixamorig${S}UpLeg`, 0, -0.26, 0);
+    bone(`mixamorig${S}Foot`,     `mixamorig${S}Leg`, 0, -0.26, 0);
+    bone(`mixamorig${S}ToeBase`,  `mixamorig${S}Foot`, 0, -0.04, 0.12);
+  }
+  const allBones = Object.values(B);
+  const skeleton = new THREE.Skeleton(allBones);
+  const boneIndex = {};
+  allBones.forEach((b, i) => boneIndex[b.name] = i);
+  const g0 = new THREE.Group();
+  g0.add(rootBone);
+  rootBone.updateMatrixWorld(true);
+  const bWorld = {};
+  for(const b of allBones)
+    bWorld[b.name] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  g0.remove(rootBone);
+  function partGeo(geoFn, boneName, colorHex){
+    let g = geoFn();
+    if(g.index) g = g.toNonIndexed();
+    const p = bWorld[boneName];
+    g.translate(p.x, p.y, p.z);
+    const n = g.attributes.position.count;
+    const si = new Uint16Array(n*4), sw = new Float32Array(n*4);
+    for(let i = 0; i < n; i++){ si[i*4] = boneIndex[boneName]; sw[i*4] = 1; }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const col = new Float32Array(n*3);
+    const c = new THREE.Color(colorHex);
+    for(let i = 0; i < n; i++){ col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  const skinDk = new THREE.Color(pal.skin).offsetHSL(0, 0.02, -0.05).getHex();
+  const shirtDk = new THREE.Color(pal.shirt).offsetHSL(0, 0, -0.07).getHex();
+  const parts = [];
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.23, 20, 14);
+    g.scale(1.34, 0.8, 1.0); g.translate(0, -0.02, 0); return g; }, 'mixamorigHips', pal.pants));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.215, 0.245, 0.16, 18);
+    g.translate(0, 0.02, 0); return g; }, 'mixamorigSpine', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.26, 20, 16);
+    g.scale(1.22, 0.98, 0.9); g.translate(0, 0.04, 0.01); return g; }, 'mixamorigSpine1', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.1, 0.115, 0.44, 14);
+    g.rotateZ(Math.PI/2); g.translate(0, 0.05, 0); return g; }, 'mixamorigSpine2', pal.shirt));
+  parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.085, 0.105, 0.14, 14);
+    g.translate(0, 0.05, 0); return g; }, 'mixamorigNeck', pal.skin));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.40, 28, 20);
+    g.scale(1.04, 1.0, 0.97); g.translate(0, 0.24, 0); return g; }, 'mixamorigHead', pal.skin));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.065, 12, 9);
+    g.translate(0, 0.17, 0.4); return g; }, 'mixamorigHead', pal.skin));
+  for(const s of [-1, 1]){
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.07, 10, 8);
+      g.scale(0.7, 1, 0.9); g.translate(s*0.41, 0.2, 0.02); return g; }, 'mixamorigHead', skinDk));
+  }
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.41, 24, 14, 0, Math.PI*2, 0, Math.PI*0.42);
+    g.scale(1.05, 1.0, 0.99); g.translate(0, 0.26, 0); return g; }, 'mixamorigHead', pal.hair));
+  parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.12, 10, 7);
+    g.scale(1.9, 0.42, 0.6); g.translate(0, 0.5, 0.28); return g; }, 'mixamorigHead', pal.hair));
+  for(const [S, s] of [['Left', 1], ['Right', -1]]){
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.082, 0.1, 6, 12);
+      g.rotateZ(s*0.35); g.translate(s*0.075, -0.05, 0); return g; }, `mixamorig${S}Arm`, pal.shirt));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.074, 0.1, 6, 12);
+      g.rotateZ(-s*0.1); g.translate(s*0.1, -0.17, 0); return g; }, `mixamorig${S}Arm`, shirtDk));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.066, 0.13, 6, 12);
+      g.translate(s*0.028, -0.09, 0); return g; }, `mixamorig${S}ForeArm`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.092, 14, 10);
+      g.scale(0.9, 1.1, 1); g.translate(0, -0.05, 0); return g; }, `mixamorig${S}Hand`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.032, 0.05, 4, 8);
+      g.rotateZ(-s*0.7); g.translate(-s*0.075, -0.02, 0.03); return g; }, `mixamorig${S}Hand`, pal.skin));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.135, 0.15, 8, 14);
+      g.scale(1, 1, 1.08); g.rotateZ(s*0.06); g.translate(s*0.012, -0.13, 0.01); return g; }, `mixamorig${S}UpLeg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.CapsuleGeometry(0.085, 0.15, 8, 12);
+      g.translate(0, -0.12, 0); return g; }, `mixamorig${S}Leg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.075, 10, 8);
+      g.scale(0.9, 1.25, 0.9); g.translate(0, -0.07, -0.045); return g; }, `mixamorig${S}Leg`, pal.pants));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.125, 14, 10);
+      g.scale(1, 0.72, 1.2); g.translate(0, -0.015, 0.02); return g; }, `mixamorig${S}Foot`, 0xf2f2f0));
+    parts.push(partGeo(() => { const g = new THREE.CylinderGeometry(0.125, 0.135, 0.045, 14);
+      g.scale(1, 1, 1.3); g.translate(0, -0.08, 0.03); return g; }, `mixamorig${S}Foot`, 0x3a3d42));
+    parts.push(partGeo(() => { const g = new THREE.SphereGeometry(0.095, 12, 9);
+      g.scale(1, 0.62, 1.05); g.translate(0, -0.035, 0.055); return g; }, `mixamorig${S}ToeBase`, 0xf2f2f0));
+  }
+  const mesh = new THREE.SkinnedMesh(mergeGeometries(parts, false),
+    new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
+  mesh.castShadow = true;
+  mesh.frustumCulled = false;
+  mesh.add(rootBone);
+  mesh.bind(skeleton);
+  const root = new THREE.Group();
+  root.add(mesh);
+  scene.add(root);
+  return { root, mesh, B, mixer: new THREE.AnimationMixer(mesh), action:null };
+}
+const A = makeRig({ shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e });
+const Bg = makeRig({ shirt:0xc0392b, pants:0x3c3050, skin:0xf2c299, hair:0x2e2620 });
+
+// ==========================================================================
+//  THE DUET CLIPS — authored in complementary pairs.
+// ==========================================================================
+function quatTrack(boneName, times, eulers){
+  const vals = [];
+  for(const e of eulers){
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+    vals.push(q.x, q.y, q.z, q.w);
+  }
+  return new THREE.QuaternionKeyframeTrack(boneName + '.quaternion', times, vals);
+}
+function walkClip(inner){       // inner: 0 none, 1 left arm reaches in, -1 right
+  const T = [0, 0.4, 0.8, 1.2, 1.6];
+  const A0 = 0.55;
+  const tracks = [
+    quatTrack('mixamorigLeftUpLeg', T, [[A0,0,0],[0,0,0],[-A0,0,0],[0,0,0],[A0,0,0]]),
+    quatTrack('mixamorigRightUpLeg', T, [[-A0,0,0],[0,0,0],[A0,0,0],[0,0,0],[-A0,0,0]]),
+    quatTrack('mixamorigLeftLeg', T, [[0,0,0],[0.5,0,0],[0,0,0],[0.05,0,0],[0,0,0]]),
+    quatTrack('mixamorigRightLeg', T, [[0,0,0],[0.05,0,0],[0,0,0],[0.5,0,0],[0,0,0]]),
+    quatTrack('mixamorigSpine', T, [[0.05,0,0.02],[0.05,0,0],[0.05,0,-0.02],[0.05,0,0],[0.05,0,0.02]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', T,
+      [0,0.62,0, 0,0.655,0, 0,0.62,0, 0,0.655,0, 0,0.62,0]),
+  ];
+  // outer arm swings; inner arm reaches down-inward to the joined hands
+  const L = inner === 1
+    ? [[-0.45,0,0.62],[-0.45,0,0.62],[-0.45,0,0.62],[-0.45,0,0.62],[-0.45,0,0.62]]
+    : [[-0.4,0,0.3],[0,0,0.3],[0.4,0,0.3],[0,0,0.3],[-0.4,0,0.3]];
+  const R = inner === -1
+    ? [[-0.45,0,-0.62],[-0.45,0,-0.62],[-0.45,0,-0.62],[-0.45,0,-0.62],[-0.45,0,-0.62]]
+    : [[0.4,0,-0.3],[0,0,-0.3],[-0.4,0,-0.3],[0,0,-0.3],[0.4,0,-0.3]];
+  tracks.push(quatTrack('mixamorigLeftArm', T, L));
+  tracks.push(quatTrack('mixamorigRightArm', T, R));
+  return new THREE.AnimationClip('walk' + inner, 1.6, tracks);
+}
+// THE HUG — one clip, both bodies play it facing each other; arms offset in
+// height (A wraps high, B wraps low) so the arms interleave, not collide.
+function hugClip(high){
+  const T = [0, 1.0, 2.2, 4.6, 5.6, 6.4];
+  const wrapX = high ? -1.95 : -1.55;
+  const wrapY = high ? 0.55 : 0.4;
+  return new THREE.AnimationClip('hug', 6.4, [
+    quatTrack('mixamorigLeftArm', T, [[0,0,0.3],[-0.6,0,0.4],[wrapX,-wrapY,0.35],[wrapX,-wrapY,0.35],[-0.5,0,0.35],[0,0,0.3]]),
+    quatTrack('mixamorigRightArm', T, [[0,0,-0.3],[-0.6,0,-0.4],[wrapX,wrapY,-0.35],[wrapX,wrapY,-0.35],[-0.5,0,-0.35],[0,0,-0.3]]),
+    quatTrack('mixamorigLeftForeArm', T, [[0,0,0],[0,0,0],[-0.45,-0.5,0],[-0.45,-0.5,0],[0,0,0],[0,0,0]]),
+    quatTrack('mixamorigRightForeArm', T, [[0,0,0],[0,0,0],[-0.45,0.5,0],[-0.45,0.5,0],[0,0,0],[0,0,0]]),
+    quatTrack('mixamorigSpine', T, [[0,0,0],[0.06,0,0],[0.14,0,0],[0.14,0,0],[0.04,0,0],[0,0,0]]),
+    quatTrack('mixamorigHead', T, [[0,0,0],[0,0,0],[0.1,0.25,0],[0.1,0.25,0],[0,0.1,0],[0,0,0]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', T,
+      [0,0.62,0, 0,0.62,0, 0,0.62,0.05, 0,0.62,0.05, 0,0.62,0, 0,0.62,0]),
+  ]);
+}
+// the pat: during the part, the high hugger pats the other's shoulder
+function patClip(){
+  const T = [0, 0.2, 0.4, 0.6, 0.8];
+  return new THREE.AnimationClip('pat', 0.8, [
+    quatTrack('mixamorigRightArm', T, [[-1.3,0.3,-0.3],[-1.4,0.3,-0.3],[-1.3,0.3,-0.3],[-1.4,0.3,-0.3],[-1.3,0.3,-0.3]]),
+  ]);
+}
+// THE FRUG — knee bounce on the beat, alternating cross-body arm punches,
+// the head bobbing along. 2 bars at 128 bpm.
+function frugClip(mirror){
+  const m = mirror ? -1 : 1;
+  const T = [0, 0.47, 0.94, 1.41, 1.88];      // one bounce per half-bar
+  const tracks = [
+    // the bounce: knees flex on the beat
+    quatTrack('mixamorigLeftUpLeg', T, [[-0.18,0,0.06],[-0.32,0,0.06],[-0.18,0,0.06],[-0.32,0,0.06],[-0.18,0,0.06]]),
+    quatTrack('mixamorigRightUpLeg', T, [[-0.18,0,-0.06],[-0.32,0,-0.06],[-0.18,0,-0.06],[-0.32,0,-0.06],[-0.18,0,-0.06]]),
+    quatTrack('mixamorigLeftLeg', T, [[0.3,0,0],[0.55,0,0],[0.3,0,0],[0.55,0,0],[0.3,0,0]]),
+    quatTrack('mixamorigRightLeg', T, [[0.3,0,0],[0.55,0,0],[0.3,0,0],[0.55,0,0],[0.3,0,0]]),
+    new THREE.VectorKeyframeTrack('mixamorigHips.position', T,
+      [0,0.56,0, 0,0.5,0, 0,0.56,0, 0,0.5,0, 0,0.56,0]),
+    // the arms: forearms up, punchy alternating swings across the body
+    quatTrack('mixamorigLeftArm', T, [[-0.5,0,0.5*m],[-0.9,0.5*m,0.3*m],[-0.5,0,0.5*m],[-0.2,-0.4*m,0.6*m],[-0.5,0,0.5*m]]),
+    quatTrack('mixamorigRightArm', T, [[-0.5,0,-0.5*m],[-0.2,0.4*m,-0.6*m],[-0.5,0,-0.5*m],[-0.9,-0.5*m,-0.3*m],[-0.5,0,-0.5*m]]),
+    quatTrack('mixamorigLeftForeArm', T, [[-1.4,0,0],[-1.7,0,0],[-1.4,0,0],[-1.1,0,0],[-1.4,0,0]]),
+    quatTrack('mixamorigRightForeArm', T, [[-1.4,0,0],[-1.1,0,0],[-1.4,0,0],[-1.7,0,0],[-1.4,0,0]]),
+    // the head bob, slightly behind the beat — that's what sells it
+    quatTrack('mixamorigHead', [0, 0.24, 0.47, 0.71, 0.94, 1.18, 1.41, 1.65, 1.88],
+      [[0.12,0,0],[-0.06,0,0],[0.12,0,0],[-0.06,0,0],[0.12,0,0],[-0.06,0,0],[0.12,0,0],[-0.06,0,0],[0.12,0,0]]),
+    quatTrack('mixamorigSpine', T, [[0.08,0.1*m,0],[0.12,-0.1*m,0],[0.08,0.1*m,0],[0.12,-0.1*m,0],[0.08,0.1*m,0]]),
+  ];
+  return new THREE.AnimationClip('frug', 1.88, tracks);
+}
+function play(rig, clip, opts = {}){
+  if(rig.action) rig.action.stop();
+  rig.action = rig.mixer.clipAction(clip);
+  if(opts.once){ rig.action.setLoop(THREE.LoopOnce); rig.action.clampWhenFinished = true; }
+  rig.action.reset().play();
+}
+
+// ==========================================================================
+//  THE DUETS — each is a little staged scene on a shared clock.
+// ==========================================================================
+let mode = 'hug';
+let phT = 0;
+const duetSel = document.getElementById('duet');
+duetSel.addEventListener('change', () => { mode = duetSel.value; phT = 0; enter(); });
+
+const CLIPS = {
+  walkPlain: walkClip(0), walkInnerL: walkClip(1), walkInnerR: walkClip(-1),
+  hugHigh: hugClip(true), hugLow: hugClip(false), frugA: frugClip(false), frugB: frugClip(true),
+};
+function enter(){
+  A.root.rotation.set(0, 0, 0); Bg.root.rotation.set(0, 0, 0);
+  if(mode === 'hug'){
+    play(A, CLIPS.walkPlain); play(Bg, CLIPS.walkPlain);
+  } else if(mode === 'hand'){
+    // A on the left of B; A's RIGHT arm and B's LEFT arm reach inward
+    play(A, CLIPS.walkInnerR); play(Bg, CLIPS.walkInnerL);
+  } else {
+    play(A, CLIPS.frugA); play(Bg, CLIPS.frugB);
+  }
+}
+enter();
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+
+  if(mode === 'hug'){
+    const f = phT % 13;
+    const MEET = 0.42;                    // half-gap at the embrace
+    if(f < 2.6){                          // walk to meet
+      if(f < 0.1 && A.action?.getClip().name !== 'walk0'){ play(A, CLIPS.walkPlain); play(Bg, CLIPS.walkPlain); }
+      const p = smooth(f/2.6);
+      A.root.position.set(-2.2 + (2.2 - MEET)*p, 0, 0);
+      Bg.root.position.set(2.2 - (2.2 - MEET)*p, 0, 0);
+      A.root.rotation.y = Math.PI/2;      // A faces +x
+      Bg.root.rotation.y = -Math.PI/2;    // B faces -x
+    } else if(f < 9.2){                   // THE HUG (one clip each, offset heights)
+      if(f - dt < 2.6){ play(A, CLIPS.hugHigh, {once:true}); play(Bg, CLIPS.hugLow, {once:true}); }
+      A.root.position.set(-MEET, 0, 0);
+      Bg.root.position.set(MEET, 0, 0);
+      // the sway — the pair leans together, opposite phase would break the hold
+      const sway = Math.sin((f - 2.6)*1.4)*0.045 * smooth(clamp((f - 3.4)/1, 0, 1)) * (1 - smooth(clamp((f - 7.2)/1, 0, 1)));
+      A.root.rotation.z = sway; Bg.root.rotation.z = sway;
+    } else {                              // part and stroll off
+      if(f - dt < 9.2){ play(A, CLIPS.walkPlain); play(Bg, CLIPS.walkPlain); }
+      const p = smooth((f - 9.2)/3.8);
+      A.root.position.set(-MEET - 1.9*p, 0, 0);
+      Bg.root.position.set(MEET + 1.9*p, 0, 0);
+      A.root.rotation.y = -Math.PI/2;
+      Bg.root.rotation.y = Math.PI/2;
+      A.root.rotation.z = 0; Bg.root.rotation.z = 0;
+    }
+  } else if(mode === 'hand'){
+    // the couple strolls a ring, hands joined at the middle
+    const R = 2.6, w = 0.42;              // ring radius, angular speed
+    const a = t*w;
+    const cx = Math.sin(a)*R, cz = Math.cos(a)*R;
+    const heading = Math.atan2(Math.cos(a), -Math.sin(a));
+    const sideX = Math.cos(heading)*0.31, sideZ = -Math.sin(heading)*0.31;
+    A.root.position.set(cx - sideX, 0, cz - sideZ);
+    Bg.root.position.set(cx + sideX, 0, cz + sideZ);
+    A.root.rotation.y = heading;
+    Bg.root.rotation.y = heading;
+  } else {
+    // the frug — side by side, facing the camera
+    A.root.position.set(-0.55, 0, 0);
+    Bg.root.position.set(0.55, 0, 0);
+    A.root.rotation.y = 0; Bg.root.rotation.y = 0;
+  }
+
+  A.mixer.update(dt);
+  Bg.mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){
+    const [id, val] = pair.split(':');
+    const el = document.getElementById(id);
+    if(el){ el.value = val; el.dispatchEvent(new Event('change')); }
+  }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
+</script>
+</body>
+</html>

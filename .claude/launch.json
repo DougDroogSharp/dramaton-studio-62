@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "studio-editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "8090"],
+      "port": 8090
+    },
+    {
       "name": "dramaton-dev",
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\dev8080.mjs"],
@@ -12,6 +18,48 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8201"],
       "port": 8201
+    },
+    {
+      "name": "georgeland2",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8209"],
+      "port": 8209,
+      "url": "http://localhost:8209"
+    },
+    {
+      "name": "atoll",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8210"],
+      "port": 8210,
+      "url": "http://localhost:8210"
+    },
+    {
+      "name": "honu",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8213"],
+      "port": 8213,
+      "url": "http://localhost:8213"
+    },
+    {
+      "name": "crab",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8211"],
+      "port": 8211,
+      "url": "http://localhost:8211"
+    },
+    {
+      "name": "delta",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8212"],
+      "port": 8212,
+      "url": "http://localhost:8212"
+    },
+    {
+      "name": "caldera",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8214"],
+      "port": 8214,
+      "url": "http://localhost:8214"
     },
     {
       "name": "william-run-demo",

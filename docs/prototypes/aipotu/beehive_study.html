@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BEEHIVE STUDY — bees, honey, and the sting, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     Three coiled-straw SKEP hives on a bench, an orbiting bee swarm
+     (each bee its own wobbling orbit, a few ranging out to the flower
+     patch and back), and two scenes on buttons:
+     · THE HARVEST — the keeper walks up with the SMOKER, puffs three
+       slow clouds (the swarm calms and thins), lifts the skep, takes
+       the dripping comb, sets the skep back.
+     · THE STING — a greedy grab with no smoke: the swarm ANGERS
+       (tightens, reddens the air with speed), one bee darts — and the
+       Vita FLAILS off across the meadow swatting, pursued by a
+       little cloud, hopping at each phantom sting.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beehive Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e2e8d2; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,16,0.78); color:#f2f4e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#8a7a22; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#ffd94a; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐝 Beehive Study</b> — smoke, honey, and the sting, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="harvest">Harvest (with smoke)</button><button data-m="sting">Grab it (no smoke!)</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 62626;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe0e6d0), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(4.4, 3, 7);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 32;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f6e4), zenith = new THREE.Color(0x7cb4da),
+        below = new THREE.Color(0xd6dec6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8b078, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -9; sun.shadow.camera.right = 9;
+sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -9;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xa8bc7e }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the flower patch the ranging bees visit
+  for(let i = 0; i < 12; i++){
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.35, 4),
+      new THREE.MeshLambertMaterial({ color:0x6a8a3c }));
+    const x = -3.6 + rand(-0.8, 0.8), z = 2.4 + rand(-0.8, 0.8);
+    stem.position.set(x, 0.18, z);
+    scene.add(stem);
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 6),
+      new THREE.MeshLambertMaterial({ color:[0xd8433c, 0xe8963c, 0xd8a8e0, 0xf2f2f0][i % 4] }));
+    bloom.scale.y = 0.6;
+    bloom.position.set(x, 0.38, z);
+    scene.add(bloom);
+  }
+}
+
+// ---------- the SKEPS on their bench ---------------------------------------
+const matStraw = new THREE.MeshLambertMaterial({ color:0xc9a85c, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const skeps = [];
+{
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.12, 1.0), matWood);
+  bench.position.y = 0.5;
+  bench.castShadow = true;
+  scene.add(bench);
+  for(const s of [-1, 1]){
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.8), matWood);
+    leg.position.set(s*1.5, 0.25, 0);
+    scene.add(leg);
+  }
+  for(let i = 0; i < 3; i++){
+    const skep = new THREE.Group();
+    // coiled straw: stacked shrinking tori
+    for(let r = 0; r < 6; r++){
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34*(1 - r*0.13), 0.075, 7, 16), matStraw);
+      ring.rotation.x = Math.PI/2;
+      ring.position.y = 0.08 + r*0.115;
+      ring.castShadow = true;
+      skep.add(ring);
+    }
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), matStraw);
+    crown.position.y = 0.74;
+    skep.add(crown);
+    // the little arched doorway
+    const door = new THREE.Mesh(new THREE.CircleGeometry(0.055, 8),
+      new THREE.MeshBasicMaterial({ color:0x241d0c }));
+    door.position.set(0, 0.12, 0.405);
+    skep.add(door);
+    skep.position.set(-1.1 + i*1.1, 0.56, 0);
+    scene.add(skep);
+    skeps.push(skep);
+  }
+}
+// the dripping honeycomb prop (appears at harvest)
+const comb = new THREE.Group();
+{
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.08),
+    new THREE.MeshStandardMaterial({ color:0xe8b93c, roughness:0.3 }));
+  comb.add(slab);
+  for(let i = 0; i < 3; i++){
+    const drip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5),
+      new THREE.MeshStandardMaterial({ color:0xd8952e, roughness:0.2 }));
+    drip.position.set(-0.08 + i*0.08, -0.2 - (i%2)*0.05, 0);
+    comb.add(drip);
+  }
+  comb.visible = false;
+  scene.add(comb);
+}
+
+// ---------- THE SWARM ------------------------------------------------------
+const bees = [];
+{
+  const beeMat = new THREE.MeshBasicMaterial({ color:0xe8b93c });
+  const wingMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.5, side:THREE.DoubleSide });
+  for(let i = 0; i < 26; i++){
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.035, 3, 6), beeMat);
+    body.rotation.z = Math.PI/2;
+    g.add(body);
+    const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.021, 0.008, 4, 8),
+      new THREE.MeshBasicMaterial({ color:0x241d0c }));
+    stripe.rotation.y = Math.PI/2;
+    g.add(stripe);
+    for(const s of [-1, 1]){
+      const wing = new THREE.Mesh(new THREE.CircleGeometry(0.025, 6), wingMat);
+      wing.position.set(0, 0.02, s*0.02);
+      wing.rotation.x = s*0.6;
+      g.add(wing);
+    }
+    scene.add(g);
+    const home = skeps[i % 3].position;
+    bees.push({ g, home, ph: rand(0, 9), r: rand(0.35, 0.8), h: rand(0.6, 1.3),
+      sp: rand(2, 4), ranger: i % 5 === 0, rangePh: rand(0, 9) });
+  }
+}
+// smoke puffs
+const puffs = [];
+{
+  for(let i = 0; i < 8; i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 7, 6),
+      new THREE.MeshLambertMaterial({ color:0xc8c4bc, transparent:true, opacity:0 }));
+    m.visible = false;
+    scene.add(m);
+    puffs.push({ m, t: 9 });
+  }
+}
+
+// ---------- the keeper -----------------------------------------------------
+const K = { g: new THREE.Group() };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0xece4d0 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+  K.hips = new THREE.Group(); K.hips.position.y = 0.42; K.g.add(K.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; K.hips.add(barrel);
+  K.head = new THREE.Group(); K.head.position.y = 0.8; K.hips.add(K.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; K.head.add(skull);
+  // the keeper's brimmed veil hat
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.04, 14), matStraw);
+  brim.position.y = 0.28;
+  K.head.add(brim);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), matStraw);
+  dome.position.y = 0.36;
+  K.head.add(dome);
+  K.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Group(); hand.position.y = -0.5; arm.add(hand);
+    K.hips.add(arm); K.arms.push({ g: arm, hand });
+  }
+  K.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    K.hips.add(leg); K.legs.push(leg);
+  }
+  // the SMOKER: a little bellows can with a spout
+  K.smoker = new THREE.Group();
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.16, 8),
+    new THREE.MeshStandardMaterial({ color:0x777d84, metalness:0.6, roughness:0.5 }));
+  K.smoker.add(can);
+  const spout = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.1, 7),
+    new THREE.MeshStandardMaterial({ color:0x565d66, metalness:0.6, roughness:0.5 }));
+  spout.position.y = 0.12;
+  K.smoker.add(spout);
+  K.smoker.visible = false;
+  K.arms[0].hand.add(K.smoker);
+  K.g.position.set(3.4, 0.1, 1.6);
+  scene.add(K.g);
+}
+
+// ---------- the two scenes -------------------------------------------------
+let mode = 'harvest', phT = 0, calm = 0, anger = 0, stungT = 0;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.m; phT = 0; calm = 0; anger = 0; stungT = 0;
+  comb.visible = false;
+  chipBtns.forEach(x => x.classList.toggle('on', x === b));
+}));
+chipBtns[0].classList.add('on');
+
+const HOME = new THREE.Vector3(3.4, 0.1, 1.6);
+const AT_HIVE = new THREE.Vector3(0.05, 0.1, 1.15);
+function walk(t, sp = 1){
+  const ph = t*8*sp;
+  K.legs[0].rotation.x = Math.sin(ph)*0.45;
+  K.legs[1].rotation.x = -Math.sin(ph)*0.45;
+  K.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.025;
+}
+function still(dt){
+  K.legs[0].rotation.x = lerp(K.legs[0].rotation.x, 0, dt*6);
+  K.legs[1].rotation.x = lerp(K.legs[1].rotation.x, 0, dt*6);
+}
+function puffAt(p){
+  const s = puffs.find(s => s.t > 2);
+  if(!s) return;
+  s.t = 0;
+  s.m.visible = true;
+  s.m.position.copy(p);
+  s.m.scale.setScalar(0.6);
+}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT += dt;
+
+  const midSkep = skeps[1];
+
+  if(mode === 'harvest'){
+    const CYC = 16;
+    const f = phT % CYC;
+    if(f < 2.6){                            // walk in, smoker out
+      const p = smooth(f/2.6);
+      K.g.position.lerpVectors(HOME, AT_HIVE, p);
+      K.g.rotation.y = Math.atan2(AT_HIVE.x - HOME.x, AT_HIVE.z - HOME.z);
+      walk(t);
+      K.smoker.visible = true;
+      K.arms[0].g.rotation.x = -0.9;
+      calm = Math.max(0, calm - dt*0.3);
+    } else if(f < 6.2){                     // THREE SLOW PUFFS — the swarm calms
+      still(dt);
+      K.g.rotation.y = Math.PI;
+      const pf = (f - 2.6) % 1.2;
+      K.arms[0].g.rotation.x = -1.3 - Math.max(0, Math.sin(pf/1.2*Math.PI))*0.3;
+      if(pf < dt*1.5){
+        const sp = new THREE.Vector3();
+        K.smoker.getWorldPosition(sp);
+        puffAt(sp);
+      }
+      calm = Math.min(1, calm + dt*0.35);
+    } else if(f < 8.2){                     // lift the skep
+      still(dt);
+      const p = smooth((f - 6.2)/2);
+      midSkep.position.y = 0.56 + p*0.55;
+      midSkep.rotation.z = p*0.25;
+      K.arms[1].g.rotation.x = -1.7;
+      K.arms[0].g.rotation.x = -1.5;
+    } else if(f < 11){                      // take the comb — golden and dripping
+      still(dt);
+      comb.visible = true;
+      const cp = new THREE.Vector3();
+      K.arms[1].hand.getWorldPosition(cp);
+      comb.position.copy(cp);
+      comb.rotation.y = t*0.8;
+      K.arms[1].g.rotation.x = -1.1;
+      K.head.rotation.x = 0.3;              // admiring it
+    } else if(f < 13){                      // set the skep back down
+      const p = smooth((f - 11)/2);
+      midSkep.position.y = 0.56 + (1-p)*0.55;
+      midSkep.rotation.z = (1-p)*0.25;
+      K.arms[0].g.rotation.x = lerp(K.arms[0].g.rotation.x, -0.4, dt*4);
+    } else {                                // walk home with the honey
+      const p = smooth((f - 13)/3);
+      K.g.position.lerpVectors(AT_HIVE, HOME, p);
+      K.g.rotation.y = Math.atan2(HOME.x - AT_HIVE.x, HOME.z - AT_HIVE.z);
+      walk(t, 0.9);
+      const cp = new THREE.Vector3();
+      K.arms[1].hand.getWorldPosition(cp);
+      comb.position.copy(cp);
+      calm = Math.max(0, calm - dt*0.2);
+      if(p > 0.97) comb.visible = false;
+    }
+    anger = Math.max(0, anger - dt*0.8);
+    stungT = 0;
+  } else {
+    // THE STING: no smoke, straight grab → fury → the flail across the meadow
+    const CYC = 12;
+    const f = phT % CYC;
+    K.smoker.visible = false;
+    if(f < 2.2){                            // march in, overconfident
+      const p = smooth(f/2.2);
+      K.g.position.lerpVectors(HOME, AT_HIVE, p);
+      K.g.rotation.y = Math.atan2(AT_HIVE.x - HOME.x, AT_HIVE.z - HOME.z);
+      walk(t, 1.15);
+      anger = Math.max(0, anger - dt);
+    } else if(f < 3.4){                     // THE GRAB
+      still(dt);
+      K.g.rotation.y = Math.PI;
+      K.arms[1].g.rotation.x = -1.6;
+      K.arms[0].g.rotation.x = -1.4;
+      midSkep.rotation.z = Math.sin((f-2.2)*8)*0.08;   // the skep jostles
+      anger = Math.min(1, anger + dt*1.4);             // the swarm ANGERS
+    } else if(f < 3.7){                     // the dart — STUNG
+      anger = 1;
+      stungT = 1;
+    } else {                                // THE FLAIL: swatting flight, hopping
+      const p = (f - 3.7)/(CYC - 3.7);
+      const fx = lerp(AT_HIVE.x, 5.5, smooth(clamp(p*1.4, 0, 1)));
+      const fz = lerp(AT_HIVE.z, 4.2, smooth(clamp(p*1.4, 0, 1)));
+      K.g.position.set(fx, 0.1, fz);
+      K.g.rotation.y = Math.atan2(5.5 - AT_HIVE.x, 4.2 - AT_HIVE.z);
+      walk(t, 1.8);                                    // running
+      K.hips.position.y = 0.42 + Math.abs(Math.sin(t*9))*0.12;   // sting-hops
+      K.arms[0].g.rotation.x = -2.2 + Math.sin(t*16)*0.7;        // the swat
+      K.arms[1].g.rotation.x = -2.2 - Math.sin(t*16 + 1)*0.7;
+      K.arms[0].g.rotation.z = -0.4 + Math.sin(t*13)*0.4;
+      K.arms[1].g.rotation.z = 0.4 - Math.sin(t*13)*0.4;
+      K.head.rotation.y = Math.sin(t*11)*0.4;                    // where ARE they
+      anger = Math.max(0.4, anger - dt*0.12);
+      midSkep.rotation.z = lerp(midSkep.rotation.z, 0, dt*3);
+    }
+  }
+
+  // ---------- the swarm ----------
+  for(const b of bees){
+    const speed = b.sp * (1 + anger*2.2) * (1 - calm*0.65);
+    b.ph += dt * speed;
+    let cx = b.home.x, cy = 0.9, cz = b.home.z;
+    let rr = b.r * (1 - calm*0.4) * (1 - anger*0.45);   // fury TIGHTENS the orbit
+    if(stungT > 0 || (anger > 0.5 && mode === 'sting' && phT % 12 > 3.7)){
+      // the pursuit cloud chases the flailing keeper
+      cx = K.g.position.x; cy = 1.3; cz = K.g.position.z;
+      rr = 0.5 + b.r*0.4;
+    } else if(b.ranger && Math.sin(t*0.3 + b.rangePh) > 0.4){
+      cx = -3.6; cy = 0.5; cz = 2.4;                    // out to the flowers
+      rr = 0.5;
+    }
+    b.g.position.set(
+      cx + Math.cos(b.ph)*rr + Math.sin(t*7 + b.ph)*0.04,
+      cy + Math.sin(b.ph*1.7 + b.rangePh)*b.h*0.3,
+      cz + Math.sin(b.ph)*rr + Math.cos(t*6 + b.ph)*0.04);
+    b.g.rotation.y = -b.ph + Math.PI/2;
+  }
+  // smoke
+  for(const s of puffs){
+    if(s.t > 2){ s.m.visible = false; continue; }
+    s.t += dt;
+    s.m.position.y += dt*0.4;
+    s.m.position.x -= dt*0.25;
+    s.m.scale.multiplyScalar(1 + dt*0.8);
+    s.m.material.opacity = clamp(s.t < 0.3 ? s.t*1.8 : 0.55 - (s.t - 0.3)*0.33, 0, 1);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

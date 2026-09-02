@@ -16,7 +16,10 @@ export const isFileSystemAccessSupported = (): boolean => {
 // Save file with native picker (with fallback)
 export const saveFileWithPicker = async (
   content: string,
-  options: FilePickerOptions
+  options: FilePickerOptions,
+  // Called with the file handle/name after a successful FS-API save
+  // (recent-games tracking); not called on the legacy download path.
+  onSaved?: (info: { handle: FileSystemFileHandle; name: string }) => void
 ): Promise<boolean> => {
   // Try modern File System Access API first
   if (isFileSystemAccessSupported()) {
@@ -26,10 +29,11 @@ export const saveFileWithPicker = async (
         types: options.types,
         startIn: 'documents', // Start in documents folder
       });
-      
+
       const writable = await handle.createWritable();
       await writable.write(content);
       await writable.close();
+      try { onSaved?.({ handle, name: handle.name }); } catch { /* tracking only */ }
       return true;
     } catch (err: any) {
       // User cancelled the picker
@@ -61,17 +65,17 @@ export const saveFileWithPicker = async (
 // Open file with native picker (with fallback)
 export const openFileWithPicker = async (
   options: FilePickerOptions
-): Promise<{ content: string; name: string } | null> => {
+): Promise<{ content: string; name: string; handle?: FileSystemFileHandle } | null> => {
   if (isFileSystemAccessSupported()) {
     try {
       const [handle] = await (window as any).showOpenFilePicker({
         types: options.types,
         multiple: false,
       });
-      
+
       const file = await handle.getFile();
       const content = await file.text();
-      return { content, name: file.name };
+      return { content, name: file.name, handle };
     } catch (err: any) {
       // User cancelled the picker
       if (err.name === 'AbortError') {

@@ -4,7 +4,7 @@ import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameDa
 import { DramatonLogo } from "@/components/DramatonLogo";
 import { CostMeter } from "@/components/CostMeter";
 import { CyberInput } from "@/components/CyberInput";
-import { loadGameFromDB, saveGameToDB, clearGameFromDB } from "@/utils/db";
+import { loadGameFromDB, saveGameToDB, clearGameFromDB, getRecentGames, addRecentGame, RecentGame } from "@/utils/db";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjectCapture } from "@/hooks/useProjectCapture";
@@ -45,7 +45,7 @@ import { ItemEditor } from "@/components/editors/ItemEditor";
 import { SfxEditor } from "@/components/editors/SfxEditor";
 import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
-import { NarratonEditor } from "@/components/editors/NarratonEditor";
+import { NarratonDirector } from "@/components/editors/NarratonDirector";
 import { SkinEditor } from "@/components/editors/SkinEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
@@ -62,6 +62,18 @@ import {
   VacuumTube,
 } from "@/components/DieselpunkDecorations";
 
+
+// The shipped Humans vs Billionaires games, openable straight from
+// public/ for a tweak-and-see pass in the editor.
+const SHIPPED_GAMES = [
+  { file: 'hvb-william.json', title: 'William the Conqueror', scenes: '326 scenes' },
+  { file: 'hvb-leopold.json', title: 'King Leopold', scenes: '310 scenes' },
+  { file: 'hvb-capone.json', title: 'King of Chicago', scenes: '284 scenes' },
+  { file: 'hvb-elon.json', title: 'Elon Musk (moving to USA vs MAGA)', scenes: '290 scenes' },
+  { file: 'hvb-machine.json', title: 'The Machine', scenes: '17 scenes' },
+  { file: 'hvb-campaign.json', title: 'The Campaign', scenes: '107 scenes' },
+];
+
 const Index = () => {
   const navigate = useNavigate();
   const { confirm, alert } = useConfirmDialog();
@@ -71,6 +83,8 @@ const Index = () => {
   const [startTitle, setStartTitle] = useState("Untitled Game");
   const [startAuthor, setStartAuthor] = useState("Unknown Creator");
   const [hasAutoSave, setHasAutoSave] = useState(false);
+  const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
+  const [loadingShipped, setLoadingShipped] = useState<string | null>(null);
 
   // Editor state
   const [game, setGame] = useState<GameData>(createDefaultGame());
@@ -112,11 +126,65 @@ const Index = () => {
         setStartAuthor(saved.info.author);
       }
     });
+    getRecentGames().then(setRecentGames);
   }, []);
 
   // DRAM bridge: mirror the live document to the dev server for AI
   // collaboration (dev-only; no-op in production builds)
   useDramBridge(game, setGame, isLoaded);
+
+  // Open one of the shipped HvB games straight from public/ — the
+  // files are large (art is embedded), so show progress and never
+  // leave the button silently dead.
+  const handleOpenShipped = async (file: string, title: string) => {
+    setLoadingShipped(file);
+    try {
+      const response = await fetch(`/${file}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = migrateGameData(await response.json());
+      setGame(data);
+      setIsStarted(true);
+      setIsLoaded(true);
+      saveGameToDB(data);
+      toast.success(`Loaded: ${title}`);
+    } catch (err) {
+      console.error('Failed to open shipped game:', err);
+      toast.error(`Could not load ${file} — is the dev server serving public/?`);
+    } finally {
+      setLoadingShipped(null);
+    }
+  };
+
+  // Reopen a recent .dram file from its stored handle
+  const handleOpenRecent = async (recent: RecentGame) => {
+    if (!recent.handle) {
+      toast.error('No file handle stored — use Load to open it once.');
+      return;
+    }
+    try {
+      const h = recent.handle as FileSystemFileHandle & {
+        queryPermission?: (o: { mode: string }) => Promise<string>;
+        requestPermission?: (o: { mode: string }) => Promise<string>;
+      };
+      let perm = (await h.queryPermission?.({ mode: 'read' })) ?? 'granted';
+      if (perm !== 'granted') perm = (await h.requestPermission?.({ mode: 'read' })) ?? 'denied';
+      if (perm !== 'granted') {
+        toast.error('Permission denied — use Load to open it instead.');
+        return;
+      }
+      const file = await h.getFile();
+      const data = migrateGameData(JSON.parse(await file.text()));
+      setGame(data);
+      setIsStarted(true);
+      setIsLoaded(true);
+      saveGameToDB(data);
+      addRecentGame({ title: data.info.title, fileName: recent.fileName, handle: recent.handle }).then(setRecentGames);
+      toast.success(`Loaded: ${recent.fileName}`);
+    } catch (err) {
+      console.error('Failed to open recent game:', err);
+      toast.error('Could not open that file (moved or deleted?) — use Load instead.');
+    }
+  };
 
   // Autosave when editing (debounced)
   useEffect(() => {
@@ -220,6 +288,7 @@ const Index = () => {
       setIsStarted(true);
       setIsLoaded(true);
       saveGameToDB(data); // Save to IndexedDB for autosave
+      addRecentGame({ title: data.info.title, fileName: result.name, handle: result.handle }).then(setRecentGames);
       toast.success(`Loaded: ${result.name}`);
     } catch (err) {
       console.error("Failed to parse game file:", err);
@@ -300,10 +369,16 @@ const Index = () => {
     const content = JSON.stringify(game, null, 2);
     const suggestedName = `${game.info.title.replace(/\s+/g, "_")}.dram`;
 
-    const saved = await saveFileWithPicker(content, {
-      ...DRAM_FILE_OPTIONS,
-      suggestedName,
-    });
+    const saved = await saveFileWithPicker(
+      content,
+      {
+        ...DRAM_FILE_OPTIONS,
+        suggestedName,
+      },
+      ({ handle, name }) => {
+        addRecentGame({ title: game.info.title, fileName: name, handle }).then(setRecentGames);
+      }
+    );
 
     if (saved) {
       toast.success("Game saved!");
@@ -585,6 +660,56 @@ const Index = () => {
                 Load
               </button>
             </div>
+
+            {/* The shipped HvB games, one click into the editor. These
+                are BUILD OUTPUTS of scripts/chapters/build-*.mjs — a
+                rebuild overwrites them, so edits made here are for
+                trying things out; anything you want to keep belongs in
+                the generator (or save it out under a new name). */}
+            <div className="mt-3 border-t border-diesel-border pt-2">
+              <p className="text-[9px] uppercase tracking-widest text-diesel-steel mb-1.5">
+                Humans vs Billionaires
+              </p>
+              <div className="space-y-1">
+                {SHIPPED_GAMES.map(g => (
+                  <button
+                    key={g.file}
+                    onClick={() => handleOpenShipped(g.file, g.title)}
+                    disabled={loadingShipped !== null}
+                    className="w-full flex items-baseline justify-between gap-2 px-2 py-1 bg-diesel-black/40 border border-diesel-border text-left hover:border-diesel-gold transition-colors disabled:opacity-40"
+                    title={`Open ${g.file} in the editor`}
+                  >
+                    <span className="text-xs text-diesel-paper truncate">{g.title}</span>
+                    <span className="text-[9px] text-diesel-steel truncate shrink-0">
+                      {loadingShipped === g.file ? 'loading…' : g.scenes}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] text-diesel-steel/60 mt-1.5 leading-snug">
+                Build outputs — a rebuild overwrites them. Keep changes in the generator.
+              </p>
+            </div>
+
+            {/* Recent games: one click back into the last 5 files */}
+            {recentGames.length > 0 && (
+              <div className="mt-3 border-t border-diesel-border pt-2">
+                <p className="text-[9px] uppercase tracking-widest text-diesel-steel mb-1.5">Recent</p>
+                <div className="space-y-1">
+                  {recentGames.map(r => (
+                    <button
+                      key={r.fileName}
+                      onClick={() => handleOpenRecent(r)}
+                      className="w-full flex items-baseline justify-between gap-2 px-2 py-1 bg-diesel-black/40 border border-diesel-border text-left hover:border-diesel-gold transition-colors"
+                      title={r.fileName}
+                    >
+                      <span className="text-xs text-diesel-paper truncate">{r.title}</span>
+                      <span className="text-[9px] text-diesel-steel truncate shrink-0">{r.fileName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </IndustrialPanel>
 
           {/* Footer - minimal */}
@@ -814,7 +939,7 @@ const Index = () => {
               />
             )}
             {selection.type === "narraton" && (
-              <NarratonEditor
+              <NarratonDirector
                 game={game}
                 selection={selection}
                 onChange={setGame}

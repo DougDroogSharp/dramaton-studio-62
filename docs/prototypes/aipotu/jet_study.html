@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PASSENGER JET STUDY — for George World. Filed 2026-08-31, Doug's
+     transport batch. A twin-engine narrowbody: tube fuselage with a
+     band of cabin windows, swept wings carrying two underwing engine
+     pods, swept tail with the Aipotu palm on the fin, tricycle gear.
+     The circuit: taxi out, line up, the TAKEOFF ROLL, rotate, climb
+     out (gear tucks, flaps clean up), a wide lazy circuit over the
+     island, then the approach — flaps run out, gear down, a gentle
+     flare, TOUCHDOWN with a puff of tire smoke off the mains, the
+     rollout, and taxi back to the ramp. Around and around, like a
+     good airline day.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passenger Jet Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dfe8f0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,26,34,0.8); color:#eaf0f8; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🛫 Passenger Jet Study</b> — the circuit, v1<br>
+  <span class="hint">roll, rotate, gear tuck · the circuit · flare, tire smoke, taxi in</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdde6ee), 90, 600);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 1200);
+camera.position.set(18, 10, 28);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 4; controls.maxDistance = 200;
+controls.maxPolarAngle = 1.54;
+{
+  const geo = new THREE.SphereGeometry(500, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f2ea), zenith = new THREE.Color(0x4f9ad8),
+        below = new THREE.Color(0xccd4c8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/500;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.55)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8b494, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(24, 36, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -12;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(500, 48),
+    new THREE.MeshLambertMaterial({ color:0x8fa863 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the paved runway
+  const rw = new THREE.Mesh(new THREE.PlaneGeometry(90, 7),
+    new THREE.MeshLambertMaterial({ color:0x5a5c60 }));
+  rw.rotation.x = -Math.PI/2; rw.position.y = 0.02; scene.add(rw);
+  for(let i = 0; i < 11; i++){
+    const cl = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.35),
+      new THREE.MeshLambertMaterial({ color:0xe8e4d0 }));
+    cl.rotation.x = -Math.PI/2;
+    cl.position.set(-40 + i*8, 0.03, 0);
+    scene.add(cl);
+  }
+  for(const x of [-43, 43]){
+    for(let i = 0; i < 4; i++){
+      const th = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5),
+        new THREE.MeshLambertMaterial({ color:0xe8e4d0 }));
+      th.rotation.x = -Math.PI/2;
+      th.position.set(x, 0.03, -2.1 + i*1.4);
+      scene.add(th);
+    }
+  }
+  // the little terminal + tower
+  const term = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 3),
+    new THREE.MeshLambertMaterial({ color:0xcfc8b4, flatShading:true }));
+  term.position.set(-6, 1, -14);
+  term.castShadow = true;
+  scene.add(term);
+  const towerB = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 5, 8),
+    new THREE.MeshLambertMaterial({ color:0xcfc8b4, flatShading:true }));
+  towerB.position.set(3, 2.5, -14);
+  scene.add(towerB);
+  const cab = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1, 1, 8),
+    new THREE.MeshLambertMaterial({ color:0x8ab8d8, flatShading:true }));
+  cab.position.set(3, 5.5, -14);
+  scene.add(cab);
+}
+
+// ==========================================================================
+//  THE JET — nose along +x
+// ==========================================================================
+const PLANE = new THREE.Group();
+scene.add(PLANE);
+let gear, flapL, flapR, smokeBudget = 0;
+{
+  const white = new THREE.MeshLambertMaterial({ color:0xf2f2ee });
+  const belly = new THREE.MeshLambertMaterial({ color:0xc8ccd0 });
+  const teal = new THREE.MeshLambertMaterial({ color:0x2a8a7a });
+  const dark = new THREE.MeshLambertMaterial({ color:0x2a3038 });
+  // fuselage tube + nose + tailcone
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 7.4, 18), white);
+  fus.rotation.z = Math.PI/2;
+  fus.castShadow = true;
+  PLANE.add(fus);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 10), white);
+  nose.scale.x = 1.5;
+  nose.position.x = 3.7;
+  PLANE.add(nose);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.2, 2.2, 14), white);
+  tail.rotation.z = Math.PI/2;
+  tail.position.set(-4.8, 0.12, 0);
+  tail.rotation.y = 0;
+  PLANE.add(tail);
+  // belly + livery stripe + window band
+  const bl = new THREE.Mesh(new THREE.CylinderGeometry(0.625, 0.625, 7.4, 18, 1, false, Math.PI*1.1, Math.PI*0.8), belly);
+  bl.rotation.z = Math.PI/2;
+  PLANE.add(bl);
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.63, 0.63, 7.4, 18, 1, false, Math.PI*0.94, Math.PI*0.14), teal);
+  stripe.rotation.z = Math.PI/2;
+  PLANE.add(stripe);
+  for(let i = 0; i < 16; i++){
+    const w = new THREE.Mesh(new THREE.CircleGeometry(0.055, 8),
+      new THREE.MeshBasicMaterial({ color:0x203040 }));
+    w.position.set(3.0 - i*0.42, 0.22, 0.615);
+    PLANE.add(w);
+    const w2 = w.clone();
+    w2.position.z = -0.615;
+    w2.rotation.y = Math.PI;
+    PLANE.add(w2);
+  }
+  // cockpit windows
+  const cw = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 1.05), dark);
+  cw.position.set(3.45, 0.24, 0);
+  PLANE.add(cw);
+  // swept wings + flaps
+  function wing(s){
+    const geo = new THREE.BoxGeometry(1.5, 0.1, 4.4);
+    const w = new THREE.Mesh(geo, white);
+    const grp = new THREE.Group();
+    grp.position.set(0.3, -0.35, s*0.5);
+    grp.rotation.y = s*0.5;                    // sweep
+    grp.rotation.x = s*0.06;                   // dihedral
+    w.position.z = s*2.2;
+    w.castShadow = true;
+    grp.add(w);
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 1.4), teal);
+    tip.position.set(-0.2, 0.0, s*(4.4 + 0.65));
+    grp.add(tip);
+    // the flap panel at the trailing edge
+    const flap = new THREE.Group();
+    flap.position.set(-0.75, 0, s*1.6);
+    const fp = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 2.2), belly);
+    fp.position.set(-0.22, 0, 0);
+    flap.add(fp);
+    grp.add(flap);
+    // the engine pod
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 1.3, 14), belly);
+    pod.rotation.z = Math.PI/2;
+    pod.position.set(0.7, -0.42, s*1.7);
+    pod.castShadow = true;
+    grp.add(pod);
+    const intake = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.05, 8, 16), dark);
+    intake.rotation.y = Math.PI/2;
+    intake.position.set(1.35, -0.42, s*1.7);
+    grp.add(intake);
+    PLANE.add(grp);
+    return flap;
+  }
+  flapL = wing(1); flapR = wing(-1);
+  // tail feathers, swept
+  const vfin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.0, 0.09), teal);
+  vfin.position.set(-5.3, 1.15, 0);
+  vfin.rotation.z = 0.5;
+  vfin.castShadow = true;
+  PLANE.add(vfin);
+  // the Aipotu palm on the fin
+  const palmT = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.5, 6),
+    new THREE.MeshLambertMaterial({ color:0x6a4a2a }));
+  palmT.position.set(-5.55, 1.35, 0.06);
+  palmT.rotation.z = 0.35;
+  PLANE.add(palmT);
+  for(let i = 0; i < 5; i++){
+    const frond = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.02),
+      new THREE.MeshLambertMaterial({ color:0x3f7040 }));
+    frond.position.set(-5.68, 1.62, 0.06);
+    frond.rotation.z = 0.5 + i*1.1;
+    PLANE.add(frond);
+  }
+  for(const s of [-1, 1]){
+    const hs = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.07, 1.9), white);
+    hs.position.set(-5.5, 0.35, s*1.0);
+    hs.rotation.y = s*0.4;
+    hs.castShadow = true;
+    PLANE.add(hs);
+  }
+  // tricycle gear
+  gear = new THREE.Group();
+  PLANE.add(gear);
+  function leg(x, z, r){
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6), dark);
+    strut.position.set(x, -0.95, z);
+    gear.add(strut);
+    for(const s of (z === 0 ? [0] : [-1, 1])){
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.12, 12), dark);
+      wheel.rotation.x = Math.PI/2;
+      wheel.position.set(x, -1.35, z + s*0.09);
+      gear.add(wheel);
+    }
+  }
+  leg(2.6, 0, 0.16); leg(-0.5, 0.7, 0.22); leg(-0.5, -0.7, 0.22);
+}
+PLANE.position.y = 1.5;
+
+// tire smoke
+function puffTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(220,220,225,0.8)'); rg.addColorStop(1, 'rgba(210,210,215,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const puffs = [];
+{
+  const pm = new THREE.SpriteMaterial({ map:puffTex(), transparent:true, depthWrite:false });
+  for(let i = 0; i < 20; i++){
+    const s = new THREE.Sprite(pm.clone());
+    s.visible = false;
+    scene.add(s);
+    puffs.push({ m:s, age:9 });
+  }
+}
+function puff(pos){
+  const p = puffs.find(x => x.age > 1); if(!p) return;
+  p.age = 0;
+  p.m.position.copy(pos);
+  p.m.visible = true;
+}
+
+// ==========================================================================
+//  THE CIRCUIT — 46s
+// ==========================================================================
+const T_TOTAL = 46;
+function pathAt(f){
+  if(f < 5){                                  // taxi from the ramp to the numbers
+    const k = smooth(f/5);
+    return [lerp(-20, -40, k), 1.5, lerp(-8, 0, k)];
+  } else if(f < 12){                          // the takeoff roll + rotate
+    const k = (f - 5)/7;
+    const x = lerp(-40, 30, k*k);
+    const climb = Math.max(0, k - 0.72)/0.28;
+    return [x, 1.5 + climb*climb*7, 0];
+  } else if(f < 30){                          // the wide circuit
+    const k = (f - 12)/18;
+    const a = k*Math.PI*2;
+    return [30 + Math.sin(a)*46 - 0*k, 8.5 + Math.sin(Math.min(Math.PI, k*Math.PI*1.6))*10,
+      -(1 - Math.cos(a))*40];
+  } else if(f < 40){                          // approach, flare, touchdown, rollout
+    const k = (f - 30)/10;
+    const x = lerp(46, -34, smooth(k));
+    let y;
+    if(k < 0.55) y = lerp(7, 1.9, k/0.55);
+    else if(k < 0.66) y = lerp(1.9, 1.5, (k - 0.55)/0.11);   // the flare
+    else y = 1.5;
+    return [x, y, 0];
+  } else {                                    // taxi in
+    const k = (f - 40)/6;
+    return [lerp(-34, -20, smooth(k)), 1.5, lerp(0, -8, smooth(k))];
+  }
+}
+let phT = 0;
+let touched = false;
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3();
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  phT = (phT + dt) % T_TOTAL;
+  const f = phT;
+  if(f < 1) touched = false;
+
+  _p1.fromArray(pathAt(f));
+  _p2.fromArray(pathAt(Math.min(T_TOTAL - 0.001, f + 0.08)));
+  PLANE.position.copy(_p1);
+  const vel = _p2.clone().sub(_p1);
+  if(vel.lengthSq() > 1e-8){
+    const heading = Math.atan2(-vel.z, vel.x);
+    const pitch = clamp(Math.atan2(vel.y, Math.hypot(vel.x, vel.z)), -0.35, 0.42);
+    let bank = 0;
+    if(f >= 12 && f < 30) bank = -0.52*Math.sin((f - 12)/18*Math.PI*2)*0 - 0.5*Math.sin(Math.min(Math.PI, (f-12)/18*Math.PI*2));
+    PLANE.rotation.set(0, 0, 0);
+    PLANE.rotateY(heading);
+    PLANE.rotateZ(pitch + (f > 10 && f < 12 ? 0.12 : 0));   // the rotate
+    PLANE.rotateX(clamp(bank, -0.55, 0.55));
+  }
+  // gear + flaps
+  const gearOut = f < 13.5 || f > 27;
+  gear.scale.y = lerp(gear.scale.y, gearOut ? 1 : 0.05, dt*2.5);
+  gear.visible = gear.scale.y > 0.1;
+  const flapsOut = f < 13 || f > 28.5;
+  flapL.rotation.z = lerp(flapL.rotation.z, flapsOut ? 0.5 : 0, dt*2);
+  flapR.rotation.z = lerp(flapR.rotation.z, flapsOut ? 0.5 : 0, dt*2);
+  // touchdown smoke off the mains
+  if(f > 30 && f < 40 && PLANE.position.y <= 1.52 && !touched){
+    touched = true;
+    for(let i = 0; i < 5; i++){
+      puff(PLANE.position.clone().add(new THREE.Vector3(-0.5 + i*0.3, -1.3, 0.7)));
+      puff(PLANE.position.clone().add(new THREE.Vector3(-0.5 + i*0.3, -1.3, -0.7)));
+    }
+  }
+  for(const p of puffs){
+    p.age += dt;
+    const k = clamp(p.age/1, 0, 1);
+    p.m.scale.setScalar(0.4 + k*1.8);
+    p.m.material.opacity = (1 - k)*0.55;
+    if(k >= 1) p.m.visible = false;
+  }
+
+  controls.target.lerp(new THREE.Vector3(PLANE.position.x, Math.max(2, PLANE.position.y), PLANE.position.z), dt*2.4);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

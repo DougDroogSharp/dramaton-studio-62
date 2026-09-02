@@ -3,7 +3,7 @@ import { GameData, Scene, ScenePhase } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { useScriptRunner, VarChange } from '@/hooks/useScriptRunner';
-import { narratonRank, scoreKey } from '@/utils/narraton';
+import { narratonRank, scoreKey } from '@/utils/narratonDirector';
 import { SetCommand } from '@/utils/scriptParser';
 import { X, RotateCcw, Play, Drama, FastForward } from 'lucide-react';
 
@@ -190,9 +190,9 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                           → {targetScene?.name ?? option.target}
                         </span>
                       </div>
-                      {option.sets && option.sets.length > 0 && (
+                      {option.effects && option.effects.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5 ml-6">
-                          {option.sets.map((s, j) => (
+                          {option.effects.map((s, j) => (
                             <span
                               key={j}
                               className="px-1.5 py-0.5 bg-diesel-gold/10 border border-diesel-gold/40 rounded text-[10px] font-mono text-diesel-gold"

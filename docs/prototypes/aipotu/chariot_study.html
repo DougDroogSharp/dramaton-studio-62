@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CELTIC CHARIOT STUDY — for George World. Filed 2026-08-31, Doug's
+     batch. A two-horse war chariot flat out around a stadium ring:
+     paired horses at the GALLOP (proper four-beat legs, necks
+     pumping, manes and tails streaming), yoke pole, spoked wheels
+     spinning — and a Vita charioteer laying on the WHIP, the lash
+     streaming and CRACKING forward every few strides. In the two
+     hard turns the horses LEAN hard into the bend, the chariot
+     OVERSTEERS and SKIDS wide with the tail stepping out, and the
+     wheels rip up a trail of DUST. Boudica would approve.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Celtic Chariot Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐎 Celtic Chariot Study</b> — gallop, whip, skid, dust, v1<br>
+  <span class="hint">the horses lean into the bends; the tail steps out; the lash cracks</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 7788;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 50, 280);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(12, 7, 16);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(18, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 40),
+    new THREE.MeshLambertMaterial({ color:0x9cab64 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the worn racing ring
+  const ringGeo = new THREE.RingGeometry(6.4, 9.6, 48);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshLambertMaterial({ color:0xbfa878 }));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.y = 0.01;
+  ring.scale.set(1.5, 1, 1);
+  scene.add(ring);
+  // a few standing stones to thunder past
+  const stoneM = new THREE.MeshLambertMaterial({ color:0x8a8578, flatShading:true });
+  for(const a of [0.6, 2.2, 3.9, 5.2]){
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.6, rand(1.6, 2.6), 0.45), stoneM);
+    s.position.set(Math.cos(a)*14, 1, Math.sin(a)*11);
+    s.rotation.y = rand(0, 3);
+    s.rotation.z = rand(-0.08, 0.08);
+    s.castShadow = true;
+    scene.add(s);
+  }
+}
+
+// ---------- the track: a stadium ellipse -----------------------------------
+const RX = 12, RZ = 8;
+function trackAt(a){
+  return {
+    p: new THREE.Vector3(Math.cos(a)*RX, 0, Math.sin(a)*RZ),
+    t: new THREE.Vector3(-Math.sin(a)*RX, 0, Math.cos(a)*RZ).normalize(),
+    curv: 1/Math.pow(Math.pow(Math.sin(a)*RX, 2) + Math.pow(Math.cos(a)*RZ, 2), 0.5),
+  };
+}
+
+// ==========================================================================
+//  THE HORSES — paired, galloping
+// ==========================================================================
+function makeHorse(col, maneCol){
+  const m = new THREE.MeshLambertMaterial({ color:col });
+  const mane = new THREE.MeshLambertMaterial({ color:maneCol, flatShading:true });
+  const H = { g: new THREE.Group() };
+  H.body = new THREE.Group();
+  H.body.position.y = 1.05;
+  H.g.add(H.body);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.9, 8, 12), m);
+  barrel.rotation.x = Math.PI/2;
+  barrel.castShadow = true;
+  H.body.add(barrel);
+  H.neck = new THREE.Group();
+  H.neck.position.set(0, 0.22, 0.62);
+  H.body.add(H.neck);
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.5, 6, 10), m);
+  neck.rotation.x = -0.8;
+  neck.position.set(0, 0.22, 0.12);
+  neck.castShadow = true;
+  H.neck.add(neck);
+  H.head = new THREE.Group();
+  H.head.position.set(0, 0.52, 0.34);
+  H.neck.add(H.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 11), m);
+  skull.scale.set(0.85, 1.0, 1.5);
+  skull.position.z = 0.12;
+  skull.rotation.x = 0.5;
+  skull.castShadow = true;
+  H.head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.16, 6, 10), m);
+  muzzle.rotation.x = Math.PI/2 - 0.35;
+  muzzle.position.set(0, -0.12, 0.3);
+  muzzle.castShadow = true;
+  H.head.add(muzzle);
+  for(const s of [-1, 1]){
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 5), m);
+    ear.position.set(s*0.08, 0.2, -0.02);
+    H.head.add(ear);
+  }
+  // streaming mane: fins along the neck top
+  for(let i = 0; i < 4; i++){
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.16), mane);
+    fin.position.set(0, 0.42 + i*0.08, 0.28 - i*0.14);
+    fin.rotation.x = -0.6;
+    H.neck.add(fin);
+  }
+  // tail, streaming
+  H.tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.55, 5, 7), mane);
+  H.tail.position.set(0, 0.18, -0.72);
+  H.tail.rotation.x = 1.9;
+  H.body.add(H.tail);
+  // legs: [hip pivot with upper], knee child with lower + hoof
+  H.legs = [];
+  for(const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]){
+    const hip = new THREE.Group();
+    hip.position.set(sx*0.22, -0.14, sz*0.48);
+    // shoulder/haunch blend so the leg roots INTO the barrel
+    const joint = new THREE.Mesh(new THREE.SphereGeometry(sz < 0 ? 0.17 : 0.14, 12, 9), m);
+    joint.scale.set(0.8, 1.2, 1.1);
+    joint.position.copy(hip.position);
+    joint.position.y += 0.04;
+    joint.castShadow = true;
+    H.body.add(joint);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.34, 4, 7), m);
+    upper.position.y = -0.22;
+    upper.castShadow = true;
+    hip.add(upper);
+    const knee = new THREE.Group();
+    knee.position.y = -0.44;
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.32, 4, 6), m);
+    lower.position.y = -0.2;
+    lower.castShadow = true;
+    knee.add(lower);
+    const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.09, 8),
+      new THREE.MeshLambertMaterial({ color:0x2e2a24 }));
+    hoof.position.y = -0.4;
+    knee.add(hoof);
+    hip.add(knee);
+    H.body.add(hip);
+    H.legs.push({ hip, knee, front: sz > 0 });
+  }
+  scene.add(H.g);
+  return H;
+}
+function gallop(H, ph){
+  // rotary gallop: fronts reach together, hinds drive together, offset phases
+  for(const L of H.legs){
+    const o = L.front ? 0 : Math.PI*0.85;
+    const s = Math.sin(ph + o + (L.hip.position.x > 0 ? 0.35 : 0));
+    L.hip.rotation.x = s*0.85 - (L.front ? 0.1 : -0.05);
+    L.knee.rotation.x = Math.max(0, -Math.sin(ph + o + 0.7 + (L.hip.position.x > 0 ? 0.35 : 0)))*1.3;
+  }
+  H.body.position.y = 1.05 + Math.abs(Math.sin(ph))*0.09;
+  H.body.rotation.x = Math.sin(ph)*0.08;
+  H.neck.rotation.x = Math.sin(ph + 0.6)*0.16;             // the pumping neck
+  H.tail.rotation.x = 1.9 + Math.sin(ph + 1.2)*0.18;
+}
+const horses = [makeHorse(0x6a4a2e, 0x2e2620), makeHorse(0x8a6a44, 0x3a2e22)];
+
+// ==========================================================================
+//  THE CHARIOT + THE CHARIOTEER
+// ==========================================================================
+const CH = new THREE.Group();
+scene.add(CH);
+let wheels = [], whipLine, whipPts;
+const driver = { g: new THREE.Group() };
+{
+  const woodM = new THREE.MeshLambertMaterial({ color:0x7a5432, flatShading:true });
+  const wickM = new THREE.MeshLambertMaterial({ color:0xa8804c, flatShading:true });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.08, 0.95), woodM);
+  floor.position.y = 0.55;
+  floor.castShadow = true;
+  CH.add(floor);
+  // the curved wicker breastwork
+  const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.6, 14, 1, true, Math.PI*0.15, Math.PI*0.7), wickM);
+  rail.position.set(0, 0.9, 0.12);
+  rail.material.side = THREE.DoubleSide;
+  CH.add(rail);
+  for(const s of [-1, 1]){
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.7), wickM);
+    side.position.set(s*0.56, 0.82, -0.05);
+    CH.add(side);
+  }
+  // wheels: rim + 8 spokes
+  for(const s of [-1, 1]){
+    const w = new THREE.Group();
+    w.position.set(s*0.72, 0.42, -0.25);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 18), woodM);
+    rim.rotation.y = Math.PI/2;
+    rim.castShadow = true;
+    w.add(rim);
+    for(let i = 0; i < 8; i++){
+      const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.4, 5), woodM);
+      sp.position.y = 0.2;
+      const g2 = new THREE.Group();
+      g2.rotation.x = i*Math.PI/4;
+      g2.add(sp);
+      w.add(g2);
+    }
+    CH.add(w);
+    wheels.push(w);
+  }
+  // the pole forward to the yoke
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 2.4, 7), woodM);
+  pole.rotation.x = Math.PI/2 - 0.08;
+  pole.position.set(0, 0.62, 1.35);
+  CH.add(pole);
+  const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.5, 7), woodM);
+  yoke.rotation.z = Math.PI/2;
+  yoke.position.set(0, 0.78, 2.5);
+  CH.add(yoke);
+  // THE DRIVER
+  const tunic = new THREE.MeshLambertMaterial({ color:0x4a6a8a });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  driver.hips = new THREE.Group();
+  driver.hips.position.y = 1.0;
+  driver.g.add(driver.hips);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.4, 6, 10), tunic);
+  body.position.y = 0.2;
+  body.castShadow = true;
+  driver.hips.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 9), skin);
+  head.position.y = 0.72;
+  head.castShadow = true;
+  driver.hips.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.23, 10, 6, 0, Math.PI*2, 0, 1.3),
+    new THREE.MeshLambertMaterial({ color:0xa8642a, flatShading:true }));   // a proper Celt
+  hair.position.y = 0.78;
+  driver.hips.add(hair);
+  driver.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.26, 0.42, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.3, 4, 8), skin);
+    limb.position.y = -0.19;
+    limb.castShadow = true;
+    arm.add(limb);
+    driver.hips.add(arm);
+    driver.arms.push(arm);
+  }
+  driver.g.position.set(0, 0.28, -0.1);
+  CH.add(driver.g);
+  // the reins: two lines to the yoke
+  // (kept simple: from hands toward the yoke, drawn as one sagging line each)
+  // THE WHIP — a polyline lash streaming behind the right hand
+  whipPts = new Float32Array(12*3);
+  const wg = new THREE.BufferGeometry();
+  wg.setAttribute('position', new THREE.BufferAttribute(whipPts, 3));
+  whipLine = new THREE.Line(wg, new THREE.LineBasicMaterial({ color:0x3a2c1c }));
+  scene.add(whipLine);
+}
+// dust
+function puffTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(200,180,140,0.75)'); rg.addColorStop(1, 'rgba(200,180,140,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const dust = [];
+{
+  const dm = new THREE.SpriteMaterial({ map:puffTex(), transparent:true, depthWrite:false });
+  for(let i = 0; i < 40; i++){
+    const s = new THREE.Sprite(dm.clone());
+    s.visible = false;
+    scene.add(s);
+    dust.push({ m:s, age:9 });
+  }
+}
+function kick(pos, size){
+  const p = dust.find(x => x.age > 1.3); if(!p) return;
+  p.age = 0;
+  p.m.position.copy(pos);
+  p.baseSize = size;
+  p.m.visible = true;
+}
+
+// ---------- the run --------------------------------------------------------
+let A = 0;
+let skid = 0;
+let whipT = 0;
+const lash = [];
+for(let i = 0; i < 12; i++) lash.push(new THREE.Vector3());
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // speed around the ellipse — the ends of the oval are the hard turns
+  const { p, t: tan, curv } = trackAt(A);
+  const turning = curv*RX;                     // ~1 in the tight ends, lower on straights
+  const speed = lerp(7.2, 5.0, clamp((turning - 0.8)*2.2, 0, 1));
+  A += speed/Math.hypot(Math.sin(A)*RX, Math.cos(A)*RZ)*dt;
+  const heading = Math.atan2(tan.x, tan.z);
+  // SKID: in the tight ends the chariot oversteers — heading lags, tail out
+  const skidTarget = clamp((turning - 0.85)*1.6, 0, 0.5);
+  skid = lerp(skid, skidTarget, dt*3.5);
+  const lean = skidTarget*0.55;                // horses lean INTO the bend
+
+  // the chariot rides the track, yawed past the tangent by the skid
+  CH.position.copy(p);
+  CH.rotation.set(0, heading + skid, 0);
+  CH.rotation.z = -lean*0.5 + Math.sin(t*9)*0.012;   // banked + rattling
+  CH.rotation.x = Math.sin(t*11)*0.015;
+  const wheelSpin = speed/0.42;
+  for(const w of wheels) w.rotation.x += wheelSpin*dt;
+  // dust rips off the outside wheel in the skid
+  if(skid > 0.12 && Math.random() < 0.75){
+    const outW = wheels[0].getWorldPosition(new THREE.Vector3());
+    kick(outW.setY(0.15), 0.5 + skid);
+    if(Math.random() < 0.5){
+      const inW = wheels[1].getWorldPosition(new THREE.Vector3());
+      kick(inW.setY(0.15), 0.4);
+    }
+  }
+
+  // the pair, ahead of the pole, leaning into the bend
+  const gph = t*10;
+  horses.forEach((H, i) => {
+    const s = i === 0 ? -1 : 1;
+    const side = new THREE.Vector3(tan.z, 0, -tan.x);
+    const hp = p.clone().addScaledVector(tan, 2.9).addScaledVector(side, s*0.55);
+    H.g.position.copy(hp);
+    H.g.rotation.set(0, heading, -lean);       // THE LEAN
+    gallop(H, gph + (i === 0 ? 0 : 0.45));
+    // hoof dust in the turns
+    if(lean > 0.1 && Math.random() < 0.3)
+      kick(hp.clone().setY(0.12), 0.35);
+  });
+
+  // the driver: braced knees, rein hand forward, WHIP hand working
+  whipT += dt;
+  const cracking = (whipT % 3.2) < 0.55;
+  driver.hips.rotation.z = -lean*0.6;          // leans with the bend
+  driver.hips.rotation.x = 0.1 + Math.sin(t*9)*0.02;
+  driver.arms[0].rotation.x = -1.15;           // rein arm forward
+  driver.arms[0].rotation.z = 0.25;
+  if(cracking){
+    const k = (whipT % 3.2)/0.55;
+    driver.arms[1].rotation.x = lerp(-2.6, -0.7, Math.min(1, k*1.4));   // the snap
+    driver.arms[1].rotation.z = -0.2;
+  } else {
+    driver.arms[1].rotation.x = lerp(driver.arms[1].rotation.x, -1.7, dt*4);  // riding high
+    driver.arms[1].rotation.z = -0.25;
+  }
+  // the lash: follows the hand, streams back, whips forward on the crack
+  {
+    const hand = new THREE.Vector3(0.3, 1.62, -0.15).applyMatrix4(CH.matrixWorld);
+    lash[0].copy(hand);
+    const back = new THREE.Vector3(Math.sin(heading + skid), 0, Math.cos(heading + skid));
+    for(let i = 1; i < 12; i++){
+      const drape = i/11;
+      const target = hand.clone()
+        .addScaledVector(back, cracking ? drape*1.9 : -drape*1.6)
+        .add(new THREE.Vector3(0, cracking ? drape*0.4 - drape*drape*0.9 : -drape*drape*0.8
+          + Math.sin(t*13 + i)*0.05*drape, 0));
+      lash[i].lerp(target, Math.min(1, dt*(cracking ? 22 : 9)));
+      whipPts[i*3] = lash[i].x; whipPts[i*3+1] = lash[i].y; whipPts[i*3+2] = lash[i].z;
+    }
+    whipPts[0] = hand.x; whipPts[1] = hand.y; whipPts[2] = hand.z;
+    whipLine.geometry.attributes.position.needsUpdate = true;
+  }
+
+  for(const d of dust){
+    d.age += dt;
+    const k = clamp(d.age/1.3, 0, 1);
+    d.m.position.y += dt*0.7;
+    d.m.scale.setScalar((d.baseSize || 0.4)*(1 + k*2.4));
+    d.m.material.opacity = (1 - k)*0.55;
+    if(k >= 1) d.m.visible = false;
+  }
+
+  controls.target.lerp(new THREE.Vector3(CH.position.x, 1.2, CH.position.z), dt*2.2);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

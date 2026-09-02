@@ -205,23 +205,23 @@ CRITICAL BACKGROUND INSTRUCTION: The item MUST be rendered on a SOLID BRIGHT GRE
 
 NEGATIVE: No text, no watermarks, no hands holding the item, no complex backgrounds.`;
 
-      if (styleLock) {
+      if (styleLock && !game.info.stylePack) {
         fullPrompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: fullPrompt,
             styleGuide: styleGuide || undefined,
             enforceStyleGuide: styleLock,
+            aspectRatio: '1:1', // items are square-ish props
           }),
         }
       );

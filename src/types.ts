@@ -14,6 +14,10 @@ export interface GameInfo {
   title: string;
   author: string;
   styleGuide: string | null;
+  // Art style pack: folder name under STYLE_PACKS_DIR whose images +
+  // style.txt ride every image generation. One style per game —
+  // changing it mid-project means regenerating existing art.
+  stylePack?: string;
   worldState: Record<string, string | number | boolean>;
   gameMode: 'INTERACTIVE' | 'AUTO_PLAY';
   titleSceneId?: string;
@@ -23,6 +27,18 @@ export interface GameInfo {
   // Skin lockdown: when non-empty, only skins whose skinType is listed here
   // may be assigned in this world (the "land can lock down skin types" rule).
   allowedSkinTypes?: string[];
+  // Era coin for {var:money} in meter commentary: pence (Norman
+  // England), francs, dollars1929, dollars, plain.
+  moneyFormat?: string;
+  // Which cabinet the game is played inside: diesel | linen | brass |
+  // amiga | flat. See src/utils/frames.ts.
+  frame?: string;
+  // Stamped by the build, never hand-edited. Shown on the title page so
+  // a bug report carries which build it came from, which matters when
+  // the same game is being played on three devices and one of them is
+  // holding a cached copy. See scripts/stamp.mjs.
+  version?: string;
+  builtAt?: string;
 }
 
 export interface ActorGraphic {
@@ -31,6 +47,10 @@ export interface ActorGraphic {
   expression: string;
   angle: number;
   image: string;
+  // Share one sprite across several pose/expression triples: instead of
+  // a duplicate base64 copy, name another graphic in the same actor and
+  // the load path (migrateGameData) fills `image` in.
+  imageRef?: string;
   generatedPrompt?: string;  // Full prompt used to generate this graphic
 }
 
@@ -123,6 +143,7 @@ export interface StageElement {
   scale: number;
   zIndex: number;
   rotation: number;
+  opacity?: number;  // 0-1; undefined = fully opaque (runtime/BIND-driven)
   pose?: string;
   expression?: string;
   spriteAngle?: number;
@@ -130,6 +151,11 @@ export interface StageElement {
   text?: string;
   balloonType?: 'SPEECH' | 'THOUGHT';
 }
+
+// Runtime-only override applied to a StageElement by the script runner
+// (ENTER/MOVE/POSE, and later BIND). transitionDuration lets a MOVE
+// animate at its scripted speed instead of the default CSS easing.
+export type StageElementOverride = Partial<StageElement> & { transitionDuration?: number };
 
 export interface SceneAudio {
   id: string;
@@ -151,6 +177,44 @@ export type SceneKey = Record<string, number>;
 
 // Phase marker within a subplot's arc (KoC: position in a sequence's bag).
 export type ScenePhase = 'BEGINNING' | 'MIDDLE' | 'END';
+// ============ NARRATON ============
+// The 1986 King of Chicago storyteller: scenes carry selection keys and
+// the [NARRATON pool=x] command picks the scene whose keys least-squares
+// match the current world state. See src/utils/narraton.ts.
+
+export interface NarratonRequirement {
+  variable: string;
+  operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  value: string | number | boolean;
+}
+
+// A selection key: the scene "wants" the variable near target.
+// scale normalizes the delta before squaring (default 100, i.e. a
+// 0-100 variable); without it, big-range variables like hoard would
+// drown out everything else.
+export interface NarratonKey {
+  target: number;
+  scale?: number;
+}
+
+// Where in the story a scene belongs. The selector matches economic
+// state; this matches dramatic position, so an introduction cannot
+// play at the climax and a summing-up cannot play third.
+export type NarratonAct = 'BEGINNING' | 'MIDDLE' | 'END';
+
+export interface NarratonMeta {
+  pool: string;                                   // selection pool membership
+  keys?: Record<string, number | NarratonKey>;    // target values, least-squares matched
+  requires?: NarratonRequirement[];               // hard gates
+  repeatable?: boolean;                           // default false: plays once
+  subplot?: string;                               // one scene per subplot in rotation
+  weight?: number;                                // bias: score divides by this (default 1)
+  // Act gate. Untagged scenes play in any act (so existing games are
+  // unaffected). Matched against the `act` world variable —
+  // 1/2/3 or the names — and applied softly: if no scene in the pool
+  // fits the current act, the filter is dropped rather than dead-end.
+  act?: NarratonAct;
+}
 
 export interface Scene {
   id: string;
@@ -161,6 +225,7 @@ export interface Scene {
   script?: string;
   audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
+  narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
   // Narraton fields — all optional; absent on scenes the selector ignores.
@@ -172,10 +237,42 @@ export interface Scene {
   localVars?: Record<string, string | number | boolean>;
 }
 
+// What a world variable MEANS, in words, so a moving gauge can explain
+// itself. Doug's rule: say it in general terms and in concrete terms —
+// "rent takes a larger share" AND "a week's work buys less bread".
+export interface MeterMeaning {
+  variable: string;
+  label: string;              // RENT
+  /** What it means when this rises — general. */
+  rising: string;
+  /** What it means when this falls — general. */
+  falling: string;
+  /** The same thing said concretely, in a life. */
+  concrete?: string;
+  /** Display range; defaults 0-100. */
+  min?: number;
+  max?: number;
+  /** true when rising is bad for the humans (colours the readout). */
+  risingIsHarm?: boolean;
+}
+
+// A named thing visible IN a backdrop image — BOAT1, BAR_STOOL,
+// RUBBER_TREE — with its center in stage percent coordinates. Anchors
+// make the painted scenery addressable: actors can FACE them, MOVE to
+// them, and the CAMERA can frame them, without the object being a
+// separate sprite.
+export interface DropAnchor {
+  id: string;      // BOAT1, RUBBER_TREE — unique within the drop
+  label?: string;  // human description ("the near fishing boat")
+  x: number;       // 0-100, stage percent
+  y: number;       // 0-100
+}
+
 export interface Drop {
   id: string;
   name: string;
   prompt: string;
+  anchors?: DropAnchor[];
   image?: string;
   referenceImage?: string;      // Reference image for composition/layout
   editHistory?: string[];       // Track previous versions
@@ -218,7 +315,7 @@ export interface Item {
   status?: AssetStatus;
 }
 
-export type SfxType = 'glow' | 'pulse' | 'shake' | 'jiggle' | 'fade' | 'electric';
+export type SfxType = 'glow' | 'pulse' | 'shake' | 'jiggle' | 'fade' | 'electric' | 'flame';
 export type SfxCategory = 'ATTACH' | 'DO';
 
 export interface SfxParams {
@@ -241,6 +338,14 @@ export interface Sfx {
   status?: AssetStatus;
 }
 
+// A worldState write applied when a button is clicked. value uses SET
+// semantics: literal (true/false/number/"string") or an arithmetic
+// expression over variables — "1 - singleTax" makes a toggle.
+export interface ButtonEffect {
+  variable: string;
+  value: string;
+}
+
 // Button type for interactive elements in scenes
 export interface Button {
   id: string;
@@ -253,6 +358,7 @@ export interface Button {
   targetSceneId?: string;  // Scene to navigate to when clicked
   sfxId?: string;          // Sound effect to play on click
   pageUrl?: string;        // External page URL to open
+  effects?: ButtonEffect[]; // worldState writes applied on click
   style?: 'default' | 'primary' | 'danger';  // Button style variant
   note?: string;
   status?: AssetStatus;
@@ -279,6 +385,28 @@ export interface Episode {
   status?: AssetStatus;
 }
 
+// ============ QUOTE SYSTEM (Design Addendum 01 §6) ============
+// A tagged verbatim quote; DISPUTED sourcing shows an attribution-
+// contested tag rather than laundering a myth into a fact.
+export interface Quote {
+  text: string;
+  speaker: string;
+  source: string;
+  year?: number;
+  length: 'SHORT' | 'MEDIUM' | 'LONG';
+  sourcing: 'VERIFIED' | 'DISPUTED';
+  voice: 'CRITIC' | 'VILLAIN' | 'FICTION' | 'DROOG';
+  themes: string[];
+}
+
+// theme fires when `variable` crosses `threshold` in `direction`
+export interface QuoteTrigger {
+  theme: string;
+  variable: string;
+  threshold: number;
+  direction: 'rising' | 'falling';
+}
+
 export interface GameData {
   info: GameInfo;
   actors: Actor[];
@@ -291,6 +419,10 @@ export interface GameData {
   subplots: Subplot[];
   skins: Skin[];
   vitaPresets: VitaPreset[];
+  // What the world variables MEAN, for the live meter panel
+  meters?: MeterMeaning[];
+  quotes?: Quote[];
+  quoteTriggers?: QuoteTrigger[];
 }
 
 // Library Types for cross-game asset reuse
@@ -382,6 +514,38 @@ export const migrateGameData = (data: any): GameData => {
     if (!Array.isArray(migrated[collection])) {
       migrated[collection] = [];
     }
+  }
+
+  // Hydrate shared sprites. A pose matrix usually reuses one image
+  // across several pose/expression triples (the same worker sprite for
+  // Neutral, Tired and Angry). Storing a full base64 copy per triple
+  // wasted 11 MB in one game alone, so builders may instead emit
+  // `imageRef: "<graphic id>"` and let the load path fill in the
+  // image. Everything downstream keeps reading `.image` as before.
+  if (Array.isArray(migrated.actors)) {
+    migrated.actors = migrated.actors.map((actor: any) => {
+      if (!Array.isArray(actor?.graphics)) return actor;
+      if (!actor.graphics.some((g: any) => g?.imageRef)) return actor;
+      const byId = new Map<string, any>(actor.graphics.map((g: any) => [g.id, g]));
+      const resolve = (g: any, seen = new Set<string>()): string | undefined => {
+        if (g?.image) return g.image;
+        if (!g?.imageRef || seen.has(g.id)) return undefined; // missing or cyclic
+        seen.add(g.id);
+        return resolve(byId.get(g.imageRef), seen);
+      };
+      return {
+        ...actor,
+        graphics: actor.graphics.map((g: any) => {
+          if (g?.image || !g?.imageRef) return g;
+          const image = resolve(g);
+          if (!image) {
+            console.warn(`actor "${actor.id}" graphic "${g.id}": imageRef "${g.imageRef}" does not resolve`);
+            return g;
+          }
+          return { ...g, image };
+        }),
+      };
+    });
   }
 
   // Ensure buttons array exists

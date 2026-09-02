@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     BIG BANG STUDY — the dragon's egg at the origin. For George World's
+     deep mythology (the dragon under the world; DESIGN.md keystone).
+     Filed 2026-08-31, Doug's ask. In the void before anything: one
+     ornate EGG — dragon-scaled, gem-studded, warm light breathing
+     inside it like a heartbeat. The heartbeat quickens. CRACKS of
+     light spread across the shell... and it DETONATES: a blinding
+     flash, then the whole universe pouring outward — thousands of
+     motes on true Hubble flow (the farther, the faster), white-hot
+     and cooling through orange to starlight as they fly, curling
+     into a slow galactic swirl studded with first stars and glowing
+     nebulae. The shards of the shell tumble out among the galaxies.
+     Then the long fade — and in the darkness, the egg is there
+     again. It was always going to hatch. It always will.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big Bang Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#020308; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(8,10,18,0.78); color:#e8ecf4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🥚 Big Bang Study</b> — the dragon's egg at the origin, v1<br>
+  <span class="hint">the heartbeat quickens · the shell cracks · a universe pours out</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 137;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 800);
+camera.position.set(0, 3, 14);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.minDistance = 2; controls.maxDistance = 120;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+
+function glowTex(inner, outer){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  rg.addColorStop(0, inner); rg.addColorStop(0.4, outer); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ---------- THE EGG --------------------------------------------------------
+const EGG = new THREE.Group();
+scene.add(EGG);
+let shell, heartLight, cracks = [], gems = [];
+{
+  // egg profile via lathe
+  const pts = [];
+  for(let i = 0; i <= 20; i++){
+    const a = i/20*Math.PI;
+    const r = Math.sin(a)*(1 + Math.cos(a)*0.22)*1.3;
+    pts.push(new THREE.Vector2(r, -Math.cos(a)*1.7));
+  }
+  shell = new THREE.Mesh(new THREE.LatheGeometry(pts, 28),
+    new THREE.MeshStandardMaterial({ color:0x3a4a3e, roughness:0.45, metalness:0.15,
+      emissive:0xff8830, emissiveIntensity:0.0 }));
+  shell.position.y = 1.7;
+  EGG.add(shell);
+  // dragon scales: rings of little cones
+  const scaleM = new THREE.MeshStandardMaterial({ color:0x2e3c32, roughness:0.5, metalness:0.25 });
+  for(let ring = 1; ring < 8; ring++){
+    const a = ring/8*Math.PI;
+    const r = Math.sin(a)*(1 + Math.cos(a)*0.22)*1.3;
+    const y = -Math.cos(a)*1.7 + 1.7;
+    const n = Math.max(5, Math.floor(r*14));
+    for(let i = 0; i < n; i++){
+      const th = i/n*Math.PI*2 + ring*0.3;
+      const sc = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.14, 4), scaleM);
+      sc.position.set(Math.cos(th)*r, y, Math.sin(th)*r);
+      sc.lookAt(new THREE.Vector3(Math.cos(th)*r*2, y, Math.sin(th)*r*2));
+      sc.rotateX(Math.PI/2);
+      EGG.add(sc);
+    }
+  }
+  // gems set in the shell — the dragon hoards even before hatching
+  const GEMC = [0xe83e6c, 0x3ee87c, 0x3e8ce8, 0xe8c43e];
+  for(let i = 0; i < 14; i++){
+    const a = rand(0.4, Math.PI - 0.4), th = rand(0, Math.PI*2);
+    const r = Math.sin(a)*(1 + Math.cos(a)*0.22)*1.32;
+    const col = GEMC[i % 4];
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.09, 0.15)),
+      new THREE.MeshStandardMaterial({ color:col, emissive:col, emissiveIntensity:0.3, roughness:0.2 }));
+    gem.position.set(Math.cos(th)*r, -Math.cos(a)*1.7 + 1.7, Math.sin(th)*r);
+    EGG.add(gem);
+    gems.push({ m:gem, ph:rand(0, 6), w:rand(0.5, 1.4) });
+  }
+  // the heart inside
+  heartLight = new THREE.PointLight(0xff9040, 0.6, 20, 1.6);
+  heartLight.position.y = 1.7;
+  EGG.add(heartLight);
+  // THE CRACKS — jagged glowing polylines hugging the shell, hidden at first
+  for(let c = 0; c < 9; c++){
+    const segs = [];
+    let a = rand(0.3, 2.8), th = rand(0, Math.PI*2);
+    for(let i = 0; i < 8; i++){
+      const r = Math.sin(a)*(1 + Math.cos(a)*0.22)*1.34;
+      segs.push(new THREE.Vector3(Math.cos(th)*r, -Math.cos(a)*1.7 + 1.7, Math.sin(th)*r));
+      a += rand(-0.25, 0.32);
+      th += rand(-0.3, 0.42);
+      a = clamp(a, 0.15, 3.0);
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(segs);
+    const line = new THREE.Line(geo,
+      new THREE.LineBasicMaterial({ color:0xffc060, transparent:true, opacity:0 }));
+    EGG.add(line);
+    cracks.push(line);
+  }
+}
+// the flash
+const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:glowTex('rgba(255,255,255,1)', 'rgba(255,240,200,0.9)'),
+  transparent:true, depthWrite:false, opacity:0 }));
+flash.position.y = 1.7;
+scene.add(flash);
+
+// ---------- THE UNIVERSE ---------------------------------------------------
+const N = 3200;
+const uPos = new Float32Array(N*3), uCol = new Float32Array(N*3);
+const uVel = [], uCool = [];
+for(let i = 0; i < N; i++){
+  // random direction, speed ∝ a random factor → Hubble flow (far = fast)
+  const th = rand(0, Math.PI*2), ph = Math.acos(rand(-1, 1));
+  const dir = new THREE.Vector3(Math.sin(ph)*Math.cos(th), Math.cos(ph)*0.55, Math.sin(ph)*Math.sin(th));
+  const sp = Math.pow(rand(), 0.45)*9 + 0.4;
+  uVel.push(dir.multiplyScalar(sp));
+  uCool.push(rand(0.6, 1.6));
+  uPos[i*3] = 0; uPos[i*3+1] = 1.7; uPos[i*3+2] = 0;
+  uCol[i*3] = 0; uCol[i*3+1] = 0; uCol[i*3+2] = 0;
+}
+const uGeo = new THREE.BufferGeometry();
+uGeo.setAttribute('position', new THREE.BufferAttribute(uPos, 3));
+uGeo.setAttribute('color', new THREE.BufferAttribute(uCol, 3));
+const universe = new THREE.Points(uGeo, new THREE.PointsMaterial({
+  size:0.1, sizeAttenuation:true, vertexColors:true,
+  map:glowTex('rgba(255,255,255,1)', 'rgba(200,210,255,0.6)'),
+  blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }));
+universe.visible = false;
+scene.add(universe);
+// shell shards tumbling out with the galaxies
+const shards = [];
+{
+  const shardM = new THREE.MeshStandardMaterial({ color:0x3a4a3e, roughness:0.5, side:THREE.DoubleSide });
+  for(let i = 0; i < 10; i++){
+    const sh = new THREE.Mesh(new THREE.CircleGeometry(rand(0.25, 0.55), 5), shardM);
+    sh.visible = false;
+    scene.add(sh);
+    const th = rand(0, Math.PI*2), ph = Math.acos(rand(-1, 1));
+    shards.push({ m:sh,
+      vel: new THREE.Vector3(Math.sin(ph)*Math.cos(th), Math.cos(ph)*0.6, Math.sin(ph)*Math.sin(th)).multiplyScalar(rand(2, 5)),
+      spin: new THREE.Vector3(rand(-3, 3), rand(-3, 3), rand(-3, 3)) });
+  }
+}
+// nebulae
+const nebulae = [];
+{
+  const cols = [['rgba(255,120,180,0.5)', 'rgba(180,60,140,0.25)'],
+                ['rgba(120,180,255,0.5)', 'rgba(60,100,200,0.25)'],
+                ['rgba(255,200,120,0.5)', 'rgba(200,120,60,0.25)']];
+  for(let i = 0; i < 8; i++){
+    const [a, b] = cols[i % 3];
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:glowTex(a, b), transparent:true, depthWrite:false, opacity:0 }));
+    const th = rand(0, Math.PI*2), ph = Math.acos(rand(-1, 1));
+    s.userData.dir = new THREE.Vector3(Math.sin(ph)*Math.cos(th), Math.cos(ph)*0.5, Math.sin(ph)*Math.sin(th)).multiplyScalar(rand(3, 7));
+    s.visible = false;
+    scene.add(s);
+    nebulae.push(s);
+  }
+}
+
+// ---------- the cycle ------------------------------------------------------
+// 0–6 the egg breathes, heart quickening · 6–9 the cracks spread, trembling
+// 9–9.6 FLASH · 9.6–19 the expansion (cooling colors, swirl beginning)
+// 19–24 the settled universe turns · 24–27 the fade · 27–30 the egg returns
+const T_TOTAL = 30;
+let phT = 0;
+const hot = new THREE.Color(0xffffff), warm = new THREE.Color(0xffb060),
+      star = new THREE.Color(0xbcd0ff), ember = new THREE.Color(0xffdca0);
+const tmpC = new THREE.Color();
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % T_TOTAL;
+  const f = phT;
+
+  if(f < 9){
+    // ------ the egg before ------
+    EGG.visible = true;
+    universe.visible = false;
+    for(const s of shards) s.m.visible = false;
+    for(const n2 of nebulae){ n2.visible = false; n2.material.opacity = 0; }
+    const quicken = f/9;
+    const beat = Math.pow(Math.max(0, Math.sin(t*(1.2 + quicken*4.2))), 4);
+    shell.material.emissiveIntensity = 0.12 + beat*(0.25 + quicken*0.7);
+    heartLight.intensity = 0.5 + beat*(1 + quicken*3);
+    EGG.scale.setScalar(1 + beat*0.012*(1 + quicken*2));
+    // gems glint
+    for(const g of gems)
+      g.m.material.emissiveIntensity = 0.2 + Math.pow(Math.max(0, Math.sin(t*g.w + g.ph)), 6)*1.2;
+    // cracks spread through 6–9, trembling grows
+    if(f > 6){
+      const k = (f - 6)/3;
+      cracks.forEach((c, i) => {
+        c.material.opacity = clamp((k*9 - i)/1.2, 0, 1)*(0.5 + beat*0.5);
+      });
+      EGG.position.x = Math.sin(t*37)*0.02*k;
+      EGG.position.z = Math.cos(t*41)*0.02*k;
+    } else {
+      cracks.forEach(c => c.material.opacity = 0);
+      EGG.position.set(0, 0, 0);
+    }
+    flash.material.opacity = 0;
+    controls.autoRotateSpeed = 0.35;
+  } else {
+    // ------ the bang and after ------
+    EGG.visible = false;
+    universe.visible = true;
+    const k = (f - 9);
+    // the flash
+    if(k < 0.6){
+      flash.material.opacity = 1 - k/0.6;
+      flash.scale.setScalar(4 + k*60);
+    } else flash.material.opacity = 0;
+    // expansion time: particles fly, then the swirl gathers them
+    const ex = clamp((f - 9.2)/9, 0, 1);
+    const swirl = smooth(clamp((f - 14)/8, 0, 1))*0.55;
+    const fade = f > 24 ? smooth(clamp((f - 24)/3, 0, 1)) : 0;
+    for(let i = 0; i < N; i++){
+      const v = uVel[i];
+      const r = ex*ex*7 + ex*3;               // decelerating expansion
+      let x = v.x*r, y = 1.7 + v.y*r, z = v.z*r;
+      if(swirl > 0){                          // the galaWxy turn
+        const ang = swirl*t*0.25*(1/(1 + Math.hypot(x, z)*0.12));
+        const cx = Math.cos(ang), sx = Math.sin(ang);
+        const nx = x*cx - z*sx, nz = x*sx + z*cx;
+        x = nx; z = nz;
+        y = 1.7 + (y - 1.7)*(1 - swirl*0.55);  // flattening into the disc
+      }
+      uPos[i*3] = x; uPos[i*3+1] = y; uPos[i*3+2] = z;
+      // color: white-hot → warm → this particle's fate (star blue or ember)
+      const cool = clamp(ex*uCool[i], 0, 1);
+      if(cool < 0.35) tmpC.copy(hot).lerp(warm, cool/0.35);
+      else tmpC.copy(warm).lerp(i % 5 === 0 ? ember : star, (cool - 0.35)/0.65);
+      const tw = 0.75 + Math.sin(t*3 + i)*0.25*clamp(ex*2 - 1, 0, 1);
+      const b = tw*(1 - fade);
+      uCol[i*3] = tmpC.r*b; uCol[i*3+1] = tmpC.g*b; uCol[i*3+2] = tmpC.b*b;
+    }
+    uGeo.attributes.position.needsUpdate = true;
+    uGeo.attributes.color.needsUpdate = true;
+    // shards ride out with everything else
+    for(const s of shards){
+      s.m.visible = fade < 0.9;
+      const r = ex*ex*6 + ex*2.5;
+      s.m.position.set(s.vel.x*r, 1.7 + s.vel.y*r, s.vel.z*r);
+      s.m.rotation.x += s.spin.x*dt;
+      s.m.rotation.y += s.spin.y*dt;
+      s.m.material.opacity = 1 - fade;
+      s.m.material.transparent = true;
+    }
+    // nebulae bloom mid-expansion
+    nebulae.forEach((n2, i) => {
+      n2.visible = true;
+      const bloom = clamp((ex - 0.3)/0.4, 0, 1)*(1 - fade);
+      n2.material.opacity = bloom*0.4;
+      const r = ex*ex*6 + ex*2.8;
+      n2.position.copy(n2.userData.dir).multiplyScalar(r/6).add(new THREE.Vector3(0, 1.7, 0));
+      n2.scale.setScalar(2 + ex*9 + i);
+    });
+    controls.autoRotateSpeed = 0.35 + swirl*0.9;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

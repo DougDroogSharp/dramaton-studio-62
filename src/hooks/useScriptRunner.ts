@@ -1,6 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { GameData, Scene, StageElement } from '@/types';
-import { parseScript, ScriptCommand, DialogueCommand, SetCommand, ChoiceOption, findActorByName } from '@/utils/scriptParser';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } from '@/types';
+import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, ChoiceOption, SetCommand, findActorByName } from '@/utils/scriptParser';
+import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
+import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
+import { AbilitySettings, DEFAULT_ABILITY_SETTINGS } from '@/utils/accessibility';
 
 export type VarScope = 'world' | 'local';
 
@@ -13,6 +16,105 @@ export interface VarChange {
   sceneId: string;
 }
 
+// The change log is a window, not an archive: a TICK-driven simulation
+// writes every few hundred milliseconds for as long as the show runs.
+const VAR_LOG_LIMIT = 500;
+
+// Properties BIND may drive on a stage element
+const BINDABLE_PROPERTIES = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'zIndex']);
+
+interface Binding {
+  elementId: string;
+  property: string;
+  expression: string;
+}
+
+// Interpolate {variable} placeholders with worldState values.
+// Numbers round to 1 decimal; unknown variables render as ?? with a warning.
+function interpolateText(text: string, vars: WorldVars): string {
+  return text.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const v = vars[name];
+    if (v === undefined) {
+      warnOnce(`{${name}}: variable is not defined; showing ??`);
+      return '??';
+    }
+    if (typeof v === 'number') {
+      const rounded = Math.round(v * 10) / 10;
+      return String(rounded);
+    }
+    return String(v);
+  });
+}
+
+// Flattened execution node. IF blocks flatten to a test node followed by
+// their body; jumpTo is the index just past the body, taken when the
+// condition is false. Flattening lets commands inside an IF yield
+// (dialogue, waits) exactly like top-level commands — the old recursive
+// execution fired them all in one pass, so nested dialogue overwrote
+// itself instantly.
+interface FlatNode {
+  cmd: ScriptCommand;
+  jumpTo?: number;
+  // 'jump': unconditional jump to jumpTo (emitted after each taken
+  // branch body of an IF/ELSEIF/ELSE chain, skipping the rest).
+  // 'random': pick one of branchStarts uniformly at runtime and jump
+  // there (each branch body ends with a jump past the block).
+  kind?: 'jump' | 'random';
+  branchStarts?: number[];
+}
+
+function flattenCommands(cmds: ScriptCommand[]): FlatNode[] {
+  const out: FlatNode[] = [];
+  const walk = (list: ScriptCommand[]) => {
+    for (const c of list) {
+      if (c.type === 'IF') {
+        // Compile the chain: each conditional branch gets a test node
+        // (false -> jump past its body to the next branch) and, when a
+        // chain exists, a jump-to-end after its body (so a taken branch
+        // skips the rest). Chainless IFs flatten exactly as before.
+        const hasChain = (c.elifs?.length ?? 0) > 0 || !!c.elseCommands;
+        const branches: Array<{ cond: ScriptCommand; body: ScriptCommand[] }> = [
+          { cond: c, body: c.commands },
+          ...(c.elifs ?? []).map(e => ({
+            cond: { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as ScriptCommand,
+            body: e.commands,
+          })),
+        ];
+        const endJumps: FlatNode[] = [];
+        for (const b of branches) {
+          const test: FlatNode = { cmd: b.cond };
+          out.push(test);
+          walk(b.body);
+          if (hasChain) {
+            const j: FlatNode = { cmd: c, kind: 'jump' };
+            out.push(j);
+            endJumps.push(j);
+          }
+          test.jumpTo = out.length;
+        }
+        if (c.elseCommands) walk(c.elseCommands);
+        for (const j of endJumps) j.jumpTo = out.length;
+      } else if (c.type === 'RANDOM') {
+        const picker: FlatNode = { cmd: c, kind: 'random', branchStarts: [] };
+        out.push(picker);
+        const endJumps: FlatNode[] = [];
+        for (const branch of c.branches) {
+          picker.branchStarts!.push(out.length);
+          walk(branch);
+          const j: FlatNode = { cmd: c, kind: 'jump' };
+          out.push(j);
+          endJumps.push(j);
+        }
+        for (const j of endJumps) j.jumpTo = out.length;
+      } else {
+        out.push({ cmd: c });
+      }
+    }
+  };
+  walk(cmds);
+  return out;
+}
+
 export interface ActiveDialogue {
   actorId: string | null;
   actorName: string;
@@ -20,9 +122,16 @@ export interface ActiveDialogue {
   style: 'speech' | 'thought';
   displayedText: string; // For typewriter effect
   isComplete: boolean;
+  // The graphic chosen for this utterance (explicit acting tag or
+  // auto-varied) — portraits use it to match the stage sprite.
+  expression?: string;
+  pose?: string;
 }
 
 export interface ChoiceState {
+  // The FULL option shape, not a narrowed {text,target}: gates and
+  // [SET] side-effects have to survive as far as selectChoice, which
+  // is where they are applied.
   options: ChoiceOption[];
 }
 
@@ -33,16 +142,34 @@ export interface ScriptRunnerState {
   choices: ChoiceState | null;
   worldState: Record<string, string | number | boolean>;
   // In-scene variables: seeded from Scene.localVars on scene entry, reset on
-  // every scene change, never written back to worldState (invisible to Narraton).
+  // every scene change, never written back to worldState (invisible to the
+  // Narraton selector and to the meters).
   localState: Record<string, string | number | boolean>;
   varLog: VarChange[];
   hiddenElements: Set<string>;
-  elementOverrides: Map<string, Partial<StageElement>>;
+  elementOverrides: Map<string, StageElementOverride>;
   activeEffects: Map<string, string[]>;
   activeButtons: Set<string>; // Button IDs that are currently visible/active
+  activeSliders: Map<string, SliderCommand>; // variable -> slider config
+  activeGauges: Map<string, GaugeCommand>;   // variable -> gauge config
   isWaiting: boolean;
   isComplete: boolean;
   isAutoPlay: boolean;
+  // NARRATE: non-blocking narration — the simulation describing itself
+  // while it runs. Also the audio-description channel for blind play,
+  // so it carries a monotonic id for screen-reader live regions.
+  ambientNarration: { text: string; id: number } | null;
+  // BACKDROP: mid-scene backdrop swap (null = the scene's own drop)
+  backdrop: { dropId: string; duration: number } | null;
+  // CAMERA: zoom/pan over the stage; follow tracks an element
+  camera: { zoom: number; x: number; y: number; duration: number; follow?: string } | null;
+  // Meters: the most recent move of every world variable this scene has
+  // touched, so the player can watch the model react and read what the
+  // movement means. Reset on scene change.
+  meterMoves: Map<string, { from: number; to: number; seq: number }>;
+  // FRAME: the cabinet reacting for a beat. seq re-fires the animation
+  // when the same mood is triggered twice.
+  frameMood: { mood: string; seq: number } | null;
 }
 
 interface UseScriptRunnerOptions {
@@ -52,6 +179,12 @@ interface UseScriptRunnerOptions {
   onAudioCommand?: (type: 'bgm' | 'ambience' | 'sfx', name: string, options: { loop?: boolean; volume?: number }) => void;
   textSpeed?: number; // Characters per second
   autoAdvanceDelay?: number; // ms delay after dialogue completes in auto mode
+  ability?: AbilitySettings; // player's declared needs; adapts pacing/timing/motion
+  /**
+   * Freeze the show. Nothing advances, no timer fires, the simulation
+   * stops evolving. The player asked the world to hold still.
+   */
+  paused?: boolean;
 }
 
 export function useScriptRunner({
@@ -59,21 +192,47 @@ export function useScriptRunner({
   startSceneId,
   onSceneChange,
   onAudioCommand,
-  textSpeed = 50,
+  textSpeed = 100,
   autoAdvanceDelay = 1500,
+  ability = DEFAULT_ABILITY_SETTINGS,
+  paused = false,
 }: UseScriptRunnerOptions) {
+  // Read through a ref so a timer that has already been scheduled can
+  // check the CURRENT pause state when it fires, not the value that was
+  // captured when it was created.
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+  // Read through a ref so command execution always sees the current
+  // settings, even mid-scene when the player changes them.
+  const abilityRef = useRef(ability);
+  abilityRef.current = ability;
+
+  // In-scene variables (Scene.localVars). Same ref discipline as the world
+  // state below: a [SET] followed by an [IF] in one pass must see the write.
+  const localsRef = useRef<WorldVars>({ ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) });
+  // Which scene a command belongs to, for the change log. state.currentSceneId
+  // is stale inside the synchronous pass that crosses a scene boundary.
+  const currentSceneIdRef = useRef(startSceneId);
+
   const [state, setState] = useState<ScriptRunnerState>(() => ({
     currentSceneId: startSceneId,
     currentCommandIndex: 0,
     activeDialogue: null,
     choices: null,
     worldState: { ...game.info.worldState },
-    localState: { ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) },
     varLog: [],
     hiddenElements: new Set(),
     elementOverrides: new Map(),
     activeEffects: new Map(),
     activeButtons: new Set(),
+    activeSliders: new Map(),
+      activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
     isWaiting: false,
     isComplete: false,
     isAutoPlay: game.info.gameMode === 'AUTO_PLAY',
@@ -82,77 +241,230 @@ export function useScriptRunner({
   const typewriterRef = useRef<NodeJS.Timeout | null>(null);
   const waitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceRef = useRef<NodeJS.Timeout | null>(null);
+  // Two-frame walk cycle: while a MOVE is in flight, if the moving
+  // actor has Walk1/Walk2 pose graphics, flip between them (crude
+  // flip-book walk). Cleared on scene change/unmount like the rest.
+  const walkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const walkRestoreRef = useRef<(() => void) | null>(null);
+  // Deferred MOVE target write (see the MOVE case): only one can be
+  // pending at a time because a timed MOVE yields the script.
+  const moveStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tweenStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Timed CHOICE: fires the fallback jump if the player hesitates.
+  const choiceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // NARRATE: expiry timer and a monotonic id so each line re-announces.
+  const narrateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const narrateSeqRef = useRef(0);
+  // Monotonic counter so the meter panel can tell which move is newest.
+  const meterSeqRef = useRef(0);
+  const frameSeqRef = useRef(0);
+  // ANIMATE: looping pose cycles, one per element (flames flickering,
+  // birds flapping). Keyed by element id so a second ANIMATE on the
+  // same element replaces the first instead of stacking.
+  const animationsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // Which scene a mid-chain command belongs to (state.currentSceneId is stale
-  // inside an advance() loop that crossed a scene boundary).
-  const currentSceneIdRef = useRef(startSceneId);
+  // The live world state. A ref (not state) so that a run of commands
+  // executed in one synchronous pass — [SET a = ...] followed by
+  // [IF a > ...] — sees its own writes immediately. React state batches
+  // updates until the pass ends, which made IF read stale values.
+  // state.worldState mirrors this ref for rendering.
+  const worldStateRef = useRef<WorldVars>({ ...game.info.worldState });
 
-  // Set by the SCENE command so advance() stops walking the OLD scene's
-  // command list after a jump — commands after [SCENE x] must not run (they
-  // could even leak a local variable into world state, since the local store
-  // has already been re-seeded for the new scene).
-  const navigatedRef = useRef(false);
-
-  // Synchronous mirror of variable state. React state updates are queued, so a
-  // [SET] followed by an [IF] within one advance() chain must read from here,
-  // not from the (stale) state closure. setState keeps the rendered copies in
-  // sync after every change.
-  const varsRef = useRef({
-    world: { ...game.info.worldState },
-    local: { ...(game.scenes.find(s => s.id === startSceneId)?.localVars || {}) },
-  });
-
-  // Route a variable to its store: local when the current scene DECLARED it in
-  // localVars; everything else is world state (matches pre-Narraton behavior).
-  const scopeOf = useCallback((variable: string): VarScope => (
-    variable in varsRef.current.local ? 'local' : 'world'
+  // What a script READS: world state with the scene's locals laid over it.
+  // A local shadows a world variable of the same name for the scene's
+  // duration; the world copy is untouched.
+  const readVars = useCallback((): WorldVars => (
+    Object.keys(localsRef.current).length === 0
+      ? worldStateRef.current
+      : { ...worldStateRef.current, ...localsRef.current }
   ), []);
 
-  const readVar = useCallback((variable: string) => {
-    const scope = scopeOf(variable);
-    return scope === 'local' ? varsRef.current.local[variable] : varsRef.current.world[variable];
-  }, [scopeOf]);
+  // Route a write to its store: local when the current scene DECLARED the
+  // variable in localVars; everything else is world state.
+  const writeVar = useCallback((variable: string, to: string | number | boolean): VarChange => {
+    const scope: VarScope = variable in localsRef.current ? 'local' : 'world';
+    const from = scope === 'local' ? localsRef.current[variable] : worldStateRef.current[variable];
+    if (scope === 'local') localsRef.current = { ...localsRef.current, [variable]: to };
+    else worldStateRef.current = { ...worldStateRef.current, [variable]: to };
+    return { variable, scope, from, to, sceneId: currentSceneIdRef.current };
+  }, []);
 
-  // Apply a SET (including += / -=) synchronously, log it, mirror into state.
-  const applySet = useCallback((cmd: SetCommand, sceneId: string) => {
-    const scope = scopeOf(cmd.variable);
-    const store = scope === 'local' ? varsRef.current.local : varsRef.current.world;
-    const from = store[cmd.variable];
-    let to: string | number | boolean;
+  // Apply a SET (plain, += or -=) synchronously and report the change.
+  const applySetCommand = useCallback((cmd: SetCommand): VarChange => {
+    const vars = readVars();
+    const resolved = resolveSetValue(cmd, vars);
+    let to: string | number | boolean = resolved;
     if (cmd.op === '+=' || cmd.op === '-=') {
-      const base = Number(from ?? 0);
-      const delta = Number(cmd.value);
+      const base = Number(vars[cmd.variable] ?? 0);
+      const delta = Number(resolved);
       const safeBase = Number.isFinite(base) ? base : 0;
       const safeDelta = Number.isFinite(delta) ? delta : 0;
       to = cmd.op === '+=' ? safeBase + safeDelta : safeBase - safeDelta;
-    } else {
-      to = cmd.value;
     }
-    store[cmd.variable] = to;
-    const change: VarChange = { variable: cmd.variable, scope, from, to, sceneId };
-    setState(prev => ({
-      ...prev,
-      worldState: { ...varsRef.current.world },
-      localState: { ...varsRef.current.local },
-      varLog: [...prev.varLog, change],
-    }));
-  }, [scopeOf]);
+    return writeVar(cmd.variable, to);
+  }, [readVars, writeVar]);
 
-  // Reset in-scene variables when entering a scene.
-  const seedLocals = useCallback((sceneId: string) => {
-    const scene = game.scenes.find(s => s.id === sceneId);
-    varsRef.current.local = { ...(scene?.localVars || {}) };
+  // Entering a scene: reset its in-scene variables to their declared values.
+  const enterScene = useCallback((sceneId: string) => {
+    currentSceneIdRef.current = sceneId;
+    localsRef.current = { ...(game.scenes.find(s => s.id === sceneId)?.localVars || {}) };
   }, [game.scenes]);
+
+  const appendLog = (log: VarChange[], change: VarChange): VarChange[] => {
+    const next = log.length >= VAR_LOG_LIMIT ? log.slice(log.length - VAR_LOG_LIMIT + 1) : log;
+    return [...next, change];
+  };
+
+  // Games load asynchronously in Theater: the hook initializes before
+  // the real game arrives, so seed newly-appearing initial variables
+  // into the ref without clobbering values the script already wrote.
+  useEffect(() => {
+    const seed = game.info.worldState;
+    let changed = false;
+    for (const key of Object.keys(seed)) {
+      if (!(key in worldStateRef.current)) {
+        worldStateRef.current = { ...worldStateRef.current, [key]: seed[key] };
+        changed = true;
+      }
+    }
+    const localSeed = game.scenes.find(s => s.id === currentSceneIdRef.current)?.localVars || {};
+    for (const key of Object.keys(localSeed)) {
+      if (!(key in localsRef.current)) {
+        localsRef.current = { ...localsRef.current, [key]: localSeed[key] };
+        changed = true;
+      }
+    }
+    if (changed) {
+      const snapshot = worldStateRef.current;
+      const locals = localsRef.current;
+      setState(prev => ({ ...prev, worldState: snapshot, localState: locals }));
+    }
+  }, [game]);
 
   // Get current scene and parsed commands
   const currentScene = game.scenes.find(s => s.id === state.currentSceneId);
-  const commands = currentScene?.script ? parseScript(currentScene.script) : [];
+  const currentScript = currentScene?.script;
+  const commands = useMemo(
+    () => (currentScript ? parseScript(currentScript) : []),
+    [currentScript],
+  );
+  const flatCommands = useMemo(() => flattenCommands(commands), [commands]);
+  // [LABEL name] -> flat index, for GOTO jumps within the scene
+  const labelIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    flatCommands.forEach((n, idx) => {
+      if (n.cmd.type === 'LABEL' && !n.kind) map.set((n.cmd as { name: string }).name, idx);
+    });
+    return map;
+  }, [flatCommands]);
+  const labelIndexRef = useRef(labelIndex);
+  labelIndexRef.current = labelIndex;
+
+  // When a timed command (WAIT, MOVE) yields, runFrom stores the
+  // continuation here; the command's timeout invokes it.
+  const resumeAfterWaitRef = useRef<(() => void) | null>(null);
+  const runFromRef = useRef<(index: number) => void>(() => {});
+
+  // Active BIND bindings, keyed "elementId.property". Cleared on scene
+  // change. Re-evaluated on every worldState write.
+  const bindingsRef = useRef<Map<string, Binding>>(new Map());
+
+  // Narraton play history: which scenes the selector has already
+  // chosen. Survives scene changes; reset via resetNarratonHistory
+  // (Theater calls it when a fresh show starts).
+  const narratonHistoryRef = useRef(createNarratonHistory());
+  const currentSceneRef = useRef<Scene | undefined>(undefined);
+  currentSceneRef.current = currentScene;
+  // Live mirror of state for helpers that run inside command execution
+  // (position resolution needs the latest overrides, not a closure).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Resolve a name to a STAGE ELEMENT id. Element ids win; but a
+  // script that names an ACTOR is doing the obvious thing, so fall
+  // back to that actor's element on this stage. Authors write
+  // [POSE elon_musk ...] constantly and the actor id is not an element
+  // id, which used to make the command a silent no-op — 44 of them
+  // across the shipped games. Ambiguity (the same actor twice on
+  // stage) takes the first and warns.
+  // Never fails: an unrecognised name is returned unchanged, so this
+  // only ever REDIRECTS an actor id to its element and never blocks a
+  // write that used to work (ENTER-created ids, scenes with no stage).
+  const resolveElementId = useCallback((name: string): string => {
+    const stage = currentSceneRef.current?.stage;
+    if (!stage || stage.some(e => e.id === name)) return name;
+    const byActor = stage.filter(e => e.type === 'ACTOR' && e.assetId === name);
+    if (byActor.length === 0) return name;
+    if (byActor.length > 1) {
+      warnOnce(`"${name}" is an actor on stage ${byActor.length} times; using element "${byActor[0].id}"`);
+    }
+    return byActor[0].id;
+  }, []);
+
+  // Resolve a name to a point on the stage: a stage element (live
+  // position wins over the authored one) or a named anchor in the
+  // current backdrop — BOAT1, RUBBER_TREE. Anchors make painted
+  // scenery addressable by FACE, MOVE and CAMERA.
+  const resolvePointRef = useRef<(name: string) => { x: number; y: number } | undefined>(() => undefined);
+  const resolvePoint = useCallback((name: string): { x: number; y: number } | undefined => {
+    const el = currentSceneRef.current?.stage?.find(e => e.id === name);
+    if (el) {
+      const live = stateRef.current.elementOverrides.get(name);
+      return { x: live?.x ?? el.x, y: live?.y ?? el.y };
+    }
+    const activeDropId = stateRef.current.backdrop?.dropId ?? currentSceneRef.current?.dropId;
+    const drop = activeDropId ? game.drops?.find(d => d.id === activeDropId) : undefined;
+    const anchor = drop?.anchors?.find(a => a.id === name);
+    return anchor ? { x: anchor.x, y: anchor.y } : undefined;
+  }, [game.drops]);
+  resolvePointRef.current = resolvePoint;
+
+  // Evaluate every active binding and write the results into
+  // elementOverrides. Runs after each SET and each BIND.
+  const applyBindings = useCallback(() => {
+    if (bindingsRef.current.size === 0) return;
+    const results: Array<{ elementId: string; property: string; value: number }> = [];
+    for (const binding of bindingsRef.current.values()) {
+      let value = evaluateExpressionSource(binding.expression, readVars());
+      if (binding.property === 'opacity') value = Math.min(1, Math.max(0, value));
+      if (binding.property === 'zIndex') value = Math.round(value);
+      results.push({ elementId: binding.elementId, property: binding.property, value });
+    }
+    setState(prev => {
+      const overrides = new Map(prev.elementOverrides);
+      let changed = false;
+      for (const r of results) {
+        const existing = overrides.get(r.elementId) || {};
+        if ((existing as Record<string, unknown>)[r.property] !== r.value) {
+          overrides.set(r.elementId, { ...existing, [r.property]: r.value });
+          changed = true;
+        }
+      }
+      return changed ? { ...prev, elementOverrides: overrides } : prev;
+    });
+  }, []);
 
   // Clear all timeouts
   const clearTimeouts = useCallback(() => {
     if (typewriterRef.current) clearInterval(typewriterRef.current);
     if (waitTimeoutRef.current) clearTimeout(waitTimeoutRef.current);
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    if (walkIntervalRef.current) clearInterval(walkIntervalRef.current);
+    walkIntervalRef.current = null;
+    walkRestoreRef.current = null;
+    if (moveStartTimeoutRef.current) clearTimeout(moveStartTimeoutRef.current);
+    moveStartTimeoutRef.current = null;
+    if (tweenStartTimeoutRef.current) clearTimeout(tweenStartTimeoutRef.current);
+    tweenStartTimeoutRef.current = null;
+    if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+    tickIntervalRef.current = null;
+    if (choiceTimeoutRef.current) clearTimeout(choiceTimeoutRef.current);
+    choiceTimeoutRef.current = null;
+    if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
+    narrateTimeoutRef.current = null;
+    for (const id of animationsRef.current.values()) clearInterval(id);
+    animationsRef.current.clear();
   }, []);
 
   // Cleanup on unmount
@@ -180,24 +492,96 @@ export function useScriptRunner({
     switch (command.type) {
       case 'DIALOGUE': {
         const actorId = findActorByName(command.actorName, game.actors);
+        // {var} interpolation (the 1986 SAY_VAR, reborn): the sim's
+        // numbers come out of the characters' mouths. Resolved at
+        // speak time against the live world state.
+        const spokenText = command.text.includes('{')
+          ? interpolateText(command.text, readVars())
+          : command.text;
+
+        // Animate the speaker: an explicit (Pose/Expression) tag wins;
+        // otherwise auto-vary among the actor's graphics per utterance
+        // so conversations come alive as pose matrices fill in. Always
+        // resolve to a REAL graphic triple so the renderer never
+        // falls back to the default sprite by accident.
+        let chosenPose: string | undefined;
+        let chosenExpression: string | undefined;
+        const actorAsset = actorId ? game.actors.find(a => a.id === actorId) : undefined;
+        const speakerEl = actorId
+          ? currentSceneRef.current?.stage?.find(e => e.type === 'ACTOR' && e.assetId === actorId)
+          : undefined;
+        if (actorAsset && speakerEl && actorAsset.graphics.length > 0) {
+          let graphic;
+          if (command.expression || command.pose) {
+            graphic = actorAsset.graphics.find(g =>
+              (!command.pose || g.pose === command.pose) &&
+              (!command.expression || g.expression === command.expression));
+            if (!graphic) {
+              warnOnce(`no graphic for ${command.actorName} (${command.pose ?? '*'}/${command.expression ?? '*'}); keeping current look`);
+            }
+          } else if (actorAsset.graphics.length > 1) {
+            let h = 0;
+            for (let i = 0; i < command.text.length; i++) h = (h * 31 + command.text.charCodeAt(i)) >>> 0;
+            graphic = actorAsset.graphics[h % actorAsset.graphics.length];
+          }
+          if (graphic) {
+            chosenPose = graphic.pose;
+            chosenExpression = graphic.expression;
+            const g = graphic;
+            setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = overrides.get(speakerEl.id) || {};
+              overrides.set(speakerEl.id, {
+                ...existing,
+                pose: g.pose,
+                expression: g.expression,
+                spriteAngle: g.angle,
+              });
+              return { ...prev, elementOverrides: overrides };
+            });
+          }
+        }
+
+        // Balloons show their full text at once; only the narration
+        // window keeps the typewriter.
+        const isNarrator = command.actorName.trim().toLowerCase() === 'narrator';
+
         setState(prev => ({
           ...prev,
           activeDialogue: {
             actorId,
             actorName: command.actorName,
-            text: command.text,
+            text: spokenText,
             style: command.style,
-            displayedText: '',
-            isComplete: false,
+            displayedText: isNarrator ? '' : spokenText,
+            isComplete: !isNarrator,
+            ...(chosenExpression ? { expression: chosenExpression } : {}),
+            ...(chosenPose ? { pose: chosenPose } : {}),
           },
         }));
-        
-        // Start typewriter effect
+
+        if (!isNarrator) return false; // wait for user to advance
+
+        // The player's text speed wins over the game's. 0 means "show
+        // it whole" — no typing out, for readers who need the words to
+        // stand still.
+        const speed = abilityRef.current.textSpeed;
+        if (speed <= 0) {
+          setState(prev => ({
+            ...prev,
+            activeDialogue: prev.activeDialogue
+              ? { ...prev.activeDialogue, displayedText: spokenText, isComplete: true }
+              : null,
+          }));
+          return false;
+        }
+
+        // Start typewriter effect (narration only)
         let charIndex = 0;
         typewriterRef.current = setInterval(() => {
           charIndex++;
-          const displayedText = command.text.slice(0, charIndex);
-          const isComplete = charIndex >= command.text.length;
+          const displayedText = spokenText.slice(0, charIndex);
+          const isComplete = charIndex >= spokenText.length;
           
           setState(prev => ({
             ...prev,
@@ -211,18 +595,19 @@ export function useScriptRunner({
           if (isComplete && typewriterRef.current) {
             clearInterval(typewriterRef.current);
           }
-        }, 1000 / textSpeed);
-        
+        }, 1000 / speed);
+
         return false; // Wait for user to advance
       }
       
       case 'ENTER': {
-        // Show actor at position
+        // Show actor at position (instantly — no glide on entry)
         setState(prev => {
           const hidden = new Set(prev.hiddenElements);
           hidden.delete(command.actorId);
           const overrides = new Map(prev.elementOverrides);
-          overrides.set(command.actorId, { x: command.x, y: command.y });
+          const existing = overrides.get(command.actorId) || {};
+          overrides.set(command.actorId, { ...existing, x: command.x, y: command.y, transitionDuration: 0 });
           return { ...prev, hiddenElements: hidden, elementOverrides: overrides };
         });
         return true; // Continue immediately
@@ -238,29 +623,313 @@ export function useScriptRunner({
       }
       
       case 'MOVE': {
-        // Animate movement
-        setState(prev => {
-          const overrides = new Map(prev.elementOverrides);
-          overrides.set(command.actorId, { x: command.x, y: command.y });
-          return { ...prev, elementOverrides: overrides };
-        });
-        
-        // Wait for animation
-        if (command.duration > 0) {
-          setState(prev => ({ ...prev, isWaiting: true }));
-          waitTimeoutRef.current = setTimeout(() => {
-            setState(prev => ({ ...prev, isWaiting: false }));
-          }, command.duration * 1000);
-          return false;
+        // A named destination (stage element or backdrop anchor) wins
+        // over literal coordinates; unresolvable names warn and fall
+        // back to the literals.
+        let destX = command.x;
+        let destY = command.y;
+        if (command.targetId) {
+          const point = resolvePoint(command.targetId);
+          if (point) { destX = point.x; destY = point.y; }
+          else warnOnce(`MOVE ${command.actorId} to ${command.targetId}: no such element or backdrop anchor; using ${command.x},${command.y}`);
         }
-        return true;
-      }
-      
-      case 'POSE': {
-        setState(prev => {
+        // Animate movement at the scripted speed
+        const applyMoveTarget = () => setState(prev => {
           const overrides = new Map(prev.elementOverrides);
           const existing = overrides.get(command.actorId) || {};
           overrides.set(command.actorId, {
+            ...existing,
+            x: destX,
+            y: destY,
+            transitionDuration: command.duration,
+          });
+          return { ...prev, elementOverrides: overrides };
+        });
+
+        // Wait for the animation, then auto-resume the script
+        if (command.duration > 0) {
+          // Write the target one breath AFTER the current position has
+          // painted. An [ENTER x] immediately followed by [MOVE x] runs
+          // in one synchronous pass — React batches both writes into a
+          // single render, the sprite never paints at its start point,
+          // and the tween has nothing to animate from (it "teleports").
+          moveStartTimeoutRef.current = setTimeout(applyMoveTarget, 30);
+          // Two-frame walk cycle: if the moving actor's graphics
+          // include Walk1 + Walk2 poses, flip between them while the
+          // move is in flight, then restore the prior look. When walk
+          // frames exist at several sprite angles (8-direction sets:
+          // 0=right, 90=down, 180=left, 270=up, plus diagonals), the
+          // pair whose angle is nearest the travel direction is used.
+          // Fail-soft: no walk frames means the sprite just glides.
+          const movingEl = currentSceneRef.current?.stage?.find(e => e.id === command.actorId);
+          const movingActor = movingEl?.type === 'ACTOR'
+            ? game.actors.find(a => a.id === movingEl.assetId)
+            : undefined;
+          const walk1s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk1') ?? [];
+          const walk2s = movingActor?.graphics.filter(g => g.pose.toLowerCase() === 'walk2') ?? [];
+          // Reduced motion: no flip-book stride (the sprite still
+          // travels, it just doesn't animate its legs)
+          if (movingEl && walk1s.length > 0 && walk2s.length > 0 && !abilityRef.current.reduceMotion) {
+            const elId = movingEl.id;
+            // Nearest-angle pick (screen coords, y down; clockwise from
+            // "facing right"). Actors with only angle-0 frames always
+            // get those — the pre-directional behavior.
+            const angularDist = (a: number, b: number) =>
+              Math.abs(((a - b + 540) % 360) - 180);
+            const pickFrame = (frames: ActorGraphic[], dir: number) =>
+              frames.reduce((best, g) =>
+                angularDist(g.angle, dir) < angularDist(best.angle, dir) ? g : best);
+            // Chosen inside the first updater (start position must be
+            // read from live state; travel direction depends on it).
+            let walk1 = walk1s[0];
+            let walk2 = walk2s[0];
+            // Snapshot the pre-walk look (captured inside the first
+            // frame's updater so batched same-pass POSE writes are
+            // seen) and restore it exactly when the move ends —
+            // absent keys stay absent so the editor-authored pose wins.
+            const snapshot: Partial<StageElementOverride> = {};
+            let snapped = false;
+            const setWalkFrame = (pick: (g1: ActorGraphic, g2: ActorGraphic) => ActorGraphic) => setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = overrides.get(elId) || {};
+              if (!snapped) {
+                snapped = true;
+                snapshot.pose = existing.pose;
+                snapshot.expression = existing.expression;
+                snapshot.spriteAngle = existing.spriteAngle;
+                const startX = existing.x ?? movingEl.x;
+                const startY = existing.y ?? movingEl.y;
+                const dir = (Math.atan2(destY - startY, destX - startX) * 180 / Math.PI + 360) % 360;
+                walk1 = pickFrame(walk1s, dir);
+                walk2 = pickFrame(walk2s, dir);
+              }
+              const g = pick(walk1, walk2);
+              overrides.set(elId, {
+                ...existing,
+                pose: g.pose,
+                expression: g.expression,
+                spriteAngle: g.angle,
+              });
+              return { ...prev, elementOverrides: overrides };
+            });
+            walkRestoreRef.current = () => setState(prev => {
+              const overrides = new Map(prev.elementOverrides);
+              const existing = { ...(overrides.get(elId) || {}) };
+              (['pose', 'expression', 'spriteAngle'] as const).forEach(k => {
+                if (snapshot[k] === undefined) delete existing[k];
+                else (existing as Record<string, unknown>)[k] = snapshot[k];
+              });
+              overrides.set(elId, existing);
+              return { ...prev, elementOverrides: overrides };
+            });
+            let frame = 0;
+            setWalkFrame((g1) => g1);
+            walkIntervalRef.current = setInterval(() => {
+              frame++;
+              setWalkFrame(frame % 2 === 0 ? (g1) => g1 : (_g1, g2) => g2);
+            }, 250);
+          }
+
+          setState(prev => ({ ...prev, isWaiting: true }));
+          waitTimeoutRef.current = setTimeout(() => {
+            if (walkIntervalRef.current) {
+              clearInterval(walkIntervalRef.current);
+              walkIntervalRef.current = null;
+            }
+            walkRestoreRef.current?.();
+            walkRestoreRef.current = null;
+            setState(prev => ({ ...prev, isWaiting: false }));
+            resumeAfterWaitRef.current?.();
+          }, command.duration * 1000);
+          return false;
+        }
+        // Instant move: apply synchronously
+        applyMoveTarget();
+        return true;
+      }
+
+      case 'TWEEN': {
+        // Non-blocking: set the target and let CSS animate it. Two
+        // renders (duration first, then value) so the transition
+        // duration is in place before the property changes.
+        // Reduced motion: land on the value without travelling there.
+        const { elementId, property, value } = command;
+        const duration = abilityRef.current.reduceMotion ? 0 : command.duration;
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(elementId) || {};
+          overrides.set(elementId, { ...existing, transitionDuration: duration });
+          return { ...prev, elementOverrides: overrides };
+        });
+        const applyTween = () => setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(elementId) || {};
+          overrides.set(elementId, { ...existing, [property]: value, transitionDuration: duration });
+          return { ...prev, elementOverrides: overrides };
+        });
+        // The same deferred write MOVE uses, and it must be tracked the
+        // same way. Left bare, this timer outlived clearTimeouts(): a
+        // SCENE change within 30ms of a TWEEN would tear down the scene
+        // and then this callback would still fire, writing an override
+        // for an element belonging to the scene we just left.
+        if (duration > 0) {
+          if (tweenStartTimeoutRef.current) clearTimeout(tweenStartTimeoutRef.current);
+          tweenStartTimeoutRef.current = setTimeout(() => {
+            tweenStartTimeoutRef.current = null;
+            applyTween();
+          }, 30);
+        } else {
+          applyTween();
+        }
+        return true;
+      }
+
+      case 'FRAME': {
+        // The cabinet reacts for a beat. Reduced motion keeps it still.
+        if (abilityRef.current.reduceMotion) return true;
+        const mood = command.mood;
+        frameSeqRef.current += 1;
+        const seq = frameSeqRef.current;
+        setState(prev => ({
+          ...prev,
+          frameMood: mood === 'still' || mood === 'off' ? null : { mood, seq },
+        }));
+        return true;
+      }
+
+      case 'ANIMATE': {
+        // Loop an element through pose frames until stopped or the
+        // scene changes. Non-blocking: the script runs straight on.
+        const { elementId, poses, interval, repeat } = command;
+        const existing = animationsRef.current.get(elementId);
+        if (existing) clearInterval(existing);
+
+        // Accept an element id OR an actor id, as POSE does
+        const animId = resolveElementId(elementId);
+        // Reduced motion: show the first frame and hold it.
+        const setFrame = (pose: string) => setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const current = overrides.get(animId) || {};
+          overrides.set(animId, { ...current, pose });
+          return { ...prev, elementOverrides: overrides };
+        });
+        setFrame(poses[0]);
+        if (abilityRef.current.reduceMotion) return true;
+
+        let frame = 0;
+        const totalFrames = repeat !== undefined ? repeat * poses.length : Infinity;
+        const timer = setInterval(() => {
+          frame++;
+          if (frame >= totalFrames) {
+            clearInterval(timer);
+            animationsRef.current.delete(animId);
+            return;
+          }
+          setFrame(poses[frame % poses.length]);
+        }, Math.max(50, interval * 1000));
+        animationsRef.current.set(animId, timer);
+        return true;
+      }
+
+      case 'STOP_ANIMATE': {
+        const timer = animationsRef.current.get(command.elementId);
+        if (timer) {
+          clearInterval(timer);
+          animationsRef.current.delete(command.elementId);
+        }
+        return true;
+      }
+
+      case 'FACE': {
+        // Resolve the facing angle, then snap the sprite to the
+        // nearest directional graphic the actor actually has.
+        const el = currentSceneRef.current?.stage?.find(e => e.id === command.elementId);
+        if (!el) {
+          warnOnce(`FACE ${command.elementId}: no such stage element`);
+          return true;
+        }
+        let degrees = command.degrees;
+        if (degrees === undefined && command.targetId) {
+          const target = resolvePoint(command.targetId);
+          if (!target) {
+            warnOnce(`FACE ${command.elementId} toward ${command.targetId}: no such element or backdrop anchor; keeping current facing`);
+            return true;
+          }
+          const live = state.elementOverrides.get(command.elementId);
+          const fromX = live?.x ?? el.x;
+          const fromY = live?.y ?? el.y;
+          degrees = ((Math.atan2(target.y - fromY, target.x - fromX) * 180 / Math.PI) + 360) % 360;
+        }
+        if (degrees === undefined) return true;
+
+        // Pick the actor's nearest available sprite angle for the
+        // current pose (fail-soft: no directional art, no change).
+        const actor = el.type === 'ACTOR' ? game.actors.find(a => a.id === el.assetId) : undefined;
+        const livePose = state.elementOverrides.get(command.elementId)?.pose ?? el.pose;
+        const candidates = actor?.graphics.filter(g => g.pose === livePose) ?? [];
+        const angularDist = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+        const best = candidates.length > 0
+          ? candidates.reduce((b, g) => angularDist(g.angle, degrees!) < angularDist(b.angle, degrees!) ? g : b)
+          : undefined;
+        const faceAngle = best ? best.angle : degrees;
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(command.elementId) || {};
+          overrides.set(command.elementId, { ...existing, spriteAngle: faceAngle });
+          return { ...prev, elementOverrides: overrides };
+        });
+        return true;
+      }
+
+      case 'BACKDROP': {
+        if (!game.drops?.some(d => d.id === command.dropId)) {
+          warnOnce(`BACKDROP ${command.dropId}: no such drop; keeping the current backdrop`);
+          return true;
+        }
+        setState(prev => ({
+          ...prev,
+          backdrop: { dropId: command.dropId, duration: command.duration },
+        }));
+        return true;
+      }
+
+      case 'CAMERA': {
+        // Presets resolve to a zoom + center; free form passes through.
+        let zoom = command.zoom ?? 1;
+        let x = command.x;
+        let y = command.y;
+        if (command.shot === 'reset') { zoom = 1; x = 50; y = 50; }
+        else if (command.shot === 'closeup') zoom = 2.2;
+        else if (command.shot === 'two') zoom = 1.5;
+        else if (command.shot === 'wide') zoom = 1;
+        // "on <target>" centers the shot: a stage element or a named
+        // backdrop anchor (CAMERA shot closeup on RUBBER_TREE).
+        const target = command.targetId ? resolvePoint(command.targetId) : undefined;
+        if (command.targetId && !target) {
+          warnOnce(`CAMERA on ${command.targetId}: no such element or backdrop anchor; keeping the current center`);
+        }
+        if (target) { x = target.x; y = target.y; }
+        setState(prev => ({
+          ...prev,
+          camera: {
+            zoom,
+            x: x ?? prev.camera?.x ?? 50,
+            y: y ?? prev.camera?.y ?? 50,
+            // Reduced motion: cut instead of moving the camera
+            duration: abilityRef.current.reduceMotion ? 0 : command.duration,
+            ...(command.follow ? { follow: command.follow } : {}),
+          },
+        }));
+        return true;
+      }
+
+      case 'POSE': {
+        // Accept an element id OR an actor id (see resolveElementId)
+        const targetId = resolveElementId(command.actorId);
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(targetId) || {};
+          overrides.set(targetId, {
             ...existing,
             pose: command.pose,
             expression: command.expression,
@@ -308,15 +977,18 @@ export function useScriptRunner({
         setState(prev => ({ ...prev, isWaiting: true }));
         waitTimeoutRef.current = setTimeout(() => {
           setState(prev => ({ ...prev, isWaiting: false }));
+          // Continue the script — before this, WAIT stalled forever
+          // (nothing resumed execution, and manual advance re-ran the
+          // WAIT itself).
+          resumeAfterWaitRef.current?.();
         }, command.duration * 1000);
         return false;
       }
       
       case 'SCENE': {
         clearTimeouts();
-        navigatedRef.current = true;
-        currentSceneIdRef.current = command.sceneId;
-        seedLocals(command.sceneId);
+        bindingsRef.current = new Map();
+        enterScene(command.sceneId);
         onSceneChange?.(command.sceneId);
         setState(prev => ({
           ...prev,
@@ -324,51 +996,111 @@ export function useScriptRunner({
           currentCommandIndex: 0,
           activeDialogue: null,
           choices: null,
-          localState: { ...varsRef.current.local },
           hiddenElements: new Set(),
           elementOverrides: new Map(),
           activeEffects: new Map(),
           activeButtons: new Set(),
+          activeSliders: new Map(),
+      activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
           isWaiting: false,
+          isComplete: false,
         }));
-        return true;
+        // Yield: the new scene starts via the scene-change effect.
+        // Continuing here would keep executing the OLD scene's commands
+        // past the jump.
+        return false;
       }
       
       case 'CHOICE': {
+        // Gated options drop out when their condition fails, so the
+        // simulation decides what the player is even able to try.
+        const available = command.options.filter(o => !o.condition || evaluateIfCondition(
+          { type: 'IF', ...o.condition, commands: [] } as IfCommand,
+          readVars(),
+        ));
+        if (available.length === 0) {
+          warnOnce('CHOICE: every option was gated out; continuing past the choice');
+          return true;
+        }
         setState(prev => ({
           ...prev,
-          choices: { options: command.options },
+          choices: { options: available },
         }));
+        // Timed choice: hesitate and the world decides for you — unless
+        // the player has asked for no time limits (WCAG 2.2.1), in
+        // which case the choice simply waits.
+        if (command.timeout && !abilityRef.current.noTimeLimits) {
+          const { seconds, target } = command.timeout;
+          choiceTimeoutRef.current = setTimeout(() => {
+            choiceTimeoutRef.current = null;
+            clearTimeouts();
+            bindingsRef.current = new Map();
+            enterScene(target);
+            onSceneChange?.(target);
+            setState(prev => ({
+              ...prev,
+              currentSceneId: target,
+              currentCommandIndex: 0,
+              activeDialogue: null,
+              choices: null,
+              elementOverrides: new Map(),
+              activeEffects: new Map(),
+              hiddenElements: new Set(),
+              activeButtons: new Set<string>(),
+              activeSliders: new Map(),
+              activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
+              isWaiting: false,
+              isComplete: false,
+            }));
+          }, seconds * 1000);
+        }
         return false; // Wait for user selection
       }
       
       case 'SET': {
-        applySet(command, currentSceneIdRef.current);
+        // Write the ref synchronously (so later commands in this pass
+        // see it), then mirror into state for rendering.
+        const change = applySetCommand(command);
+        const snapshot = worldStateRef.current;
+        const locals = localsRef.current;
+        // Record the move so the meter panel can show what this scene
+        // touched, and by how much. Numbers only; a changed string is
+        // not a gauge, and an in-scene local is not a meter.
+        const from = typeof change.from === 'number' ? change.from : Number(change.from);
+        const to = typeof change.to === 'number' ? change.to : Number(change.to);
+        const moved = change.scope === 'world' && Number.isFinite(from) && Number.isFinite(to) && from !== to;
+        meterSeqRef.current += 1;
+        const seq = meterSeqRef.current;
+        setState(prev => {
+          const logged = { ...prev, worldState: snapshot, localState: locals, varLog: appendLog(prev.varLog, change) };
+          if (!moved) return logged;
+          const meterMoves = new Map(prev.meterMoves);
+          // Keep the ORIGINAL from-value for this scene so a variable
+          // nudged repeatedly by a TICK shows its whole journey.
+          const prior = meterMoves.get(command.variable);
+          meterMoves.set(command.variable, { from: prior?.from ?? from, to, seq });
+          return { ...logged, meterMoves };
+        });
+        applyBindings();
         return true;
       }
 
-      case 'IF': {
-        const varValue = readVar(command.variable);
-        let conditionMet = false;
-        
-        switch (command.operator) {
-          case '==': conditionMet = varValue === command.value; break;
-          case '!=': conditionMet = varValue !== command.value; break;
-          case '>': conditionMet = Number(varValue) > Number(command.value); break;
-          case '<': conditionMet = Number(varValue) < Number(command.value); break;
-          case '>=': conditionMet = Number(varValue) >= Number(command.value); break;
-          case '<=': conditionMet = Number(varValue) <= Number(command.value); break;
-        }
-        
-        if (conditionMet && command.commands.length > 0) {
-          // Execute nested commands (stop if one of them jumped scenes)
-          for (const nestedCmd of command.commands) {
-            executeCommand(nestedCmd);
-            if (navigatedRef.current) break;
-          }
-        }
+      case 'IF':
+        // Handled by the flattened execution in runFrom (main flow) and
+        // by executeTickBody (tick flow); never executed directly.
         return true;
-      }
       
       case 'BUTTON': {
         setState(prev => {
@@ -388,71 +1120,416 @@ export function useScriptRunner({
         return true;
       }
       
+      case 'TICK':
+        // Declaration only: the interval effect below picks it up.
+        return true;
+
+      case 'NARRATE': {
+        // Non-blocking narration. Consecutive duplicates are dropped so
+        // a 1s TICK can narrate a condition without flooding; each new
+        // line gets a fresh id so screen readers re-announce it.
+        const text = interpolateText(command.text, readVars());
+        if (!text.trim()) return true;
+        if (stateRef.current.ambientNarration?.text === text) return true;
+        narrateSeqRef.current += 1;
+        const id = narrateSeqRef.current;
+        setState(prev => ({ ...prev, ambientNarration: { text, id } }));
+        if (narrateTimeoutRef.current) clearTimeout(narrateTimeoutRef.current);
+        narrateTimeoutRef.current = setTimeout(() => {
+          narrateTimeoutRef.current = null;
+          setState(prev => (prev.ambientNarration?.id === id
+            ? { ...prev, ambientNarration: null }
+            : prev));
+        }, Math.max(500, (command.seconds ?? 4) * 1000 * Math.max(0.25, abilityRef.current.readingTime)));
+        return true;
+      }
+
+      case 'SET_TEXT': {
+        const text = interpolateText(command.text, readVars());
+        setState(prev => {
+          const overrides = new Map(prev.elementOverrides);
+          const existing = overrides.get(command.elementId) || {};
+          if (existing.text === text) return prev; // no churn on repeated ticks
+          overrides.set(command.elementId, { ...existing, text });
+          return { ...prev, elementOverrides: overrides };
+        });
+        return true;
+      }
+
+      case 'AUTOPLAY': {
+        setState(prev => ({ ...prev, isAutoPlay: command.enabled }));
+        return true;
+      }
+
+      case 'BIND': {
+        if (!BINDABLE_PROPERTIES.has(command.property)) {
+          warnOnce(`BIND: "${command.property}" is not bindable (use x, y, scale, rotation, opacity, zIndex); ignored`);
+          return true;
+        }
+        const stage = currentSceneRef.current?.stage;
+        if (stage && !stage.some(e => e.id === command.elementId)) {
+          warnOnce(`BIND: no stage element "${command.elementId}" in scene "${currentSceneRef.current?.id}" (binding anyway)`);
+        }
+        bindingsRef.current.set(`${command.elementId}.${command.property}`, {
+          elementId: command.elementId,
+          property: command.property,
+          expression: command.expression,
+        });
+        applyBindings();
+        return true;
+      }
+
+      case 'UNBIND': {
+        // The element keeps its last driven value
+        bindingsRef.current.delete(`${command.elementId}.${command.property}`);
+        return true;
+      }
+
+      case 'SLIDER': {
+        setState(prev => {
+          const sliders = new Map(prev.activeSliders);
+          sliders.set(command.variable, command);
+          return { ...prev, activeSliders: sliders };
+        });
+        // Seed the variable so the slider and any BINDs on it agree
+        // before the first drag
+        if (!(command.variable in worldStateRef.current)) {
+          worldStateRef.current = { ...worldStateRef.current, [command.variable]: command.min };
+          const snapshot = worldStateRef.current;
+          setState(prev => ({ ...prev, worldState: snapshot }));
+          applyBindings();
+        }
+        return true;
+      }
+
+      case 'GAUGE': {
+        setState(prev => {
+          const gauges = new Map(prev.activeGauges);
+          gauges.set(command.variable, command);
+          return { ...prev, activeGauges: gauges };
+        });
+        return true;
+      }
+
+      case 'HIDE_SLIDER': {
+        setState(prev => {
+          const sliders = new Map(prev.activeSliders);
+          sliders.delete(command.variable);
+          return { ...prev, activeSliders: sliders };
+        });
+        return true;
+      }
+
+      case 'HIDE_GAUGE': {
+        setState(prev => {
+          const gauges = new Map(prev.activeGauges);
+          gauges.delete(command.variable);
+          return { ...prev, activeGauges: gauges };
+        });
+        return true;
+      }
+
+      case 'NARRATON': {
+        const { winner } = selectNarratonScene(
+          command.pool,
+          game.scenes,
+          worldStateRef.current,
+          narratonHistoryRef.current,
+        );
+        if (!winner) {
+          warnOnce(`NARRATON: no eligible scene in pool "${command.pool}"; continuing script`);
+          return true; // fail soft: fall through to the next command
+        }
+        narratonHistoryRef.current.played.add(winner.id);
+        // Transition exactly like SCENE
+        clearTimeouts();
+        bindingsRef.current = new Map();
+        enterScene(winner.id);
+        onSceneChange?.(winner.id);
+        setState(prev => ({
+          ...prev,
+          currentSceneId: winner.id,
+          currentCommandIndex: 0,
+          activeDialogue: null,
+          choices: null,
+          hiddenElements: new Set(),
+          elementOverrides: new Map(),
+          activeEffects: new Map(),
+          activeButtons: new Set(),
+          activeSliders: new Map(),
+          activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
+          isWaiting: false,
+          isComplete: false,
+        }));
+        return false; // yield: the new scene starts via the scene-change effect
+      }
+
       case 'COMMENT':
       case 'UNKNOWN':
         return true; // Skip
     }
-  }, [game, readVar, applySet, seedLocals, onSceneChange, onAudioCommand, textSpeed, clearTimeouts]);
+    // Unreachable while the switch stays exhaustive over ScriptCommand,
+    // but strict mode wants it stated. Continue rather than yield: an
+    // unhandled command must never stop the show.
+    return true;
+  }, [game, onSceneChange, onAudioCommand, textSpeed, clearTimeouts, applyBindings, readVars, applySetCommand, enterScene]);
 
-  // Advance to next command
+  // Execute a TICK body: non-blocking commands only, run against the
+  // live worldState ref, never touching the yield/advance machinery.
+  const executeTickBody = useCallback((cmds: ScriptCommand[]) => {
+    for (const cmd of cmds) {
+      switch (cmd.type) {
+        case 'DIALOGUE':
+        case 'CHOICE':
+        case 'WAIT':
+        case 'TICK':
+        case 'GOTO':
+          warnOnce(`${cmd.type} is not allowed inside a TICK body; skipped`);
+          continue;
+
+        // A running simulation reaching a terminal state and carrying the
+        // player there is the whole point of the campaign: [SCENE
+        // ending_collapse] fires from inside a TICK sixteen times across
+        // hvb-campaign. So this stays legal — but it must END THE BODY.
+        //
+        // It used to fall through to the default arm, where executeCommand
+        // tore the scene down and returned false to mean "stop". Nothing
+        // read that return value, so the loop ran the REST OF THE OLD TICK
+        // BODY against the scene that had just replaced it, and the next
+        // interval could fire once more before the effect re-keyed.
+        //
+        // Now it aborts: stop the interval, unwind through any enclosing
+        // IF/RANDOM, and run nothing further this pass.
+        case 'SCENE':
+        case 'NARRATON':
+          executeCommand(cmd);
+          if (tickIntervalRef.current) {
+            clearInterval(tickIntervalRef.current);
+            tickIntervalRef.current = null;
+          }
+          return true; // aborted: the scene beneath us has changed
+
+        case 'RANDOM': {
+          if (cmd.branches.length > 0) {
+            if (executeTickBody(cmd.branches[Math.floor(Math.random() * cmd.branches.length)])) return true;
+          }
+          continue;
+        }
+        case 'IF': {
+          if (evaluateIfCondition(cmd, readVars())) {
+            if (executeTickBody(cmd.commands)) return true;
+          } else {
+            const arm = (cmd.elifs ?? []).find(e => evaluateIfCondition(
+              { type: 'IF', variable: e.variable, operator: e.operator, value: e.value, ...(e.isExpression ? { isExpression: true } : {}), commands: [] } as IfCommand,
+              readVars(),
+            ));
+            if (arm) { if (executeTickBody(arm.commands)) return true; }
+            else if (cmd.elseCommands) { if (executeTickBody(cmd.elseCommands)) return true; }
+          }
+          continue;
+        }
+        case 'MOVE':
+          // Animate at the scripted speed but never set isWaiting —
+          // a tick body must not block
+          setState(prev => {
+            const overrides = new Map(prev.elementOverrides);
+            const existing = overrides.get(cmd.actorId) || {};
+            overrides.set(cmd.actorId, { ...existing, x: cmd.x, y: cmd.y, transitionDuration: cmd.duration });
+            return { ...prev, elementOverrides: overrides };
+          });
+          continue;
+        default:
+          // SET, ENTER, EXIT, POSE, EFFECT, CLEAR_EFFECT, BUTTON,
+          // HIDE_BUTTON, BGM, AMBIENCE, SFX, COMMENT, UNKNOWN
+          // are all non-blocking in executeCommand.
+          executeCommand(cmd);
+      }
+    }
+    return false; // ran to the end without a scene change
+  }, [executeCommand, readVars]);
+
+  // CAMERA follow: keep the camera centered on a tracked element as
+  // its overrides move it (MOVE tweens, BINDs). Cheap: only runs while
+  // a follow target is set.
+  const followId = state.camera?.follow;
+  const followed = followId
+    ? (state.elementOverrides.get(followId) ?? currentScene?.stage?.find(e => e.id === followId))
+    : undefined;
+  const followX = followed?.x;
+  const followY = followed?.y;
+  useEffect(() => {
+    if (followId === undefined || followX === undefined || followY === undefined) return;
+    setState(prev => {
+      if (!prev.camera) return prev;
+      if (prev.camera.x === followX && prev.camera.y === followY) return prev;
+      return { ...prev, camera: { ...prev.camera, x: followX, y: followY } };
+    });
+  }, [followId, followX, followY]);
+
+  // The TICK heartbeat. Runs the scene's tick body on its interval,
+  // concurrent with normal flow; stops on scene change and unmount.
+  const tickCommands = commands.filter((c): c is TickCommand => c.type === 'TICK');
+  if (tickCommands.length > 1) {
+    warnOnce(`scene "${state.currentSceneId}" has ${tickCommands.length} TICK blocks; only the first runs`);
+  }
+  const activeTick = tickCommands[0];
+  const tickBodyRef = useRef<ScriptCommand[]>([]);
+  tickBodyRef.current = activeTick?.commands ?? [];
+  const executeTickBodyRef = useRef(executeTickBody);
+  executeTickBodyRef.current = executeTickBody;
+  const tickKey = activeTick ? `${state.currentSceneId}:${activeTick.interval}` : null;
+
+  useEffect(() => {
+    if (!tickKey) return;
+    if (paused) return; // the model holds still too
+    const intervalSeconds = Number(tickKey.slice(tickKey.lastIndexOf(':') + 1));
+    const id = setInterval(() => {
+      executeTickBodyRef.current(tickBodyRef.current);
+    }, Math.max(50, intervalSeconds * 1000)); // floor: don't let a typo spin the CPU
+    // Also hand the handle to the central clearer. The effect's own
+    // cleanup only runs on the next render, so between a scene change
+    // and that render the old interval could fire once more against the
+    // new scene. clearTimeouts() runs synchronously on that path and
+    // closes the window. Clearing an interval twice is harmless.
+    tickIntervalRef.current = id;
+    return () => {
+      clearInterval(id);
+      if (tickIntervalRef.current === id) tickIntervalRef.current = null;
+    };
+  }, [tickKey, paused]);
+
+  // Execute the flattened command list from an index until something
+  // yields (dialogue, choice, wait, scene change) or the script ends.
+  const runFrom = useCallback((startIndex: number) => {
+    let i = startIndex;
+    // GOTO can jump backwards; a chain with no yield in between would
+    // spin forever. Generous ceiling, loud warning.
+    let steps = 0;
+    while (i < flatCommands.length) {
+      if (++steps > 10000) {
+        warnOnce('script executed 10000 steps without yielding — GOTO loop? Stopping this pass.');
+        return;
+      }
+      const node = flatCommands[i];
+
+      // LABEL is a no-op marker; GOTO jumps to its label (unknown
+      // label: warn and fall through)
+      if (!node.kind && node.cmd.type === 'LABEL') { i++; continue; }
+      if (!node.kind && node.cmd.type === 'GOTO') {
+        const target = labelIndexRef.current.get((node.cmd as { name: string }).name);
+        if (target === undefined) {
+          warnOnce(`GOTO ${(node.cmd as { name: string }).name}: no such LABEL in this scene; continuing`);
+          i++;
+        } else {
+          i = target;
+        }
+        continue;
+      }
+
+      // Unconditional jump (end of a taken IF/ELSEIF/ELSE branch body)
+      if (node.kind === 'jump') {
+        i = node.jumpTo ?? i + 1;
+        continue;
+      }
+
+      // RANDOM block: jump to one branch, chosen uniformly
+      if (node.kind === 'random') {
+        const starts = node.branchStarts ?? [];
+        i = starts.length > 0
+          ? starts[Math.floor(Math.random() * starts.length)]
+          : i + 1;
+        continue;
+      }
+
+      // IF test node: on false, jump past the flattened body
+      if (node.cmd.type === 'IF') {
+        const met = evaluateIfCondition(node.cmd as IfCommand, readVars());
+        i = met ? i + 1 : (node.jumpTo ?? i + 1);
+        continue;
+      }
+
+      const shouldContinue = executeCommand(node.cmd);
+      if (!shouldContinue) {
+        // SCENE/NARRATON already reset all state for the new scene
+        // (index 0); writing our index here would clobber that reset.
+        if (node.cmd.type === 'SCENE' || node.cmd.type === 'NARRATON') {
+          resumeAfterWaitRef.current = null;
+          return;
+        }
+        const yieldIndex = i;
+        setState(prev => ({ ...prev, currentCommandIndex: yieldIndex }));
+        // Timed commands (WAIT, MOVE) resume on their own; user-driven
+        // yields (dialogue, choice) and scene changes do not.
+        if (node.cmd.type === 'WAIT' || node.cmd.type === 'MOVE') {
+          resumeAfterWaitRef.current = () => runFromRef.current(yieldIndex + 1);
+        } else {
+          resumeAfterWaitRef.current = null;
+        }
+        return;
+      }
+      i++;
+    }
+
+    // Reached end of script
+    setState(prev => ({ ...prev, currentCommandIndex: i, isComplete: true }));
+  }, [flatCommands, executeCommand, readVars]);
+  runFromRef.current = runFrom;
+
+  // Advance to next command (user input / auto-play)
   const advance = useCallback(() => {
+    if (pausedRef.current) return; // frozen: a click must not move the show
     if (state.isWaiting) return;
-    
+    if (state.choices) return; // choices resolve via selectChoice
+    if (state.isComplete) return;
+
     // If dialogue is active but not complete, complete it first
     if (state.activeDialogue && !state.activeDialogue.isComplete) {
       completeDialogue();
       return;
     }
-    
-    // Clear current dialogue
+
+    // Clear current dialogue and continue past it
     if (state.activeDialogue) {
       setState(prev => ({ ...prev, activeDialogue: null }));
+      runFrom(state.currentCommandIndex + 1);
+      return;
     }
-    
-    // Move to next command
-    let nextIndex = state.currentCommandIndex + (state.activeDialogue ? 1 : 0);
-    
-    // Execute commands until we hit one that requires waiting
-    navigatedRef.current = false;
-    while (nextIndex < commands.length) {
-      const command = commands[nextIndex];
-      const shouldContinue = executeCommand(command);
 
-      // A [SCENE] jump ends this scene's chain — the start-script effect
-      // takes over in the new scene; do NOT run the old scene's remainder.
-      if (navigatedRef.current) {
-        navigatedRef.current = false;
-        return;
-      }
-
-      if (!shouldContinue) {
-        setState(prev => ({ ...prev, currentCommandIndex: nextIndex }));
-        return;
-      }
-
-      nextIndex++;
-    }
-    
-    // Reached end of script
-    setState(prev => ({ ...prev, currentCommandIndex: nextIndex, isComplete: true }));
-  }, [state, commands, executeCommand, completeDialogue]);
+    runFrom(state.currentCommandIndex);
+  }, [state, runFrom, completeDialogue]);
 
   // Handle choice selection
   const selectChoice = useCallback((index: number) => {
     if (!state.choices) return;
-    
+
     const option = state.choices.options[index];
     if (!option) return;
 
-    // Decision point: twiddle the option's variables before leaving the scene.
-    for (const set of option.sets || []) {
-      applySet(set, currentSceneIdRef.current);
+    // Side-effects first: the choice writes the world, then the world
+    // travels with us into the target scene.
+    if (option.effects?.length) {
+      const changes = option.effects.map(effect => applySetCommand(effect));
+      const snapshot = worldStateRef.current;
+      const locals = localsRef.current;
+      setState(prev => ({
+        ...prev,
+        worldState: snapshot,
+        localState: locals,
+        varLog: changes.reduce(appendLog, prev.varLog),
+      }));
+      applyBindings();
     }
 
     // Navigate to target scene
     clearTimeouts();
-    currentSceneIdRef.current = option.target;
-    seedLocals(option.target);
+    bindingsRef.current = new Map();
+    enterScene(option.target);
     onSceneChange?.(option.target);
     setState(prev => ({
       ...prev,
@@ -460,19 +1537,27 @@ export function useScriptRunner({
       currentCommandIndex: 0,
       activeDialogue: null,
       choices: null,
-      localState: { ...varsRef.current.local },
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
       activeButtons: new Set(),
+      activeSliders: new Map(),
+      activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));
-  }, [state.choices, applySet, seedLocals, onSceneChange, clearTimeouts]);
+  }, [state.choices, onSceneChange, clearTimeouts, applyBindings, applySetCommand, enterScene]);
 
   // Auto-advance when in auto-play mode
   useEffect(() => {
     if (!state.isAutoPlay) return;
+    if (paused) return;
     if (state.isWaiting || state.choices) return;
     if (!state.activeDialogue?.isComplete) return;
     
@@ -483,24 +1568,27 @@ export function useScriptRunner({
     return () => {
       if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     };
-  }, [state.isAutoPlay, state.isWaiting, state.choices, state.activeDialogue?.isComplete, autoAdvanceDelay, advance]);
+  }, [state.isAutoPlay, paused, state.isWaiting, state.choices, state.activeDialogue?.isComplete, autoAdvanceDelay, advance]);
 
-  // Start script on mount / scene change. Scheduled through a timeout WITH
-  // CLEANUP so React StrictMode's double-invoked mount effect cancels the
-  // first schedule — otherwise the opening command chain runs twice, and
-  // since [SET x += n] is stateful, gauges would double-apply in dev.
+  // Start script on mount.
+  //
+  // `paused` is in the dependency list for a reason that cost a test to
+  // find: this effect starts the scene by calling advance(), and advance()
+  // refuses while paused. Without re-running on unpause, a player who
+  // paused before the first line would resume into a scene that never
+  // began — no dialogue, no error, a dead show.
   useEffect(() => {
+    if (paused) return;
     if (commands.length > 0 && state.currentCommandIndex === 0 && !state.activeDialogue && !state.isComplete) {
-      const timer = setTimeout(() => advance(), 0);
-      return () => clearTimeout(timer);
+      advance();
     }
-  }, [commands.length, state.currentSceneId]); // Only run when scene changes
+  }, [commands.length, state.currentSceneId, paused]);
 
   // Reset to a specific scene
   const goToScene = useCallback((sceneId: string) => {
     clearTimeouts();
-    currentSceneIdRef.current = sceneId;
-    seedLocals(sceneId);
+    bindingsRef.current = new Map();
+    enterScene(sceneId);
     onSceneChange?.(sceneId);
     setState(prev => ({
       ...prev,
@@ -508,19 +1596,41 @@ export function useScriptRunner({
       currentCommandIndex: 0,
       activeDialogue: null,
       choices: null,
-      localState: { ...varsRef.current.local },
       hiddenElements: new Set(),
       elementOverrides: new Map(),
       activeEffects: new Map(),
       activeButtons: new Set(),
+      activeSliders: new Map(),
+      activeGauges: new Map(),
+      ambientNarration: null,
+      backdrop: null,
+      camera: null,
+      meterMoves: new Map(),
+      localState: localsRef.current,
+      frameMood: null,
       isWaiting: false,
       isComplete: false,
     }));
-  }, [seedLocals, onSceneChange, clearTimeouts]);
+  }, [onSceneChange, clearTimeouts, enterScene]);
 
   // Toggle auto-play
   const toggleAutoPlay = useCallback(() => {
     setState(prev => ({ ...prev, isAutoPlay: !prev.isAutoPlay }));
+  }, []);
+
+  // External worldState write (sliders, debug tools). Re-evaluates
+  // BINDs immediately so dragging drives the stage live.
+  const setVariable = useCallback((name: string, value: string | number | boolean) => {
+    const change = writeVar(name, value);
+    const snapshot = worldStateRef.current;
+    const locals = localsRef.current;
+    setState(prev => ({ ...prev, worldState: snapshot, localState: locals, varLog: appendLog(prev.varLog, change) }));
+    applyBindings();
+  }, [applyBindings, writeVar]);
+
+  // Forget which scenes the Narraton has already chosen (fresh show)
+  const resetNarratonHistory = useCallback(() => {
+    narratonHistoryRef.current = createNarratonHistory();
   }, []);
 
   return {
@@ -531,5 +1641,7 @@ export function useScriptRunner({
     completeDialogue,
     goToScene,
     toggleAutoPlay,
+    setVariable,
+    resetNarratonHistory,
   };
 }

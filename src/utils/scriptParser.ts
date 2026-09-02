@@ -1,6 +1,9 @@
 // DRAM Script Parser for Dramaton Theater
 // Parses text-based scripts into executable commands
 
+import { parseExpression, isBareIdentifier, splitComparison } from './expression';
+import { COMMAND_AUTOCOMPLETE } from './scriptDocs';
+
 export type ScriptCommandType = 
   | 'DIALOGUE'
   | 'ENTER'
@@ -17,7 +20,30 @@ export type ScriptCommandType =
   | 'CHOICE'
   | 'SET'
   | 'IF'
+  | 'ELSEIF'
+  | 'ELSE'
   | 'ENDIF'
+  | 'RANDOM'
+  | 'LABEL'
+  | 'GOTO'
+  | 'TWEEN'
+  | 'BACKDROP'
+  | 'FACE'
+  | 'CAMERA'
+  | 'FRAME'
+  | 'ANIMATE'
+  | 'STOP_ANIMATE'
+  | 'TICK'
+  | 'BIND'
+  | 'UNBIND'
+  | 'SLIDER'
+  | 'GAUGE'
+  | 'HIDE_SLIDER'
+  | 'HIDE_GAUGE'
+  | 'NARRATON'
+  | 'SET_TEXT'
+  | 'NARRATE'
+  | 'AUTOPLAY'
   | 'BUTTON'
   | 'HIDE_BUTTON'
   | 'COMMENT'
@@ -28,6 +54,11 @@ export interface DialogueCommand {
   actorName: string;
   text: string;
   style: 'speech' | 'thought';
+  // Optional acting direction: ACTOR (Expression): "..." or
+  // ACTOR (Pose/Expression): "..." — the speaker's stage sprite (and
+  // portrait) switches to the matching graphic for this utterance.
+  pose?: string;
+  expression?: string;
 }
 
 export interface EnterCommand {
@@ -48,6 +79,9 @@ export interface MoveCommand {
   x: number;
   y: number;
   duration: number;
+  // Named destination: a stage element or backdrop anchor, resolved at
+  // execution time. When set, x/y are the fallback if it can't resolve.
+  targetId?: string;
 }
 
 export interface PoseCommand {
@@ -102,30 +136,237 @@ export interface SceneCommand {
 export interface ChoiceOption {
   text: string;
   target: string;
-  // Decision point: variables this option twiddles before jumping (Narraton).
-  sets?: SetCommand[];
+  // Gate: option only shows when this IF-shaped condition holds
+  // (parsed from `- "text" (if gold >= 50) -> scene`).
+  condition?: {
+    variable: string;
+    operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+    value: string | number | boolean;
+    isExpression?: boolean;
+  };
+  // Side-effects: [SET ...] commands applied when the option is chosen,
+  // before the jump (parsed from a trailing `[SET x = ...]` list).
+  effects?: SetCommand[];
 }
 
 export interface ChoiceCommand {
   type: 'CHOICE';
   options: ChoiceOption[];
+  // Timed choice: after `seconds` with no pick, jump to `target`
+  // (parsed from `[CHOICE 10s -> default_scene]`).
+  timeout?: { seconds: number; target: string };
 }
 
+// SET operators: plain assignment, or the KoC-style twiddles += / -= that
+// nudge a numeric variable at a decision point.
 export type SetOperator = '=' | '+=' | '-=';
 
 export interface SetCommand {
   type: 'SET';
   variable: string;
   op?: SetOperator;    // undefined means '=' (plain assignment)
+  // Literal value, or raw expression source text when isExpression is set.
   value: string | number | boolean;
+  isExpression?: boolean;
+}
+
+// One [ELSEIF ...] arm of an IF chain: same condition shape as IF.
+export interface IfBranch {
+  variable: string;
+  operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  value: string | number | boolean;
+  isExpression?: boolean;
+  commands: ScriptCommand[];
 }
 
 export interface IfCommand {
   type: 'IF';
+  // Variable name, or raw LHS expression source when isExpression is set.
   variable: string;
   operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  // Literal value, or raw RHS expression source when isExpression is set.
   value: string | number | boolean;
+  // When true, both sides are expressions and compare numerically.
+  isExpression?: boolean;
   commands: ScriptCommand[];
+  // Optional chain: [ELSEIF cond] arms tried in order after the main
+  // condition fails, then an optional [ELSE] fallback.
+  elifs?: IfBranch[];
+  elseCommands?: ScriptCommand[];
+}
+
+// Animate any numeric element property (scale, rotation, opacity,
+// x, y, zIndex) to a target value over a duration. Non-blocking:
+// the script continues immediately (use WAIT to hold).
+export interface TweenCommand {
+  type: 'TWEEN';
+  elementId: string;
+  property: 'scale' | 'rotation' | 'opacity' | 'x' | 'y' | 'zIndex';
+  value: number;
+  duration: number; // seconds
+}
+
+// Crossfade the scene's backdrop without changing scenes.
+export interface BackdropCommand {
+  type: 'BACKDROP';
+  dropId: string;
+  duration: number; // seconds (0 = instant)
+}
+
+// Make the CABINET react for a moment — a shudder at something
+// frightening, a warm swell at something good, a slow grieving dim.
+// Used sparingly: the frame is still almost all the time, which is
+// what makes the exceptions land.
+export interface FrameCommand {
+  type: 'FRAME';
+  mood: string; // fun | scary | sad | still
+}
+
+// Loop an element through named pose frames — flames flickering,
+// birds flapping, a machine pumping. Unlike the walk cycle this is not
+// tied to movement: it runs until stopped or the scene changes.
+// (The 1986 GODinabox `Animate` command, reborn.)
+export interface AnimateCommand {
+  type: 'ANIMATE';
+  elementId: string;
+  poses: string[];
+  interval: number; // seconds per frame
+  repeat?: number;  // number of full cycles; omitted = forever
+}
+
+export interface StopAnimateCommand {
+  type: 'STOP_ANIMATE';
+  elementId: string;
+}
+
+// Turn an actor to face something: another stage element, a named
+// backdrop anchor (BOAT1, RUBBER_TREE), or an explicit compass angle.
+// Sets the sprite's facing angle, which selects the nearest directional
+// graphic — it does NOT mirror the sprite.
+export interface FaceCommand {
+  type: 'FACE';
+  elementId: string;
+  targetId?: string;   // element id or backdrop anchor id
+  degrees?: number;    // explicit angle (0=right, 90=down, 180=left, 270=up)
+}
+
+// Camera: named shot presets (the 1986 SHOT0/1/2) or free zoom/pan.
+export interface CameraCommand {
+  type: 'CAMERA';
+  shot?: 'wide' | 'closeup' | 'two' | 'reset';
+  targetId?: string;   // element to center on (presets and follow)
+  zoom?: number;       // free zoom factor
+  x?: number;          // free pan center (0-100)
+  y?: number;
+  follow?: string;     // element id to track continuously
+  duration: number;    // seconds
+}
+
+// A named jump target within the current scene's script.
+export interface LabelCommand {
+  type: 'LABEL';
+  name: string;
+}
+
+// Jump to a [LABEL name] in the current scene (GODinabox runscript's
+// in-scene descendant). Unknown labels warn and fall through.
+export interface GotoCommand {
+  type: 'GOTO';
+  name: string;
+}
+
+// A random branch block: exactly one branch plays, chosen uniformly at
+// execution time (the 1986 RNDSWITCH). Branches are separated by [OR].
+export interface RandomCommand {
+  type: 'RANDOM';
+  branches: ScriptCommand[][];
+}
+
+// A repeating block: the body runs every `interval` seconds while the
+// scene is active, concurrent with (never blocking) normal script flow.
+export interface TickCommand {
+  type: 'TICK';
+  interval: number; // seconds
+  commands: ScriptCommand[];
+}
+
+// Live-bind a stage element property to an expression; the runner
+// re-evaluates whenever the world state changes.
+export interface BindCommand {
+  type: 'BIND';
+  elementId: string;
+  property: string;
+  expression: string; // raw expression source
+}
+
+export interface UnbindCommand {
+  type: 'UNBIND';
+  elementId: string;
+  property: string;
+}
+
+// Interactive slider: writes its worldState variable as the player drags.
+export interface SliderCommand {
+  type: 'SLIDER';
+  variable: string;
+  x: number;
+  y: number;
+  min: number;
+  max: number;
+  step: number;
+  label?: string; // defaults to the variable name in the UI
+}
+
+// Read-only gauge: displays one worldState variable.
+export interface GaugeCommand {
+  type: 'GAUGE';
+  variable: string;
+  x: number;
+  y: number;
+  min: number;
+  max: number;
+  label?: string;
+}
+
+export interface HideSliderCommand {
+  type: 'HIDE_SLIDER';
+  variable: string;
+}
+
+export interface HideGaugeCommand {
+  type: 'HIDE_GAUGE';
+  variable: string;
+}
+
+// Yield flow control to the Narraton selector: it picks the next scene
+// from the pool by least-squares matching scene keys against worldState.
+export interface NarratonCommand {
+  type: 'NARRATON';
+  pool: string;
+}
+
+// Set a stage element's text (balloons: news tickers, signs, counters).
+// {variable} placeholders interpolate worldState values at display time.
+export interface SetTextCommand {
+  type: 'SET_TEXT';
+  elementId: string;
+  text: string;
+}
+
+// A non-blocking narration line: says something without waiting for a
+// click, so a running simulation can describe itself. This is the one
+// speech form allowed inside TICK bodies, and it is the backbone of
+// audio description for blind players.
+export interface NarrateCommand {
+  type: 'NARRATE';
+  text: string;
+  seconds?: number; // how long it stays up (default 4)
+}
+
+// Toggle dialogue auto-advance from script (autopilot modes).
+export interface AutoplayCommand {
+  type: 'AUTOPLAY';
+  enabled: boolean;
 }
 
 export interface CommentCommand {
@@ -164,6 +405,27 @@ export type ScriptCommand =
   | ChoiceCommand
   | SetCommand
   | IfCommand
+  | RandomCommand
+  | LabelCommand
+  | GotoCommand
+  | TweenCommand
+  | FrameCommand
+  | AnimateCommand
+  | StopAnimateCommand
+  | BackdropCommand
+  | FaceCommand
+  | CameraCommand
+  | TickCommand
+  | BindCommand
+  | UnbindCommand
+  | SliderCommand
+  | GaugeCommand
+  | HideSliderCommand
+  | HideGaugeCommand
+  | NarratonCommand
+  | SetTextCommand
+  | NarrateCommand
+  | AutoplayCommand
   | CommentCommand
   | ButtonCommand
   | HideButtonCommand
@@ -187,28 +449,6 @@ function parseDuration(str: string): number {
   if (sMatch) return parseFloat(sMatch[1]);
   
   return 1;
-}
-
-// Parse the inside of a SET command: "variable = value", also += / -= for
-// increment/decrement (KoC-style variable twiddling at decision points).
-function parseSetContent(content: string): SetCommand | null {
-  const setMatch = content.match(/^SET\s+(\w+)\s*(\+=|-=|=)\s*(.+)$/i);
-  if (!setMatch) return null;
-
-  let value: string | number | boolean = setMatch[3].trim();
-  // Try to parse as number or boolean
-  if (value === 'true') value = true;
-  else if (value === 'false') value = false;
-  else if (!isNaN(Number(value))) value = Number(value);
-  else value = value.replace(/^["']|["']$/g, ''); // Remove quotes
-
-  const op = setMatch[2] as SetOperator;
-  return {
-    type: 'SET',
-    variable: setMatch[1],
-    ...(op !== '=' ? { op } : {}),
-    value,
-  };
 }
 
 // Parse a single line of script
@@ -292,7 +532,21 @@ function parseLine(line: string): ScriptCommand | null {
         duration: moveMatch[4] ? parseDuration(moveMatch[4]) : 0.5,
       };
     }
-    
+
+    // MOVE actor_id to NAMED_TARGET over 1s — a stage element or a
+    // backdrop anchor (BOAT1, RUBBER_TREE), resolved at execution time
+    const moveNamedMatch = content.match(/^MOVE\s+(\w+)\s+to\s+([A-Za-z_]\w*)\s*(?:over\s+(.+))?$/i);
+    if (moveNamedMatch) {
+      return {
+        type: 'MOVE',
+        actorId: moveNamedMatch[1],
+        targetId: moveNamedMatch[2],
+        x: 50,
+        y: 50,
+        duration: moveNamedMatch[3] ? parseDuration(moveNamedMatch[3]) : 0.5,
+      };
+    }
+
     // POSE actor_id pose=Happy expression=Smile
     const poseMatch = content.match(/^POSE\s+(\w+)(.*)$/i);
     if (poseMatch) {
@@ -345,33 +599,302 @@ function parseLine(line: string): ScriptCommand | null {
       };
     }
     
-    // SET variable = value  (also += / -=)
-    const setCommand = parseSetContent(content);
-    if (setCommand) return setCommand;
-    
-    // IF variable == value
-    const ifMatch = content.match(/^IF\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
-    if (ifMatch) {
-      let value: string | number | boolean = ifMatch[3].trim();
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      else if (!isNaN(Number(value))) value = Number(value);
-      else value = value.replace(/^["']|["']$/g, '');
-      
+    // SET variable = value  (value may be a literal or an expression)
+    // SET variable += amount / -= amount  (increment / decrement)
+    const setMatch = content.match(/^SET\s+(\w+)\s*(\+=|-=|=)\s*(.+)$/i);
+    if (setMatch) {
+      const op = setMatch[2] as SetOperator;
+      const raw = setMatch[3].trim();
+      let value: string | number | boolean = raw;
+      let isExpression = false;
+      // Literal fast-paths keep every existing script byte-compatible
+      if (raw === 'true') value = true;
+      else if (raw === 'false') value = false;
+      else if (!isNaN(Number(raw))) value = Number(raw);
+      else if (/^["'].*["']$/.test(raw)) value = raw.replace(/^["']|["']$/g, '');
+      else {
+        // Not a literal: try the expression grammar. Bare identifiers
+        // also route through here so [SET x = someVar] can copy a
+        // variable at runtime (falling back to the legacy plain-string
+        // behavior when no such variable exists).
+        const node = parseExpression(raw);
+        if (node) isExpression = true;
+        // Unparseable stays a plain string (legacy behavior)
+      }
+
       return {
-        type: 'IF',
-        variable: ifMatch[1],
-        operator: ifMatch[2] as '==' | '!=' | '>' | '<' | '>=' | '<=',
+        type: 'SET',
+        variable: setMatch[1],
+        ...(op !== '=' ? { op } : {}),
         value,
-        commands: [], // Will be populated by parseScript
+        ...(isExpression ? { isExpression } : {}),
       };
     }
-    
+
+    // IF / ELSEIF variable == value  (either side may be an expression).
+    // Both keywords share the same two condition grammars; ELSEIF
+    // returns a transient marker that parseScript folds into the
+    // enclosing IF's chain.
+    const ifMatch = content.match(/^(IF|ELSEIF)\s+(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/i);
+    if (ifMatch) {
+      const keyword = ifMatch[1].toUpperCase() as 'IF' | 'ELSEIF';
+      const raw = ifMatch[4].trim();
+      let value: string | number | boolean = raw;
+      let isExpression = false;
+      if (raw === 'true') value = true;
+      else if (raw === 'false') value = false;
+      else if (!isNaN(Number(raw))) value = Number(raw);
+      else if (/^["'].*["']$/.test(raw)) value = raw.replace(/^["']|["']$/g, '');
+      else {
+        // RHS with operators (e.g. rent * 2) upgrades the whole
+        // condition to expression mode; a bare identifier stays on the
+        // legacy path, where the runner resolves it as a variable if
+        // one exists.
+        const node = parseExpression(raw);
+        if (node && !isBareIdentifier(node)) isExpression = true;
+      }
+
+      return {
+        type: keyword,
+        variable: ifMatch[2],
+        operator: ifMatch[3] as '==' | '!=' | '>' | '<' | '>=' | '<=',
+        value,
+        ...(isExpression ? { isExpression } : {}),
+        commands: [], // Will be populated by parseScript
+      } as unknown as ScriptCommand;
+    }
+
+    // IF / ELSEIF with an expression on the left side:
+    // [IF wages + 5 > rent * 2]
+    // (the simple-form regex above requires a bare variable on the left)
+    const ifExprMatch = content.match(/^(IF|ELSEIF)\s+(.+)$/i);
+    if (ifExprMatch) {
+      const keyword = ifExprMatch[1].toUpperCase() as 'IF' | 'ELSEIF';
+      const split = splitComparison(ifExprMatch[2]);
+      if (split && split.lhs && split.rhs && parseExpression(split.lhs) && parseExpression(split.rhs)) {
+        return {
+          type: keyword,
+          variable: split.lhs,
+          operator: split.op as '==' | '!=' | '>' | '<' | '>=' | '<=',
+          value: split.rhs,
+          isExpression: true,
+          commands: [], // Will be populated by parseScript
+        } as unknown as ScriptCommand;
+      }
+    }
+
+    // TWEEN element.property to value over duration
+    const tweenMatch = content.match(/^TWEEN\s+(\w+)\.(\w+)\s+to\s+(-?[\d.]+)(?:\s+over\s+(.+))?$/i);
+    if (tweenMatch) {
+      const prop = tweenMatch[2].toLowerCase();
+      const valid = ['scale', 'rotation', 'opacity', 'x', 'y', 'zindex'];
+      if (valid.includes(prop)) {
+        return {
+          type: 'TWEEN',
+          elementId: tweenMatch[1],
+          property: (prop === 'zindex' ? 'zIndex' : prop) as TweenCommand['property'],
+          value: Number(tweenMatch[3]),
+          duration: tweenMatch[4] ? parseDuration(tweenMatch[4]) : 1,
+        };
+      }
+    }
+
+    // BACKDROP drop_id [over duration]
+    const backdropMatch = content.match(/^BACKDROP\s+(\w+)(?:\s+over\s+(.+))?$/i);
+    if (backdropMatch) {
+      return {
+        type: 'BACKDROP',
+        dropId: backdropMatch[1],
+        duration: backdropMatch[2] ? parseDuration(backdropMatch[2]) : 0,
+      };
+    }
+
+    // FRAME mood — the cabinet reacts for a beat
+    const frameMatch = content.match(/^FRAMEs+(w+)$/i);
+    if (frameMatch) {
+      return { type: 'FRAME', mood: frameMatch[1].toLowerCase() };
+    }
+
+    // ANIMATE element Pose1 Pose2 Pose3 [every 200ms] [repeat 3]
+    const animateMatch = content.match(/^ANIMATE\s+(\w+)\s+(.+)$/i);
+    if (animateMatch && !/^off$/i.test(animateMatch[2].trim())) {
+      let rest = animateMatch[2].trim();
+      let interval = 0.2;
+      let repeat: number | undefined;
+      const repeatM = rest.match(/\s+repeat\s+(\d+)\s*$/i);
+      if (repeatM) { repeat = Number(repeatM[1]); rest = rest.slice(0, repeatM.index).trim(); }
+      const everyM = rest.match(/\s+every\s+([\d.]+\s*m?s)\s*$/i);
+      if (everyM) { interval = parseDuration(everyM[1]); rest = rest.slice(0, everyM.index).trim(); }
+      const poses = rest.split(/[\s,]+/).filter(Boolean);
+      if (poses.length >= 2) {
+        return {
+          type: 'ANIMATE',
+          elementId: animateMatch[1],
+          poses,
+          interval,
+          ...(repeat !== undefined ? { repeat } : {}),
+        };
+      }
+    }
+
+    // ANIMATE element off  |  STOP_ANIMATE element
+    const stopAnimMatch = content.match(/^(?:STOP_ANIMATE\s+(\w+)|ANIMATE\s+(\w+)\s+off)$/i);
+    if (stopAnimMatch) {
+      return { type: 'STOP_ANIMATE', elementId: stopAnimMatch[1] || stopAnimMatch[2] };
+    }
+
+    // FACE element toward TARGET  |  FACE element <degrees>
+    const faceMatch = content.match(/^FACE\s+(\w+)\s+(?:toward\s+|at\s+)?(-?[\w.]+)$/i);
+    if (faceMatch) {
+      const arg = faceMatch[2];
+      if (/^-?\d+(\.\d+)?$/.test(arg)) {
+        return { type: 'FACE', elementId: faceMatch[1], degrees: ((Number(arg) % 360) + 360) % 360 };
+      }
+      return { type: 'FACE', elementId: faceMatch[1], targetId: arg };
+    }
+
+    // CAMERA: presets, free zoom/pan, follow, reset
+    const cameraMatch = content.match(/^CAMERA\s+(.+)$/i);
+    if (cameraMatch) {
+      const rest = cameraMatch[1].trim();
+      const durMatch = rest.match(/\s+over\s+([\d.]+\s*m?s)$/i);
+      const duration = durMatch ? parseDuration(durMatch[1]) : 1;
+      const body = (durMatch ? rest.slice(0, durMatch.index) : rest).trim();
+
+      const followMatch = body.match(/^follow\s+(\w+)$/i);
+      if (followMatch) return { type: 'CAMERA', follow: followMatch[1], duration };
+
+      if (/^reset$/i.test(body)) return { type: 'CAMERA', shot: 'reset', duration };
+
+      const shotMatch = body.match(/^shot\s+(wide|closeup|two)(?:\s+on\s+(\w+))?$/i);
+      if (shotMatch) {
+        return {
+          type: 'CAMERA',
+          shot: shotMatch[1].toLowerCase() as 'wide' | 'closeup' | 'two',
+          ...(shotMatch[2] ? { targetId: shotMatch[2] } : {}),
+          duration,
+        };
+      }
+
+      const zoomMatch = body.match(/^zoom\s+([\d.]+)(?:\s+at\s+([\d.]+)\s*,\s*([\d.]+))?$/i);
+      if (zoomMatch) {
+        return {
+          type: 'CAMERA',
+          zoom: Number(zoomMatch[1]),
+          ...(zoomMatch[2] ? { x: Number(zoomMatch[2]), y: Number(zoomMatch[3]) } : {}),
+          duration,
+        };
+      }
+    }
+
+    // LABEL name / GOTO name
+    const labelMatch = content.match(/^LABEL\s+(\w+)$/i);
+    if (labelMatch) return { type: 'LABEL', name: labelMatch[1] };
+    const gotoMatch = content.match(/^GOTO\s+(\w+)$/i);
+    if (gotoMatch) return { type: 'GOTO', name: gotoMatch[1] };
+
+    // ELSE
+    if (/^ELSE$/i.test(content)) {
+      return { type: 'ELSE' } as unknown as ScriptCommand;
+    }
+
     // ENDIF or /IF
     if (/^(ENDIF|\/IF)$/i.test(content)) {
       return { type: 'ENDIF' } as unknown as ScriptCommand;
     }
     
+    // BIND element_id.property to expression
+    const bindMatch = content.match(/^BIND\s+(\w+)\.(\w+)\s+to\s+(.+)$/i);
+    if (bindMatch) {
+      return {
+        type: 'BIND',
+        elementId: bindMatch[1],
+        property: bindMatch[2],
+        expression: bindMatch[3].trim(),
+      };
+    }
+
+    // UNBIND element_id.property
+    const unbindMatch = content.match(/^UNBIND\s+(\w+)\.(\w+)$/i);
+    if (unbindMatch) {
+      return {
+        type: 'UNBIND',
+        elementId: unbindMatch[1],
+        property: unbindMatch[2],
+      };
+    }
+
+    // SLIDER var at x,y min=0 max=100 step=1 label="TEXT"
+    const sliderMatch = content.match(/^SLIDER\s+(\w+)\s+at\s+([\d.]+)\s*,\s*([\d.]+)(.*)$/i);
+    if (sliderMatch) {
+      const params = sliderMatch[4] || '';
+      const label = params.match(/label="([^"]*)"/i)?.[1];
+      return {
+        type: 'SLIDER',
+        variable: sliderMatch[1],
+        x: parseFloat(sliderMatch[2]),
+        y: parseFloat(sliderMatch[3]),
+        min: parseFloat(params.match(/min=(-?[\d.]+)/i)?.[1] ?? '0'),
+        max: parseFloat(params.match(/max=(-?[\d.]+)/i)?.[1] ?? '100'),
+        step: parseFloat(params.match(/step=([\d.]+)/i)?.[1] ?? '1'),
+        ...(label !== undefined ? { label } : {}),
+      };
+    }
+
+    // GAUGE var at x,y min=0 max=100 label="TEXT"
+    const gaugeMatch = content.match(/^GAUGE\s+(\w+)\s+at\s+([\d.]+)\s*,\s*([\d.]+)(.*)$/i);
+    if (gaugeMatch) {
+      const params = gaugeMatch[4] || '';
+      const label = params.match(/label="([^"]*)"/i)?.[1];
+      return {
+        type: 'GAUGE',
+        variable: gaugeMatch[1],
+        x: parseFloat(gaugeMatch[2]),
+        y: parseFloat(gaugeMatch[3]),
+        min: parseFloat(params.match(/min=(-?[\d.]+)/i)?.[1] ?? '0'),
+        max: parseFloat(params.match(/max=(-?[\d.]+)/i)?.[1] ?? '100'),
+        ...(label !== undefined ? { label } : {}),
+      };
+    }
+
+    // NARRATON pool=main  (pool defaults to "main")
+    const narratonMatch = content.match(/^NARRATON(?:\s+pool=(\w+))?$/i);
+    if (narratonMatch) {
+      return { type: 'NARRATON', pool: narratonMatch[1] || 'main' };
+    }
+
+    // NARRATE "text" [for 6s] — non-blocking narration
+    const narrateMatch = content.match(/^NARRATE\s+"([^"]*)"(?:\s+for\s+(.+))?$/i);
+    if (narrateMatch) {
+      return {
+        type: 'NARRATE',
+        text: narrateMatch[1],
+        ...(narrateMatch[2] ? { seconds: parseDuration(narrateMatch[2]) } : {}),
+      };
+    }
+
+    // SET_TEXT element_id "text with {variable} interpolation"
+    const setTextMatch = content.match(/^SET_TEXT\s+(\w+)\s+"([^"]*)"$/i);
+    if (setTextMatch) {
+      return { type: 'SET_TEXT', elementId: setTextMatch[1], text: setTextMatch[2] };
+    }
+
+    // AUTOPLAY on / AUTOPLAY off
+    const autoplayMatch = content.match(/^AUTOPLAY\s+(on|off)$/i);
+    if (autoplayMatch) {
+      return { type: 'AUTOPLAY', enabled: autoplayMatch[1].toLowerCase() === 'on' };
+    }
+
+    // HIDE_SLIDER var / HIDE_GAUGE var
+    const hideSliderMatch = content.match(/^HIDE_SLIDER\s+(\w+)$/i);
+    if (hideSliderMatch) {
+      return { type: 'HIDE_SLIDER', variable: hideSliderMatch[1] };
+    }
+    const hideGaugeMatch = content.match(/^HIDE_GAUGE\s+(\w+)$/i);
+    if (hideGaugeMatch) {
+      return { type: 'HIDE_GAUGE', variable: hideGaugeMatch[1] };
+    }
+
     // BUTTON button_id - show a button
     const buttonMatch = content.match(/^BUTTON\s+(\w+)$/i);
     if (buttonMatch) {
@@ -393,67 +916,110 @@ function parseLine(line: string): ScriptCommand | null {
     return { type: 'UNKNOWN', raw: trimmed };
   }
   
-  // Dialogue: ACTOR_NAME: "Text" or ACTOR_NAME (thinking): "Text"
-  const dialogueMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\((thinking)\))?\s*:\s*"(.+)"$/);
+  // Dialogue: ACTOR: "Text", ACTOR (thinking): "Text",
+  // ACTOR (Expression): "Text", or ACTOR (Pose/Expression): "Text"
+  const parseActingTag = (tag: string | undefined): { style: 'speech' | 'thought'; pose?: string; expression?: string } => {
+    if (!tag) return { style: 'speech' };
+    const t = tag.trim();
+    if (t.toLowerCase() === 'thinking') return { style: 'thought' };
+    const parts = t.split('/').map(p => p.trim()).filter(Boolean);
+    if (parts.length === 2) return { style: 'speech', pose: parts[0], expression: parts[1] };
+    return { style: 'speech', expression: parts[0] };
+  };
+
+  const dialogueMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\(([^)]+)\))?\s*:\s*"(.+)"$/);
   if (dialogueMatch) {
+    const tag = parseActingTag(dialogueMatch[2]);
     return {
       type: 'DIALOGUE',
       actorName: dialogueMatch[1].trim(),
       text: dialogueMatch[3],
-      style: dialogueMatch[2] === 'thinking' ? 'thought' : 'speech',
+      style: tag.style,
+      ...(tag.pose ? { pose: tag.pose } : {}),
+      ...(tag.expression ? { expression: tag.expression } : {}),
     };
   }
-  
+
   // Alternative dialogue without quotes
-  const dialogueAltMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\((thinking)\))?\s*:\s*(.+)$/);
+  const dialogueAltMatch = trimmed.match(/^([A-Z][A-Za-z0-9_\s]+?)(?:\s*\(([^)]+)\))?\s*:\s*(.+)$/);
   if (dialogueAltMatch) {
+    const tag = parseActingTag(dialogueAltMatch[2]);
     return {
       type: 'DIALOGUE',
       actorName: dialogueAltMatch[1].trim(),
       text: dialogueAltMatch[3],
-      style: dialogueAltMatch[2] === 'thinking' ? 'thought' : 'speech',
+      style: tag.style,
+      ...(tag.pose ? { pose: tag.pose } : {}),
+      ...(tag.expression ? { expression: tag.expression } : {}),
     };
   }
-  
+
   return { type: 'UNKNOWN', raw: trimmed };
 }
 
-// Parse [CHOICE] blocks separately
+// Parse a `(if cond)` gate on a choice option into IF-shaped parts.
+function parseOptionCondition(src: string): ChoiceOption['condition'] | undefined {
+  const parsed = parseLine(`[IF ${src}]`);
+  if (parsed && parsed.type === 'IF') {
+    const c = parsed as IfCommand;
+    return {
+      variable: c.variable,
+      operator: c.operator,
+      value: c.value,
+      ...(c.isExpression ? { isExpression: true } : {}),
+    };
+  }
+  return undefined;
+}
+
+// Parse [CHOICE] blocks separately.
+// Header:  [CHOICE]  |  [CHOICE 10s -> fallback_scene]
+// Option:  - "text" [(if cond)] -> target [ [SET a = 1] [SET b = b + 1] ]
 function parseChoiceBlock(lines: string[], startIndex: number): { command: ChoiceCommand; endIndex: number } | null {
   const options: ChoiceOption[] = [];
+  const header = lines[startIndex].trim();
+  let timeout: ChoiceCommand['timeout'];
+  const timedMatch = header.match(/^\[CHOICE\s+([\d.]+\s*m?s)\s*->\s*(\w+)\]$/i);
+  if (timedMatch) {
+    timeout = { seconds: parseDuration(timedMatch[1]), target: timedMatch[2] };
+  }
   let i = startIndex + 1;
-  
+
   while (i < lines.length) {
     const line = lines[i].trim();
-    
+
     if (line === '[/CHOICE]') {
       return {
-        command: { type: 'CHOICE', options },
+        command: { type: 'CHOICE', options, ...(timeout ? { timeout } : {}) },
         endIndex: i,
       };
     }
-    
-    // Parse choice option: - "Option text" -> target_scene
-    // Optionally followed by inline variable twiddles (a decision point):
-    //   - "Bribe him" -> office [SET boss_rep += 10] [SET cash -= 50]
-    const optionMatch = line.match(/^-\s*"([^"]+)"\s*->\s*(\w+)((?:\s*\[SET[^\]]*\])*)\s*$/i);
+
+    // - "Option text" (if cond) -> target_scene [SET x = 1] [SET y = 2]
+    const optionMatch = line.match(/^-\s*"([^"]+)"\s*(?:\(\s*if\s+([^)]+)\)\s*)?->\s*(\w+)\s*(.*)$/i);
     if (optionMatch) {
-      const sets: SetCommand[] = [];
-      const setChunks = optionMatch[3]?.match(/\[([^\]]*)\]/g) || [];
-      for (const chunk of setChunks) {
-        const cmd = parseSetContent(chunk.slice(1, -1));
-        if (cmd) sets.push(cmd);
+      const [, text, condSrc, target, tail] = optionMatch;
+      const effects: SetCommand[] = [];
+      if (tail && tail.trim()) {
+        for (const m of tail.matchAll(/\[[^\]]+\]/g)) {
+          const cmd = parseLine(m[0]);
+          if (cmd && cmd.type === 'SET') effects.push(cmd as SetCommand);
+        }
       }
       options.push({
-        text: optionMatch[1],
-        target: optionMatch[2],
-        ...(sets.length > 0 ? { sets } : {}),
+        text,
+        target,
+        ...(condSrc ? (() => {
+          const condition = parseOptionCondition(condSrc.trim());
+          return condition ? { condition } : {};
+        })() : {}),
+        ...(effects.length > 0 ? { effects } : {}),
       });
     }
-    
+
     i++;
   }
-  
+
   // Unclosed choice block
   return null;
 }
@@ -462,58 +1028,130 @@ function parseChoiceBlock(lines: string[], startIndex: number): { command: Choic
 export function parseScript(script: string): ScriptCommand[] {
   const lines = script.split('\n');
   const commands: ScriptCommand[] = [];
-  const ifStack: IfCommand[] = [];
-  
+  // Each open IF tracks where new commands currently land: its own
+  // body, an ELSEIF arm's body, or the ELSE body.
+  const ifStack: { cmd: IfCommand; target: ScriptCommand[] }[] = [];
+  const push = (c: ScriptCommand) => {
+    if (ifStack.length > 0) ifStack[ifStack.length - 1].target.push(c);
+    else commands.push(c);
+  };
+
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
-    
-    // Handle CHOICE blocks
-    if (line === '[CHOICE]') {
+
+    // Handle CHOICE blocks ([CHOICE] or timed [CHOICE 10s -> scene])
+    if (/^\[CHOICE(\s+[\d.]+\s*m?s\s*->\s*\w+)?\]$/i.test(line)) {
       const result = parseChoiceBlock(lines, i);
       if (result) {
-        if (ifStack.length > 0) {
-          ifStack[ifStack.length - 1].commands.push(result.command);
-        } else {
-          commands.push(result.command);
-        }
+        push(result.command);
         i = result.endIndex + 1;
         continue;
       }
     }
-    
-    const command = parseLine(line);
-    
-    if (command) {
-      // Handle IF/ENDIF structure
-      if (command.type === 'IF') {
-        ifStack.push(command as IfCommand);
-      } else if ((command as any).type === 'ENDIF') {
-        const ifCmd = ifStack.pop();
-        if (ifCmd) {
-          if (ifStack.length > 0) {
-            ifStack[ifStack.length - 1].commands.push(ifCmd);
-          } else {
-            commands.push(ifCmd);
-          }
+
+    // Handle RANDOM blocks: branches separated by top-level [OR],
+    // bodies parse recursively. Nesting-aware (a nested RANDOM's [OR]
+    // never splits the outer block). Unclosed [RANDOM] falls through
+    // to UNKNOWN.
+    if (/^\[RANDOM\]$/i.test(line)) {
+      let depth = 1;
+      let closeIndex = -1;
+      const orIndices: number[] = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        const l = lines[j].trim();
+        if (/^\[RANDOM\]$/i.test(l)) depth++;
+        else if (/^\[\/RANDOM\]$/i.test(l)) {
+          depth--;
+          if (depth === 0) { closeIndex = j; break; }
+        } else if (depth === 1 && /^\[OR\]$/i.test(l)) {
+          orIndices.push(j);
         }
-      } else if (ifStack.length > 0) {
-        // Add to current IF block
-        ifStack[ifStack.length - 1].commands.push(command);
-      } else {
-        commands.push(command);
+      }
+      if (closeIndex !== -1) {
+        const bounds = [i, ...orIndices, closeIndex];
+        const branches: ScriptCommand[][] = [];
+        for (let b = 0; b < bounds.length - 1; b++) {
+          branches.push(parseScript(lines.slice(bounds[b] + 1, bounds[b + 1]).join('\n')));
+        }
+        push({ type: 'RANDOM', branches } as ScriptCommand);
+        i = closeIndex + 1;
+        continue;
       }
     }
-    
+
+    // Handle TICK blocks: body parses recursively (so IF nesting works
+    // inside a tick). An unclosed [TICK ...] falls through to UNKNOWN.
+    const tickOpen = line.match(/^\[TICK\s+(.+)\]$/i);
+    if (tickOpen) {
+      let closeIndex = -1;
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^\[\/TICK\]$/i.test(lines[j].trim())) { closeIndex = j; break; }
+      }
+      if (closeIndex !== -1) {
+        const body = lines.slice(i + 1, closeIndex).join('\n');
+        const tickCmd: TickCommand = {
+          type: 'TICK',
+          interval: parseDuration(tickOpen[1]),
+          commands: parseScript(body),
+        };
+        push(tickCmd);
+        i = closeIndex + 1;
+        continue;
+      }
+    }
+
+    const command = parseLine(line);
+
+    if (command) {
+      // Handle IF/ELSEIF/ELSE/ENDIF structure
+      if (command.type === 'IF') {
+        const ifCmd = command as IfCommand;
+        ifStack.push({ cmd: ifCmd, target: ifCmd.commands });
+      } else if ((command as { type: string }).type === 'ELSEIF') {
+        const top = ifStack[ifStack.length - 1];
+        if (top) {
+          const marker = command as unknown as IfBranch & { type: string };
+          const branch: IfBranch = {
+            variable: marker.variable,
+            operator: marker.operator,
+            value: marker.value,
+            ...(marker.isExpression ? { isExpression: true } : {}),
+            commands: [],
+          };
+          top.cmd.elifs = [...(top.cmd.elifs ?? []), branch];
+          top.target = branch.commands;
+        }
+        // ELSEIF outside any IF: dropped (fail-soft, like unclosed IF)
+      } else if ((command as { type: string }).type === 'ELSE') {
+        const top = ifStack[ifStack.length - 1];
+        if (top) {
+          top.cmd.elseCommands = top.cmd.elseCommands ?? [];
+          top.target = top.cmd.elseCommands;
+        }
+      } else if ((command as { type: string }).type === 'ENDIF') {
+        const closed = ifStack.pop();
+        if (closed) {
+          if (ifStack.length > 0) {
+            ifStack[ifStack.length - 1].target.push(closed.cmd);
+          } else {
+            commands.push(closed.cmd);
+          }
+        }
+      } else {
+        push(command);
+      }
+    }
+
     i++;
   }
-  
+
   // Close any unclosed IF blocks
   while (ifStack.length > 0) {
-    const ifCmd = ifStack.pop();
-    if (ifCmd) commands.push(ifCmd);
+    const closed = ifStack.pop();
+    if (closed) commands.push(closed.cmd);
   }
-  
+
   return commands;
 }
 
@@ -526,17 +1164,15 @@ export function findActorByName(name: string, actors: { id: string; name: string
 
 // ============ SERIALIZATION FUNCTIONS ============
 
-function serializeSet(cmd: SetCommand): string {
-  const valStr = typeof cmd.value === 'string' ? `"${cmd.value}"` : String(cmd.value);
-  return `[SET ${cmd.variable} ${cmd.op || '='} ${valStr}]`;
-}
-
 // Serialize a single command back to script text
 export function commandToString(cmd: ScriptCommand): string {
   switch (cmd.type) {
     case 'DIALOGUE': {
-      const style = cmd.style === 'thought' ? ' (thinking)' : '';
-      return `${cmd.actorName}${style}: "${cmd.text}"`;
+      let tag = '';
+      if (cmd.style === 'thought') tag = ' (thinking)';
+      else if (cmd.pose && cmd.expression) tag = ` (${cmd.pose}/${cmd.expression})`;
+      else if (cmd.expression) tag = ` (${cmd.expression})`;
+      return `${cmd.actorName}${tag}: "${cmd.text}"`;
     }
     case 'ENTER':
       return `[ENTER ${cmd.actorId} at ${cmd.x},${cmd.y}]`;
@@ -544,7 +1180,8 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[EXIT ${cmd.actorId}]`;
     case 'MOVE': {
       const dur = cmd.duration !== 0.5 ? ` over ${cmd.duration}s` : '';
-      return `[MOVE ${cmd.actorId} to ${cmd.x},${cmd.y}${dur}]`;
+      const dest = cmd.targetId ?? `${cmd.x},${cmd.y}`;
+      return `[MOVE ${cmd.actorId} to ${dest}${dur}]`;
     }
     case 'POSE': {
       const parts: string[] = [];
@@ -578,22 +1215,126 @@ export function commandToString(cmd: ScriptCommand): string {
       return `[BUTTON ${cmd.buttonId}]`;
     case 'HIDE_BUTTON':
       return `[HIDE_BUTTON ${cmd.buttonId}]`;
-    case 'SET':
-      return serializeSet(cmd);
-    case 'IF': {
+    case 'SET': {
       let valStr: string;
-      if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
+      if (cmd.isExpression) valStr = String(cmd.value); // raw expression source, unquoted
+      else if (typeof cmd.value === 'string') valStr = `"${cmd.value}"`;
       else valStr = String(cmd.value);
-      const inner = cmd.commands.map(c => commandToString(c)).join('\n');
-      return `[IF ${cmd.variable} ${cmd.operator} ${valStr}]\n${inner}\n[ENDIF]`;
+      return `[SET ${cmd.variable} ${cmd.op || '='} ${valStr}]`;
+    }
+    case 'IF': {
+      const condStr = (c: { variable: string; operator: string; value: string | number | boolean; isExpression?: boolean }) => {
+        let valStr: string;
+        if (c.isExpression) valStr = String(c.value); // raw expression source, unquoted
+        else if (typeof c.value === 'string') valStr = `"${c.value}"`;
+        else valStr = String(c.value);
+        return `${c.variable} ${c.operator} ${valStr}`;
+      };
+      const parts = [`[IF ${condStr(cmd)}]`, ...cmd.commands.map(c => commandToString(c))];
+      for (const e of cmd.elifs ?? []) {
+        parts.push(`[ELSEIF ${condStr(e)}]`, ...e.commands.map(c => commandToString(c)));
+      }
+      if (cmd.elseCommands) {
+        parts.push('[ELSE]', ...cmd.elseCommands.map(c => commandToString(c)));
+      }
+      parts.push('[ENDIF]');
+      return parts.join('\n');
     }
     case 'CHOICE': {
       const opts = cmd.options.map(o => {
-        const sets = (o.sets || []).map(s => ` ${serializeSet(s)}`).join('');
-        return `- "${o.text}" -> ${o.target}${sets}`;
+        let line = `- "${o.text}"`;
+        if (o.condition) {
+          const c = o.condition;
+          let valStr: string;
+          if (c.isExpression) valStr = String(c.value);
+          else if (typeof c.value === 'string') valStr = `"${c.value}"`;
+          else valStr = String(c.value);
+          line += ` (if ${c.variable} ${c.operator} ${valStr})`;
+        }
+        line += ` -> ${o.target}`;
+        if (o.effects?.length) {
+          line += ' ' + o.effects.map(e => commandToString(e)).join(' ');
+        }
+        return line;
       }).join('\n');
-      return `[CHOICE]\n${opts}\n[/CHOICE]`;
+      const head = cmd.timeout
+        ? `[CHOICE ${cmd.timeout.seconds < 1 ? `${Math.round(cmd.timeout.seconds * 1000)}ms` : `${cmd.timeout.seconds}s`} -> ${cmd.timeout.target}]`
+        : '[CHOICE]';
+      return `${head}\n${opts}\n[/CHOICE]`;
     }
+    case 'TWEEN': {
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      return `[TWEEN ${cmd.elementId}.${cmd.property} to ${cmd.value} over ${dur}]`;
+    }
+    case 'BACKDROP': {
+      if (!cmd.duration) return `[BACKDROP ${cmd.dropId}]`;
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      return `[BACKDROP ${cmd.dropId} over ${dur}]`;
+    }
+    case 'FRAME':
+      return `[FRAME ${cmd.mood}]`;
+    case 'ANIMATE': {
+      const every = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;
+      const rep = cmd.repeat !== undefined ? ` repeat ${cmd.repeat}` : '';
+      return `[ANIMATE ${cmd.elementId} ${cmd.poses.join(' ')} every ${every}${rep}]`;
+    }
+    case 'STOP_ANIMATE':
+      return `[STOP_ANIMATE ${cmd.elementId}]`;
+    case 'FACE':
+      return cmd.degrees !== undefined
+        ? `[FACE ${cmd.elementId} ${cmd.degrees}]`
+        : `[FACE ${cmd.elementId} toward ${cmd.targetId}]`;
+    case 'CAMERA': {
+      const dur = cmd.duration < 1 ? `${Math.round(cmd.duration * 1000)}ms` : `${cmd.duration}s`;
+      let body: string;
+      if (cmd.follow) body = `follow ${cmd.follow}`;
+      else if (cmd.shot === 'reset') body = 'reset';
+      else if (cmd.shot) body = `shot ${cmd.shot}${cmd.targetId ? ` on ${cmd.targetId}` : ''}`;
+      else body = `zoom ${cmd.zoom}${cmd.x !== undefined ? ` at ${cmd.x},${cmd.y}` : ''}`;
+      return `[CAMERA ${body} over ${dur}]`;
+    }
+    case 'LABEL':
+      return `[LABEL ${cmd.name}]`;
+    case 'GOTO':
+      return `[GOTO ${cmd.name}]`;
+    case 'RANDOM': {
+      const body = cmd.branches
+        .map(branch => branch.map(c => commandToString(c)).join('\n'))
+        .join('\n[OR]\n');
+      return `[RANDOM]\n${body}\n[/RANDOM]`;
+    }
+    case 'TICK': {
+      const dur = cmd.interval < 1 ? `${Math.round(cmd.interval * 1000)}ms` : `${cmd.interval}s`;
+      const inner = cmd.commands.map(c => commandToString(c)).join('\n');
+      return `[TICK ${dur}]\n${inner}\n[/TICK]`;
+    }
+    case 'BIND':
+      return `[BIND ${cmd.elementId}.${cmd.property} to ${cmd.expression}]`;
+    case 'UNBIND':
+      return `[UNBIND ${cmd.elementId}.${cmd.property}]`;
+    case 'SLIDER': {
+      const step = cmd.step !== 1 ? ` step=${cmd.step}` : '';
+      const label = cmd.label !== undefined ? ` label="${cmd.label}"` : '';
+      return `[SLIDER ${cmd.variable} at ${cmd.x},${cmd.y} min=${cmd.min} max=${cmd.max}${step}${label}]`;
+    }
+    case 'GAUGE': {
+      const label = cmd.label !== undefined ? ` label="${cmd.label}"` : '';
+      return `[GAUGE ${cmd.variable} at ${cmd.x},${cmd.y} min=${cmd.min} max=${cmd.max}${label}]`;
+    }
+    case 'HIDE_SLIDER':
+      return `[HIDE_SLIDER ${cmd.variable}]`;
+    case 'HIDE_GAUGE':
+      return `[HIDE_GAUGE ${cmd.variable}]`;
+    case 'NARRATON':
+      return `[NARRATON pool=${cmd.pool}]`;
+    case 'NARRATE':
+      return cmd.seconds !== undefined
+        ? `[NARRATE "${cmd.text}" for ${cmd.seconds}s]`
+        : `[NARRATE "${cmd.text}"]`;
+    case 'SET_TEXT':
+      return `[SET_TEXT ${cmd.elementId} "${cmd.text}"]`;
+    case 'AUTOPLAY':
+      return `[AUTOPLAY ${cmd.enabled ? 'on' : 'off'}]`;
     case 'COMMENT':
       return `# ${cmd.text}`;
     case 'UNKNOWN':
@@ -651,6 +1392,26 @@ export function createDefaultCommand(type: ScriptCommandType, game?: { actors?: 
       return { type: 'IF', variable: 'myVar', operator: '==', value: true, commands: [] };
     case 'CHOICE':
       return { type: 'CHOICE', options: [{ text: 'Option 1', target: firstSceneId }] };
+    case 'TICK':
+      return { type: 'TICK', interval: 1, commands: [] };
+    case 'BIND':
+      return { type: 'BIND', elementId: 'element', property: 'rotation', expression: 'myVar' };
+    case 'UNBIND':
+      return { type: 'UNBIND', elementId: 'element', property: 'rotation' };
+    case 'SLIDER':
+      return { type: 'SLIDER', variable: 'myVar', x: 85, y: 20, min: 0, max: 100, step: 1 };
+    case 'GAUGE':
+      return { type: 'GAUGE', variable: 'myVar', x: 15, y: 20, min: 0, max: 100 };
+    case 'HIDE_SLIDER':
+      return { type: 'HIDE_SLIDER', variable: 'myVar' };
+    case 'HIDE_GAUGE':
+      return { type: 'HIDE_GAUGE', variable: 'myVar' };
+    case 'NARRATON':
+      return { type: 'NARRATON', pool: 'main' };
+    case 'SET_TEXT':
+      return { type: 'SET_TEXT', elementId: 'element', text: 'Text' };
+    case 'AUTOPLAY':
+      return { type: 'AUTOPLAY', enabled: true };
     case 'COMMENT':
       return { type: 'COMMENT', text: 'Comment' };
     case 'ENDIF':
@@ -784,24 +1545,13 @@ export function getAutoCompleteSuggestions(
   
   switch (context.type) {
     case 'command': {
-      const commands: AutoCompleteSuggestion[] = [
-        { label: 'ENTER', insertText: 'ENTER ', category: 'command', description: 'Make actor appear' },
-        { label: 'EXIT', insertText: 'EXIT ', category: 'command', description: 'Remove actor' },
-        { label: 'MOVE', insertText: 'MOVE ', category: 'command', description: 'Animate actor movement' },
-        { label: 'POSE', insertText: 'POSE ', category: 'command', description: 'Change pose/expression' },
-        { label: 'BGM:', insertText: 'BGM: ""', category: 'command', description: 'Play background music' },
-        { label: 'AMBIENCE:', insertText: 'AMBIENCE: ""', category: 'command', description: 'Play ambient sound' },
-        { label: 'SFX:', insertText: 'SFX: ""', category: 'command', description: 'Play sound effect' },
-        { label: 'EFFECT', insertText: 'EFFECT ', category: 'command', description: 'Apply visual effect' },
-        { label: 'CLEAR_EFFECT', insertText: 'CLEAR_EFFECT ', category: 'command', description: 'Remove effect' },
-        { label: 'WAIT', insertText: 'WAIT 1s]', category: 'command', description: 'Pause execution' },
-        { label: 'SCENE', insertText: 'SCENE ', category: 'command', description: 'Go to scene' },
-        { label: 'BUTTON', insertText: 'BUTTON ', category: 'command', description: 'Show button' },
-        { label: 'HIDE_BUTTON', insertText: 'HIDE_BUTTON ', category: 'command', description: 'Hide button' },
-        { label: 'SET', insertText: 'SET ', category: 'command', description: 'Set variable' },
-        { label: 'IF', insertText: 'IF ', category: 'command', description: 'Conditional block' },
-        { label: 'CHOICE', insertText: 'CHOICE]\n- "Option" -> scene\n[/CHOICE', category: 'command', description: 'Present choices' },
-      ];
+      // Palette lives in scriptDocs.ts (single source of truth)
+      const commands: AutoCompleteSuggestion[] = COMMAND_AUTOCOMPLETE.map(entry => ({
+        label: entry.label,
+        insertText: entry.insertText,
+        category: 'command' as const,
+        description: entry.description,
+      }));
       return commands.filter(c => c.label.toLowerCase().startsWith(prefix));
     }
     

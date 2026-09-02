@@ -1,192 +1,202 @@
-import { describe, it, expect } from 'vitest';
-import { Scene } from '../types';
-import {
-  toNumeric,
-  scoreKey,
-  rankScenes,
-  pickNextScene,
-  narratonRank,
-  narratonDirect,
-  DEFAULT_MAX_MISS,
-} from '../utils/narraton';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
+import { parseScript, commandToString, NarratonCommand } from '@/utils/scriptParser';
+import { useScriptRunner } from '@/hooks/useScriptRunner';
+import { createDefaultGame, GameData, Scene, NarratonMeta } from '@/types';
 
-const scene = (id: string, key?: Record<string, number>, extra: Partial<Scene> = {}): Scene => ({
-  id,
-  name: id,
-  key,
-  ...extra,
+const scene = (id: string, narraton?: NarratonMeta): Scene => ({ id, name: id, narraton });
+
+beforeEach(() => {
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(console, 'group').mockImplementation(() => {});
+  vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+});
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
-describe('toNumeric', () => {
-  it('passes numbers through', () => {
-    expect(toNumeric(42)).toBe(42);
-  });
-
-  it('coerces numeric strings (SettingsEditor stores raw strings)', () => {
-    expect(toNumeric('30')).toBe(30);
-    expect(toNumeric(' 15 ')).toBe(15);
-  });
-
-  it('maps booleans to the 0-100 scale', () => {
-    expect(toNumeric(true)).toBe(100);
-    expect(toNumeric(false)).toBe(0);
-  });
-
-  it('returns null for missing or non-numeric values', () => {
-    expect(toNumeric(undefined)).toBeNull();
-    expect(toNumeric('gold ring')).toBeNull();
-    expect(toNumeric('')).toBeNull();
-  });
-});
-
-describe('scoreKey', () => {
-  it('computes sum of squared differences', () => {
-    const result = scoreKey(
-      { Lola_happiness: 15, Boss_rep: 30 },
-      { Lola_happiness: 20, Boss_rep: 25 },
-    );
-    // (20-15)^2 + (25-30)^2 = 25 + 25
-    expect(result.score).toBe(50);
-    expect(result.excluded).toBe(false);
-    expect(result.missingVars).toEqual([]);
-  });
-
-  it('excludes on a single big miss (KoC: big misses exclude themselves)', () => {
-    const result = scoreKey({ Boss_rep: 90 }, { Boss_rep: 10 });
-    expect(result.excluded).toBe(true);
-    expect(Math.abs(result.distances[0].diff)).toBeGreaterThan(DEFAULT_MAX_MISS);
-  });
-
-  it('honors a custom maxMissPerVariable', () => {
-    const tight = scoreKey({ a: 30 }, { a: 45 }, { maxMissPerVariable: 10 });
-    expect(tight.excluded).toBe(true);
-    const loose = scoreKey({ a: 30 }, { a: 45 }, { maxMissPerVariable: 20 });
-    expect(loose.excluded).toBe(false);
-  });
-
-  it('excludes on a non-numeric key target instead of scoring NaN', () => {
-    const result = scoreKey({ bad: 'high' as unknown as number }, { bad: 50 });
-    expect(result.excluded).toBe(true);
-    expect(result.missingVars).toContain('bad');
-    expect(Number.isFinite(result.score)).toBe(true);
-  });
-
-  it('treats missing variables as 0 and reports them', () => {
-    const result = scoreKey({ gang_morale: 40 }, {});
-    expect(result.missingVars).toEqual(['gang_morale']);
-    expect(result.score).toBe(1600);
-    expect(result.excluded).toBe(false); // 40 <= DEFAULT_MAX_MISS
-  });
-});
-
-describe('rankScenes', () => {
-  const world = { Lola_happiness: 20, Boss_rep: 40 };
-  const scenes: Scene[] = [
-    scene('far', { Lola_happiness: 60 }),             // diff 40 -> score 1600
-    scene('near', { Lola_happiness: 25, Boss_rep: 45 }), // 25 + 25 = 50
-    scene('unkeyed'),                                  // not a candidate
-    scene('emptykey', {}),                             // not a candidate
-    scene('impossible', { Boss_rep: 100 }),            // diff 60 -> excluded
-  ];
-
-  it('omits scenes without a key and sorts eligible by ascending score', () => {
-    const ranked = rankScenes(scenes, world);
-    expect(ranked.map((m) => m.scene.id)).toEqual(['near', 'far', 'impossible']);
-  });
-
-  it('flags excluded scenes but keeps them at the tail for display', () => {
-    const ranked = rankScenes(scenes, world);
-    const last = ranked[ranked.length - 1];
-    expect(last.scene.id).toBe('impossible');
-    expect(last.excluded).toBe(true);
-    expect(ranked.filter((m) => !m.excluded)).toHaveLength(2);
-  });
-
-  it('ignores in-scene variables entirely', () => {
-    const withLocals = [
-      scene('a', { mood: 50 }, { localVars: { secret: 999 } }),
+describe('narraton selector', () => {
+  it('picks the least-squares closest scene', () => {
+    const scenes = [
+      scene('low', { pool: 'main', keys: { wages: 20 } }),
+      scene('high', { pool: 'main', keys: { wages: 80 } }),
     ];
-    const ranked = rankScenes(withLocals, { mood: 50, secret: 0 });
-    expect(ranked[0].score).toBe(0);
+    const { winner } = selectNarratonScene('main', scenes, { wages: 30 }, createNarratonHistory());
+    expect(winner?.id).toBe('low');
+
+    const { winner: w2 } = selectNarratonScene('main', scenes, { wages: 70 }, createNarratonHistory());
+    expect(w2?.id).toBe('high');
+  });
+
+  it('only considers scenes in the pool', () => {
+    const scenes = [
+      scene('a', { pool: 'other', keys: { wages: 30 } }),
+      scene('b', { pool: 'main', keys: { wages: 99 } }),
+      scene('c'), // no narraton metadata at all
+    ];
+    const { winner, candidates } = selectNarratonScene('main', scenes, { wages: 30 }, createNarratonHistory());
+    expect(winner?.id).toBe('b');
+    expect(candidates).toHaveLength(1);
+  });
+
+  it('normalizes keys by scale so large-range variables do not dominate', () => {
+    const scenes = [
+      // hoard is far off in absolute terms but scaled by 10000
+      scene('scaled', { pool: 'main', keys: { wages: { target: 30, scale: 100 }, hoard: { target: 50000, scale: 10000 } } }),
+      // wages close but hoard key unscaled would dwarf everything
+      scene('unscaled_far', { pool: 'main', keys: { wages: { target: 90, scale: 100 } } }),
+    ];
+    const vars = { wages: 30, hoard: 45000 };
+    const { winner, candidates } = selectNarratonScene('main', scenes, vars, createNarratonHistory());
+    // scaled: (0)² + (5000/10000)² = 0.25 ; unscaled_far: (60/100)² = 0.36
+    expect(winner?.id).toBe('scaled');
+    expect(candidates.find(c => c.scene.id === 'scaled')?.score).toBeCloseTo(0.25);
+  });
+
+  it('enforces hard requires gates', () => {
+    const scenes = [
+      scene('gated', { pool: 'main', keys: { wages: 30 }, requires: [{ variable: 'era', operator: '==', value: 2 }] }),
+      scene('open', { pool: 'main', keys: { wages: 90 } }),
+    ];
+    const { winner } = selectNarratonScene('main', scenes, { wages: 30, era: 1 }, createNarratonHistory());
+    expect(winner?.id).toBe('open'); // gated excluded despite better score
+
+    const { winner: w2 } = selectNarratonScene('main', scenes, { wages: 30, era: 2 }, createNarratonHistory());
+    expect(w2?.id).toBe('gated');
+  });
+
+  it('excludes played non-repeatable scenes and keeps repeatable ones', () => {
+    const scenes = [
+      scene('once', { pool: 'main', keys: { wages: 30 } }),
+      scene('loop', { pool: 'main', keys: { wages: 30 }, repeatable: true }),
+    ];
+    const history = createNarratonHistory();
+    history.played.add('once');
+    history.played.add('loop');
+    const { winner } = selectNarratonScene('main', scenes, { wages: 30 }, history);
+    expect(winner?.id).toBe('loop');
+  });
+
+  it('rotates subplots: only the first unplayed subplot scene is eligible', () => {
+    const scenes = [
+      scene('r1', { pool: 'main', subplot: 'resistance', keys: { wages: 90 } }),
+      scene('r2', { pool: 'main', subplot: 'resistance', keys: { wages: 30 } }),
+    ];
+    // r2 matches better, but r1 is the subplot's next in rotation
+    const history = createNarratonHistory();
+    const { winner } = selectNarratonScene('main', scenes, { wages: 30 }, history);
+    expect(winner?.id).toBe('r1');
+
+    history.played.add('r1');
+    const { winner: w2 } = selectNarratonScene('main', scenes, { wages: 30 }, history);
+    expect(w2?.id).toBe('r2');
+  });
+
+  it('weight divides the score (bias toward heavier scenes)', () => {
+    const scenes = [
+      scene('plain', { pool: 'main', keys: { wages: 40 } }),
+      scene('heavy', { pool: 'main', keys: { wages: 60 }, weight: 10 }),
+    ];
+    // wages=50: plain score (10/100)²=0.01; heavy (10/100)²/10=0.001
+    const { winner } = selectNarratonScene('main', scenes, { wages: 50 }, createNarratonHistory());
+    expect(winner?.id).toBe('heavy');
+  });
+
+  it('returns null on an empty or fully-excluded pool', () => {
+    expect(selectNarratonScene('main', [scene('x')], {}, createNarratonHistory()).winner).toBeNull();
+    const history = createNarratonHistory();
+    history.played.add('only');
+    const scenes = [scene('only', { pool: 'main' })];
+    expect(selectNarratonScene('main', scenes, {}, history).winner).toBeNull();
   });
 });
 
-describe('narratonRank / narratonDirect (the director)', () => {
-  // Two subplots, both keyed at the same distance so structure decides.
-  const world = { tension: 50 };
-  const board: Scene[] = [
-    scene('pinky_open', { tension: 50 }, { subplotId: 'pinky', phase: 'BEGINNING' }),
-    scene('pinky_mid', { tension: 50 }, { subplotId: 'pinky', phase: 'MIDDLE' }),
-    scene('pinky_end', { tension: 50 }, { subplotId: 'pinky', phase: 'END' }),
-    scene('tony_open', { tension: 50 }, { subplotId: 'tony', phase: 'BEGINNING' }),
-    scene('freefloat', { tension: 55 }), // unphased, no subplot
-  ];
-
-  it('never repeats a played scene', () => {
-    const ranked = narratonRank(board, world, { playedSceneIds: ['pinky_open'] });
-    const entry = ranked.find(m => m.scene.id === 'pinky_open');
-    expect(entry?.ineligible).toBe('played');
+describe('NARRATON command', () => {
+  it('parses with and without a pool', () => {
+    expect(parseScript('[NARRATON pool=era2]')[0]).toEqual({ type: 'NARRATON', pool: 'era2' });
+    expect(parseScript('[NARRATON]')[0]).toEqual({ type: 'NARRATON', pool: 'main' });
   });
 
-  it('gates phases: MIDDLE waits for its subplot BEGINNING, END for MIDDLE', () => {
-    const fresh = narratonRank(board, world, { playedSceneIds: [] });
-    expect(fresh.find(m => m.scene.id === 'pinky_mid')?.ineligible).toBe('wrong-phase');
-    expect(fresh.find(m => m.scene.id === 'pinky_end')?.ineligible).toBe('wrong-phase');
-    expect(fresh.find(m => m.scene.id === 'pinky_open')?.ineligible).toBeUndefined();
-
-    const after = narratonRank(board, world, { playedSceneIds: ['pinky_open'] });
-    expect(after.find(m => m.scene.id === 'pinky_mid')?.ineligible).toBeUndefined();
-    expect(after.find(m => m.scene.id === 'pinky_end')?.ineligible).toBe('wrong-phase');
+  it('round-trips through the serializer', () => {
+    const cmd = parseScript('[NARRATON pool=era2]')[0] as NarratonCommand;
+    expect(commandToString(cmd)).toBe('[NARRATON pool=era2]');
   });
 
-  it('unphased scenes are always phase-eligible', () => {
-    const ranked = narratonRank(board, world, { playedSceneIds: [] });
-    expect(ranked.find(m => m.scene.id === 'freefloat')?.ineligible).toBeUndefined();
-  });
-
-  it('rotation: the last subplot pays a score penalty, so owners braid', () => {
-    // pinky_open played (subplot pinky); pinky_mid and tony_open both score 0.
-    const pick = narratonDirect(board, world, {
-      playedSceneIds: ['pinky_open'],
-      lastSubplotId: 'pinky',
+  it('transitions to the selected scene and records history', () => {
+    const game: GameData = createDefaultGame();
+    game.info.worldState = { wages: 25 };
+    game.scenes.push({ id: 'hub', name: 'Hub', script: '[NARRATON pool=main]' });
+    game.scenes.push({
+      id: 'poverty', name: 'Poverty', script: '[SET seen = true]\n[NARRATON pool=main]',
+      narraton: { pool: 'main', keys: { wages: 20 } },
     });
-    expect(pick?.scene.id).toBe('tony_open');
-    // With rotation disabled, same-subplot pinky_mid can tie-lead again.
-    const noRotation = narratonDirect(board, world, {
-      playedSceneIds: ['pinky_open'],
-      lastSubplotId: 'pinky',
-    }, { rotationPenalty: 0 });
-    expect(['pinky_mid', 'tony_open']).toContain(noRotation?.scene.id);
-  });
-
-  it('big-miss exclusion carries through as a reason', () => {
-    const ranked = narratonRank([scene('far', { tension: 100 })], { tension: 0 }, { playedSceneIds: [] });
-    expect(ranked[0].ineligible).toBe('big-miss');
-  });
-
-  it('returns null when the board is exhausted', () => {
-    const pick = narratonDirect(board, world, {
-      playedSceneIds: ['pinky_open', 'pinky_mid', 'pinky_end', 'tony_open', 'freefloat'],
+    game.scenes.push({
+      id: 'plenty', name: 'Plenty', script: '',
+      narraton: { pool: 'main', keys: { wages: 90 } },
     });
-    expect(pick).toBeNull();
+
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 'hub' }));
+
+    // hub → poverty (wages 25 ≈ 20), whose script NARRATONs again;
+    // poverty is now played/non-repeatable, so → plenty
+    expect(result.current.state.worldState.seen).toBe(true);
+    expect(result.current.state.currentSceneId).toBe('plenty');
+  });
+
+  it('continues the script when the pool is empty (fail soft)', () => {
+    const game: GameData = createDefaultGame();
+    game.scenes.push({ id: 'hub', name: 'Hub', script: '[NARRATON pool=empty]\n[SET after = true]' });
+
+    const { result } = renderHook(() => useScriptRunner({ game, startSceneId: 'hub' }));
+
+    expect(result.current.state.currentSceneId).toBe('hub');
+    expect(result.current.state.worldState.after).toBe(true);
   });
 });
 
-describe('pickNextScene', () => {
-  it('returns the best eligible match', () => {
-    const pick = pickNextScene(
-      [scene('a', { x: 10 }), scene('b', { x: 30 })],
-      { x: 28 },
-    );
-    expect(pick?.scene.id).toBe('b');
+describe('act gate', () => {
+  const mk = (id: string, act?: 'BEGINNING' | 'MIDDLE' | 'END'): Scene => ({
+    id, name: id, script: '',
+    narraton: { pool: 'p', ...(act ? { act } : {}) },
   });
 
-  it('returns null when every candidate excludes itself', () => {
-    const pick = pickNextScene([scene('a', { x: 100 })], { x: 0 });
-    expect(pick).toBeNull();
+  it('keeps only scenes of the current act', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('mid', 'MIDDLE'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 2 }, createNarratonHistory());
+    expect(sel.winner?.id).toBe('mid');
   });
 
-  it('returns null when there are no keyed scenes', () => {
-    expect(pickNextScene([scene('a')], { x: 0 })).toBeNull();
+  it('accepts act names as well as numbers', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    expect(selectNarratonScene('p', scenes, { act: 'end' }, createNarratonHistory()).winner?.id).toBe('close');
+  });
+
+  it('untagged scenes play in any act', () => {
+    const scenes = [mk('any'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 1 }, createNarratonHistory());
+    expect(sel.winner?.id).toBe('any');
+  });
+
+  it('with no act variable, nothing is gated (existing games unaffected)', () => {
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, {}, createNarratonHistory());
+    expect(sel.winner).not.toBeNull();
+    expect(sel.candidates.every(c => c.eligible)).toBe(true);
+  });
+
+  it('drops the gate rather than dead-ending when no scene fits', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scenes = [mk('open', 'BEGINNING'), mk('close', 'END')];
+    const sel = selectNarratonScene('p', scenes, { act: 2 }, createNarratonHistory());
+    expect(sel.winner).not.toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('an unrecognized act value is ignored', () => {
+    const scenes = [mk('open', 'BEGINNING')];
+    expect(selectNarratonScene('p', scenes, { act: 'act four' }, createNarratonHistory()).winner?.id).toBe('open');
   });
 });

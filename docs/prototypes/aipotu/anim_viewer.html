@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ANIMATION VIEWER — the glTF clip-audit bench, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160) + GLTFLoader.
+
+     The armature pipeline's first tool: DRAG ANY .glb/.gltf ONTO THE
+     PAGE. A file with a mesh becomes the current MODEL (turntable,
+     skeleton toggle); its clips list as buttons. A file with ONLY
+     animations (a Mixamo "without skin" export, a Quaternius clip
+     pack) adds its clips to the CURRENT model — bone names do the
+     retargeting, exactly the standard-skeleton bet. Play, scrub the
+     speed, inspect bone names. Multiple drops accumulate clips.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animation Viewer</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#262c32; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(14,18,22,0.85); color:#e8f0f4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:320px; max-height:82vh; overflow:auto; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:3px 3px 0 0; padding:3px 9px; border:0; border-radius:6px;
+    background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button.on { background:#e8963c; color:#241d06; font-weight:700; }
+  #chip label { font-size:12px; opacity:0.9; display:block; margin-top:4px; }
+  #chip .lbl { opacity:0.65; font-size:11px; margin-top:8px; }
+  #chip input[type=range] { width:100%; }
+  #drop { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#7c98ac; font:700 22px system-ui; pointer-events:none; opacity:0.9;
+    text-align:center; }
+  #drop.hidden { display:none; }
+  #bones { font:11px Consolas,monospace; white-space:pre; opacity:0.8; max-height:180px;
+    overflow:auto; background:rgba(0,0,0,0.25); padding:6px; border-radius:6px; margin-top:4px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎞 Animation Viewer</b> — glTF clip audit, v1<br>
+  <span class="hint">drop a .glb/.gltf anywhere · a mesh file becomes the model · an animations-only file adds its clips to it (retarget by bone name)</span>
+  <div class="lbl">clips</div><div id="clips">(none yet)</div>
+  <div class="lbl">speed</div><input id="speed" type="range" min="0" max="2" step="0.05" value="1">
+  <label><input id="skel" type="checkbox"> show skeleton</label>
+  <label><input id="turn" type="checkbox" checked> turntable</label>
+  <div class="lbl">bones of the current model</div>
+  <div id="bones">(no model)</div>
+</div>
+<div id="drop">DROP A .glb / .gltf<br>ANYWHERE</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x2a3038), 40, 200);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.05, 500);
+camera.position.set(2.2, 1.8, 4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 0.4;
+controls.maxDistance = 60;
+
+scene.add(new THREE.HemisphereLight(0x9ab4c8, 0x3a4048, 1.0));
+const key = new THREE.DirectionalLight(0xf4ece0, 2.2);
+key.position.set(6, 10, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+scene.add(key);
+{
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(120, 40),
+    new THREE.MeshLambertMaterial({ color:0x323a42 }));
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const grid = new THREE.GridHelper(20, 20, 0x4a5a68, 0x39434c);
+  grid.position.y = 0.01;
+  scene.add(grid);
+}
+
+// ---------- state ----------------------------------------------------------
+const loader = new GLTFLoader();
+const holder = new THREE.Group();          // the turntable
+scene.add(holder);
+let model = null, mixer = null, skelHelper = null, action = null;
+let clips = [];                            // { clip, source }
+const clipsEl = document.getElementById('clips');
+const bonesEl = document.getElementById('bones');
+const dropEl = document.getElementById('drop');
+
+function setModel(gltfScene, sourceName){
+  if(model){ holder.remove(model); model.traverse(o => o.geometry?.dispose?.()); }
+  if(skelHelper){ scene.remove(skelHelper); skelHelper = null; }
+  model = gltfScene;
+  model.traverse(o => { if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; o.frustumCulled = false; } });
+  // normalize scale: fit ~1.8 units tall (Mixamo exports are cm-scale)
+  const box = new THREE.Box3().setFromObject(model);
+  const h = box.max.y - box.min.y;
+  if(h > 0.001){
+    const s = 1.8 / h;
+    model.scale.setScalar(s);
+    box.setFromObject(model);
+    model.position.y -= box.min.y;
+  }
+  holder.add(model);
+  mixer = new THREE.AnimationMixer(model);
+  action = null;
+  clips = [];
+  // bone inventory
+  const names = [];
+  model.traverse(o => { if(o.isBone) names.push(o.name); });
+  bonesEl.textContent = names.length ? names.join('\n') : '(no bones — a static mesh)';
+  document.getElementById('skel').checked = false;
+  renderClipButtons();
+}
+function addClips(list, sourceName){
+  for(const c of list) clips.push({ clip: c, source: sourceName });
+  renderClipButtons();
+  if(clips.length && !action) playClip(0);
+}
+function renderClipButtons(){
+  clipsEl.innerHTML = clips.length ? '' : '(none yet)';
+  clips.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = `${c.clip.name || 'clip ' + i} · ${c.clip.duration.toFixed(1)}s`;
+    b.title = 'from ' + c.source;
+    b.dataset.i = i;
+    b.addEventListener('click', () => playClip(i));
+    clipsEl.appendChild(b);
+  });
+}
+function playClip(i){
+  if(!mixer || !clips[i]) return;
+  if(action) action.stop();
+  action = mixer.clipAction(clips[i].clip);
+  action.reset().play();
+  [...clipsEl.children].forEach(b => b.classList.toggle('on', +b.dataset.i === i));
+}
+
+// ---------- drag & drop ----------------------------------------------------
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  for(const file of e.dataTransfer.files){
+    const name = file.name;
+    file.arrayBuffer().then(buf => {
+      loader.parse(buf, './', gltf => {
+        const hasMesh = (() => { let m = false;
+          gltf.scene.traverse(o => { if(o.isMesh || o.isSkinnedMesh) m = true; });
+          return m; })();
+        if(hasMesh || !model){
+          setModel(gltf.scene, name);
+          addClips(gltf.animations || [], name);
+        } else {
+          // animations-only file: clips join the CURRENT model —
+          // matching bone names carry them (the standard-skeleton bet)
+          addClips(gltf.animations || [], name);
+        }
+        dropEl.classList.add('hidden');
+      }, err => {
+        bonesEl.textContent = 'LOAD ERROR (' + name + '): ' + (err?.message || err);
+      });
+    });
+  }
+});
+
+document.getElementById('skel').addEventListener('change', e => {
+  if(e.target.checked && model){
+    skelHelper = new THREE.SkeletonHelper(model);
+    scene.add(skelHelper);
+  } else if(skelHelper){
+    scene.remove(skelHelper);
+    skelHelper = null;
+  }
+});
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  if(mixer) mixer.update(dt * parseFloat(document.getElementById('speed').value));
+  if(document.getElementById('turn').checked) holder.rotation.y += dt * 0.35;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

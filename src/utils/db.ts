@@ -32,3 +32,42 @@ export const clearGameFromDB = async () => {
     return false;
   }
 };
+
+// ============ RECENT GAMES ============
+// The last few .dram files worked on, with their FileSystemFileHandles
+// (structured-cloneable, so IndexedDB can store them) for one-click
+// reopening from the splash screen.
+
+const RECENTS_KEY = 'dramaton_recent_games_v1';
+const MAX_RECENTS = 5;
+
+export interface RecentGame {
+  title: string;
+  fileName: string;
+  lastOpened: number;
+  handle?: FileSystemFileHandle;
+}
+
+export const getRecentGames = async (): Promise<RecentGame[]> => {
+  try {
+    return ((await get(RECENTS_KEY)) as RecentGame[]) || [];
+  } catch (error) {
+    console.error('Failed to load recent games', error);
+    return [];
+  }
+};
+
+export const addRecentGame = async (entry: Omit<RecentGame, 'lastOpened'>): Promise<RecentGame[]> => {
+  try {
+    const recents = await getRecentGames();
+    const next: RecentGame[] = [
+      { ...entry, lastOpened: Date.now() },
+      ...recents.filter(r => r.fileName !== entry.fileName),
+    ].slice(0, MAX_RECENTS);
+    await set(RECENTS_KEY, next);
+    return next;
+  } catch (error) {
+    console.error('Failed to save recent games', error);
+    return [];
+  }
+};

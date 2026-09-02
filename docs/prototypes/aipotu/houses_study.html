@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     HOUSES STUDY — taste, made visible. For George World's habitation
+     ladder and its satire. Filed 2026-08-31, Doug's pair:
+     · THE WRIGHT HOUSE — a prairie house in the Frank Lloyd Wright
+       manner, done with respect: long low horizontals, deep
+       cantilevered roof planes floating over ribbon windows, a
+       massive rough-stone hearth core anchoring everything, terraces
+       stepping down to a live CREEK that slides under the cantilever
+       (the Fallingwater nod), warm wood, quiet money. Everything
+       lines up with everything.
+     · THE McMANSION — every dollar visible and none of them wise:
+       five clashing gable heights, a foam turret, two-storey entry
+       columns holding up nothing, shutters that fit no window, a
+       THREE-CAR garage dominating the front, a gold-trimmed fountain
+       spitting away, lawn sprinklers, and the lawn flag. Nothing
+       lines up with anything.
+     Same lot size. Same budget, honestly. Pick a house.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Houses Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px);
+    max-width:320px; }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
+    border-radius:7px; background:#3f7040; color:#fff; font:12px system-ui;
+    cursor:pointer; min-width:230px; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🏠 Houses Study</b> — taste, made visible, v1<br>
+  <span class="hint">same lot, same money — the difference is judgment</span>
+  <select id="house">
+    <option value="wright">The Wright house — quiet money</option>
+    <option value="mcmansion">The McMansion — loud money</option>
+  </select>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 1935;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(9, 5, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.5, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 45;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 0.95));
+const sun = new THREE.DirectionalLight(0xffedc8, 2.2);
+sun.position.set(16, 20, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
+sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0x94a85c }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+
+// ==========================================================================
+//  THE WRIGHT HOUSE
+// ==========================================================================
+const WRIGHT = new THREE.Group();
+scene.add(WRIGHT);
+let creek, creekPos0, hearthSmoke = [];
+{
+  const stoneM = new THREE.MeshLambertMaterial({ color:0x8a7a64, flatShading:true });
+  const stuccoM = new THREE.MeshLambertMaterial({ color:0xe0d4b8 });
+  const woodM = new THREE.MeshLambertMaterial({ color:0x6a4a2e, flatShading:true });
+  const roofM = new THREE.MeshLambertMaterial({ color:0x4a4038, flatShading:true });
+  const glassM = new THREE.MeshStandardMaterial({ color:0x8ab0b8, roughness:0.15, metalness:0.2, transparent:true, opacity:0.55 });
+  // THE HEARTH CORE — rough stone, the anchor, tallest thing on the lot
+  const core = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4.4, 1.9), stoneM);
+  core.position.set(-0.5, 2.2, -0.5);
+  core.castShadow = true;
+  WRIGHT.add(core);
+  for(let i = 0; i < 14; i++){                 // stone coursing
+    const c = new THREE.Mesh(new THREE.BoxGeometry(rand(0.3, 0.7), rand(0.12, 0.22), 0.1),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0x8a7a64).offsetHSL(0, 0, rand(-0.06, 0.06)).getHex(), flatShading:true }));
+    c.position.set(-0.5 + rand(-0.6, 0.6), rand(0.3, 4.2), 0.46 + (i%2)*0.02 - 0.5 + 0.96);
+    WRIGHT.add(c);
+  }
+  // MAIN VOLUME — long, low, horizontal
+  const main = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.5, 3.4), stuccoM);
+  main.position.set(0.6, 1.55, 0);
+  main.castShadow = true;
+  WRIGHT.add(main);
+  // ribbon windows all along the south face — one continuous band
+  const ribbon = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.62, 0.06), glassM);
+  ribbon.position.set(0.6, 1.85, 1.74);
+  WRIGHT.add(ribbon);
+  for(let i = 0; i < 9; i++){                  // mullions on the module
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.09), woodM);
+    m.position.set(-2.6 + i*0.8 + 0.6, 1.85, 1.74);
+    WRIGHT.add(m);
+  }
+  // THE ROOF PLANES — deep cantilevers, floating
+  const roof1 = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.18, 5.2), roofM);
+  roof1.position.set(0.6, 2.42, 0.2);
+  roof1.castShadow = true;
+  WRIGHT.add(roof1);
+  // the lower wing, stepping down the site
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.2, 2.6), stuccoM);
+  wing.position.set(3.9, 0.9, 1.3);
+  wing.castShadow = true;
+  WRIGHT.add(wing);
+  const roof2 = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.16, 4.0), roofM);
+  roof2.position.set(4.3, 1.62, 1.4);
+  roof2.castShadow = true;
+  WRIGHT.add(roof2);
+  const wingGlass = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.55, 0.06), glassM);
+  wingGlass.position.set(3.9, 1.05, 2.62);
+  WRIGHT.add(wingGlass);
+  // THE TERRACE cantilevered over the creek (the Fallingwater nod)
+  const terrace = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.22, 2.2), stuccoM);
+  terrace.position.set(-2.6, 1.0, 1.9);
+  terrace.castShadow = true;
+  WRIGHT.add(terrace);
+  const parapet = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.34, 0.12), stuccoM);
+  parapet.position.set(-2.6, 1.28, 2.94);
+  WRIGHT.add(parapet);
+  for(const s of [-1, 1]){
+    const pside = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.34, 2.2), stuccoM);
+    pside.position.set(-2.6 + s*1.54, 1.28, 1.9);
+    WRIGHT.add(pside);
+  }
+  // low steps down to the water
+  for(let i = 0; i < 3; i++){
+    const st = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 0.4), stoneM);
+    st.position.set(-1.0, 0.75 - i*0.24, 2.2 + i*0.42);
+    WRIGHT.add(st);
+  }
+  // THE CREEK — a live vertex-animated ribbon sliding under the terrace
+  const cg = new THREE.PlaneGeometry(16, 2.2, 60, 6);
+  cg.rotateX(-Math.PI/2);
+  const cpos = cg.attributes.position, ccol = [];
+  const DEEP = new THREE.Color(0x2a6f9e), SHALLOW = new THREE.Color(0x4fa8c4);
+  const cc = new THREE.Color();
+  for(let i = 0; i < cpos.count; i++){
+    cc.copy(DEEP).lerp(SHALLOW, rand(0.2, 0.7));
+    ccol.push(cc.r, cc.g, cc.b);
+  }
+  cg.setAttribute('color', new THREE.Float32BufferAttribute(ccol, 3));
+  creek = new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  creek.position.set(-1.5, 0.1, 3.1);
+  creek.rotation.y = 0.12;
+  WRIGHT.add(creek);
+  creekPos0 = cpos.array.slice();
+  // hearth smoke wisps
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g2 = cv.getContext('2d');
+  const rg = g2.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(220,220,215,0.5)'); rg.addColorStop(1, 'rgba(220,220,215,0)');
+  g2.fillStyle = rg; g2.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  for(let i = 0; i < 6; i++){
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }));
+    s.visible = false;
+    WRIGHT.add(s);
+    hearthSmoke.push({ m:s, age: i*0.8 });
+  }
+  // planted, not lawned: low pines and grasses hugging the lines
+  const pineM = new THREE.MeshLambertMaterial({ color:0x3e5c3a, flatShading:true });
+  for(const [x, z, h] of [[-4.6, -1.5, 2.2], [5.8, -1.8, 1.8], [-4.2, 3.8, 1.4], [6.4, 3, 1.2]]){
+    const tr = new THREE.Mesh(new THREE.ConeGeometry(h*0.38, h, 7), pineM);
+    tr.position.set(x, h/2 + 0.1, z);
+    tr.castShadow = true;
+    WRIGHT.add(tr);
+  }
+}
+
+// ==========================================================================
+//  THE McMANSION
+// ==========================================================================
+const MC = new THREE.Group();
+scene.add(MC);
+let fountainDrops = [], sprinklers = [], flag;
+{
+  const vinylM = new THREE.MeshLambertMaterial({ color:0xe8dcc2 });
+  const brickM = new THREE.MeshLambertMaterial({ color:0xa86a4c, flatShading:true });
+  const roofM = new THREE.MeshLambertMaterial({ color:0x5a5048, flatShading:true });
+  const goldM = new THREE.MeshStandardMaterial({ color:0xd8b84c, roughness:0.3, metalness:0.6 });
+  const shutterM = new THREE.MeshLambertMaterial({ color:0x2e4a2e });
+  // main mass — too tall for its width
+  const main = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.6, 3.6), vinylM);
+  main.position.set(-0.6, 1.85, -0.4);
+  main.castShadow = true;
+  MC.add(main);
+  // brick FRONT ONLY (the giveaway — the sides are vinyl)
+  const brickFace = new THREE.Mesh(new THREE.BoxGeometry(5.24, 3.6, 0.1), brickM);
+  brickFace.position.set(-0.6, 1.85, 1.42);
+  MC.add(brickFace);
+  // FIVE clashing gables
+  for(const [x, z, w, h, ry] of [[-2, 0.8, 2.6, 1.4, 0], [0.6, 0.2, 3.2, 1.9, 0],
+      [-0.6, -1.4, 2.2, 1.2, Math.PI/2], [1.8, 1.2, 1.6, 1.0, 0], [-2.6, -1, 1.8, 1.1, Math.PI/2]]){
+    const gable = new THREE.Mesh(new THREE.CylinderGeometry(0.01, w*0.72, h, 4), roofM);
+    gable.rotation.y = Math.PI/4 + ry;
+    gable.scale.z = 0.62;
+    gable.position.set(x, 3.65 + h/2 - 0.7, z);
+    gable.castShadow = true;
+    MC.add(gable);
+  }
+  // THE FOAM TURRET with the witch-hat roof
+  const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 4.6, 12), vinylM);
+  turret.position.set(2.4, 2.3, 0.9);
+  turret.castShadow = true;
+  MC.add(turret);
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1.6, 12), roofM);
+  hat.position.set(2.4, 5.4, 0.9);
+  hat.castShadow = true;
+  MC.add(hat);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), goldM);
+  finial.position.set(2.4, 6.25, 0.9);
+  MC.add(finial);
+  // TWO-STOREY ENTRY: giant columns holding a pediment that touches nothing
+  for(const x of [-1.5, -0.1]){
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 3.4, 12), vinylM);
+    col.position.set(x, 1.75, 2.3);
+    col.castShadow = true;
+    MC.add(col);
+  }
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 1.7, 0.9, 4), roofM);
+  ped.rotation.y = Math.PI/4;
+  ped.scale.z = 0.5;
+  ped.position.set(-0.8, 3.9, 2.3);
+  MC.add(ped);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.9, 0.08),
+    new THREE.MeshLambertMaterial({ color:0x6a2e2a }));
+  door.position.set(-0.8, 1.0, 2.35);
+  MC.add(door);
+  const knocker = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.02, 6, 10), goldM);
+  knocker.position.set(-0.8, 1.2, 2.42);
+  MC.add(knocker);
+  // windows in five sizes — with shutters that fit NONE of them
+  const winM = new THREE.MeshBasicMaterial({ color:0x2a3a4c });
+  const winDefs = [[-2.2, 2.6, 0.7, 0.9], [0.6, 2.7, 1.1, 0.7], [-1.9, 1.0, 0.5, 0.7],
+    [0.9, 1.1, 0.8, 1.1], [2.4, 2.9, 0.45, 0.6]];
+  for(const [x, y, w, h] of winDefs){
+    const win = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.06), winM);
+    win.position.set(x, y, 1.48);
+    MC.add(win);
+    for(const s of [-1, 1]){
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(0.22, h*0.55, 0.04), shutterM);   // HALF height
+      sh.position.set(x + s*(w/2 + 0.14), y, 1.48);
+      MC.add(sh);
+    }
+  }
+  // THE THREE-CAR GARAGE, dominating the whole front
+  const garage = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.2, 3.0), vinylM);
+  garage.position.set(-4.8, 1.15, 1.0);
+  garage.castShadow = true;
+  MC.add(garage);
+  const gRoof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.4, 1.1, 4), roofM);
+  gRoof.rotation.y = Math.PI/4;
+  gRoof.scale.z = 0.55;
+  gRoof.position.set(-4.8, 2.8, 1.0);
+  MC.add(gRoof);
+  for(let i = 0; i < 3; i++){
+    const gd = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.6, 0.06),
+      new THREE.MeshLambertMaterial({ color:0xd8d0c0 }));
+    gd.position.set(-6.2 + i*1.42, 0.95, 2.52);
+    MC.add(gd);
+    for(let r = 0; r < 3; r++){
+      const groove = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.03, 0.07),
+        new THREE.MeshLambertMaterial({ color:0xb8b0a0 }));
+      groove.position.set(-6.2 + i*1.42, 0.55 + r*0.4, 2.53);
+      MC.add(groove);
+    }
+  }
+  // the driveway, vast
+  const drive = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 4.4),
+    new THREE.MeshLambertMaterial({ color:0xb0b0a8 }));
+  drive.rotation.x = -Math.PI/2;
+  drive.position.set(-4.8, 0.02, 4.6);
+  MC.add(drive);
+  // THE FOUNTAIN — gold cherub energy, spitting on a timer
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.1, 0.35, 14), vinylM);
+  basin.position.set(1.2, 0.2, 4.4);
+  MC.add(basin);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(0.92, 14),
+    new THREE.MeshLambertMaterial({ color:0x4fa8c4 }));
+  water.rotation.x = -Math.PI/2;
+  water.position.set(1.2, 0.34, 4.4);
+  MC.add(water);
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.7, 8), goldM);
+  pillar.position.set(1.2, 0.7, 4.4);
+  MC.add(pillar);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), goldM);
+  orb.position.set(1.2, 1.12, 4.4);
+  MC.add(orb);
+  for(let i = 0; i < 10; i++){
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0xa8d8e8, transparent:true, opacity:0.85 }));
+    d.visible = false;
+    MC.add(d);
+    fountainDrops.push({ m:d, vel:new THREE.Vector3(), live:false });
+  }
+  // lawn sprinklers (two fans) + the lawn flag
+  for(const x of [-2.5, 3.5]){
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.12, 6),
+      new THREE.MeshLambertMaterial({ color:0x3a3a3a }));
+    head.position.set(x, 0.08, 5.4);
+    MC.add(head);
+    const fan = new THREE.Group();
+    for(let i = 0; i < 5; i++){
+      const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 0.9, 4),
+        new THREE.MeshLambertMaterial({ color:0xa8d8e8, transparent:true, opacity:0.5 }));
+      jet.position.y = 0.45;
+      const jp = new THREE.Group();
+      jp.rotation.z = -0.5 + i*0.25;
+      jp.add(jet);
+      fan.add(jp);
+    }
+    fan.position.set(x, 0.1, 5.4);
+    MC.add(fan);
+    sprinklers.push(fan);
+  }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.6, 6),
+    new THREE.MeshStandardMaterial({ color:0xb0b8c0, roughness:0.4, metalness:0.6 }));
+  pole.position.set(4.4, 1.3, 4.2);
+  MC.add(pole);
+  flag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.55, 8, 4),
+    new THREE.MeshLambertMaterial({ color:0xc03a2a, side:THREE.DoubleSide }));
+  flag.position.set(4.88, 2.3, 4.2);
+  MC.add(flag);
+  flag.userData.pos0 = flag.geometry.attributes.position.array.slice();
+}
+
+// ---------- the switch -----------------------------------------------------
+let mode = 'wright';
+function show(){
+  WRIGHT.visible = mode === 'wright';
+  MC.visible = mode === 'mcmansion';
+}
+show();
+document.getElementById('house').addEventListener('change', e => { mode = e.target.value; show(); });
+
+let fTick = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if(mode === 'wright'){
+    // the creek slides
+    const pos = creek.geometry.attributes.position;
+    for(let i = 0; i < pos.count; i++){
+      const x = creekPos0[i*3], z = creekPos0[i*3+2];
+      pos.setY(i, Math.sin(x*2.2 - t*2.4)*0.03 + Math.sin(x*4.4 - t*3.6 + z*3)*0.018);
+    }
+    pos.needsUpdate = true;
+    creek.geometry.computeVertexNormals();
+    // hearth smoke
+    for(const s of hearthSmoke){
+      s.age += dt;
+      const k = (s.age % 4.8)/4.8;
+      s.m.visible = true;
+      s.m.position.set(-0.5 + Math.sin(k*7)*0.15*k, 4.5 + k*2.2, -0.5);
+      s.m.scale.setScalar(0.25 + k*0.9);
+      s.m.material.opacity = (1 - k)*0.35;
+    }
+  } else {
+    // the fountain spits
+    fTick += dt;
+    if(fTick > 0.12){
+      fTick = 0;
+      const d = fountainDrops.find(x => !x.live);
+      if(d){
+        d.live = true;
+        d.m.visible = true;
+        d.m.position.set(1.2, 1.2, 4.4);
+        d.vel.set((Math.random() - 0.5)*0.8, 1.8 + Math.random()*0.6, (Math.random() - 0.5)*0.8);
+      }
+    }
+    for(const d of fountainDrops){
+      if(!d.live) continue;
+      d.vel.y -= 5*dt;
+      d.m.position.addScaledVector(d.vel, dt);
+      if(d.m.position.y < 0.36){ d.live = false; d.m.visible = false; }
+    }
+    // sprinklers sweep
+    sprinklers.forEach((f2, i) => { f2.rotation.y = Math.sin(t*0.8 + i*2)*1.1; });
+    // the flag ripples
+    const fp = flag.geometry.attributes.position;
+    const p0 = flag.userData.pos0;
+    for(let i = 0; i < fp.count; i++){
+      const x = p0[i*3];
+      fp.setZ(i, Math.sin(x*6 - t*7)*0.05*(x + 0.45));
+    }
+    fp.needsUpdate = true;
+    flag.geometry.computeVertexNormals();
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){
+    const [id, val] = pair.split(':');
+    const el = document.getElementById(id);
+    if(el){ el.value = val; el.dispatchEvent(new Event('change')); }
+  }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
+</script>
+</body>
+</html>

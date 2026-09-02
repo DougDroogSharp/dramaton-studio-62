@@ -2,7 +2,7 @@ import { GameData } from '@/types';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { Plus, Trash2, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 // Compress image to reduce AI token usage
@@ -52,6 +52,16 @@ interface SettingsEditorProps {
 export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }) => {
   const [newVarKey, setNewVarKey] = useState('');
   const [newVarValue, setNewVarValue] = useState('');
+  const [stylePacks, setStylePacks] = useState<string[]>([]);
+
+  // Available art style packs (folders under STYLE_PACKS_DIR, served by
+  // the local Flux bridge)
+  useEffect(() => {
+    fetch('/api/flux-style-packs')
+      .then(r => r.json())
+      .then(d => setStylePacks(d.packs || []))
+      .catch(() => setStylePacks([]));
+  }, []);
 
   const updateInfo = (updates: Partial<GameData['info']>) => {
     onChange({ ...game, info: { ...game.info, ...updates } });
@@ -146,6 +156,34 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({ game, onChange }
             Auto-Play
           </label>
         </div>
+      </section>
+
+      {/* Art Style Pack (per-game era style: reference images + style.txt) */}
+      <section>
+        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
+          Art Style Pack
+        </h3>
+        <p className="text-xs text-diesel-steel mb-3">
+          One style per game. The chosen pack's reference images and style.txt ride every image generation.
+        </p>
+        <select
+          value={game.info.stylePack || ''}
+          onChange={(e) => updateInfo({ stylePack: e.target.value || undefined })}
+          className="bg-diesel-panel border border-diesel-border text-diesel-paper p-2 text-sm focus:outline-none focus:border-diesel-gold min-w-64"
+        >
+          <option value="">(none — no era style)</option>
+          {stylePacks.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        {game.info.stylePack && (
+          <p className="text-diesel-rust text-xs mt-2">
+            ⚠️ Changing the style pack after art exists means regenerating that art in the new style.
+          </p>
+        )}
+        {stylePacks.length === 0 && (
+          <p className="text-diesel-steel text-xs mt-2">
+            No packs found — set STYLE_PACKS_DIR in .env.local to a folder of style-pack subfolders.
+          </p>
+        )}
       </section>
 
       {/* Style Guide */}

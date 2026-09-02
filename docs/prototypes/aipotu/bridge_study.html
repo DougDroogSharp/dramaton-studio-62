@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FOOTBRIDGE STUDY — the wobbly crossing, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A wooden footbridge over a gully with a creek (the inland-water
+     method) — plank deck on two sagging stringers, rope handrails on
+     posts. THE LIFE OF IT: every plank BOUNCES under a foot (each has
+     its own spring), one plank is LOOSE and wobbles alarmingly, the
+     rope rails sway. The loop: a Vita crosses (planks bouncing under
+     each step, a stumble-catch on the loose one), then POPPY follows —
+     hesitates at the edge, paw up, backs off once… then DASHES across
+     in one flying run and shakes it off on the far side.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Footbridge Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dde6da; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(20,28,22,0.78); color:#e8f4ec; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌉 Footbridge Study</b> — planks bounce, Poppy hesitates, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · watch the loose third plank</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 3131;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xdbe4d8), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(4.6, 3, 7.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 34;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf0f4e8), zenith = new THREE.Color(0x78b0da),
+        below = new THREE.Color(0xd2dcc8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0x9aa878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(16, 24, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -9; sun.shadow.camera.right = 9;
+sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -9;
+scene.add(sun);
+
+// ---------- the gully + the creek under it ---------------------------------
+let creek;
+{
+  // two banks with a trench between
+  const G = 60, SZ = 30;
+  const geo = new THREE.PlaneGeometry(SZ, SZ, G, G);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position, col = [];
+  const grass = new THREE.Color(0x9cb060), bankC = new THREE.Color(0x8a744e), c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i);
+    const d = Math.abs(x);
+    const h = d < 2.4 ? -1.5*Math.pow(1 - d/2.4, 1.4) : 0;   // the gully trench along z
+    pos.setY(i, h + Math.sin(pos.getZ(i)*0.4)*0.06);
+    c.copy(d < 2.8 ? bankC : grass).offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const g = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  g.receiveShadow = true;
+  scene.add(g);
+  // the creek in the trench: the inland-water method, small
+  const cgeo = new THREE.PlaneGeometry(3.4, 30, 12, 60);
+  cgeo.rotateX(-Math.PI/2);
+  const n = cgeo.attributes.position.count;
+  cgeo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n*3), 3));
+  creek = new THREE.Mesh(cgeo, new THREE.MeshLambertMaterial({ vertexColors:true, transparent:true, opacity:0.9 }));
+  creek.position.y = -1.1;
+  scene.add(creek);
+}
+
+// ---------- THE BRIDGE -----------------------------------------------------
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6134, flatShading:true });
+const matWoodDk = new THREE.MeshLambertMaterial({ color:0x6b4a26, flatShading:true });
+const WOODS = [0x8a6134, 0x96703f, 0x7d5a30, 0xa07948];
+const PLANK_N = 9, SPAN = 6.4, LOOSE = 2;   // plank index 2 is the loose one
+const planks = [];
+{
+  // two sagging stringers
+  for(const s of [-1, 1]){
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, SPAN + 0.6, 7), matWoodDk);
+    str.rotation.z = Math.PI/2;
+    str.position.set(0, 0.28, s*0.55);
+    str.castShadow = true;
+    scene.add(str);
+  }
+  for(let i = 0; i < PLANK_N; i++){
+    const x = -SPAN/2 + (i + 0.5)*(SPAN/PLANK_N);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(SPAN/PLANK_N - 0.06, 0.06, 1.35),
+      new THREE.MeshLambertMaterial({ color: WOODS[i % 4], flatShading:true }));
+    p.position.set(x, 0.36 + Math.sin((i/(PLANK_N-1))*Math.PI)*-0.06, 0);   // the sag
+    p.rotation.y = rand(-0.02, 0.02);
+    if(i === LOOSE) p.rotation.z = 0.03;      // the loose one sits proud
+    p.castShadow = true; p.receiveShadow = true;
+    scene.add(p);
+    planks.push({ m: p, y0: p.position.y, v: 0, off: 0 });
+  }
+  // rope rails on leaning posts
+  for(const s of [-1, 1]){
+    for(const e of [-1, 1]){
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.1, 6), matWood);
+      post.position.set(e*(SPAN/2 + 0.2), 0.8, s*0.62);
+      post.rotation.z = -e*0.08;
+      post.castShadow = true;
+      scene.add(post);
+    }
+  }
+  window.__rails = [];
+  for(const s of [-1, 1]){
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(14*3), 3));
+    const rail = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0xc9b48a }));
+    scene.add(rail);
+    window.__rails.push({ geo, s });
+  }
+}
+function plankAt(x){   // which plank is under world-x
+  const i = Math.floor((x + SPAN/2) / (SPAN/PLANK_N));
+  return (i >= 0 && i < PLANK_N) ? i : -1;
+}
+function pressPlank(i, force){
+  if(i < 0) return;
+  const p = planks[i];
+  p.v -= force * (i === LOOSE ? 3.2 : 1);   // the loose plank gives ALARMINGLY
+}
+
+// ---------- the crosser Vita ----------------------------------------------
+const V = { g: new THREE.Group() };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x4f9fd8 });
+  const skin = new THREE.MeshLambertMaterial({ color:0xf2c299 });
+  V.hips = new THREE.Group(); V.hips.position.y = 0.42; V.g.add(V.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22; barrel.castShadow = true; V.hips.add(barrel);
+  V.head = new THREE.Group(); V.head.position.y = 0.8; V.hips.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true; V.head.add(skull);
+  V.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24; limb.castShadow = true; arm.add(limb);
+    V.hips.add(arm); V.arms.push(arm);
+  }
+  V.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.14, 0, 0);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.y = -0.26; shin.castShadow = true; leg.add(shin);
+    V.hips.add(leg); V.legs.push(leg);
+  }
+  scene.add(V.g);
+}
+// ---------- Poppy (the compact brindle) ------------------------------------
+const P = { g: new THREE.Group(), legs: [] };
+{
+  const matB = new THREE.MeshLambertMaterial({ color:0x8a6a42, flatShading:true });
+  const matW = new THREE.MeshLambertMaterial({ color:0xf3efe4 });
+  P.body = new THREE.Group();
+  P.body.position.y = 0.55;
+  P.g.add(P.body);
+  const bg = new THREE.CapsuleGeometry(0.26, 0.6, 6, 10);
+  bg.rotateX(Math.PI/2);
+  const trunk = new THREE.Mesh(bg, matB);
+  trunk.castShadow = true;
+  P.body.add(trunk);
+  P.headG = new THREE.Group();
+  P.headG.position.set(0, 0.18, 0.45);
+  P.body.add(P.headG);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), matB);
+  skull.castShadow = true;
+  P.headG.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.18, 8),
+    new THREE.MeshLambertMaterial({ color:0xb6afa4 }));
+  muzzle.rotation.x = Math.PI/2;
+  muzzle.position.set(0, -0.05, 0.22);
+  P.headG.add(muzzle);
+  for(const s of [-1, 1]){
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 6), matB);
+    ear.position.set(s*0.12, 0.18, 0);
+    ear.rotation.z = s*-0.2;
+    P.headG.add(ear);
+  }
+  for(const [x, z] of [[-0.16, 0.3], [0.16, 0.3], [-0.16, -0.3], [0.16, -0.3]]){
+    const leg = new THREE.Group();
+    leg.position.set(x, -0.16, z);
+    const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.24, 4, 6), matW);
+    l.position.y = -0.16;
+    l.castShadow = true;
+    leg.add(l);
+    P.body.add(leg);
+    P.legs.push(leg);
+  }
+  P.tail = new THREE.Group();
+  P.tail.position.set(0, 0.12, -0.42);
+  const tl = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.28, 4, 6), matB);
+  tl.rotation.x = 1.1;
+  tl.position.set(0, 0.08, -0.12);
+  P.tail.add(tl);
+  P.body.add(P.tail);
+  scene.add(P.g);
+}
+
+// ---------- the crossing loop ----------------------------------------------
+// vita crosses (0-6) with a stumble at the loose plank · poppy (6-16):
+// approach, hesitate (paw up), back off, dash, shake-off
+let phT = 0;
+let lastStepI = -1, lastPawI = -1;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 17;
+  const f = phT;
+
+  // ---------- creek ----------
+  {
+    const pos = creek.geometry.attributes.position;
+    const col = creek.geometry.attributes.color;
+    const DEEP = new THREE.Color(0x2a6f9e), SHAL = new THREE.Color(0x4fa8c4), FOAM = new THREE.Color(0xf2fbfd);
+    for(let i = 0; i < pos.count; i++){
+      const z = pos.getZ(i), x = pos.getX(i);
+      pos.setY(i, Math.sin(z*1.6 - t*3.2)*0.05 + Math.sin(z*0.7 - t*1.8 + x)*0.03);
+      const foam = clamp(Math.sin(z*2.2 - t*4)*0.5 - 0.25 + Math.abs(x)*0.1, 0, 0.5);
+      const c = DEEP.clone().lerp(SHAL, 0.4 + Math.abs(x)*0.2).lerp(FOAM, foam);
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    pos.needsUpdate = true; col.needsUpdate = true;
+  }
+
+  // ---------- plank springs ----------
+  for(let i = 0; i < PLANK_N; i++){
+    const p = planks[i];
+    p.v += (-(p.off) * (i === LOOSE ? 26 : 60)) * dt;   // loose = softer spring
+    p.v *= (1 - dt*(i === LOOSE ? 2.2 : 5));
+    p.off += p.v * dt;
+    p.m.position.y = p.y0 + p.off;
+    if(i === LOOSE) p.m.rotation.z = 0.03 + p.off*1.6;   // the wobble reads
+  }
+  // rope rails: sag + sway, tied to bridge activity
+  const activity = planks.reduce((a, p) => a + Math.abs(p.off), 0);
+  for(const r of window.__rails){
+    const pos = r.geo.attributes.position;
+    for(let i = 0; i < 14; i++){
+      const fx = i/13;
+      const x = lerp(-(SPAN/2 + 0.2), SPAN/2 + 0.2, fx);
+      const y = 1.28 - Math.sin(fx*Math.PI)*0.22 + Math.sin(t*2 + fx*6)*0.02*(1 + activity*4);
+      pos.setXYZ(i, x, y, r.s*0.62 + Math.sin(t*1.6 + fx*4)*0.02);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // ---------- THE VITA CROSSES (0 → 6s) ----------
+  if(f < 6){
+    V.g.visible = true;
+    const p = f/6;
+    const x = lerp(-4.6, 4.6, p);
+    V.g.position.set(x, 0.1 + (Math.abs(x) < SPAN/2 + 0.3 ? 0.3 : 0), 0);
+    V.g.rotation.y = Math.PI/2;
+    const ph = t*8;
+    V.legs[0].rotation.x = Math.sin(ph)*0.45;
+    V.legs[1].rotation.x = -Math.sin(ph)*0.45;
+    V.hips.position.y = 0.42 + Math.abs(Math.cos(ph))*0.025;
+    // footfalls press the planks
+    const stepI = plankAt(x);
+    if(stepI !== lastStepI && Math.abs(Math.cos(ph)) > 0.9){
+      pressPlank(stepI, 0.5);
+      lastStepI = stepI;
+    }
+    // the STUMBLE-CATCH on the loose plank
+    if(stepI === LOOSE){
+      V.hips.rotation.z = Math.sin(t*22)*0.1;
+      V.arms[0].rotation.z = -0.9;                 // arms out for balance
+      V.arms[1].rotation.z = 0.9;
+      V.head.rotation.x = 0.4;                     // looking DOWN at it
+    } else {
+      V.hips.rotation.z = lerp(V.hips.rotation.z, 0, dt*5);
+      V.arms[0].rotation.z = lerp(V.arms[0].rotation.z, -0.12, dt*4);
+      V.arms[1].rotation.z = lerp(V.arms[1].rotation.z, 0.12, dt*4);
+      V.head.rotation.x = lerp(V.head.rotation.x, 0, dt*4);
+    }
+  } else {
+    V.g.position.set(4.9, 0.1, 0);
+    V.g.rotation.y = Math.PI/2;
+    V.legs[0].rotation.x = lerp(V.legs[0].rotation.x, 0, dt*5);
+    V.legs[1].rotation.x = lerp(V.legs[1].rotation.x, 0, dt*5);
+  }
+
+  // ---------- POPPY (6 → 17s): hesitate → back off → DASH → shake ----------
+  const pf = f - 6;
+  if(pf > 0){
+    if(pf < 2.2){                       // trot up to the edge
+      const k = smooth(pf/2.2);
+      P.g.position.set(lerp(-6.5, -3.6, k), 0.1, 0.15);
+      P.g.rotation.y = Math.PI/2;
+      trot(t, 1);
+    } else if(pf < 4.2){                // THE HESITATION: paw up, lean, retreat
+      P.g.position.x = -3.6 + Math.sin((pf-2.2)*2)*0.06;
+      P.legs[1].rotation.x = -0.9;      // the lifted paw
+      P.headG.rotation.x = 0.35;        // peering down at the planks
+      P.body.rotation.x = 0.08;
+      P.tail.rotation.x = 0.5;          // tail LOW — unsure
+      if(pf > 3.4){                     // the little back-off
+        P.g.position.x = lerp(-3.6, -4.1, smooth((pf-3.4)/0.8));
+        trot(t, -0.7);
+      }
+    } else if(pf < 4.9){                // gathering the nerve
+      P.g.position.x = -4.1;
+      P.legs[1].rotation.x = lerp(P.legs[1].rotation.x, 0, dt*6);
+      P.body.rotation.x = -0.06;        // the crouch-load
+      P.headG.rotation.x = 0;
+    } else if(pf < 6.4){                // THE DASH — one flying run
+      const k = (pf - 4.9)/1.5;
+      const x = lerp(-4.1, 4.3, k);
+      P.g.position.set(x, 0.1 + (Math.abs(x) < SPAN/2 + 0.3 ? 0.3 : 0) + Math.abs(Math.sin(k*18))*0.08, 0.15);
+      trot(t, 2.6);
+      P.body.rotation.x = -0.05;
+      P.tail.rotation.x = -0.2;         // streaming behind
+      const stepI = plankAt(x);
+      if(stepI !== lastPawI){ pressPlank(stepI, 0.35); lastPawI = stepI; }
+    } else if(pf < 7.6){                // the SHAKE-OFF on the far side
+      P.g.position.set(4.5, 0.1, 0.15);
+      P.body.rotation.z = Math.sin(t*26)*0.14;
+      P.tail.rotation.x = -0.4;
+      P.legs.forEach(l => l.rotation.x = 0);
+    } else {                            // trot away proud, tail HIGH
+      const k = smooth(clamp((pf-7.6)/2.4, 0, 1));
+      P.g.position.set(lerp(4.5, 6.8, k), 0.1, 0.15);
+      P.body.rotation.z = 0;
+      P.tail.rotation.x = -0.5;
+      trot(t, 1);
+    }
+  }
+  function trot(t2, sp){
+    const ph = t2*11*Math.abs(sp);
+    P.legs.forEach((leg, i) => {
+      leg.rotation.x = Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.5 * Math.sign(sp);
+    });
+    P.body.position.y = 0.55 + Math.abs(Math.sin(ph))*0.02;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

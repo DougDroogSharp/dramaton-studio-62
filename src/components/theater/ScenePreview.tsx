@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameData, Scene } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
-import { ChoicePanel } from '@/components/theater/ChoicePanel';
+import { StageDialogueLayer } from '@/components/theater/StageDialogueLayer';
 import { useScriptRunner } from '@/hooks/useScriptRunner';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
 
@@ -10,6 +10,9 @@ interface ScenePreviewProps {
   scene: Scene;
   game: GameData;
   onClose: () => void;
+  // When provided, dialogue text is editable in place (double-click);
+  // commits rewrite the scene script.
+  onUpdateScript?: (newScript: string) => void;
 }
 
 // Generate a fingerprint of scene data to detect changes
@@ -22,10 +25,23 @@ const getSceneFingerprint = (scene: Scene): string => {
   });
 };
 
-export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose }) => {
+export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose, onUpdateScript }) => {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevFingerprintRef = useRef<string>(getSceneFingerprint(scene));
+  const suppressRestartRef = useRef(false);
+
+  // Inline dialogue editing: replace the utterance's quoted text in the
+  // scene script (first occurrence) and push the new script up. The
+  // fingerprint-restart is suppressed for this change so the preview
+  // stays where you are.
+  const handleEditText = (oldText: string, newText: string) => {
+    if (!onUpdateScript || !scene.script) return;
+    const needle = `"${oldText}"`;
+    if (!scene.script.includes(needle)) return;
+    suppressRestartRef.current = true;
+    onUpdateScript(scene.script.replace(needle, `"${newText}"`));
+  };
 
   // Handle audio commands
   const handleAudioCommand = useCallback((
@@ -70,11 +86,15 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
     onAudioCommand: handleAudioCommand,
   });
 
-  // Auto-restart when scene data changes
+  // Auto-restart when scene data changes (except inline text edits)
   const sceneFingerprint = getSceneFingerprint(scene);
   useEffect(() => {
     if (sceneFingerprint !== prevFingerprintRef.current) {
       prevFingerprintRef.current = sceneFingerprint;
+      if (suppressRestartRef.current) {
+        suppressRestartRef.current = false;
+        return;
+      }
       scriptRunner.goToScene(scene.id);
     }
   }, [sceneFingerprint, scene.id, scriptRunner]);
@@ -162,33 +182,54 @@ export const ScenePreview: React.FC<ScenePreviewProps> = ({ scene, game, onClose
       
       {/* Stage Area */}
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-4xl relative">
           <Stage
             scene={scene}
             game={game}
             background={background}
+            scriptBackdrop={scriptRunner.state.backdrop
+              ? game.drops?.find(d => d.id === scriptRunner.state.backdrop!.dropId)
+              : undefined}
+            backdropDuration={scriptRunner.state.backdrop?.duration}
+            camera={scriptRunner.state.camera}
             hideElement={scriptRunner.state.hiddenElements}
+            elementOverrides={scriptRunner.state.elementOverrides}
             activeEffects={scriptRunner.state.activeEffects}
+            sliders={Array.from(scriptRunner.state.activeSliders.values())}
+            gauges={Array.from(scriptRunner.state.activeGauges.values())}
+            worldState={scriptRunner.state.worldState}
+            onSliderChange={scriptRunner.setVariable}
           />
+          <StageDialogueLayer
+            scene={scene}
+            dialogue={
+              scriptRunner.state.activeDialogue &&
+              scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() !== 'narrator'
+                ? scriptRunner.state.activeDialogue
+                : null
+            }
+            choices={scriptRunner.state.choices}
+            elementOverrides={scriptRunner.state.elementOverrides}
+            onAdvance={scriptRunner.advance}
+            onSelectChoice={scriptRunner.selectChoice}
+            onEditText={onUpdateScript ? handleEditText : undefined}
+          />
+          {/* Narration as a comic caption overlaying the stage top */}
+          {scriptRunner.state.activeDialogue &&
+            scriptRunner.state.activeDialogue.actorName.trim().toLowerCase() === 'narrator' && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[94%]" style={{ zIndex: 320 }}>
+              <DialogueBox
+                dialogue={scriptRunner.state.activeDialogue}
+                actor={dialogueActor}
+                onAdvance={scriptRunner.advance}
+              />
+            </div>
+          )}
         </div>
       </div>
-      
-      {/* Dialogue / Choice Area */}
+
+      {/* Below-stage area */}
       <div className="px-4 pb-4">
-        {scriptRunner.state.activeDialogue && (
-          <DialogueBox
-            dialogue={scriptRunner.state.activeDialogue}
-            actor={dialogueActor}
-            onAdvance={scriptRunner.advance}
-          />
-        )}
-        
-        {scriptRunner.state.choices && (
-          <ChoicePanel
-            choices={scriptRunner.state.choices}
-            onSelect={scriptRunner.selectChoice}
-          />
-        )}
         
         {/* End of scene */}
         {scriptRunner.state.isComplete && !scriptRunner.state.activeDialogue && !scriptRunner.state.choices && (

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     TRAIN STUDY — the whole consist, for George World. Filed 2026-08-31,
+     Doug's transport batch. An oval of real track — rails, ties, a
+     bed — and on it: a proper little STEAM LOCOMOTIVE (boiler,
+     smokebox, stack CHUFFING in time with the drivers, steam dome,
+     cab, cowcatcher, and CONNECTING RODS that actually work the
+     driver cranks), then the TENDER heaped with coal, TWO BOXCARS,
+     TWO COAL HOPPERS heaped high, and the CABOOSE with its cupola
+     bringing up the rear. Every car follows the curve on its own
+     wheels with a little independent sway; the smoke puffs four to a
+     driver-turn, the way real steam breathes.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Train Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🚂 Train Study</b> — loco, tender, boxcars, hoppers, caboose, v1<br>
+  <span class="hint">the connecting rods work the cranks; the stack chuffs in time</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 4141;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 60, 320);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(14, 9, 20);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 80;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(20, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -26; sun.shadow.camera.right = 26;
+sun.shadow.camera.top = 26; sun.shadow.camera.bottom = -26;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 40),
+    new THREE.MeshLambertMaterial({ color:0x9cab64 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+}
+
+// ==========================================================================
+//  THE TRACK — an oval: two straights + two half-circle curves.
+//  trackAt(s) returns position + tangent at arc length s (looped).
+// ==========================================================================
+const STR = 22, R = 9;
+const L_CURVE = Math.PI*R;
+const L_TOTAL = 2*STR + 2*L_CURVE;
+function trackAt(s){
+  s = ((s % L_TOTAL) + L_TOTAL) % L_TOTAL;
+  if(s < STR)                                  // south straight, heading +x
+    return { p: new THREE.Vector3(-STR/2 + s, 0, R), t: new THREE.Vector3(1, 0, 0) };
+  s -= STR;
+  if(s < L_CURVE){                             // east curve
+    const a = s/R;
+    return { p: new THREE.Vector3(STR/2 + Math.sin(a)*R, 0, Math.cos(a)*R),
+             t: new THREE.Vector3(Math.cos(a), 0, -Math.sin(a)) };
+  }
+  s -= L_CURVE;
+  if(s < STR)                                  // north straight, heading -x
+    return { p: new THREE.Vector3(STR/2 - s, 0, -R), t: new THREE.Vector3(-1, 0, 0) };
+  s -= STR;
+  const a = s/R;                               // west curve
+  return { p: new THREE.Vector3(-STR/2 - Math.sin(a)*R, 0, -Math.cos(a)*R),
+           t: new THREE.Vector3(-Math.cos(a), 0, Math.sin(a)) };
+}
+// build the permanent way: bed, ties, two rails
+{
+  const bedM = new THREE.MeshLambertMaterial({ color:0xa89878, flatShading:true });
+  const tieM = new THREE.MeshLambertMaterial({ color:0x5c422a, flatShading:true });
+  const railM = new THREE.MeshStandardMaterial({ color:0x8a8e94, roughness:0.4, metalness:0.6 });
+  const N = 260;
+  const inner = [], outer = [];
+  for(let i = 0; i <= N; i++){
+    const { p, t } = trackAt(i/N*L_TOTAL);
+    const side = new THREE.Vector3(-t.z, 0, t.x);
+    inner.push(p.clone().addScaledVector(side, -0.35).setY(0.22));
+    outer.push(p.clone().addScaledVector(side, 0.35).setY(0.22));
+  }
+  for(const pts of [inner, outer]){
+    const curve = new THREE.CatmullRomCurve3(pts, true);
+    const rail = new THREE.Mesh(new THREE.TubeGeometry(curve, 260, 0.05, 6, true), railM);
+    rail.castShadow = true;
+    scene.add(rail);
+  }
+  // ties + the gravel bed as a ribbon of boxes
+  const nTies = 110;
+  for(let i = 0; i < nTies; i++){
+    const { p, t } = trackAt(i/nTies*L_TOTAL);
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 1.1), tieM);
+    tie.position.copy(p).setY(0.14);
+    tie.rotation.y = Math.atan2(t.x, t.z) + Math.PI/2;
+    tie.receiveShadow = true;
+    scene.add(tie);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.1, 1.5), bedM);
+    bed.position.copy(p).setY(0.05);
+    bed.rotation.y = tie.rotation.y;
+    bed.receiveShadow = true;
+    scene.add(bed);
+  }
+  // a water tower and a crossing sign for flavor
+  const towerM = new THREE.MeshLambertMaterial({ color:0x8a6a42, flatShading:true });
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 1.8, 12), towerM);
+  tank.position.set(-STR/2 - 2, 3.4, R + 4);
+  tank.castShadow = true;
+  scene.add(tank);
+  for(const [dx, dz] of [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.6, 6), towerM);
+    leg.position.set(-STR/2 - 2 + dx, 1.3, R + 4 + dz);
+    scene.add(leg);
+  }
+  const roofT = new THREE.Mesh(new THREE.ConeGeometry(1.6, 0.7, 12), new THREE.MeshLambertMaterial({ color:0x6a4e2e, flatShading:true }));
+  roofT.position.set(-STR/2 - 2, 4.65, R + 4);
+  scene.add(roofT);
+}
+
+// ==========================================================================
+//  ROLLING STOCK — every car is a group; wheels + sway applied per frame.
+// ==========================================================================
+const ironM = new THREE.MeshLambertMaterial({ color:0x2e2e32, flatShading:true });
+const ironDk = new THREE.MeshLambertMaterial({ color:0x1c1c20, flatShading:true });
+const coalM = new THREE.MeshLambertMaterial({ color:0x232326, flatShading:true });
+function wheels(g, positions, r){
+  const list = [];
+  for(const [x, z] of positions){
+    for(const s of [-1, 1]){
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.09, 12), ironDk);
+      w.rotation.x = Math.PI/2;
+      w.position.set(x, r + 0.22, s*0.42);
+      g.add(w);
+      list.push(w);
+    }
+  }
+  return list;
+}
+// THE LOCOMOTIVE
+const loco = new THREE.Group();
+scene.add(loco);
+let drivers = [], rods = [], stackTip;
+{
+  const boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 2.6, 16), ironM);
+  boiler.rotation.z = Math.PI/2;
+  boiler.position.set(0.3, 1.15, 0);
+  boiler.castShadow = true;
+  loco.add(boiler);
+  const smokebox = new THREE.Mesh(new THREE.CylinderGeometry(0.57, 0.57, 0.5, 16), ironDk);
+  smokebox.rotation.z = Math.PI/2;
+  smokebox.position.set(1.8, 1.15, 0);
+  loco.add(smokebox);
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.2, 0.6, 10), ironDk);
+  stack.position.set(1.8, 1.95, 0);
+  loco.add(stack);
+  stackTip = new THREE.Vector3(1.8, 2.3, 0);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), ironM);
+  dome.position.set(0.6, 1.75, 0);
+  loco.add(dome);
+  // cab
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, 1.15), new THREE.MeshLambertMaterial({ color:0x5c2e2a, flatShading:true }));
+  cab.position.set(-1.4, 1.35, 0);
+  cab.castShadow = true;
+  loco.add(cab);
+  const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.1, 1.35), ironDk);
+  cabRoof.position.set(-1.4, 2.05, 0);
+  loco.add(cabRoof);
+  for(const s of [-1, 1]){
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.05),
+      new THREE.MeshBasicMaterial({ color:0x2a3a4c }));
+    win.position.set(-1.25, 1.55, s*0.58);
+    loco.add(win);
+  }
+  // frame + cowcatcher
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.18, 1.0), ironDk);
+  frame.position.set(0, 0.62, 0);
+  loco.add(frame);
+  const cow = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.9, 4), ironM);
+  cow.rotation.z = -Math.PI/2;
+  cow.rotation.x = Math.PI/4;
+  cow.scale.z = 0.7;
+  cow.position.set(2.55, 0.5, 0);
+  loco.add(cow);
+  // DRIVERS (two big per side) + front bogie
+  for(const s of [-1, 1]){
+    for(const x of [-0.65, 0.45]){
+      const d = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.1, 14), ironDk);
+      d.rotation.x = Math.PI/2;
+      d.position.set(x, 0.67, s*0.48);
+      loco.add(d);
+      const crank = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 6), ironM);
+      crank.position.set(0.28, 0, s*0.06);
+      d.add(crank);
+      drivers.push(d);
+    }
+    // the connecting rod for this side
+    const rod = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.07, 0.05), ironM);
+    rod.position.set(-0.1, 0.67, s*0.56);
+    loco.add(rod);
+    rods.push(rod);
+  }
+  for(const s of [-1, 1]){
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 10), ironDk);
+    w.rotation.x = Math.PI/2;
+    w.position.set(1.6, 0.44, s*0.45);
+    loco.add(w);
+    drivers.push(w);
+  }
+  // lamp
+  const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.22), ironM);
+  lamp.position.set(2.3, 1.6, 0);
+  loco.add(lamp);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.08, 10),
+    new THREE.MeshBasicMaterial({ color:0xffe8a0 }));
+  lens.rotation.y = Math.PI/2;
+  lens.position.set(2.42, 1.6, 0);
+  loco.add(lens);
+}
+// TENDER
+function makeTender(){
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 1.1), ironM);
+  box.position.y = 1.1;
+  box.castShadow = true;
+  g.add(box);
+  const heap = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), coalM);
+  heap.scale.set(1.6, 0.55, 0.85);
+  heap.position.y = 1.62;
+  g.add(heap);
+  wheels(g, [[-0.7, 0], [0.7, 0]], 0.24);
+  return g;
+}
+// BOXCAR
+function makeBoxcar(col){
+  const g = new THREE.Group();
+  const m = new THREE.MeshLambertMaterial({ color:col, flatShading:true });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(2.7, 1.25, 1.15), m);
+  box.position.y = 1.28;
+  box.castShadow = true;
+  g.add(box);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.1, 1.28), ironDk);
+  roof.position.y = 1.95;
+  g.add(roof);
+  for(const s of [-1, 1]){
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.95, 0.05),
+      new THREE.MeshLambertMaterial({ color:new THREE.Color(col).offsetHSL(0, 0, -0.08).getHex(), flatShading:true }));
+    door.position.set(0, 1.22, s*0.6);
+    g.add(door);
+  }
+  wheels(g, [[-0.95, 0], [0.95, 0]], 0.24);
+  return g;
+}
+// COAL HOPPER
+function makeHopper(){
+  const g = new THREE.Group();
+  const m = new THREE.MeshLambertMaterial({ color:0x5a4a3a, flatShading:true });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.9, 1.1), m);
+  body.position.y = 1.25;
+  body.castShadow = true;
+  g.add(body);
+  // flared top rim
+  for(const s of [-1, 1]){
+    const flare = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 0.1), m);
+    flare.position.set(0, 1.75, s*0.58);
+    flare.rotation.x = -s*0.25;
+    g.add(flare);
+  }
+  // the coal heaped high — lumpy spheres
+  for(let i = 0; i < 7; i++){
+    const lump = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.16, 0.3)), coalM);
+    lump.position.set(rand(-0.9, 0.9), 1.8 + rand(0, 0.18), rand(-0.3, 0.3));
+    lump.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
+    g.add(lump);
+  }
+  wheels(g, [[-0.85, 0], [0.85, 0]], 0.24);
+  return g;
+}
+// CABOOSE
+function makeCaboose(){
+  const g = new THREE.Group();
+  const m = new THREE.MeshLambertMaterial({ color:0x8a2e2a, flatShading:true });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.15, 1.1), m);
+  box.position.y = 1.22;
+  box.castShadow = true;
+  g.add(box);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.09, 1.25), ironDk);
+  roof.position.y = 1.85;
+  g.add(roof);
+  // the cupola
+  const cup = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.5, 0.85), m);
+  cup.position.y = 2.12;
+  cup.castShadow = true;
+  g.add(cup);
+  const cupRoof = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 1.0), ironDk);
+  cupRoof.position.y = 2.4;
+  g.add(cupRoof);
+  for(const s of [-1, 1]){
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.04),
+      new THREE.MeshBasicMaterial({ color:0x2a3a4c }));
+    win.position.set(0, 2.12, s*0.44);
+    g.add(win);
+    // end platforms + railings
+    const plat = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 1.0), ironDk);
+    plat.position.set(s*1.2, 0.7, 0);
+    g.add(plat);
+    const railR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.4, 1.0), ironM);
+    railR.position.set(s*1.33, 0.95, 0);
+    g.add(railR);
+  }
+  wheels(g, [[-0.7, 0], [0.7, 0]], 0.24);
+  return g;
+}
+// the consist: [group, arc-length offset behind the loco]
+const consist = [
+  { g: loco, off: 0, loco: true },
+  { g: makeTender(), off: 3.6 },
+  { g: makeBoxcar(0x7a5a36), off: 6.9 },
+  { g: makeBoxcar(0x4a6252), off: 10.2 },
+  { g: makeHopper(), off: 13.4 },
+  { g: makeHopper(), off: 16.6 },
+  { g: makeCaboose(), off: 19.7 },
+];
+for(const c of consist) if(!c.loco) scene.add(c.g);
+
+// smoke
+function puffTex(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+  rg.addColorStop(0, 'rgba(235,235,232,0.8)'); rg.addColorStop(1, 'rgba(225,225,222,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const puffs = [];
+{
+  const pm = new THREE.SpriteMaterial({ map:puffTex(), transparent:true, depthWrite:false });
+  for(let i = 0; i < 36; i++){
+    const s = new THREE.Sprite(pm.clone());
+    s.visible = false;
+    scene.add(s);
+    puffs.push({ m:s, age:9 });
+  }
+}
+let lastChuff = 0;
+
+// ---------- the run --------------------------------------------------------
+let S = 0;
+const SPEED = 4.2;
+let wheelA = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  S += SPEED*dt;
+  wheelA += SPEED*dt/0.45;                     // driver rotation (r = 0.45)
+
+  for(const c of consist){
+    const a = trackAt(S - c.off);
+    c.g.position.copy(a.p);
+    c.g.rotation.set(0, Math.atan2(a.t.x, a.t.z) - Math.PI/2 + Math.PI, 0);
+    c.g.rotateY(Math.PI/2);
+    // little independent sway
+    c.g.rotation.z = Math.sin(t*2.2 + c.off)*0.008;
+    c.g.rotation.x = Math.sin(t*1.7 + c.off*2)*0.006;
+    // spin the wheels
+    c.g.traverse(o => {
+      if(o.geometry && o.geometry.type === 'CylinderGeometry' && o.rotation.x !== 0 &&
+         Math.abs(o.rotation.x - Math.PI/2) < 0.01 && o.geometry.parameters.radiusTop <= 0.45)
+        o.rotation.y = wheelA*(0.45/o.geometry.parameters.radiusTop)*0.55;
+    });
+  }
+  // the connecting rods ride the cranks (both cranks share a phase per side)
+  const crankR = 0.28;
+  rods.forEach((rod, i) => {
+    const s = i === 0 ? -1 : 1;
+    const ph = wheelA + (s > 0 ? Math.PI/2 : 0);   // quartered, like the real thing
+    rod.position.set(-0.1 + Math.cos(ph)*crankR, 0.67 + Math.sin(ph)*crankR, s*0.56);
+  });
+  // chuff: four per driver revolution
+  const chuffPhase = Math.floor((wheelA % (Math.PI*2))/(Math.PI/2));
+  if(chuffPhase !== lastChuff){
+    lastChuff = chuffPhase;
+    const p = puffs.find(x => x.age > 2.2);
+    if(p){
+      p.age = 0;
+      p.m.position.copy(stackTip).applyMatrix4(loco.matrixWorld);
+      p.m.scale.setScalar(0.5);
+      p.m.visible = true;
+    }
+  }
+  for(const p of puffs){
+    p.age += dt;
+    const k = clamp(p.age/2.2, 0, 1);
+    p.m.position.y += dt*1.5;
+    p.m.scale.setScalar(0.5 + k*2.4);
+    p.m.material.opacity = (1 - k)*0.65;
+    if(k >= 1) p.m.visible = false;
+  }
+
+  controls.target.lerp(new THREE.Vector3(loco.position.x, 1.2, loco.position.z), dt*1.8);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'; // Scene Editor
 import { GameData, Scene, StageElement, SelectionState, Actor, ActorGraphic, SceneAudio, AssetStatus } from '@/types';
+import { identityLine, pickIdentityRef } from '@/utils/actorIdentity';
 import { CyberInput } from '@/components/CyberInput';
 import { CyberSlider } from '@/components/CyberSlider';
 import { SCENE_TYPES, POSES, EXPRESSIONS, ANGLES } from '@/constants';
@@ -14,6 +15,7 @@ import { ScenePreview } from '@/components/theater/ScenePreview';
 import { Stage } from '@/components/Stage';
 import { DramScriptEditor } from '@/components/editors/DramScriptEditor';
 import { SceneTextPanel } from '@/components/editors/SceneTextPanel';
+import { NarratonEditor } from '@/components/editors/NarratonEditor';
 
 interface SceneEditorProps {
   game: GameData;
@@ -75,11 +77,17 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
   const selectedElement = selectedScene?.stage?.find(e => e.id === selectedElementId);
   const generatorActor = actorGenerator.actorId ? game.actors.find(a => a.id === actorGenerator.actorId) : null;
 
-  const createScene = () => {
+  // New scenes must choose a backdrop up front (changeable later in
+  // Scene Info); the picker dialog calls this with the choice.
+  const [showBackdropPicker, setShowBackdropPicker] = useState(false);
+
+  const createScene = (dropId: string | null) => {
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
       name: 'New Scene',
       sceneType: 'AGENCY',
+      // Scene.dropId is optional, not nullable; null means "none chosen".
+      dropId: dropId ?? undefined,
       stage: [],
       script: '',
       status: 'new',
@@ -87,6 +95,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     };
     onChange({ ...game, scenes: [...game.scenes, newScene] });
     onSelect('scene', newScene.id);
+    setShowBackdropPicker(false);
   };
 
   // Update scene with auto-promotion to 'work' when content changes
@@ -324,9 +333,9 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     
     const angleDescription = getAngleDescription(genAngle);
     
-    let prompt = `IDENTITY: Generate a character portrait of \"${actor.name}\".\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference exactly. This is for a visual novel game - clean lines, dramatic lighting, high quality character art.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
+    let prompt = `${identityLine(actor)}\n\nPOSE & EXPRESSION:\n- Pose: ${genPose}\n- Expression: ${genExpression}\n- Camera Angle: ${angleDescription}\n\nFRAMING: ${frameInstruction}\n\nART STYLE: Match the provided style reference images exactly.\n\nCRITICAL BACKGROUND INSTRUCTION: The character MUST be rendered on a SOLID BRIGHT GREEN BACKGROUND (#00FF00). This is essential for chroma-key compositing. No gradients, no shadows on background, pure solid green (#00FF00) everywhere except the character.\n\nNEGATIVE: No text, no watermarks, no multiple characters, no complex backgrounds.`;
 
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details.';
     }
     
@@ -414,18 +423,19 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             referenceImageCloseUp: generatorActor.referenceImageCloseUp,
-            referenceImageFullBody: generatorActor.referenceImageFullBody,
+            // Identity lock: the actor's own sprite beats the uploaded
+            // photo, so a new expression is the same person.
+            referenceImageFullBody: pickIdentityRef(generatorActor, genPose),
             styleGuide,
             enforceStyleGuide: styleLock && !genPrompt.trim(),
           }),
@@ -465,15 +475,14 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: generatedPreview,
             editMode: true,
@@ -640,13 +649,61 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
             {game.scenes.length} scene{game.scenes.length !== 1 ? 's' : ''} defined
           </p>
           <button
-            onClick={createScene}
+            onClick={() => setShowBackdropPicker(true)}
             className="flex items-center gap-2 px-3 py-2 bg-diesel-rust/20 border border-diesel-rust text-diesel-rust text-sm font-bold uppercase hover:bg-diesel-rust/30 transition-colors"
           >
             <Plus size={14} />
             New Scene
           </button>
         </div>
+
+        {/* Backdrop picker: every new scene starts with a chosen backdrop */}
+        <Dialog open={showBackdropPicker} onOpenChange={setShowBackdropPicker}>
+          <DialogContent className="max-w-2xl bg-diesel-dark border-diesel-border">
+            <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-1">
+              Choose a Backdrop
+            </h3>
+            <p className="text-xs text-diesel-steel mb-3">
+              Every scene starts on a backdrop. You can change it later in Scene Info.
+            </p>
+            <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+              {game.drops.map(drop => (
+                <button
+                  key={drop.id}
+                  onClick={() => createScene(drop.id)}
+                  className="group border border-diesel-border hover:border-diesel-gold transition-colors text-left"
+                >
+                  <div className="aspect-video bg-diesel-black overflow-hidden">
+                    {drop.image ? (
+                      <img src={drop.image} alt={drop.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-diesel-steel text-xs">
+                        (no image yet)
+                      </div>
+                    )}
+                  </div>
+                  <p className="p-1.5 text-xs text-diesel-paper truncate group-hover:text-diesel-gold">
+                    {drop.name}
+                  </p>
+                </button>
+              ))}
+              <button
+                onClick={() => createScene(null)}
+                className="border border-dashed border-diesel-border hover:border-diesel-steel transition-colors"
+              >
+                <div className="aspect-video flex items-center justify-center text-diesel-steel text-xs">
+                  (None — no backdrop)
+                </div>
+                <p className="p-1.5 text-xs text-diesel-steel">Empty black stage</p>
+              </button>
+            </div>
+            {game.drops.length === 0 && (
+              <p className="text-diesel-rust text-xs mt-2">
+                No drops yet — create backdrops in the DR tab, or start with none.
+              </p>
+            )}
+          </DialogContent>
+        </Dialog>
         
         <div className="space-y-2">
           {game.scenes.map((scene, idx) => {
@@ -753,7 +810,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
         <Stage
           scene={selectedScene}
           game={game}
-          background={backgroundDrop}
+          background={backgroundDrop ?? undefined}
           editable={true}
           selectedElementId={selectedElementId}
           draggingId={dragging}
@@ -980,7 +1037,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '__none__') {
-                        updateScene(selectedScene.id, { dropId: null });
+                        updateScene(selectedScene.id, { dropId: undefined });
                       } else if (value === '') {
                         // Not selected yet
                       } else {
@@ -1002,6 +1059,13 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
                   )}
                 </div>
               </section>
+
+              {/* Narraton selection metadata */}
+              <NarratonEditor
+                meta={selectedScene.narraton}
+                worldStateVars={Object.keys(game.info.worldState)}
+                onChange={(narraton) => updateScene(selectedScene.id, { narraton })}
+              />
 
               {/* Stage Elements */}
               <section className="bg-diesel-black border border-diesel-border p-3">
@@ -1201,6 +1265,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
           scene={selectedScene}
           game={game}
           onClose={() => setShowScenePreview(false)}
+          onUpdateScript={(newScript) => updateScene(selectedScene.id, { script: newScript })}
         />
       )}
     </div>

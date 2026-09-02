@@ -49,7 +49,7 @@
   <b>🐕 Poppy Study</b> — the real girl, v1<br>
   <span class="hint">drag to orbit · scroll to zoom</span><br>
   <button data-m="walk">Walk</button><button data-m="sit">Sit</button><button
-    data-m="sleep">Sleep</button><button data-m="pawup">Paw-up</button><button
+    data-m="sleep">Sleep</button><button data-m="curl">Curl up</button><button data-m="pawup">Paw-up</button><button
     data-m="rearup">Rear-up</button><button data-m="tailchase">Tail-chase</button><button
     data-m="happy">Happy</button><button data-m="sad">Sad</button><br>
   <label><input id="tour" type="checkbox" checked> auto-tour the set</label>
@@ -127,18 +127,36 @@ const fill = new THREE.DirectionalLight(0xd6e8ff, 0.45);
 fill.position.set(-18, 10, -14);
 scene.add(fill);
 
-// ---------- ground: a sandy clearing with grass tufts ---------------------
+// ---------- ground: a gently ROLLING clearing (Poppy terrain-follows) ------
+// the map contract, dog-sized: terrainH + gradient, exact everywhere
+function terrainH(x, z){
+  return 0.32*Math.sin(x*0.32)*Math.cos(z*0.28)
+       + 0.18*Math.sin(x*0.7 + 1.1)*Math.sin(z*0.55 + 0.5);
+}
+function terrainGrad(x, z){
+  return {
+    hx: 0.32*0.32*Math.cos(x*0.32)*Math.cos(z*0.28)
+      + 0.18*0.7*Math.cos(x*0.7 + 1.1)*Math.sin(z*0.55 + 0.5),
+    hz: -0.32*0.28*Math.sin(x*0.32)*Math.sin(z*0.28)
+      + 0.18*0.55*Math.sin(x*0.7 + 1.1)*Math.cos(z*0.55 + 0.5),
+  };
+}
 {
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
-    new THREE.MeshLambertMaterial({ color:0xd9c791 }));
-  sand.rotation.x = -Math.PI/2;
+  const geo = new THREE.PlaneGeometry(70, 70, 70, 70);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+  for(let i = 0; i < pos.count; i++)
+    pos.setY(i, terrainH(pos.getX(i), pos.getZ(i)));
+  geo.computeVertexNormals();
+  const sand = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color:0xd9c791 }));
   sand.receiveShadow = true;
   scene.add(sand);
   const tuftMat = new THREE.MeshLambertMaterial({ color:0x7d9a4e, flatShading:true });
   for(let i=0;i<26;i++){
     const a = rand(0, Math.PI*2), r = rand(7, 30);
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
     const t = new THREE.Mesh(new THREE.ConeGeometry(rand(0.12,0.2), rand(0.35,0.7), 5), tuftMat);
-    t.position.set(Math.cos(a)*r, 0.18, Math.sin(a)*r);
+    t.position.set(x, terrainH(x, z) + 0.18, z);
     t.rotation.z = rand(-0.2, 0.2);
     scene.add(t);
   }
@@ -158,7 +176,7 @@ const vita = new THREE.Group();
       new THREE.MeshLambertMaterial({ color:0x4c5666 }));
     leg.position.set(s*0.15, 0.28, 0); vita.add(leg);
   }
-  vita.position.set(2.6, 0, 1.4);
+  vita.position.set(2.6, terrainH(2.6, 1.4), 1.4);
   vita.lookAt(0, 0, 0);
   scene.add(vita);
 }
@@ -456,16 +474,18 @@ const LBL = makeLeg(-0.27, -0.5, false),  LBR = makeLeg(0.27, -0.5, false);
 //  other. Cyclic motion (trot, wag, paddle) is layered on top of the pose.
 // ==========================================================================
 let mode = 'happy';
+let modeT = 0;                 // seconds since the mode began (the curl ritual needs it)
 const chipBtns = [...document.querySelectorAll('#chip button')];
 function setMode(m){
   mode = m;
+  modeT = 0;
   chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
 }
 chipBtns.forEach(b => b.addEventListener('click', () => {
   document.getElementById('tour').checked = false;
   setMode(b.dataset.m);
 }));
-const TOUR = ['happy', 'walk', 'sit', 'pawup', 'rearup', 'tailchase', 'sad', 'sleep'];
+const TOUR = ['happy', 'walk', 'sit', 'pawup', 'rearup', 'tailchase', 'sad', 'curl', 'sleep'];
 let tourI = 0, tourT = 7;
 setMode('happy');
 
@@ -484,12 +504,13 @@ function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   const t = clock.elapsedTime;
+  modeT += dt;
 
   // auto-tour
   if(document.getElementById('tour').checked){
     tourT -= dt;
     if(tourT <= 0){
-      tourT = mode === 'sleep' ? 9 : 7;
+      tourT = mode === 'sleep' ? 9 : mode === 'curl' ? 12 : 7;
       tourI = (tourI + 1) % TOUR.length;
       setMode(TOUR[tourI]);
     }
@@ -526,6 +547,31 @@ function animate(){
     chT.tailUp = -0.25; wag = 0.25; wagAmp = 0.04;
     chT.ear = -0.3;
     eyesClosedT = 1;
+  } else if(mode === 'curl'){
+    // THE RITUAL first: two or three tightening circles, sniffing the bed —
+    // then down into the DONUT, nose around to the hip, tail over the nose.
+    if(modeT < 3.2){
+      moving = true; trot = 0.8;
+      spinRate = 3.2 - modeT*0.5;                        // the circles tighten
+      chT.hPitch = 0.35; chT.hYaw = 0.85;                // sniffing the spot
+      chT.tailUp = -0.3; wag = 1.4; wagAmp = 0.15;
+      chT.ear = 0.2;
+    } else {
+      const settle = clamp((modeT - 3.2)/1.6, 0, 1);
+      chT.roll = 0.85*settle; chT.lift = -0.4*settle;
+      chT.pitch = -0.1*settle;
+      chT.hPitch = 0.62*settle;                          // nose down…
+      chT.hYaw = 1.35*settle;                            // …and around to the hip
+      chT.hTilt = -0.25*settle;
+      legT[0].hip = 1.3*settle; legT[0].knee = 1.4*settle;   // all four folded in
+      legT[1].hip = 1.1*settle; legT[1].knee = 1.5*settle;
+      legT[2].hip = -1.2*settle; legT[2].knee = 1.8*settle;
+      legT[3].hip = -1.0*settle; legT[3].knee = 1.7*settle;
+      chT.tailUp = 1.15*settle;                          // the tail sweeps up over the nose
+      wag = 0.2; wagAmp = 0.03;
+      chT.ear = -0.25*settle;
+      if(modeT > 4.8) eyesClosedT = 1;
+    }
   } else if(mode === 'pawup'){
     // sitting close, one forepaw lifted at the Vita, head tilted, eye contact
     chT.pitch = -0.55; chT.lift = -0.16;
@@ -580,6 +626,12 @@ function animate(){
     ch.spin += dt * spinRate;
     poppy.position.set(Math.cos(ch.spin)*0.55, 0, Math.sin(ch.spin)*0.55);
     poppy.rotation.y = -ch.spin + Math.PI;
+  } else if(mode === 'curl' && modeT < 3.2){
+    // the tightening bed-circles
+    ch.spin += dt * spinRate;
+    const r = 0.5 * (1 - modeT/4);
+    poppy.position.set(Math.cos(ch.spin)*r, 0, Math.sin(ch.spin)*r);
+    poppy.rotation.y = -ch.spin + Math.PI;
   } else if(mode === 'pawup'){
     // settle near the stand-in, facing it
     const target = new THREE.Vector3(1.35, 0, 0.72);
@@ -590,13 +642,26 @@ function animate(){
     poppy.position.lerp(new THREE.Vector3(0, 0, 0), Math.min(1, dt*1.4));
   }
 
+  // ---------- TERRAIN-FOLLOW: ride the height, tilt to the contour ----------
+  {
+    const gx = poppy.position.x, gz = poppy.position.z;
+    poppy.position.y = terrainH(gx, gz);
+    const { hx, hz } = terrainGrad(gx, gz);
+    const hd = poppy.rotation.y;
+    const ahead = hx*Math.sin(hd) + hz*Math.cos(hd);   // grade under her nose
+    const side = hx*Math.cos(hd) - hz*Math.sin(hd);    // camber under her paws
+    poppy.rotation.x = lerp(poppy.rotation.x, -Math.atan(ahead)*0.75, Math.min(1, dt*5));
+    poppy.rotation.z = lerp(poppy.rotation.z, Math.atan(side)*0.55, Math.min(1, dt*5));
+  }
+
   // ---------- pose the body ----------
   P.chest.position.y = 0.78 + ch.lift;
   P.chest.rotation.x = ch.pitch;
   P.chest.rotation.z = ch.roll;
-  // breathing — slow and deep in sleep, light otherwise
-  breath = Math.sin(t * (mode === 'sleep' ? 1.5 : 3.2));
-  P.chest.scale.setScalar(1 + breath * (mode === 'sleep' ? 0.022 : 0.008));
+  // breathing — slow and deep in sleep (curled or sprawled), light otherwise
+  const asleep = mode === 'sleep' || (mode === 'curl' && modeT > 4.5);
+  breath = Math.sin(t * (asleep ? 1.5 : 3.2));
+  P.chest.scale.setScalar(1 + breath * (asleep ? 0.022 : 0.008));
 
   // head
   P.head.rotation.x = ch.hPitch + (mode === 'walk' ? Math.sin(t*8.4)*0.04 : 0);
@@ -646,6 +711,19 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){
+    const [id, val] = pair.split(':');
+    const el = document.getElementById(id);
+    if(el){ el.value = val; el.dispatchEvent(new Event('change')); }
+  }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
 </script>
 </body>
 </html>

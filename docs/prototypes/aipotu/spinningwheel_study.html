@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SPINNING WHEEL STUDY — wool to thread, for George World.
+     Filed 2026-08-31. Standalone; vendored three (r160), game importmap.
+     A proper Saxony-style wheel: the great drive wheel with turned
+     spokes, a treadle worked by foot, the connecting footman rod, the
+     flyer and bobbin up front, and a distaff holding a cloud of raw
+     wool. The scene: a spinner Vita sits on a stool, treadles the
+     wheel up to speed (the wheel has real momentum — it lags the
+     treadle at first, coasts when she rests), DRAFTS wool from the
+     cloud with a pinch-and-pull left hand, and the thread line runs
+     from the cloud through her fingers to the flyer while the bobbin
+     visibly FATTENS with wound thread. Every so often she stops,
+     leans in to check the thread, then treadles back up.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spinning Wheel Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e6d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,28,18,0.78); color:#f2f4e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🧶 Spinning Wheel Study</b> — treadle, draft, wind on, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the wheel has momentum; the bobbin fattens</span>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 4242;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e4d2), 40, 240);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 600);
+camera.position.set(2.8, 1.9, 4.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.2; controls.maxDistance = 25;
+controls.maxPolarAngle = 1.52;
+{
+  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e2), zenith = new THREE.Color(0x84b2d8),
+        below = new THREE.Color(0xd8dac6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/280;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca878, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(14, 22, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(240, 40),
+    new THREE.MeshLambertMaterial({ color:0xbcb684 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(2.2, 24),
+    new THREE.MeshLambertMaterial({ color:0xa89060 }));
+  rug.rotation.x = -Math.PI/2; rug.position.y = 0.01; rug.receiveShadow = true; scene.add(rug);
+}
+
+// ---------- THE WHEEL ------------------------------------------------------
+// Saxony layout: sloped bench, great wheel at the back-right, flyer at the
+// front-left, treadle underneath, distaff standing up with the wool cloud.
+const matWood = new THREE.MeshLambertMaterial({ color:0x7a5432, flatShading:true });
+const matWoodDark = new THREE.MeshLambertMaterial({ color:0x5c3e22, flatShading:true });
+const matThread = new THREE.MeshLambertMaterial({ color:0xe8e0cc });
+const W = new THREE.Group();
+scene.add(W);
+{
+  // the sloped bench on three turned legs
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.34), matWood);
+  bench.position.set(0, 0.62, 0);
+  bench.rotation.z = 0.16;
+  bench.castShadow = true;
+  W.add(bench);
+  for(const [x, z, h] of [[-0.62, 0.1, 0.52], [-0.62, -0.1, 0.52], [0.6, 0, 0.72]]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.038, h, 7), matWoodDark);
+    leg.position.set(x, h/2, z);
+    leg.rotation.z = x < 0 ? -0.12 : 0.1;
+    leg.castShadow = true;
+    W.add(leg);
+  }
+}
+// the GREAT WHEEL — rim, hub, 8 turned spokes; spins about z at x=+0.52
+const wheel = new THREE.Group();
+wheel.position.set(0.52, 1.26, 0);
+W.add(wheel);
+{
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.035, 10, 36), matWood);
+  rim.castShadow = true;
+  wheel.add(rim);
+  const groove = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.014, 8, 36), matWoodDark);
+  groove.position.z = 0.03;
+  wheel.add(groove);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10), matWoodDark);
+  hub.rotation.x = Math.PI/2;
+  wheel.add(hub);
+  for(let i = 0; i < 8; i++){
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.026, 0.47, 6), matWood);
+    sp.position.y = 0.26;
+    const g = new THREE.Group();
+    g.rotation.z = i/8*Math.PI*2;
+    // a turned bulge on each spoke
+    const bulge = new THREE.Mesh(new THREE.SphereGeometry(0.032, 7, 6), matWood);
+    bulge.position.y = 0.3;
+    sp.castShadow = true;
+    g.add(sp); g.add(bulge);
+    wheel.add(g);
+  }
+  // crank pin (the footman grabs this)
+  const crank = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.1, 6), matWoodDark);
+  crank.rotation.x = Math.PI/2;
+  crank.position.set(0, 0.1, -0.06);
+  wheel.add(crank);
+  // wheel uprights off the bench
+  for(const dz of [-0.09, 0.09]){
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.036, 0.62, 7), matWood);
+    up.position.set(0.52, 0.98, dz);
+    up.castShadow = true;
+    W.add(up);
+  }
+}
+// the TREADLE + FOOTMAN
+const treadle = new THREE.Group();
+treadle.position.set(0, 0.06, 0.16);
+W.add(treadle);
+{
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 0.24), matWood);
+  board.position.x = 0.1;
+  board.castShadow = true;
+  treadle.add(board);
+}
+const footman = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.0, 6), matWoodDark);
+footman.castShadow = true;
+W.add(footman);
+// the FLYER + BOBBIN at the front (the business end)
+const flyer = new THREE.Group();
+flyer.position.set(-0.62, 1.06, 0);
+W.add(flyer);
+let bobbin;
+{
+  // maidens (two uprights holding the flyer)
+  for(const dx of [-0.14, 0.14]){
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 0.34, 7), matWoodDark);
+    m.position.set(-0.62 + dx, 0.92, 0);
+    m.castShadow = true;
+    W.add(m);
+  }
+  // the flyer: spindle + two curved arms (U shape), spins about x
+  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.3, 6), matWoodDark);
+  spindle.rotation.z = Math.PI/2;
+  flyer.add(spindle);
+  for(const s of [-1, 1]){
+    const arm = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 6, 10, Math.PI), matWood);
+    arm.rotation.y = Math.PI/2;
+    arm.rotation.x = s > 0 ? 0 : Math.PI;
+    arm.position.x = 0.04;
+    flyer.add(arm);
+  }
+  // the bobbin — a cylinder that FATTENS as thread winds on
+  bobbin = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.16, 10), matThread);
+  bobbin.rotation.z = Math.PI/2;
+  bobbin.position.x = -0.03;
+  flyer.add(bobbin);
+  for(const dx of [-0.11, 0.05]){ // bobbin end-caps
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.015, 10), matWoodDark);
+    cap.rotation.z = Math.PI/2;
+    cap.position.x = dx;
+    flyer.add(cap);
+  }
+  // drive band: great wheel groove -> flyer whorl (two sagging line loops)
+  const whorl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 10), matWoodDark);
+  whorl.rotation.z = Math.PI/2;
+  whorl.position.x = 0.13;
+  flyer.add(whorl);
+}
+const bandGeo = new THREE.BufferGeometry();
+const bandPts = new Float32Array(2*24*3);
+bandGeo.setAttribute('position', new THREE.BufferAttribute(bandPts, 3));
+scene.add(new THREE.LineSegments(bandGeo, new THREE.LineBasicMaterial({ color:0x3c2c18 })));
+function updateBand(){
+  // two straight runs, top and bottom, wheel groove to whorl, with a wobble
+  const A = new THREE.Vector3(0.52, 1.26, 0.03), B = new THREE.Vector3(-0.49, 1.06, 0);
+  let k = 0;
+  for(const side of [1, -1]){
+    const a = A.clone(); a.y += side*0.52;
+    const b = B.clone(); b.y += side*0.045;
+    for(let i = 0; i < 12; i++){
+      const t0 = i/12, t1 = (i + 1)/12;
+      for(const t of [t0, t1]){
+        bandPts[k++] = lerp(a.x, b.x, t);
+        bandPts[k++] = lerp(a.y, b.y, t) - Math.sin(t*Math.PI)*0.02*side;
+        bandPts[k++] = lerp(a.z, b.z, t);
+      }
+    }
+  }
+  bandGeo.attributes.position.needsUpdate = true;
+}
+updateBand();
+// the DISTAFF — an upright with the wool cloud
+const wool = new THREE.Group();
+{
+  const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.026, 1.5, 7), matWood);
+  staff.position.set(-0.95, 0.75, 0.35);
+  staff.castShadow = true;
+  W.add(staff);
+  const wm = new THREE.MeshLambertMaterial({ color:0xf2ede0, flatShading:true });
+  for(let i = 0; i < 7; i++){
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(rand(0.07, 0.12), 7, 6), wm);
+    puff.position.set(rand(-0.09, 0.09), rand(-0.12, 0.14), rand(-0.09, 0.09));
+    puff.castShadow = true;
+    wool.add(puff);
+  }
+  wool.position.set(-0.95, 1.42, 0.35);
+  W.add(wool);
+}
+// the THREAD — wool cloud -> drafting hand -> flyer arm tip (a polyline)
+const threadGeo = new THREE.BufferGeometry();
+const threadPts = new Float32Array(3*3);
+threadGeo.setAttribute('position', new THREE.BufferAttribute(threadPts, 3));
+scene.add(new THREE.Line(threadGeo, new THREE.LineBasicMaterial({ color:0xd8d0b8 })));
+
+// ---------- the spinner ----------------------------------------------------
+const V = { g: new THREE.Group() };
+{
+  const dress = new THREE.MeshLambertMaterial({ color:0x7a4a5c });
+  const skin = new THREE.MeshLambertMaterial({ color:0xe0ba92 });
+  // the stool
+  const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.36, 9), matWoodDark);
+  stool.position.set(0.1, 0.18, 0.85);
+  stool.castShadow = true;
+  scene.add(stool);
+  V.g.position.set(0.1, 0, 0.85);
+  V.g.rotation.y = Math.PI + 0.35;          // facing the wheel
+  V.hips = new THREE.Group(); V.hips.position.y = 0.52; V.g.add(V.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.36, 6, 12), dress);
+  barrel.position.y = 0.2; barrel.castShadow = true; V.hips.add(barrel);
+  V.head = new THREE.Group(); V.head.position.y = 0.74; V.hips.add(V.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 12), skin);
+  skull.castShadow = true; V.head.add(skull);
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6),
+    new THREE.MeshLambertMaterial({ color:0x6a5238 }));
+  bun.position.set(0, 0.14, 0.2); V.head.add(bun);
+  V.arms = []; V.hands = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.3, 0.46, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.36, 4, 8), skin);
+    limb.position.y = -0.22; limb.castShadow = true; arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), skin);
+    hand.position.y = -0.46; arm.add(hand);
+    V.hips.add(arm); V.arms.push(arm); V.hands.push(hand);
+  }
+  // seated legs: thighs forward, the RIGHT foot rides the treadle
+  V.legs = []; V.feet = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.13, 0.05, 0);
+    leg.rotation.x = -1.25;                  // seated, thighs out front
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.26, 4, 8), dress);
+    thigh.position.y = -0.18; thigh.castShadow = true; leg.add(thigh);
+    const shin = new THREE.Group();
+    shin.position.y = -0.34;
+    shin.rotation.x = 1.05;                  // knee bends back down
+    const calf = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.24, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x46402e }));
+    calf.position.y = -0.16; calf.castShadow = true; shin.add(calf);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.2),
+      new THREE.MeshLambertMaterial({ color:0x33241a }));
+    foot.position.set(0, -0.31, 0.05); shin.add(foot);
+    leg.add(shin);
+    V.hips.add(leg); V.legs.push(leg); V.feet.push(shin);
+  }
+  scene.add(V.g);
+}
+
+// ---------- the mechanics: treadle drives wheel; wheel has momentum --------
+// loop: 0-2 spin-up · 2-11 steady spinning+drafting · 11-14 rest & check
+// (wheel coasts down) · 14-16 treadle back up · wraps at 16.
+let wheelA = 0;         // wheel angle
+let wheelV = 0;         // wheel angular velocity
+let bobbinFat = 0;      // wound thread, 0..1
+let phT = 0;
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  phT = (phT + dt) % 16;
+  const f = phT;
+
+  const treadling = f < 11 || f >= 14;
+  // the treadle beat — foot pumps at 1.6 Hz while treadling
+  const beat = Math.sin(t*Math.PI*2*1.6);
+  treadle.rotation.x = treadling ? beat*0.16 : treadle.rotation.x*(1 - dt*3);
+
+  // wheel momentum: treadle pushes only on the downstroke; friction always
+  if(treadling && beat < 0) wheelV += -beat*7.5*dt;
+  wheelV -= wheelV*0.55*dt;                  // bearing friction — it coasts
+  wheelA += wheelV*dt;
+  wheel.rotation.z = -wheelA;
+  // flyer is belt-driven ~8:1 off the great wheel
+  flyer.rotation.x = wheelA*8;
+  bobbin.rotation.x = wheelA*8*1.15;         // bobbin slips a little faster (winds on)
+
+  // the footman connects crank pin to treadle heel
+  {
+    const pin = new THREE.Vector3(0, 0.1, -0.06).applyAxisAngle(new THREE.Vector3(0,0,1), -wheelA)
+      .add(new THREE.Vector3(0.52, 1.26, 0));
+    const heel = new THREE.Vector3(0.42, 0.06 + Math.sin(treadle.rotation.x)*0.3, 0.16);
+    footman.position.lerpVectors(pin, heel, 0.5);
+    footman.scale.y = pin.distanceTo(heel);
+    footman.lookAt(pin);
+    footman.rotateX(Math.PI/2);
+  }
+
+  // the bobbin fattens while the wheel actually turns
+  if(wheelV > 0.5){
+    bobbinFat = clamp(bobbinFat + dt*0.012, 0, 1);
+    wool.scale.setScalar(1 - bobbinFat*0.35);    // the cloud shrinks
+  }
+  // cheap fatten: the cylinder's radial axes are local x and z (its length
+  // runs along local y, which the z-rotation lays along the spindle)
+  const fat = (0.022 + bobbinFat*0.026)/0.022;
+  bobbin.scale.set(fat, 1, fat);
+
+  // ------ the spinner's body ------
+  // right foot rides the treadle
+  V.feet[1].rotation.x = 1.05 + treadle.rotation.x*1.4;
+  if(f < 11 || f >= 14){                     // spinning: draft with the left
+    // left arm reaches back toward the wool, pinch-and-pull cycle
+    const draft = (Math.sin(t*2.2) + 1)/2;   // 0 near flyer, 1 near cloud
+    V.arms[0].rotation.x = lerp(V.arms[0].rotation.x, -1.2 - draft*0.5, dt*6);
+    V.arms[0].rotation.z = lerp(V.arms[0].rotation.z, 0.65 + draft*0.35, dt*6);
+    // right hand steadies the thread near the flyer
+    V.arms[1].rotation.x = lerp(V.arms[1].rotation.x, -1.35, dt*5);
+    V.arms[1].rotation.z = lerp(V.arms[1].rotation.z, -0.2 + Math.sin(t*2.2 + 1)*0.06, dt*5);
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.12, dt*4);   // eyes on the thread
+    V.head.rotation.y = lerp(V.head.rotation.y, -0.15, dt*4);
+    V.hips.rotation.x = lerp(V.hips.rotation.x, 0.06, dt*4);
+  } else {                                   // the rest: lean in, check the thread
+    V.arms[0].rotation.x = lerp(V.arms[0].rotation.x, -1.7, dt*4);
+    V.arms[0].rotation.z = lerp(V.arms[0].rotation.z, 0.3, dt*4);
+    V.arms[1].rotation.x = lerp(V.arms[1].rotation.x, -1.7, dt*4);
+    V.arms[1].rotation.z = lerp(V.arms[1].rotation.z, -0.3, dt*4);
+    V.hips.rotation.x = lerp(V.hips.rotation.x, 0.3, dt*3);    // the lean
+    V.head.rotation.x = lerp(V.head.rotation.x, 0.4, dt*3);
+    V.head.rotation.y = lerp(V.head.rotation.y, Math.sin(t*1.5)*0.1, dt*3);  // hm, hm
+  }
+
+  // ------ the thread line: cloud -> left hand -> flyer arm tip ------
+  {
+    const a = new THREE.Vector3(); wool.getWorldPosition(a); a.y -= 0.1*wool.scale.y;
+    const b = new THREE.Vector3(); V.hands[0].getWorldPosition(b);
+    const tip = new THREE.Vector3(0.04, 0.09, 0).applyAxisAngle(new THREE.Vector3(1,0,0), flyer.rotation.x)
+      .add(new THREE.Vector3(-0.62, 1.06, 0));
+    threadPts[0] = a.x; threadPts[1] = a.y; threadPts[2] = a.z;
+    threadPts[3] = b.x; threadPts[4] = b.y; threadPts[5] = b.z;
+    threadPts[6] = tip.x; threadPts[7] = tip.y; threadPts[8] = tip.z;
+    threadGeo.attributes.position.needsUpdate = true;
+  }
+
+  // wool cloud breathes a little
+  wool.rotation.y = Math.sin(t*0.6)*0.1;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

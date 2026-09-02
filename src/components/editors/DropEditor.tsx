@@ -93,7 +93,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
 CRITICAL ASPECT RATIO: Generate a WIDE 16:9 horizontal landscape image (width significantly greater than height). The image must be suitable as a widescreen backdrop - approximately 1280x720 pixel proportions. DO NOT generate a square or portrait image.
 
 This is a background scene with no characters or text.`;
-    if (styleLock) {
+    if (styleLock && !game.info.stylePack) {
       prompt += '\n\nMANDATORY ART STYLE: Bold black outline, simple flat fill colors, NO shading or gradients, only a few light interior lines for details. Think clean vector illustration or cel-shaded animation style.';
     }
     return prompt;
@@ -195,15 +195,14 @@ This is a background scene with no characters or text.`;
       const finalPrompt = fullPromptOverride.trim() || buildFullPrompt(drop);
       
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: finalPrompt,
             styleGuide: styleGuide || undefined,
             referenceImage: drop.referenceImage || undefined,
@@ -257,15 +256,14 @@ This is a background scene with no characters or text.`;
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`,
+        '/api/flux-generate', // local Flux bridge (vite-plugin-flux)
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
+            stylePack: game.info.stylePack,
             prompt: editPrompt,
             existingImage: drop.image,
             editMode: true,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home, ArrowLeft } from 'lucide-react';
+import { Menu, Play, Pause, FastForward, Volume2, VolumeX, Settings, Home, ArrowLeft, Gauge } from 'lucide-react';
 
 interface TheaterControlsProps {
   isAutoPlay: boolean;
@@ -11,9 +11,19 @@ interface TheaterControlsProps {
   onGoHome: () => void;
   onBackToMenu: () => void;
   onSkip?: () => void;
+  // The model, showing its work: the console shelf readout
+  showMeters?: boolean;
+  onToggleMeters?: () => void;
+  // Freeze everything: no advance, no auto-play, no simulation, no voice.
+  isPaused?: boolean;
+  onTogglePause?: () => void;
 }
 
 export const TheaterControls: React.FC<TheaterControlsProps> = ({
+  showMeters,
+  onToggleMeters,
+  isPaused,
+  onTogglePause,
   isAutoPlay,
   isMuted,
   onToggleAutoPlay,
@@ -57,6 +67,25 @@ export const TheaterControls: React.FC<TheaterControlsProps> = ({
           
           {/* Center controls */}
           <div className="flex items-center gap-2">
+            {onTogglePause && (
+              <button
+                onClick={onTogglePause}
+                aria-pressed={!!isPaused}
+                className={`
+                  flex items-center gap-2 px-4 py-2 border-2
+                  ${isPaused
+                    ? 'border-diesel-rust bg-diesel-rust/20 text-diesel-rust'
+                    : 'border-diesel-border text-diesel-steel hover:border-diesel-rust hover:text-diesel-rust'
+                  }
+                  transition-colors text-xs font-bold uppercase
+                `}
+                title={isPaused ? 'Resume the show' : 'Pause everything: the script, the clock, the voice'}
+              >
+                {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                <span className="hidden sm:inline">{isPaused ? 'Resume' : 'Pause'}</span>
+              </button>
+            )}
+
             <button
               onClick={onToggleAutoPlay}
               className={`
@@ -102,6 +131,19 @@ export const TheaterControls: React.FC<TheaterControlsProps> = ({
               {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
             
+            {onToggleMeters && (
+              <button
+                onClick={onToggleMeters}
+                aria-pressed={!!showMeters}
+                className={`p-2 transition-colors ${
+                  showMeters ? 'text-diesel-gold' : 'text-diesel-steel hover:text-diesel-gold'
+                }`}
+                title={showMeters ? 'Hide the model' : 'Show the model: what this scene is changing'}
+              >
+                <Gauge size={20} />
+              </button>
+            )}
+
             <button
               onClick={onOpenSettings}
               className="p-2 text-diesel-steel hover:text-diesel-gold transition-colors"
