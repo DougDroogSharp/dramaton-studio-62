@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CLOCK TOWER STUDY — a village clock tower, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     Stone shaft ~12 units (under the keep's 14), four painted-canvas
+     dials with roman ticks, REAL GEARED HANDS (minute laps once per
+     demo-minute, hour at 1/12 the rate), a PENDULUM swinging in the
+     open arch at the base at its honest 1 Hz, and a BELL in the belfry
+     that tolls the hour — rocking bell, flying clapper, and the toll
+     count matches the hand. Chip: demo speed or real speed, Toll now.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clock Tower Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e2d0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,26,20,0.78); color:#f0f0e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#5c6478; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#727c94; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🕰️ Clock Tower Study</b> — geared hands + toll, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="demo">Demo speed</button><button data-m="real">Real speed</button><button
+    data-m="toll">Toll now</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 121212;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e0ce), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(10, 8, 16);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 6, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f2e0), zenith = new THREE.Color(0x7fb0da),
+        below = new THREE.Color(0xd8d6c2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a684, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(22, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -4;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xb2ac7c }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const cobbles = new THREE.Mesh(new THREE.CircleGeometry(6, 24),
+    new THREE.MeshLambertMaterial({ color:0x9a9488 }));
+  cobbles.rotation.x = -Math.PI/2; cobbles.position.y = 0.01;
+  cobbles.receiveShadow = true; scene.add(cobbles);
+}
+
+// ==========================================================================
+//  THE TOWER — shaft to 9.5, clock stage, belfry, spire: ~12.5 total.
+// ==========================================================================
+const matStone = new THREE.MeshLambertMaterial({ color:0x9a9078, flatShading:true });
+const matStoneDk = new THREE.MeshLambertMaterial({ color:0x7c7460, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x6e5638, flatShading:true });
+const matRoof = new THREE.MeshLambertMaterial({ color:0x5c6a74, flatShading:true });
+const matBrass = new THREE.MeshStandardMaterial({ color:0xc9a84c, metalness:0.7, roughness:0.4 });
+const tower = new THREE.Group();
+scene.add(tower);
+{
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(2.6, 8, 2.6), matStone);
+  shaft.position.y = 4.75;
+  shaft.castShadow = true; shaft.receiveShadow = true;
+  tower.add(shaft);
+  // quoins: darker corner blocks, staggered
+  for(let k=0;k<4;k++){
+    const sx = (k%2)*2-1, sz = (k<2)*2-1;
+    for(let r=0;r<9;r++){
+      const q = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.34), matStoneDk);
+      q.position.set(sx*1.3, 1.1 + r*0.86, sz*1.3);
+      q.castShadow = true;
+      tower.add(q);
+    }
+  }
+  // base with the PENDULUM ARCH
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.5, 3.2), matStoneDk);
+  base.position.y = 0.75;
+  base.castShadow = true; base.receiveShadow = true;
+  tower.add(base);
+  // clock stage: a slightly wider box carrying the four dials
+  const stage = new THREE.Mesh(new THREE.BoxGeometry(3, 2.2, 3), matStone);
+  stage.position.y = 9.85;
+  stage.castShadow = true;
+  tower.add(stage);
+  const cornice = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.25, 3.4), matStoneDk);
+  cornice.position.y = 11.05;
+  cornice.castShadow = true;
+  tower.add(cornice);
+  // belfry: four corner posts, open, bell inside
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.5, 0.3), matStone);
+    post.position.set(sx*1.25, 11.9, sz*1.25);
+    post.castShadow = true;
+    tower.add(post);
+  }
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(2.1, 1.7, 4), matRoof);
+  spire.rotation.y = Math.PI/4;
+  spire.position.y = 13.5;
+  spire.castShadow = true;
+  tower.add(spire);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), matBrass);
+  finial.position.y = 14.4;
+  tower.add(finial);
+}
+
+// ---------- the four DIALS: painted canvas, roman ticks --------------------
+function dialTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#efe8d2'; g.beginPath(); g.arc(128,128,124,0,7); g.fill();
+  g.strokeStyle = '#3a3630'; g.lineWidth = 7;
+  g.beginPath(); g.arc(128,128,118,0,7); g.stroke();
+  g.fillStyle = '#3a3630';
+  g.font = 'bold 30px Georgia, serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const roman = ['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
+  for(let i=0;i<12;i++){
+    const a = i/12*Math.PI*2 - Math.PI/2;
+    g.fillText(roman[i], 128 + Math.cos(a)*92, 128 + Math.sin(a)*92);
+    g.fillRect(128 + Math.cos(a)*114 - 2, 128 + Math.sin(a)*114 - 2, 5, 5);
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const matDial = new THREE.MeshLambertMaterial({ map: dialTexture() });
+const matHand = new THREE.MeshLambertMaterial({ color:0x26221c });
+const hands = [];   // {minute, hour} per face
+for(let f=0;f<4;f++){
+  const face = new THREE.Group();
+  face.rotation.y = f * Math.PI/2;
+  face.position.y = 9.85;
+  tower.add(face);
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), matDial);
+  dial.position.z = 1.52;
+  face.add(dial);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.055, 6, 24), matBrass);
+  bezel.position.z = 1.52;
+  face.add(bezel);
+  const mkHand = (len, w) => {
+    const h = new THREE.Group();
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.02), matHand);
+    blade.position.y = len/2 - 0.06;
+    h.add(blade);
+    return h;
+  };
+  const minute = mkHand(0.82, 0.05), hour = mkHand(0.55, 0.08);
+  minute.position.z = 1.56; hour.position.z = 1.55;
+  face.add(minute); face.add(hour);
+  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), matBrass);
+  hub.position.z = 1.57;
+  face.add(hub);
+  hands.push({ minute, hour });
+}
+
+// ---------- the PENDULUM in the base arch ----------------------------------
+const pendulum = new THREE.Group();
+pendulum.position.set(0, 1.45, 0);
+tower.add(pendulum);
+{
+  const arch = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.2, 3.24),
+    new THREE.MeshLambertMaterial({ color:0x1c1a16 }));
+  arch.position.y = 0.7;
+  tower.add(arch);                                // the dark opening it swings in
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.05, 6), matBrass);
+  rod.position.y = -0.52;
+  pendulum.add(rod);
+  const bob = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.06, 14), matBrass);
+  bob.rotation.x = Math.PI/2;
+  bob.position.y = -1.05;
+  pendulum.add(bob);
+}
+
+// ---------- the BELL -------------------------------------------------------
+const bell = new THREE.Group();
+bell.position.y = 12.45;
+tower.add(bell);
+let clapper;
+{
+  const prof = [[0.02,0],[0.3,-0.1],[0.4,-0.45],[0.52,-0.62],[0.5,-0.68]]
+    .map(([r,y]) => new THREE.Vector2(r, y));
+  const shell = new THREE.Mesh(new THREE.LatheGeometry(prof, 14), matBrass);
+  shell.castShadow = true;
+  bell.add(shell);
+  clapper = new THREE.Group();
+  bell.add(clapper);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 6), matStoneDk);
+  rod.position.y = -0.3;
+  clapper.add(rod);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), matStoneDk);
+  ball.position.y = -0.6;
+  clapper.add(ball);
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.14, 0.14), matWood);
+  yoke.position.y = 0.08;
+  bell.add(yoke);
+}
+
+// ---------- chip -----------------------------------------------------------
+// demo speed: the minute hand laps once per real minute. real: once per hour.
+let demoSpeed = true, tolling = 0, tollsLeft = 0, tollTimer = 0;
+let clockT = 10*3600 + 52*60;                     // start at 10:52, near a toll
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === 'toll'){ startToll(); return; }
+  demoSpeed = m === 'demo';
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('demo');
+function startToll(){
+  const hr = Math.round(clockT/3600) % 12;
+  tollsLeft = hr === 0 ? 12 : hr;
+  tolling = 1; tollTimer = 0;
+}
+
+const clock = new THREE.Clock();
+let lastHour = Math.floor(clockT/3600);
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the movement: demo runs at 60x
+  clockT += dt * (demoSpeed ? 60 : 1);
+  if(Math.floor(clockT/3600) !== lastHour){ lastHour = Math.floor(clockT/3600); startToll(); }
+  const mA = (clockT % 3600)/3600 * Math.PI*2;
+  const hA = (clockT % 43200)/43200 * Math.PI*2;
+  for(const h of hands){ h.minute.rotation.z = -mA; h.hour.rotation.z = -hA; }
+
+  // the pendulum: honest 1 Hz beat regardless of demo speed
+  pendulum.rotation.z = Math.sin(t * Math.PI*2 * 0.5) * 0.16;
+
+  // the toll: bell rocks, clapper flies opposite and cracks against the lip
+  if(tolling > 0){
+    tollTimer += dt;
+    const swing = Math.sin(tollTimer * 4.2);
+    bell.rotation.x = swing * 0.5;
+    clapper.rotation.x = -swing * 0.75;
+    if(tollTimer > 1.5){                          // one toll = one full rock
+      tollsLeft--;
+      tollTimer = 0;
+      if(tollsLeft <= 0) tolling = 0;
+    }
+  } else {
+    bell.rotation.x = lerp(bell.rotation.x, 0, dt*2.5);
+    clapper.rotation.x = lerp(clapper.rotation.x, 0, dt*2.5);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

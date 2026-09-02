@@ -1,5 +1,5 @@
 # George World — the STUDY STYLE CONTRACT
-Filed 2026-08-31 17:58 by B-CODE, after the consistency audit of all 35 studies.
+Filed 2026-08-31 17:58 by HvM Graphics (GW BUILDER), after the consistency audit of all 35 studies. Amended 2026-09-01 by DISPATCH per DECISIONS_2026-09-01.md (#6, #13, #33, #35b): this repo copy is the master; the procedure around it is `docs/george-world/STUDY_PIPELINE.md`.
 Every new asset follows this, so everything looks like it belongs in ONE world.
 
 ## Realism level
@@ -50,8 +50,12 @@ brass knobs/needles. Part anchors ship as window.GEORGEOTRON_PARTS
 One standalone `*_study.html` per asset: vendored three r160 via the game's
 importmap · seeded rand · maker functions with grip/anchor at origin so parts
 parent straight into hands/mounts · controls in the corner chip · an entry in
-stage.html · a copy in Dropbox models/. One git commit per study.
+stage.html · the public stage (dramaton-stage.netlify.app) redeployed in the
+same step (the Dropbox models/ copy is retired). One git commit per study, on
+your own branch in your own worktree; GW BUILDER merges. The machine's one
+name is GEORGEOTRON (Georgeomat is retired).
 
 ## Out of scope for this contract
-terrain_study.html, georgeland2_study.html, turtle_study.html, crab_study.html,
-dragon_study.html, flora_study.html belong to other sessions — not restyled here.
+Any study another session has uncommitted, and the studies owned by the GW
+STUDIES seat on branch gw-studies (terrain, georgeland2, turtle, crab, dragon,
+flora, atoll, delta, orca) — not restyled here.

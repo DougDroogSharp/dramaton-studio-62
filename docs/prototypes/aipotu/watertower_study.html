@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     WATER TOWER STUDY — a four-legged steel tank tower, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     Riveted tank (lathe with a banded paint job), cone roof, four
+     splayed legs with crossed braces, riser pipe, maintenance ladder.
+     The working part: a SPIGOT with a valve wheel — spin it open and a
+     stream pours into the trough (stretched falling water + STYLE.md
+     splash foam), the FLOAT GAUGE on the tank side drops as the level
+     drains, and a slow drip lives at the spigot when it's shut. The
+     tank refills quietly when closed. ~8.5 units to the finial.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Water Tower Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e2d0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,26,22,0.78); color:#eef2ea; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#4a6a78; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#5c8496; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>💧 Water Tower Study</b> — spigot + gauge, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="open">Open spigot</button><button data-m="shut">Shut it</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 505050;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4e0ce), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(8, 5.5, 12);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0dc), zenith = new THREE.Color(0x7fb0da),
+        below = new THREE.Color(0xd8d4c0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaaa87e, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 26, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -4;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(280, 48),
+    new THREE.MeshLambertMaterial({ color:0xbab27e }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x99a052, flatShading:true });
+  for(let i=0;i<18;i++){
+    const a = rand(0, Math.PI*2), r = rand(5, 26);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.13,0.2), rand(0.35,0.65), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.16, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ==========================================================================
+//  THE TOWER — legs to 5, tank 5→7.6, roof peak 8.5.
+// ==========================================================================
+const matSteel = new THREE.MeshLambertMaterial({ color:0x8f99a3, flatShading:true });
+const matSteelDk = new THREE.MeshLambertMaterial({ color:0x707a84, flatShading:true });
+const matTank = new THREE.MeshLambertMaterial({ color:0xb8524a, flatShading:true });  // oxide red
+const matRoofM = new THREE.MeshLambertMaterial({ color:0x6a747e, flatShading:true });
+const matWaterM = new THREE.MeshLambertMaterial({ color:0x4fa8c4 });
+const matFoam = new THREE.MeshLambertMaterial({ color:0xf2fbfd });
+const tower = new THREE.Group();
+scene.add(tower);
+const LEG_TOP = 5;
+{
+  // four splayed legs + cross braces
+  for(const [sx, sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 7), matSteelDk);
+    leg.position.set(sx*1.05, LEG_TOP/2, sz*1.05);
+    leg.rotation.set(-sz*0.13, 0, sx*0.13);
+    leg.castShadow = true;
+    tower.add(leg);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.5), matSteelDk);
+    shoe.position.set(sx*1.4, 0.08, sz*1.4);
+    shoe.castShadow = true;
+    tower.add(shoe);
+  }
+  // X-braces on each face, two tiers
+  const brace = (a, b) => {
+    const len = a.distanceTo(b);
+    const geo = new THREE.CylinderGeometry(0.03, 0.03, len, 5);
+    geo.translate(0, len/2, 0);
+    const m = new THREE.Mesh(geo, matSteel);
+    m.position.copy(a);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), b.clone().sub(a).normalize());
+    tower.add(m);
+  };
+  const V = (x,y,z) => new THREE.Vector3(x,y,z);
+  for(let tier=0; tier<2; tier++){
+    const y0 = 0.4 + tier*2.2, y1 = 2.6 + tier*2.2;
+    const r0 = lerp(1.36, 1.06, y0/5), r1 = lerp(1.36, 1.06, y1/5);
+    for(const f of [[1,0],[0,1],[-1,0],[0,-1]]){
+      const px = f[1], pz = -f[0];    // perpendicular, to span the face
+      brace(V(f[0]*r0 + px*r0, y0, f[1]*r0 + pz*r0), V(f[0]*r1 - px*r1, y1, f[1]*r1 - pz*r1));
+      brace(V(f[0]*r0 - px*r0, y0, f[1]*r0 - pz*r0), V(f[0]*r1 + px*r1, y1, f[1]*r1 + pz*r1));
+    }
+  }
+  // the TANK: lathe with a slight belly, riveted bands
+  const prof = [[0.95,0],[1.15,0.25],[1.2,1.2],[1.15,2.3],[1.05,2.6]]
+    .map(([r,y]) => new THREE.Vector2(r, y));
+  const tank = new THREE.Mesh(new THREE.LatheGeometry(prof, 16), matTank);
+  tank.position.y = LEG_TOP;
+  tank.castShadow = true;
+  tower.add(tank);
+  for(const by of [0.4, 1.2, 2.0]){
+    const band = new THREE.Mesh(new THREE.TorusGeometry(lerp(1.16, 1.14, by/2.3), 0.03, 5, 20), matSteelDk);
+    band.rotation.x = Math.PI/2;
+    band.position.y = LEG_TOP + by;
+    tower.add(band);
+  }
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.32, 0.9, 16), matRoofM);
+  roof.position.y = LEG_TOP + 3.02;
+  roof.castShadow = true;
+  tower.add(roof);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), matSteel);
+  finial.position.y = LEG_TOP + 3.55;
+  tower.add(finial);
+  // riser pipe down the middle, ladder up one leg
+  const riser = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 5, 8), matSteelDk);
+  riser.position.y = 2.5;
+  riser.castShadow = true;
+  tower.add(riser);
+  const ladder = new THREE.Group();
+  ladder.position.set(1.28, 0, 1.28);
+  ladder.rotation.y = -Math.PI/4;
+  tower.add(ladder);
+  for(const s of [-1,1]){
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 7.6, 5), matSteel);
+    rail.position.set(s*0.18, 3.8, 0);
+    rail.rotation.x = 0.16;
+    ladder.add(rail);
+  }
+  for(let i=0;i<18;i++){
+    const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.36, 5), matSteel);
+    rung.rotation.z = Math.PI/2;
+    rung.position.set(0, 0.5 + i*0.4, -(0.5 + i*0.4 - 3.8)*0.16);
+    ladder.add(rung);
+  }
+}
+
+// ---------- the FLOAT GAUGE: a marker riding a rail on the tank side -------
+const gauge = new THREE.Group();
+gauge.position.set(0, LEG_TOP, 1.21);
+tower.add(gauge);
+const gMarker = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.08),
+  new THREE.MeshLambertMaterial({ color:0xd8433c }));
+{
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.4, 0.04), matSteelDk);
+  rail.position.y = 1.3;
+  gauge.add(rail);
+  for(let i=0;i<=4;i++){
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.03), matSteelDk);
+    tick.position.set(0.1, 0.25 + i*0.525, 0);
+    gauge.add(tick);
+  }
+  gMarker.position.set(0, 2.35, 0.03);
+  gauge.add(gMarker);
+}
+
+// ---------- SPIGOT, valve wheel, stream, trough ----------------------------
+const spigot = new THREE.Group();
+spigot.position.set(0, 1.1, 0);
+tower.add(spigot);
+let wheel;
+{
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.1, 7), matSteelDk);
+  pipe.rotation.x = Math.PI/2;
+  pipe.position.z = 0.55;
+  spigot.add(pipe);
+  const mouth = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.18, 7), matSteelDk);
+  mouth.rotation.x = 0.5;
+  mouth.position.set(0, -0.04, 1.12);
+  spigot.add(mouth);
+  wheel = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.028, 5, 12), matTank);
+  wheel.position.set(0, 0.24, 0.7);
+  spigot.add(wheel);
+  for(let i=0;i<3;i++){
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.29, 0.02), matTank);
+    spoke.rotation.z = i*Math.PI/3;
+    wheel.add(spoke);
+  }
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.24, 6), matSteelDk);
+  stem.position.set(0, 0.12, 0.7);
+  spigot.add(stem);
+}
+// the falling STREAM: a stretched translucent column + foam where it lands
+const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.075, 1, 7),
+  new THREE.MeshLambertMaterial({ color:0x4fa8c4, transparent:true, opacity:0.75 }));
+stream.visible = false;
+scene.add(stream);
+// the TROUGH: wooden, with a live water surface
+const trough = new THREE.Group();
+trough.position.set(0, 0, 1.65);
+scene.add(trough);
+let troughWater;
+{
+  const matWood = new THREE.MeshLambertMaterial({ color:0x77603c, flatShading:true });
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 0.7), matWood);
+  bed.position.y = 0.06;
+  trough.add(bed);
+  for(const [dx, dz, w, d] of [[0,-0.32,1.5,0.06],[0,0.32,1.5,0.06],[-0.72,0,0.06,0.7],[0.72,0,0.06,0.7]]){
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 0.42, d), matWood);
+    wall.position.set(dx, 0.27, dz);
+    wall.castShadow = true;
+    trough.add(wall);
+  }
+  troughWater = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.02, 0.56), matWaterM);
+  troughWater.position.y = 0.3;
+  trough.add(troughWater);
+}
+// splash rings + drips
+const rings = [];
+for(let i=0;i<4;i++){
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.09, 12),
+    new THREE.MeshBasicMaterial({ color:0xf2fbfd, transparent:true, opacity:0, side:THREE.DoubleSide }));
+  m.rotation.x = -Math.PI/2;
+  trough.add(m);
+  rings.push({ m, t: 9 });
+}
+const drip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), matFoam);
+drip.visible = false;
+scene.add(drip);
+let dripT = 0;
+
+// ---------- state ----------------------------------------------------------
+let open = false, flow = 0, level = 1;            // level: 0 empty → 1 full
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  open = m === 'open';
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('shut');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // valve: the wheel spins while the flow chases the handle
+  const wantFlow = open && level > 0.02 ? 1 : 0;
+  if(Math.abs(flow - wantFlow) > 0.01) wheel.rotation.z += (wantFlow > flow ? -1 : 1) * dt * 6;
+  flow = lerp(flow, wantFlow, Math.min(1, dt*2));
+
+  // the tank drains open, refills shut (the village pump works at night)
+  level = clamp(level + dt * (flow > 0.1 ? -0.03*flow : 0.012), 0, 1);
+  gMarker.position.y = lerp(0.25, 2.35, level);
+
+  // the stream: from the spigot mouth down into the trough
+  stream.visible = flow > 0.05;
+  if(stream.visible){
+    const top = 1.02, bottom = 0.32;
+    stream.scale.set(flow, 1, flow);
+    stream.position.set(0, (top+bottom)/2, 1.28 + 0.18);
+    stream.scale.y = (top - bottom);
+    // pour wobble
+    stream.position.x = Math.sin(t*9)*0.01*flow;
+    if((t*6|0) % 2 === 0 && rings.find(r => r.t > 1) && Math.random() < dt*8){
+      const r = rings.find(r => r.t > 1);
+      r.t = 0; r.m.scale.setScalar(1);
+      r.m.position.set(-0.19, 0.31, 0);           // trough-local, under the stream
+    }
+  }
+  // trough water: shimmer, and a little higher while pouring
+  troughWater.position.y = 0.3 + flow*0.02 + Math.sin(t*3)*0.004*(1+flow*3);
+  for(const r of rings){
+    if(r.t > 1){ r.m.material.opacity = 0; continue; }
+    r.t += dt*1.4;
+    r.m.scale.setScalar(r.m.scale.x + dt*2.4);
+    r.m.material.opacity = 0.55*(1 - r.t);
+  }
+  // the shut-off drip: gather, fall, vanish into the trough
+  if(flow < 0.05){
+    dripT += dt;
+    const cycle = dripT % 2.2;
+    if(cycle < 1.4){                              // swelling at the mouth
+      drip.visible = true;
+      drip.position.set(0, 0.98, 1.46);
+      drip.scale.setScalar(0.5 + cycle/1.4*0.5);
+    } else {                                      // falling
+      drip.scale.setScalar(1);
+      const f = (cycle - 1.4)/0.8;
+      drip.position.set(0, lerp(0.98, 0.34, f*f), 1.46);
+      drip.visible = f < 0.98;
+    }
+  } else drip.visible = false;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

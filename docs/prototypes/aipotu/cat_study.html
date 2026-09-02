@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CAT STUDY — an orange tabby with the full repertoire, for George
+     World. Filed 2026-09-01 by ASSET FOUNDRY. Standalone; vendored
+     three (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The necessary catlike animations, each with its tells:
+     WALK — diagonal-pair slink, level head, tail up with the hooked
+       tip swaying. SIT — haunches down, forelegs straight, tail
+       WRAPPED around the front paws, tip flicking; ears take turns
+       tracking noises. GROOM — a forepaw raised to the mouth, lick,
+       lick, then the paw wiped up over the ear, twice. STRETCH — the
+       long bow: chest to the ground, rump in the air, tail high.
+     POUNCE — stalk to the yarn ball, the low crouch, the BUTT WIGGLE,
+       the leap, and a one-paw BAT that sends the ball rolling (it is
+       chased down and batted again). SLEEP — the loaf on the cushion,
+       paws under, head sunk, slow breathing. Shoulder ~0.32 units.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cat Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e6e2d2; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,26,20,0.78); color:#f2f0e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#a06a2c; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#bc8038; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+  #chip label { font-size:12px; opacity:0.85; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐈 Cat Study</b> — orange tabby, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="walk">Walk</button><button data-m="sit">Sit</button><button
+    data-m="groom">Groom</button><button data-m="stretch">Stretch</button><button
+    data-m="pounce">Pounce</button><button data-m="sleep">Sleep</button><br>
+  <label><input id="tour" type="checkbox" checked> auto-tour</label>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 90909091;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe4e0d0), 30, 200);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(2.6, 1.6, 3.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 0.8; controls.maxDistance = 24;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(240, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0e2), zenith = new THREE.Color(0x82b2da),
+        below = new THREE.Color(0xd8d4c6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/240;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xb0a888, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(10, 14, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 48),
+    new THREE.MeshLambertMaterial({ color:0xbcb088 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the garden floor: pavers, a cushion, tufts
+  const paver = new THREE.MeshLambertMaterial({ color:0xa8a094 });
+  for(let i=0;i<7;i++){
+    const p = new THREE.Mesh(new THREE.CircleGeometry(rand(0.3, 0.5), 7), paver);
+    p.rotation.x = -Math.PI/2; p.rotation.z = rand(0, 3);
+    p.position.set(rand(-2.5, 2.5), 0.005, rand(-2.5, 2.5));
+    p.receiveShadow = true;
+    scene.add(p);
+  }
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x94a058, flatShading:true });
+  for(let i=0;i<14;i++){
+    const a = rand(0, Math.PI*2), r = rand(3.4, 14);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.08,0.14), rand(0.25,0.5), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.12, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+const CUSHION = new THREE.Vector3(-1.6, 0, -1.1);
+{
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.12, 12),
+    new THREE.MeshLambertMaterial({ color:0x7a5468, flatShading:true }));
+  c.position.set(CUSHION.x, 0.06, CUSHION.z);
+  c.castShadow = true; c.receiveShadow = true;
+  scene.add(c);
+}
+// the yarn BALL
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8),
+  new THREE.MeshLambertMaterial({ color:0xc23b34, flatShading:true }));
+ball.position.set(1.7, 0.09, 0.6);
+ball.castShadow = true;
+scene.add(ball);
+const ballVel = new THREE.Vector3();
+
+// ==========================================================================
+//  THE CAT — forward +Z; shoulder ~0.32.
+// ==========================================================================
+const ORANGE = 0xc9803c, CREAM = 0xe8d8b8, DARK = 0x8f5424;
+const matFur = new THREE.MeshLambertMaterial({ color:ORANGE, flatShading:true });
+const matCream = new THREE.MeshLambertMaterial({ color:CREAM, flatShading:true });
+const matDark = new THREE.MeshLambertMaterial({ color:DARK, flatShading:true });
+const C = { g: new THREE.Group() };
+scene.add(C.g);
+{
+  C.body = new THREE.Group();
+  C.body.position.y = 0.26;
+  C.g.add(C.body);
+  const torsoG = new THREE.CapsuleGeometry(0.115, 0.34, 6, 10);
+  torsoG.rotateX(Math.PI/2);
+  C.torso = new THREE.Mesh(torsoG, matFur);
+  C.torso.castShadow = true;
+  C.body.add(C.torso);
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 7), matCream);
+  chest.scale.set(0.85, 1, 0.8);
+  chest.position.set(0, -0.03, 0.2);
+  C.body.add(chest);
+  // tabby stripes: three dark saddles over the spine
+  for(let i=0;i<3;i++){
+    const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.018, 5, 10, Math.PI), matDark);
+    stripe.position.set(0, 0.035, 0.1 - i*0.13);
+    stripe.rotation.set(0, Math.PI/2, Math.PI);
+    C.body.add(stripe);
+  }
+  // HEAD: muzzle, ears with their own groups, whiskers
+  C.head = new THREE.Group();
+  C.head.position.set(0, 0.09, 0.3);
+  C.body.add(C.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), matFur);
+  skull.castShadow = true;
+  C.head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 7), matCream);
+  muzzle.scale.set(1.05, 0.75, 0.9);
+  muzzle.position.set(0, -0.035, 0.08);
+  C.head.add(muzzle);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.02, 4),
+    new THREE.MeshLambertMaterial({ color:0xb06a5a }));
+  nose.rotation.x = Math.PI/2 + 0.6;
+  nose.position.set(0, -0.015, 0.125);
+  C.head.add(nose);
+  for(const s of [-1, 1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6),
+      new THREE.MeshLambertMaterial({ color:0x3f6b2a }));
+    eye.position.set(s*0.045, 0.02, 0.085);
+    C.head.add(eye);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x14100a }));
+    pupil.position.set(s*0.047, 0.02, 0.103);
+    C.head.add(pupil);
+  }
+  C.ears = [];
+  for(const s of [-1, 1]){
+    const ear = new THREE.Group();
+    ear.position.set(s*0.06, 0.085, -0.01);
+    const flap = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.08, 4), matFur);
+    flap.position.y = 0.04;
+    flap.rotation.y = s*0.5;
+    flap.castShadow = true;
+    ear.add(flap);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 4), matCream);
+    inner.position.set(0, 0.035, 0.012);
+    inner.rotation.y = s*0.5;
+    ear.add(inner);
+    ear.rotation.z = s*-0.18;
+    C.head.add(ear);
+    C.ears.push(ear);
+  }
+  const whisker = new THREE.MeshBasicMaterial({ color:0xf4f0e4 });
+  for(const s of [-1, 1]) for(let i=0;i<3;i++){
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.0015, 0.0015), whisker);
+    w.position.set(s*0.09, -0.03 + i*0.012, 0.09);
+    w.rotation.y = s*(-0.35 - i*0.1);
+    w.rotation.z = s*(i - 1)*0.12;
+    C.head.add(w);
+  }
+  // LEGS: upper + lower, tiny cream paws. [FL, FR, HL, HR]
+  C.legs = [];
+  for(const [s, z, front] of [[-1, 0.19, 1], [1, 0.19, 1], [-1, -0.17, 0], [1, -0.17, 0]]){
+    const hip = new THREE.Group();
+    hip.position.set(s*0.08, -0.06, z);
+    C.body.add(hip);
+    const upG = new THREE.CapsuleGeometry(0.032, 0.1, 4, 6);
+    upG.translate(0, -0.06, 0);
+    const up = new THREE.Mesh(upG, matFur);
+    up.castShadow = true;
+    hip.add(up);
+    const knee = new THREE.Group();
+    knee.position.y = -0.11;
+    hip.add(knee);
+    const lowG = new THREE.CapsuleGeometry(0.024, 0.08, 4, 6);
+    lowG.translate(0, -0.05, 0);
+    const low = new THREE.Mesh(lowG, matFur);
+    low.castShadow = true;
+    knee.add(low);
+    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), matCream);
+    paw.scale.set(1, 0.7, 1.3);
+    paw.position.set(0, -0.095, 0.012);
+    paw.castShadow = true;
+    knee.add(paw);
+    C.legs.push({ hip, knee, front: !!front, s });
+  }
+  // the TAIL: four segments, ringed, the hooked tip
+  C.tail = [];
+  let parent = C.body, pz = -0.24, py = 0.03;
+  for(let i=0;i<4;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gT = new THREE.CapsuleGeometry(0.026 - i*0.004, 0.09, 4, 6);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.055);
+    const m = new THREE.Mesh(gT, i % 2 ? matDark : matFur);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    C.tail.push(seg);
+    parent = seg; pz = -0.1; py = 0;
+  }
+}
+
+// ==========================================================================
+//  BEHAVIOR — a mode machine; locomotion is seek-driven.
+// ==========================================================================
+let mode = 'walk', modeT = 0, ph = 0, yaw = 0;
+let pounceStep = 0, pounceT = 0, wanderA = rand(0, 6), wanderTarget = new THREE.Vector3(1, 0, 1);
+const TOUR = ['walk', 'sit', 'groom', 'stretch', 'pounce', 'walk', 'sleep'];
+let tourI = 0, tourT = 7;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === mode) return;
+  mode = m; modeT = 0; pounceStep = 0; pounceT = 0;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  document.getElementById('tour').checked = false;
+  setMode(b.dataset.m);
+}));
+setMode('walk');
+
+const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+function seek(target, speedMax, dt){              // returns distance left
+  _v.set(target.x - C.g.position.x, 0, target.z - C.g.position.z);
+  const d = _v.length();
+  if(d > 0.02){
+    const wantYaw = Math.atan2(_v.x, _v.z);
+    yaw += shortestArc(yaw, wantYaw)*Math.min(1, dt*5);
+    const sp = Math.min(speedMax, d*3);
+    C.g.position.x += Math.sin(yaw)*sp*dt;
+    C.g.position.z += Math.cos(yaw)*sp*dt;
+    return { d, sp };
+  }
+  return { d, sp: 0 };
+}
+// pose accumulators eased every frame
+const pose = { bodyY: 0.26, pitch: 0, headX: 0, headY: 0, crouch: 0 };
+let earT = [rand(2,5), rand(2,5)], earK = [0, 0];
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  modeT += dt;
+
+  if(document.getElementById('tour').checked){
+    tourT -= dt;
+    if(tourT <= 0){
+      tourI = (tourI + 1)%TOUR.length;
+      setMode(TOUR[tourI]);
+      tourT = TOUR[tourI] === 'pounce' ? 11 : TOUR[tourI] === 'sleep' ? 8 : TOUR[tourI] === 'groom' ? 7 : 5.5;
+      chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+    }
+  }
+
+  let gait = 0, sp = 0;                           // gait: legs cycling?
+  let bodyY = 0.26, pitch = 0, headX = 0, crouch = 0, tailUp = false, wrap = 0;
+  let groomK = 0, stretchK = 0, sleepK = 0, wiggle = 0;
+
+  if(mode === 'walk'){
+    // wander unhurried between drifting waypoints
+    if(C.g.position.distanceTo(wanderTarget) < 0.25){
+      wanderA += rand(0.8, 2.2);
+      wanderTarget.set(Math.cos(wanderA)*rand(0.8, 2.2), 0, Math.sin(wanderA)*rand(0.8, 2.2));
+    }
+    const s = seek(wanderTarget, 0.55, dt);
+    sp = s.sp; gait = sp > 0.05 ? 1 : 0;
+    tailUp = true;
+  } else if(mode === 'sit' || mode === 'groom'){
+    wrap = 1;
+    pitch = -0.5; bodyY = 0.21; headX = -0.1;
+    if(mode === 'groom' && modeT > 0.8) groomK = 1;
+  } else if(mode === 'stretch'){
+    stretchK = smooth(clamp(modeT/1.1, 0, 1)) * (modeT < 3.2 ? 1 : clamp(1-(modeT-3.2)/0.8, 0, 1));
+    pitch = stretchK*0.55; bodyY = 0.26 - stretchK*0.06;
+    tailUp = true;
+  } else if(mode === 'pounce'){
+    if(pounceStep === 0){                         // stalk in
+      const s = seek(_w.set(ball.position.x, 0, ball.position.z)
+        .addScaledVector(_v.set(Math.sin(yaw), 0, Math.cos(yaw)), -0.55), 0.45, dt);
+      sp = s.sp; gait = sp > 0.04 ? 1 : 0;
+      bodyY = 0.2; headX = 0.15;                  // slung low, eyes on it
+      if(s.d < 0.08){ pounceStep = 1; pounceT = 0; }
+    } else if(pounceStep === 1){                  // crouch + the wiggle
+      pounceT += dt;
+      crouch = smooth(clamp(pounceT/0.5, 0, 1));
+      wiggle = clamp((pounceT - 0.5)/1.2, 0, 1) * Math.sin(t*11);
+      headX = 0.22;
+      const wantYaw = Math.atan2(ball.position.x - C.g.position.x, ball.position.z - C.g.position.z);
+      yaw += shortestArc(yaw, wantYaw)*Math.min(1, dt*4);
+      if(pounceT > 1.9){ pounceStep = 2; pounceT = 0;
+        _w.copy(C.g.position); }
+    } else if(pounceStep === 2){                  // the LEAP
+      pounceT += dt/0.42;
+      const u = clamp(pounceT, 0, 1);
+      _v.set(ball.position.x - Math.sin(yaw)*0.16, 0, ball.position.z - Math.cos(yaw)*0.16);
+      C.g.position.lerpVectors(_w, _v, smooth(u));
+      C.g.position.y = Math.sin(Math.PI*u)*0.28;
+      pitch = Math.sin(Math.PI*u)*-0.4 + u*0.3;
+      crouch = 1 - u*0.6;
+      if(pounceT >= 1){ C.g.position.y = 0; pounceStep = 3; pounceT = 0; }
+    } else if(pounceStep === 3){                  // the BAT
+      pounceT += dt;
+      const swipe = Math.sin(clamp(pounceT/0.28, 0, 1)*Math.PI);
+      C.legs[1].hip.rotation.x = -1.2*swipe;
+      C.legs[1].knee.rotation.x = 0.4*swipe;
+      crouch = 0.5;
+      if(pounceT > 0.22 && pounceT < 0.34 && ballVel.lengthSq() < 0.01){
+        ballVel.set(Math.sin(yaw + 0.5), 0, Math.cos(yaw + 0.5)).multiplyScalar(1.6);
+      }
+      if(pounceT > 0.9){ pounceStep = ballVel.lengthSq() > 0.04 ? 4 : 1; pounceT = 0; }
+    } else {                                      // chase it down, go again
+      const s = seek(_w.set(ball.position.x, 0, ball.position.z)
+        .addScaledVector(_v.set(ballVel.x, 0, ballVel.z).normalize(), -0.4), 1.4, dt);
+      sp = s.sp; gait = sp > 0.05 ? 2 : 0;        // trot!
+      tailUp = true;
+      if(s.d < 0.1 && ballVel.lengthSq() < 0.05){ pounceStep = 1; pounceT = 0; }
+    }
+  } else if(mode === 'sleep'){
+    const s = seek(CUSHION, 0.6, dt);
+    sp = s.sp; gait = sp > 0.05 ? 1 : 0;
+    if(s.d < 0.1){ sleepK = 1; wrap = 1; }        // settled into the loaf
+  }
+
+  // ---- gait ----
+  const rate = gait === 2 ? 13 : 8;               // STYLE tempo: walk 8, run 13
+  if(gait) ph += dt*rate*(0.4 + 0.6*Math.min(1, sp/0.5));
+  C.legs.forEach((L, i) => {
+    let hip = 0, knee = 0;
+    if(gait){
+      const diag = (i === 0 || i === 3) ? 0 : Math.PI;  // diagonal pairs
+      hip = Math.sin(ph + diag)*0.5;
+      knee = Math.max(0, -Math.sin(ph + diag))*0.7;
+    } else if(sleepK > 0.5 || crouch > 0.3){
+      hip = L.front ? 0.9 : -0.9; knee = L.front ? -1.5 : 1.5;   // folded under
+    } else if(wrap){                              // sitting
+      hip = L.front ? 0.06 : -1.25;
+      knee = L.front ? -0.05 : 1.5;
+    } else if(stretchK > 0.02){
+      hip = L.front ? 1.15*stretchK : -0.15*stretchK;
+      knee = L.front ? -1.05*stretchK : 0.1;
+    }
+    if(!(mode === 'pounce' && pounceStep === 3 && i === 1)){
+      L.hip.rotation.x = lerp(L.hip.rotation.x, hip, Math.min(1, dt*(gait ? 26 : 6)));
+      L.knee.rotation.x = lerp(L.knee.rotation.x, knee, Math.min(1, dt*(gait ? 26 : 6)));
+    }
+  });
+  // groom: the raised paw and the licks and the over-the-ear wipe
+  if(groomK > 0){
+    const cyc = (modeT - 0.8) % 4.4;
+    if(cyc < 2.6){                                // lick lick lick
+      C.legs[1].hip.rotation.x = lerp(C.legs[1].hip.rotation.x, -1.9, Math.min(1, dt*8));
+      C.legs[1].knee.rotation.x = lerp(C.legs[1].knee.rotation.x, 1.1, Math.min(1, dt*8));
+      headX = 0.55 + Math.sin(t*9)*0.08;          // the nodding lick
+      pose.headY = lerp(pose.headY, -0.25, dt*6);
+    } else {                                      // paw up over the ear
+      const wipe = Math.sin((cyc - 2.6)/1.8*Math.PI*2);
+      C.legs[1].hip.rotation.x = lerp(C.legs[1].hip.rotation.x, -2.5 - wipe*0.4, Math.min(1, dt*8));
+      C.legs[1].knee.rotation.x = lerp(C.legs[1].knee.rotation.x, 1.7, Math.min(1, dt*8));
+      headX = 0.35; pose.headY = lerp(pose.headY, -0.4, dt*6);
+    }
+  } else pose.headY = lerp(pose.headY, 0, dt*4);
+
+  // ---- body ----
+  const wantY = sleepK > 0.5 ? 0.13 : crouch > 0.02 ? lerp(bodyY, 0.12, crouch) : bodyY;
+  C.body.position.y = lerp(C.body.position.y, wantY + (gait ? Math.abs(Math.cos(ph))*0.012 : 0), Math.min(1, dt*6));
+  C.body.rotation.x = lerp(C.body.rotation.x, pitch + (sleepK > 0.5 ? -0.12 : 0), Math.min(1, dt*5));
+  C.body.rotation.z = wiggle*0.06;
+  C.g.rotation.y = yaw + wiggle*0.05;
+  C.torso.scale.y = 1 + (sleepK > 0.5 ? Math.sin(t*1.6)*0.05 : 0);   // breathing
+
+  // ---- head ----
+  const sleepHead = sleepK > 0.5 ? 0.5 : 0;
+  C.head.rotation.x = lerp(C.head.rotation.x, headX + sleepHead + (gait ? Math.sin(ph)*0.02 : 0), Math.min(1, dt*6));
+  C.head.rotation.y = lerp(C.head.rotation.y,
+    pose.headY + (mode === 'sit' ? Math.sin(t*0.4)*0.4 : 0), Math.min(1, dt*3));
+
+  // ears: independent flicks, pinned back in the crouch
+  for(const i of [0, 1]){
+    earT[i] -= dt;
+    if(earT[i] < 0){ earT[i] = rand(1.5, 5); earK[i] = 1; }
+    earK[i] = Math.max(0, earK[i] - dt*6);
+    const flick = Math.sin(earK[i]*Math.PI)*0.5;
+    const pin = crouch*0.9 + sleepK*0.3;
+    C.ears[i].rotation.x = flick*0.4 - pin*0.6;
+    C.ears[i].rotation.z = (i ? -1 : 1)*(-0.18 - flick*0.3);
+  }
+
+  // ---- tail: the mood barometer ----
+  for(let i=0;i<4;i++){
+    const seg = C.tail[i];
+    let x, y;
+    if(wrap){                                     // curled round the paws
+      x = i === 0 ? -0.9 : 0.15;
+      y = i === 0 ? 0.9 : 0.75;
+      // the restless tip
+      if(i === 3) y += Math.sin(t*6)*0.5*(sleepK > 0.5 ? 0.1 : 1);
+    } else if(tailUp || gait){                     // up with the hooked tip
+      x = i === 0 ? 0.85 : i === 3 ? 0.5 : -0.12;
+      y = Math.sin(t*2.2 + i*0.8)*0.12;
+    } else if(crouch > 0.02){                      // low and LASHING
+      x = i === 0 ? 0.15 : -0.05;
+      y = Math.sin(t*10 + i*1.1)*0.28*(0.4 + 0.6*crouch)*(i >= 2 ? 1 : 0.3);
+    } else if(stretchK > 0.02){
+      x = i === 0 ? 0.9*stretchK : 0.1;
+      y = 0;
+    } else { x = i === 0 ? 0.3 : -0.05; y = Math.sin(t*1.8 + i)*0.08; }
+    seg.rotation.x = lerp(seg.rotation.x, x, Math.min(1, dt*5));
+    seg.rotation.y = lerp(seg.rotation.y, y, Math.min(1, dt*8));
+  }
+
+  // ---- the yarn ball rolls ----
+  if(ballVel.lengthSq() > 0.0004){
+    ball.position.addScaledVector(ballVel, dt);
+    ballVel.multiplyScalar(Math.max(0, 1 - dt*1.3));
+    ball.rotation.x += ballVel.length()*dt/0.09;
+    // keep it on the pavers
+    if(ball.position.length() > 2.6) ballVel.reflect(_v.copy(ball.position).setY(0).normalize().negate());
+  } else ballVel.set(0, 0, 0);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
