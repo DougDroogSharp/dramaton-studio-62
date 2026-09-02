@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     GEORGELAND EDITOR — Phase 1: RESOURCE PLACEMENT
+     Filed 2026-09-02 12:40 (-07:00) by EDITOR (Georgeland Editor lane), from
+     GEORGELAND_EDITOR_DESIGN.md v0.1 (Ludo, 2026-09-02).
+
+     Load a terrain (Aipotu = the game island, or Georgeland 2 live from its
+     study), put resources on it — berries, fir timber, palms, stone/ore, gold —
+     one at a time or as a scattered cluster, by TAP or by VOICE / typed
+     sentence, and save a georgeland/1 file the game loads with ?georgeland=.
+
+     ACCESSIBILITY (design §4, not optional): nothing here needs a drag. Every
+     control carries a NUMBER (press the key, or say "button 7"); every placed
+     resource carries a number ("move 12 to the beach", "delete 12"); hit areas
+     are big; the command bar takes typed or spoken sentences; and the whole
+     document is on the bridge (GET/PUT /bridge/georgeland on serve_georgeland.py)
+     so a Claude can co-edit it while Doug watches.
+
+     Contract: georgeland_format.js (the shape) · georgeland_terrains.js (the
+     ground). Three r160 via the game's vendored importmap; STYLE.md rig
+     (Lambert + flatShading, ACES, the Vita meter-stick).
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Georgeland Editor v0.1</title>
+<style>
+  :root { --ink:#eaf4f8; --panel:rgba(14,22,30,0.84); --line:rgba(255,255,255,0.14);
+          --hi:#ffd94a; --ok:#8de3a8; --bad:#ff9c9c; --btn:rgba(255,255,255,0.10); }
+  html, body { margin:0; height:100%; overflow:hidden; background:#a5ddf5;
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif; color:var(--ink); }
+  canvas { display:block; touch-action:none; }
+  button { font-family:inherit; }
+  /* ---- the left panel: every control numbered, big hit areas ---- */
+  #panel { position:fixed; top:10px; left:10px; bottom:96px; width:292px; z-index:10;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    backdrop-filter:blur(8px); overflow:auto; padding:12px 12px 14px; box-sizing:border-box;
+    user-select:none; }
+  #panel h1 { margin:0; font-size:17px; letter-spacing:.5px; display:flex; align-items:baseline; gap:8px; }
+  #panel h1 small { font-size:12px; opacity:.75; font-weight:600; }
+  #panel .sub { opacity:.6; font-size:11px; margin:2px 0 8px; }
+  #panel h4 { margin:12px 0 5px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .grid.one { grid-template-columns:1fr; }
+  .grid.three { grid-template-columns:1fr 1fr 1fr; }
+  .nb { position:relative; min-height:46px; padding:8px 8px 8px 34px; border-radius:10px;
+    background:var(--btn); color:var(--ink); border:1px solid var(--line); cursor:pointer;
+    text-align:left; font-size:13px; line-height:1.2; display:flex; align-items:center; gap:6px; }
+  .nb:hover { background:rgba(255,255,255,0.2); }
+  .nb.on { background:rgba(255,217,74,0.22); border-color:var(--hi); box-shadow:0 0 0 1px var(--hi) inset; }
+  .nb.danger.on, .nb.danger:hover { background:rgba(255,120,120,0.22); border-color:#ff9c9c; }
+  .nb .n { position:absolute; left:7px; top:50%; transform:translateY(-50%); min-width:20px; height:20px;
+    border-radius:6px; background:rgba(0,0,0,0.45); color:var(--hi); font:700 11px/20px Consolas,monospace;
+    text-align:center; padding:0 3px; }
+  .nb .sw { width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
+  .stepper { display:grid; grid-template-columns:46px 1fr 46px; gap:4px; align-items:center; margin:4px 0; }
+  .stepper .val { text-align:center; font-size:12.5px; line-height:1.15; }
+  .stepper .val b { display:block; font-size:15px; color:var(--hi); }
+  .stepper .nb { min-height:42px; padding:0; justify-content:center; font-size:18px; }
+  .stepper .nb .n { left:4px; top:3px; transform:none; height:14px; line-height:14px; font-size:9.5px; min-width:14px; }
+  #sel { margin-top:4px; padding:8px 9px; border-radius:9px; background:rgba(255,255,255,0.07);
+    border:1px solid var(--line); font-size:12px; line-height:1.4; }
+  #sel b { color:var(--hi); }
+  #counts { font:12px/1.5 Consolas,monospace; opacity:.85; white-space:pre-line; }
+  /* ---- the command bar ---- */
+  #cmdbar { position:fixed; left:10px; right:10px; bottom:10px; z-index:12; display:flex; gap:8px;
+    align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:9px 10px; backdrop-filter:blur(8px); }
+  #cmd { flex:1; min-width:0; height:46px; border-radius:10px; border:1px solid var(--line);
+    background:rgba(0,0,0,0.35); color:var(--ink); font-size:15px; padding:0 12px; }
+  #cmd:focus { outline:2px solid var(--hi); }
+  #cmdbar .nb { min-height:46px; }
+  #mic.live { background:rgba(255,80,80,0.35); border-color:#ff7b7b; }
+  #log { position:fixed; left:312px; right:10px; bottom:72px; z-index:9; max-height:132px; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:flex-end; gap:3px; pointer-events:none; }
+  #log div { align-self:flex-start; background:rgba(14,22,30,0.72); border:1px solid var(--line);
+    border-radius:9px; padding:4px 10px; font-size:12.5px; max-width:70vw; }
+  #log div.ok { border-color:rgba(141,227,168,0.5); }
+  #log div.bad { border-color:rgba(255,156,156,0.6); color:#ffd0d0; }
+  /* ---- status chip + labels ---- */
+  #status { position:fixed; top:10px; right:10px; z-index:10; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:8px 12px; font-size:12px; line-height:1.5; backdrop-filter:blur(8px); max-width:300px; }
+  #status b { color:var(--hi); }
+  #labels { position:fixed; inset:0; pointer-events:none; z-index:6; overflow:hidden; }
+  .rl { position:absolute; left:0; top:0; transform:translate(-50%,-100%); padding:1px 6px 2px; border-radius:7px;
+    font:700 11px/1.3 Consolas,monospace; color:#fff; background:rgba(14,22,30,0.62); border:1px solid rgba(255,255,255,0.28);
+    white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .rl.sel { background:rgba(255,217,74,0.9); color:#1b1400; border-color:#fff; font-size:12px; }
+  .pl { position:absolute; left:0; top:0; transform:translate(-50%,-50%); padding:2px 8px 3px; border-radius:9px;
+    font:600 11px/1.3 system-ui,sans-serif; color:#fff; background:rgba(20,50,70,0.55); border:1px solid rgba(160,220,240,0.35);
+    white-space:nowrap; letter-spacing:.3px; }
+  #busy { position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,18,24,0.72); font-size:16px; }
+  #help { position:fixed; inset:60px 10% ; z-index:25; background:rgba(10,18,24,0.94); border:1px solid var(--line);
+    border-radius:14px; padding:18px 22px; overflow:auto; font-size:13.5px; line-height:1.55; display:none; }
+  #help h2 { margin:0 0 6px; font-size:16px; }
+  #help code { background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:4px; }
+  #help .nb { position:absolute; right:14px; top:12px; width:60px; }
+  @media (max-width:760px){
+    #panel { width:240px; bottom:104px; } #log { left:260px; } #status { max-width:200px; font-size:11px; }
+  }
+</style>
+</head>
+<body>
+<div id="busy">raising the ground…</div>
+<div id="labels"></div>
+
+<div id="panel">
+  <h1>GEORGELAND EDITOR <small id="ver"></small></h1>
+  <div class="sub">phase 1 · resources · tap or talk, never drag</div>
+
+  <h4>Terrain</h4>
+  <div class="grid one">
+    <select id="terrainsel" class="nb" style="padding-left:34px;height:46px">
+      <option value="aipotu">Aipotu — the game island</option>
+      <option value="georgeland2">Georgeland 2 — the big island</option>
+    </select>
+  </div>
+
+  <h4>Resource to place</h4>
+  <div class="grid" id="types"></div>
+
+  <h4>Brush</h4>
+  <div class="grid">
+    <button class="nb" data-act="brush:single">one at a tap</button>
+    <button class="nb" data-act="brush:cluster">cluster at a tap</button>
+  </div>
+  <div class="stepper"><button class="nb" data-act="clusterN:-">−</button><div class="val">cluster size<b id="vN">8</b></div><button class="nb" data-act="clusterN:+">+</button></div>
+  <div class="stepper"><button class="nb" data-act="clusterR:-">−</button><div class="val">radius<b id="vR">8</b></div><button class="nb" data-act="clusterR:+">+</button></div>
+  <div class="stepper"><button class="nb" data-act="rich:-">−</button><div class="val">richness<b id="vRich">60%</b></div><button class="nb" data-act="rich:+">+</button></div>
+  <div class="stepper"><button class="nb" data-act="amount:-">−</button><div class="val">amount<b id="vAmt">2</b></div><button class="nb" data-act="amount:+">+</button></div>
+
+  <h4>Selected resource</h4>
+  <div id="sel">nothing selected — tap a resource, or say “select 3”</div>
+  <div class="grid three" style="margin-top:6px">
+    <button class="nb" data-act="movesel">move (tap ground)</button>
+    <button class="nb danger" data-act="delsel">delete</button>
+    <button class="nb" data-act="undo">undo</button>
+  </div>
+  <div class="stepper"><button class="nb" data-act="selrich:-">−</button><div class="val">its richness<b id="sRich">–</b></div><button class="nb" data-act="selrich:+">+</button></div>
+  <div class="stepper"><button class="nb" data-act="selamt:-">−</button><div class="val">its amount<b id="sAmt">–</b></div><button class="nb" data-act="selamt:+">+</button></div>
+
+  <h4>View</h4>
+  <div class="grid three">
+    <button class="nb" data-act="view:overview">overview</button>
+    <button class="nb" data-act="view:top">top-down</button>
+    <button class="nb" data-act="view:spawn">the beach</button>
+    <button class="nb" data-act="orbit:left">⟲ turn</button>
+    <button class="nb" data-act="orbit:right">⟳ turn</button>
+    <button class="nb" data-act="labels">place names</button>
+    <button class="nb" data-act="zoom:in">zoom in</button>
+    <button class="nb" data-act="zoom:out">zoom out</button>
+    <button class="nb" data-act="orbit:down">tilt</button>
+  </div>
+  <div class="grid one" style="margin-top:6px">
+    <select id="placesel" class="nb" style="padding-left:34px;height:46px"><option value="">look at a place…</option></select>
+  </div>
+
+  <h4>File</h4>
+  <div class="grid">
+    <button class="nb" data-act="save">save</button>
+    <button class="nb" data-act="saveas">save as…</button>
+    <button class="nb" data-act="load">load…</button>
+    <button class="nb" data-act="new">new (empty)</button>
+    <button class="nb" data-act="play">▶ play in game</button>
+    <button class="nb" data-act="download">download JSON</button>
+    <button class="nb danger" data-act="clearall">clear all</button>
+    <button class="nb" data-act="shot">📷 capture</button>
+    <button class="nb" data-act="help">? help</button>
+  </div>
+  <h4>This Georgeland</h4>
+  <div id="counts">–</div>
+</div>
+
+<div id="status">loading…</div>
+<div id="log"></div>
+
+<div id="cmdbar">
+  <button class="nb" id="mic" data-act="mic" title="speak a command">🎤 talk</button>
+  <input id="cmd" placeholder='say or type: “scatter 12 berries near the beach”, “make the north ridge gold-rich”, “move 7 to the twin hills”, “delete 4”' autocomplete="off">
+  <button class="nb" data-act="run">go</button>
+</div>
+
+<div id="help">
+  <button class="nb" data-act="help">close</button>
+  <h2>How to drive the Georgeland Editor</h2>
+  <p><b>Tap</b> the ground to place the chosen resource (one, or a cluster — the brush). <b>Tap a resource</b> to select it. Nothing needs a drag; the number keys press the numbered buttons; <b>Escape</b> clears the selection.</p>
+  <p><b>Say or type</b> (the 🎤 button listens in Chrome):</p>
+  <ul>
+    <li><code>scatter 12 berries near the beach</code> · <code>plant 15 firs on the twin hills radius 12</code> · <code>put a palm at the surf bay</code></li>
+    <li><code>make the north ridge gold-rich</code> · <code>make the volcano stone-rich</code> · <code>sprinkle some stone west of the volcano</code></li>
+    <li><code>select 7</code> (or just <code>7</code>) · <code>move 7 to the beach</code> · <code>move 7 north 10</code> · <code>delete 7</code> · <code>delete all gold</code> · <code>clear the volcano</code></li>
+    <li><code>richer 7</code> · <code>poorer 7</code> · <code>set 7 richness 80%</code> · <code>7 amount 3</code> · <code>make the beach berries richer</code> (cluster names work)</li>
+    <li><code>berries</code> / <code>fir</code> / <code>gold</code>… picks the type · <code>cluster</code> / <code>single</code> · <code>size 12</code> · <code>radius 10</code></li>
+    <li><code>look at the volcano</code> · <code>overview</code> · <code>top</code> · <code>zoom in</code> · <code>turn left</code> · <code>place names</code></li>
+    <li><code>save</code> · <code>save as berry tutorial</code> · <code>load berry-tutorial</code> · <code>new</code> · <code>play</code> · <code>undo</code> · <code>button 14</code></li>
+  </ul>
+  <p>Places on this terrain: <span id="helpPlaces"></span></p>
+  <p>Over the bridge (any Claude): <code>GET/PUT http://localhost:8218/bridge/georgeland</code> for the whole document, or <code>POST /bridge/command {"cmd":"scatter 12 berries near the beach"}</code> to say a sentence to this page.</p>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FORMAT, RESOURCE_TYPES, TYPE_ORDER, typeFromWord, newGeorgeland, nextId, snapResources,
+         validateGeorgeland, summarize, clampAmount, safeId, nowStamp } from './georgeland_format.js';
+import { loadTerrain, TERRAINS } from './georgeland_terrains.js';
+
+const VERSION = 'v0.1';
+const BUILT = '2026-09-02 12:40';
+document.getElementById('ver').textContent = VERSION + ' · built ' + BUILT;
+
+// ---------------------------------------------------------------- helpers
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+let seed = 20260902;
+const rand = (a = 1, b) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; const r = seed / 0x7fffffff; return b === undefined ? r * a : a + r * (b - a); };
+const $ = id => document.getElementById(id);
+const QS = new URLSearchParams(location.search);
+
+const logEl = $('log');
+function say(msg, kind = ''){
+  const d = document.createElement('div'); d.textContent = msg; if(kind) d.className = kind;
+  logEl.appendChild(d); while(logEl.children.length > 6) logEl.firstChild.remove();
+  setTimeout(() => { if(d.parentNode) d.remove(); }, 14000);
+  return msg;
+}
+
+// ---------------------------------------------------------------- renderer rig (STYLE.md)
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.1; controls.maxPolarAngle = Math.PI * 0.49;
+const hemi = new THREE.HemisphereLight(0xd6ecff, 0xb7d59a, 0.95); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.5);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006;
+scene.add(sun);
+const world = new THREE.Group(); scene.add(world);        // terrain + water
+const resG = new THREE.Group(); scene.add(resG);          // placed resources
+const pickG = new THREE.Group(); scene.add(pickG);        // forgiving pick spheres (layer 1, invisible to the camera)
+const raycaster = new THREE.Raycaster(); raycaster.layers.enable(1);
+const ring = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.9, 40), new THREE.MeshBasicMaterial({ color: 0xffd94a, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false }));
+ring.rotation.x = -Math.PI / 2; ring.visible = false; ring.renderOrder = 5; scene.add(ring);
+const cursor = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.55, depthTest: false }));
+cursor.rotation.x = -Math.PI / 2; cursor.visible = false; cursor.renderOrder = 5; scene.add(cursor);
+
+// ---------------------------------------------------------------- state
+let T = null;                       // the terrain descriptor (georgeland_terrains.js)
+let doc = null;                     // the georgeland/1 document (georgeland_format.js)
+let terrainMesh = null;
+const meshes = new Map();           // id -> { grp, pick, label, key }
+let numberOf = new Map();           // id -> on-screen number
+let idOfNumber = new Map();
+let curType = 'berry', brush = 'cluster', clusterN = 8, clusterR = 8, richness = 0.6, amount = 2;
+let selectedId = null, moveArmed = false;
+let lastTap = null, hoverPt = null;
+let showPlaces = true;
+const undoStack = [];
+let cmdCounter = 0;                 // for cluster labels
+let rev = 0, bridgeOK = false, lastCmdN = 0, pushing = false, pushQueued = false;
+let labelsOn = true;
+
+// ---------------------------------------------------------------- terrain build
+function buildTerrain(){
+  while(world.children.length) world.remove(world.children[0]);
+  const N = T.segs, S = T.extent;
+  const geo = new THREE.PlaneGeometry(S, S, N, N); geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+  const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e), cRock = new THREE.Color(0xa29383),
+        cRockHi = new THREE.Color(0xbcb0a2), cSand = new THREE.Color(0xeed9a4), cDeep = new THREE.Color(0x7d9a8a), c = new THREE.Color();
+  const e = S / N;
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i), h = T.terrainH(x, z);
+    pos.setY(i, h);
+    const s = Math.hypot(T.terrainH(x + e, z) - T.terrainH(x - e, z), T.terrainH(x, z + e) - T.terrainH(x, z - e)) / (2 * e);
+    const n = 0.5 + 0.5 * Math.sin(x * 0.23 + 3) * Math.sin(z * 0.19 + 1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    const tr = Math.max(sstep(0.55, 0.95, s), sstep(7.5, 11, h - T.seaLevel));
+    c.lerp(h - T.seaLevel > 12 ? cRockHi : cRock, tr);
+    const ts = (1 - sstep(T.dryMin + 0.4, T.dryMin + 1.8, h)) * (1 - tr * 0.75);
+    c.lerp(cSand, ts);
+    if(h < T.seaLevel) c.lerp(cDeep, clamp((T.seaLevel - h) / 5, 0, 1) * 0.8);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  terrainMesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  terrainMesh.receiveShadow = true; world.add(terrainMesh);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(S * 1.8, S * 1.8), new THREE.MeshLambertMaterial({ color: 0x4fa8c4, transparent: true, opacity: 0.72 }));
+  water.rotation.x = -Math.PI / 2; water.position.y = T.seaLevel; world.add(water);
+  const deep = new THREE.Mesh(new THREE.PlaneGeometry(S * 1.8, S * 1.8), new THREE.MeshBasicMaterial({ color: 0x2a6f9e }));
+  deep.rotation.x = -Math.PI / 2; deep.position.y = T.seaLevel - 5.5; world.add(deep);
+  const sky = new THREE.Color(T.palette.sky); scene.background = sky; scene.fog = new THREE.Fog(sky, S * 0.9, S * 2.2);
+  const R = S * 0.55; sun.position.set(R * 0.6, R * 0.9, R * 0.4);
+  sun.shadow.camera.left = -R; sun.shadow.camera.right = R; sun.shadow.camera.top = R; sun.shadow.camera.bottom = -R;
+  sun.shadow.camera.far = R * 4; sun.shadow.camera.updateProjectionMatrix();
+  camera.far = S * 6; camera.updateProjectionMatrix();
+}
+
+// ---------------------------------------------------------------- resource art (Lambert + flatShading, Vita = 1.5 units)
+const M = {
+  bush: new THREE.MeshLambertMaterial({ color: 0x5c7a34, flatShading: true }),
+  bushDk: new THREE.MeshLambertMaterial({ color: 0x46602a, flatShading: true }),
+  berry: new THREE.MeshLambertMaterial({ color: 0xe0432f, flatShading: true }),
+  trunk: new THREE.MeshLambertMaterial({ color: 0x8a6239, flatShading: true }),
+  conifer: new THREE.MeshLambertMaterial({ color: 0x2f5d3a, flatShading: true }),
+  frond: new THREE.MeshLambertMaterial({ color: 0x3f9e4d, flatShading: true, side: THREE.DoubleSide }),
+  rock: new THREE.MeshLambertMaterial({ color: 0x8e8577, flatShading: true }),
+  rockDk: new THREE.MeshLambertMaterial({ color: 0x5f5850, flatShading: true }),
+  gold: new THREE.MeshLambertMaterial({ color: 0xf3c53d, emissive: 0x6d5210, flatShading: true }),
+  pick: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+};
+function art(r){
+  const g = new THREE.Group();
+  const a = clampAmount(r.type, r.amount), rich = clamp(r.richness, 0, 1);
+  const sc = 0.85 + 0.35 * rich;
+  if(r.type === 'berry'){
+    for(let i = 0; i < 4; i++){
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(0.42, 0.6), 0), i % 2 ? M.bush : M.bushDk);
+      b.position.set(rand(-0.35, 0.35), rand(0.35, 0.6), rand(-0.35, 0.35)); b.castShadow = true; g.add(b);
+    }
+    for(let i = 0; i < a; i++){
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 5), M.berry);
+      const an = i / a * Math.PI * 2; b.position.set(Math.cos(an) * 0.45, 0.85 + rand(0, 0.2), Math.sin(an) * 0.45); g.add(b);
+    }
+    g.scale.setScalar(sc);
+  } else if(r.type === 'fir'){
+    const s = 0.65 + a * 0.3;
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * s, 0.2 * s, 2.2 * s, 5), M.trunk); t.position.y = 1.1 * s; g.add(t);
+    for(let i = 0; i < 3; i++){
+      const cone = new THREE.Mesh(new THREE.ConeGeometry((1.55 - i * 0.38) * s, 2.1 * s, 7), M.conifer);
+      cone.position.y = (2.1 + i * 1.25) * s; cone.castShadow = i < 2; g.add(cone);
+    }
+  } else if(r.type === 'palm'){
+    const s = 0.75 + a * 0.3, h = 5 * s;
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, h, 6), M.trunk);
+    t.position.y = h / 2; t.rotation.z = 0.12; t.castShadow = true; g.add(t);
+    const top = new THREE.Vector3(-Math.sin(0.12) * h, Math.cos(0.12) * h, 0);
+    for(let i = 0; i < 7; i++){
+      const f = new THREE.Mesh(new THREE.BoxGeometry(3.2 * s, 0.08, 0.7), M.frond);
+      f.position.copy(top); f.rotation.y = i / 7 * Math.PI * 2; f.rotation.z = -0.55;
+      f.translateX(1.4 * s); f.castShadow = true; g.add(f);
+    }
+    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 5), M.rockDk); nut.position.copy(top); g.add(nut);
+  } else if(r.type === 'stone'){
+    for(let i = 0; i < a + 1; i++){
+      const rr = rand(0.45, 0.85) * (0.8 + 0.1 * a);
+      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rr, 0), i % 2 ? M.rock : M.rockDk);
+      s.position.set(rand(-0.9, 0.9), rr * 0.55, rand(-0.9, 0.9)); s.rotation.set(rand(3), rand(3), rand(3)); s.castShadow = true; g.add(s);
+    }
+  } else if(r.type === 'gold'){
+    for(let i = 0; i < 2; i++){
+      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.6, 0.9), 0), M.rockDk);
+      s.position.set(rand(-0.7, 0.7), 0.4, rand(-0.7, 0.7)); s.rotation.set(rand(3), rand(3), rand(3)); s.castShadow = true; g.add(s);
+    }
+    for(let i = 0; i < a + 1; i++){
+      const n = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.22, 0.38) * (0.8 + 0.1 * a), 0), M.gold);
+      n.position.set(rand(-1, 1), 0.28, rand(-1, 1)); n.rotation.set(rand(3), rand(3), rand(3)); g.add(n);
+    }
+    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), M.gold); beacon.position.y = 2.6 + 0.3 * a; g.add(beacon);
+  }
+  return g;
+}
+const PICK_R = { berry: 1.6, fir: 2.0, palm: 2.4, stone: 1.9, gold: 2.0 };
+const LABEL_H = { berry: 1.4, fir: 5.5, palm: 5.6, stone: 1.6, gold: 3.4 };
+const SPACING = { berry: 1.5, fir: 2.4, palm: 3.0, stone: 1.9, gold: 2.0 };
+
+function keyOf(r){ return [r.type, r.x.toFixed(2), r.z.toFixed(2), r.amount, (+r.richness).toFixed(2)].join('|'); }
+function syncScene(){
+  const seen = new Set();
+  doc.resources.forEach((r, i) => {
+    seen.add(r.id);
+    let m = meshes.get(r.id);
+    const key = keyOf(r);
+    if(m && m.key !== key){ resG.remove(m.grp); pickG.remove(m.pick); m = null; }
+    if(!m){
+      seed = 1000 + hash(r.id);
+      const grp = art(r); grp.rotation.y = rand(Math.PI * 2);
+      const y = T.terrainH(r.x, r.z); r.y = +y.toFixed(3);
+      grp.position.set(r.x, y - 0.1, r.z); resG.add(grp);
+      const pick = new THREE.Mesh(new THREE.SphereGeometry(PICK_R[r.type] || 1.8, 8, 6), M.pick);
+      pick.position.set(r.x, y + 0.6, r.z); pick.layers.set(1); pick.userData.id = r.id; pickG.add(pick);
+      let label = m && m.label;
+      if(!label){ label = document.createElement('div'); label.className = 'rl'; $('labels').appendChild(label); }
+      m = { grp, pick, label, key }; meshes.set(r.id, m);
+    }
+    m.label.textContent = '#' + (i + 1) + ' ' + RESOURCE_TYPES[r.type].emoji;
+    m.label.classList.toggle('sel', r.id === selectedId);
+  });
+  for(const [id, m] of meshes) if(!seen.has(id)){ resG.remove(m.grp); pickG.remove(m.pick); m.label.remove(); meshes.delete(id); }
+  numberOf = new Map(); idOfNumber = new Map();
+  doc.resources.forEach((r, i) => { numberOf.set(r.id, i + 1); idOfNumber.set(i + 1, r.id); });
+  if(selectedId && !meshes.has(selectedId)) selectedId = null;
+  ring.visible = !!selectedId;
+  if(selectedId){ const r = byId(selectedId); ring.position.set(r.x, T.terrainH(r.x, r.z) + 0.08, r.z); }
+  refreshPanel();
+}
+function hash(s){ let h = 7; for(const ch of s) h = (h * 31 + ch.charCodeAt(0)) & 0x7fffffff; return h; }
+function byId(id){ return doc.resources.find(r => r.id === id); }
+function labelFor(r){ return `#${numberOf.get(r.id)} ${RESOURCE_TYPES[r.type].label.toLowerCase()}`; }
+
+// ---------------------------------------------------------------- labels (DOM overlays, projected per frame)
+const placeLabels = [];
+function buildPlaceLabels(){
+  for(const p of placeLabels) p.el.remove(); placeLabels.length = 0;
+  for(const p of T.places){
+    const el = document.createElement('div'); el.className = 'pl'; el.textContent = p.name; $('labels').appendChild(el);
+    placeLabels.push({ el, x: p.x, y: T.terrainH(p.x, p.z) + 2.5, z: p.z });
+  }
+  const sel = $('placesel'); sel.innerHTML = '<option value="">look at a place…</option>';
+  T.places.forEach((p, i) => { const o = document.createElement('option'); o.value = p.key; o.textContent = `${i + 1}. ${p.name}`; sel.appendChild(o); });
+  $('helpPlaces').textContent = T.places.map(p => p.name).join(' · ');
+}
+const _v = new THREE.Vector3();
+function project(x, y, z, el){
+  _v.set(x, y, z).project(camera);
+  const on = _v.z < 1 && Math.abs(_v.x) < 1.05 && Math.abs(_v.y) < 1.05;
+  el.style.display = on ? '' : 'none';
+  if(on){ el.style.left = ((_v.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - _v.y) / 2 * innerHeight) + 'px'; }
+}
+function updateLabels(){
+  for(const [id, m] of meshes){
+    if(!labelsOn){ m.label.style.display = 'none'; continue; }
+    const r = byId(id); project(r.x, r.y + (LABEL_H[r.type] || 2), r.z, m.label);
+  }
+  for(const p of placeLabels){ if(!showPlaces){ p.el.style.display = 'none'; continue; } project(p.x, p.y, p.z, p.el); }
+}
+
+// ---------------------------------------------------------------- document ops (every UI path and every voice path lands here)
+function snapshot(){ undoStack.push(JSON.stringify(doc)); if(undoStack.length > 60) undoStack.shift(); }
+function commit(msg, kind = 'ok'){ doc.meta.modified = nowStamp(); syncScene(); pushDoc(); if(msg) say(msg, kind); return msg; }
+function nearestPlaceName(x, z){
+  let b = null, bd = 1e9; for(const p of T.places){ const d = Math.hypot(p.x - x, p.z - z); if(d < bd){ bd = d; b = p; } }
+  return b ? b.name : 'the island';
+}
+function tooClose(type, x, z, skipId){
+  const sp = SPACING[type] || 2;
+  for(const r of doc.resources){ if(r.id === skipId) continue; if(Math.hypot(r.x - x, r.z - z) < Math.min(sp, SPACING[r.type] || 2) * 0.9) return true; }
+  return false;
+}
+function placeAt(x, z, type = curType, opts = {}){
+  if(!T.isDry(x, z)) return say(`that spot is in the surf — pick dry ground for ${RESOURCE_TYPES[type].label.toLowerCase()}`, 'bad');
+  snapshot();
+  const r = { id: nextId(doc, 'r'), type, x: +x.toFixed(2), z: +z.toFixed(2), y: 0,
+    amount: clampAmount(type, opts.amount ?? amount), richness: +clamp(opts.richness ?? richness, 0, 1).toFixed(2), cluster: opts.cluster ?? null };
+  doc.resources.push(r); selectedId = r.id;
+  return commit(`placed ${RESOURCE_TYPES[type].label.toLowerCase()} #${doc.resources.length} near ${nearestPlaceName(x, z)}`);
+}
+function scatterAt(x, z, type = curType, n = clusterN, r = clusterR, opts = {}){
+  snapshot();
+  const label = opts.label || `${RESOURCE_TYPES[type].label.toLowerCase()} near ${nearestPlaceName(x, z).replace(/^the /, '')}`;
+  const c = { id: nextId(doc, 'c'), label, type, x: +x.toFixed(1), z: +z.toFixed(1), r: +r.toFixed(1) };
+  doc.clusters.push(c);
+  let placed = 0, tries = 0, firstId = null;
+  while(placed < n && tries++ < n * 40){
+    const a = rand(Math.PI * 2), d = Math.sqrt(rand()) * r;
+    const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+    if(!T.isDry(px, pz) || tooClose(type, px, pz)) continue;
+    const rr = { id: nextId(doc, 'r'), type, x: +px.toFixed(2), z: +pz.toFixed(2), y: 0,
+      amount: clampAmount(type, (opts.amount ?? amount) + (rand() < 0.35 ? (rand() < 0.5 ? -1 : 1) : 0)),
+      richness: +clamp((opts.richness ?? richness) + rand(-0.1, 0.1), 0, 1).toFixed(2), cluster: c.id };
+    doc.resources.push(rr); placed++; if(!firstId) firstId = rr.id;
+  }
+  if(!placed){ doc.clusters.pop(); undoStack.pop(); return say(`no dry ground for ${label} within ${r.toFixed(0)} — try a bigger radius or another spot`, 'bad'); }
+  selectedId = firstId;
+  return commit(`scattered ${placed} ${RESOURCE_TYPES[type].label.toLowerCase()} — “${label}” (radius ${r.toFixed(0)})${placed < n ? `, ${n - placed} found no room` : ''}`);
+}
+function moveTo(id, x, z){
+  const r = byId(id); if(!r) return say('nothing to move', 'bad');
+  if(!T.isDry(x, z)) return say('that spot is in the surf', 'bad');
+  snapshot(); r.x = +x.toFixed(2); r.z = +z.toFixed(2); moveArmed = false;
+  return commit(`moved ${labelFor(r)} to ${nearestPlaceName(x, z)}`);
+}
+function moveCluster(c, x, z){
+  const members = doc.resources.filter(r => r.cluster === c.id); if(!members.length) return say(`“${c.label}” has no resources`, 'bad');
+  snapshot(); const dx = x - c.x, dz = z - c.z; c.x = +x.toFixed(1); c.z = +z.toFixed(1);
+  let n = 0; for(const r of members){ const nx = r.x + dx, nz = r.z + dz; if(T.isDry(nx, nz)){ r.x = +nx.toFixed(2); r.z = +nz.toFixed(2); n++; } }
+  return commit(`moved “${c.label}” (${n} of ${members.length} found dry ground) to ${nearestPlaceName(x, z)}`);
+}
+function removeIds(ids, what){
+  if(!ids.length) return say('nothing to delete', 'bad');
+  snapshot(); const set = new Set(ids);
+  doc.resources = doc.resources.filter(r => !set.has(r.id));
+  doc.clusters = doc.clusters.filter(c => doc.resources.some(r => r.cluster === c.id));
+  if(set.has(selectedId)) selectedId = null;
+  return commit(`deleted ${ids.length} ${what || 'resource' + (ids.length > 1 ? 's' : '')}`);
+}
+function adjust(ids, field, delta, absolute){
+  const rs = ids.map(byId).filter(Boolean); if(!rs.length) return say('nothing selected', 'bad');
+  snapshot();
+  for(const r of rs){
+    if(field === 'richness') r.richness = +clamp(absolute != null ? absolute : r.richness + delta, 0, 1).toFixed(2);
+    else r.amount = clampAmount(r.type, absolute != null ? absolute : r.amount + delta);
+  }
+  const r0 = rs[0];
+  return commit(rs.length === 1 ? `${labelFor(r0)}: ${field} ${field === 'richness' ? Math.round(r0.richness * 100) + '%' : r0.amount}`
+                                : `${rs.length} resources: ${field} ${delta > 0 || (absolute != null) ? 'up' : 'down'}`);
+}
+function undo(){
+  if(!undoStack.length) return say('nothing to undo', 'bad');
+  doc = JSON.parse(undoStack.pop()); selectedId = null; syncScene(); pushDoc(); return say('undone', 'ok');
+}
+function clearAll(){ if(!doc.resources.length) return say('already empty'); snapshot(); doc.resources = []; doc.clusters = []; selectedId = null; return commit('cleared every resource'); }
+function select(id){ selectedId = id; moveArmed = false; syncScene(); const r = byId(id); return r ? say(`selected ${labelFor(r)} (amount ${r.amount}, richness ${Math.round(r.richness * 100)}%)`) : say('no such resource', 'bad'); }
+
+// ---------------------------------------------------------------- panel
+function refreshPanel(){
+  document.querySelectorAll('#types .nb').forEach(b => b.classList.toggle('on', b.dataset.type === curType));
+  document.querySelector('[data-act="brush:single"]').classList.toggle('on', brush === 'single');
+  document.querySelector('[data-act="brush:cluster"]').classList.toggle('on', brush === 'cluster');
+  document.querySelector('[data-act="movesel"]').classList.toggle('on', moveArmed);
+  document.querySelector('[data-act="labels"]').classList.toggle('on', showPlaces);
+  $('vN').textContent = clusterN; $('vR').textContent = clusterR; $('vRich').textContent = Math.round(richness * 100) + '%'; $('vAmt').textContent = amount;
+  const r = selectedId && byId(selectedId);
+  if(r){
+    const c = doc.clusters.find(c => c.id === r.cluster);
+    $('sel').innerHTML = `<b>#${numberOf.get(r.id)} ${RESOURCE_TYPES[r.type].emoji} ${RESOURCE_TYPES[r.type].label}</b><br>amount ${r.amount} · richness ${Math.round(r.richness * 100)}%<br>at ${r.x.toFixed(0)}, ${r.z.toFixed(0)} (h ${r.y.toFixed(1)}) — ${nearestPlaceName(r.x, r.z)}${c ? `<br>cluster: “${c.label}”` : ''}${moveArmed ? '<br><b>tap the ground to move it</b>' : ''}`;
+    $('sRich').textContent = Math.round(r.richness * 100) + '%'; $('sAmt').textContent = r.amount;
+  } else { $('sel').textContent = 'nothing selected — tap a resource, or say “select 3”'; $('sRich').textContent = '–'; $('sAmt').textContent = '–'; }
+  const s = summarize(doc);
+  $('counts').textContent = TYPE_ORDER.map(k => `${RESOURCE_TYPES[k].emoji} ${RESOURCE_TYPES[k].label.padEnd(12)} ${s[k]}`).join('\n')
+    + `\nclusters ${doc.clusters.length} · total ${doc.resources.length}`;
+  $('status').innerHTML = `<b>${doc.displayName}</b> <span style="opacity:.7">(${doc.id}.json)</span><br>terrain: ${T.label}<br>bridge :${location.port || 80} — ${bridgeOK ? `<span style="color:var(--ok)">live, rev ${rev}</span>` : '<span style="color:var(--bad)">offline (static page: download works, save does not)</span>'}`;
+}
+// the numbered buttons: every .nb gets a number badge, in reading order
+function numberButtons(){
+  let n = 0;
+  document.querySelectorAll('#panel .nb, #cmdbar .nb').forEach(b => {
+    if(b.tagName === 'SELECT') return;
+    n++; b.dataset.n = n;
+    if(!b.querySelector('.n')){ const s = document.createElement('span'); s.className = 'n'; s.textContent = n; b.prepend(s); }
+  });
+}
+function pressButton(n){ const b = document.querySelector(`[data-n="${n}"]`); if(!b) return say(`no button ${n}`, 'bad'); b.click(); return `pressed ${n}: ${b.textContent.replace(/^\d+/, '').trim()}`; }
+
+// ---------------------------------------------------------------- views (no drag needed)
+function lookAt(tx, ty, tz, dist, azimuth = 0.35, elev = 0.62){
+  controls.target.set(tx, ty, tz);
+  camera.position.set(tx + Math.sin(azimuth) * dist * Math.cos(elev), ty + dist * Math.sin(elev), tz + Math.cos(azimuth) * dist * Math.cos(elev));
+  controls.update();
+}
+function view(name){
+  const R = T.radius;
+  if(name === 'overview') lookAt(0, 4, 4, R * 1.75, 0.0, 0.62);
+  else if(name === 'top') lookAt(0, 0, 0, R * 2.1, 0.0, 1.5);
+  else if(name === 'spawn') lookAt(T.spawn.x, T.terrainH(T.spawn.x, T.spawn.z), T.spawn.z, 44, 0.3, 0.55);
+  else if(['north', 'south', 'east', 'west'].includes(name)){ const az = { south: 0, north: Math.PI, east: Math.PI / 2, west: -Math.PI / 2 }[name]; lookAt(0, 4, 0, R * 1.75, az, 0.55); }
+  else { const p = T.placeByWord(name); if(!p) return say(`no place called “${name}”`, 'bad'); lookAt(p.x, T.terrainH(p.x, p.z), p.z, Math.max(30, p.r * 3.2), 0.3, 0.6); return `looking at ${p.name}`; }
+  return `view: ${name}`;
+}
+function orbit(dir){
+  const off = camera.position.clone().sub(controls.target);
+  const sph = new THREE.Spherical().setFromVector3(off);
+  if(dir === 'left') sph.theta += 0.5; else if(dir === 'right') sph.theta -= 0.5;
+  else if(dir === 'down') sph.phi = clamp(sph.phi + 0.22, 0.1, Math.PI * 0.49); else if(dir === 'up') sph.phi = clamp(sph.phi - 0.22, 0.1, Math.PI * 0.49);
+  camera.position.copy(controls.target).add(off.setFromSpherical(sph)); controls.update(); return `turned ${dir}`;
+}
+function zoom(dir){
+  const off = camera.position.clone().sub(controls.target).multiplyScalar(dir === 'in' ? 0.72 : 1.38);
+  camera.position.copy(controls.target).add(off); controls.update(); return `zoom ${dir}`;
+}
+function pan(dx, dz){ controls.target.x += dx; controls.target.z += dz; camera.position.x += dx; camera.position.z += dz; controls.update(); }
+
+// ---------------------------------------------------------------- tap handling (a tap is a pointer that did not travel)
+let pd = null;
+renderer.domElement.addEventListener('pointerdown', e => { pd = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if(!pd) return; const d = Math.hypot(e.clientX - pd.x, e.clientY - pd.y), dt = performance.now() - pd.t; pd = null;
+  if(d > 9 || dt > 700) return;
+  tap(e.clientX, e.clientY);
+});
+renderer.domElement.addEventListener('pointermove', e => { hoverPt = groundAt(e.clientX, e.clientY); cursor.visible = !!hoverPt; if(hoverPt) cursor.position.set(hoverPt.x, hoverPt.y + 0.1, hoverPt.z); });
+const _m = new THREE.Vector2();
+function castAt(cx, cy){ _m.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); raycaster.setFromCamera(_m, camera); }
+function groundAt(cx, cy){ if(!terrainMesh) return null; castAt(cx, cy); const h = raycaster.intersectObject(terrainMesh, false)[0]; return h ? h.point : null; }
+function tap(cx, cy){
+  castAt(cx, cy);
+  const hit = raycaster.intersectObjects(pickG.children, false)[0];
+  if(hit && !moveArmed){ select(hit.object.userData.id); return; }
+  const g = groundAt(cx, cy); if(!g) return;
+  lastTap = { x: g.x, z: g.z };
+  if(moveArmed && selectedId){ moveTo(selectedId, g.x, g.z); return; }
+  if(brush === 'single') placeAt(g.x, g.z); else scatterAt(g.x, g.z);
+}
+
+// ---------------------------------------------------------------- buttons
+function act(a){
+  const [k, v] = a.split(':');
+  switch(k){
+    case 'brush': brush = v; refreshPanel(); return `brush: ${v}`;
+    case 'clusterN': clusterN = clamp(clusterN + (v === '+' ? 2 : -2), 1, 60); refreshPanel(); return `cluster size ${clusterN}`;
+    case 'clusterR': clusterR = clamp(clusterR + (v === '+' ? 2 : -2), 2, 80); refreshPanel(); return `radius ${clusterR}`;
+    case 'rich': richness = +clamp(richness + (v === '+' ? 0.1 : -0.1), 0, 1).toFixed(2); refreshPanel(); return `richness ${Math.round(richness * 100)}%`;
+    case 'amount': amount = clamp(amount + (v === '+' ? 1 : -1), 1, 5); refreshPanel(); return `amount ${amount}`;
+    case 'movesel': if(!selectedId) return say('select a resource first (tap it, or say “select 3”)', 'bad'); moveArmed = !moveArmed; refreshPanel(); return moveArmed ? say('now tap the ground where it should go') : 'move cancelled';
+    case 'delsel': return selectedId ? removeIds([selectedId]) : say('nothing selected', 'bad');
+    case 'undo': return undo();
+    case 'selrich': return selectedId ? adjust([selectedId], 'richness', v === '+' ? 0.1 : -0.1) : say('nothing selected', 'bad');
+    case 'selamt': return selectedId ? adjust([selectedId], 'amount', v === '+' ? 1 : -1) : say('nothing selected', 'bad');
+    case 'view': return view(v);
+    case 'orbit': return orbit(v);
+    case 'zoom': return zoom(v);
+    case 'labels': showPlaces = !showPlaces; refreshPanel(); return `place names ${showPlaces ? 'on' : 'off'}`;
+    case 'save': return saveDoc();
+    case 'saveas': { const n = prompt('Save this Georgeland as (a name):', doc.displayName); if(n) return saveAs(n); return 'cancelled'; }
+    case 'load': return loadPrompt();
+    case 'new': return newDoc();
+    case 'play': return play();
+    case 'download': return download();
+    case 'clearall': return clearAll();
+    case 'shot': return capture();
+    case 'help': { const h = $('help'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; return 'help'; }
+    case 'mic': return toggleMic();
+    case 'run': return runCommand($('cmd').value);
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(b){ const r = act(b.dataset.act); if(typeof r === 'string' && !/^(pressed|help)/.test(r)) say(r); return; }
+  const t = e.target.closest('[data-type]'); if(t){ curType = t.dataset.type; moveArmed = false; refreshPanel(); say(`placing ${RESOURCE_TYPES[curType].label.toLowerCase()} — tap the ground`); }
+});
+$('terrainsel').addEventListener('change', e => switchTerrain(e.target.value));
+$('placesel').addEventListener('change', e => { if(e.target.value){ say(view(e.target.value)); e.target.value = ''; } });
+$('cmd').addEventListener('keydown', e => { if(e.key === 'Enter'){ runCommand($('cmd').value); } if(e.key === 'Escape') $('cmd').blur(); });
+document.addEventListener('keydown', e => {
+  if(e.target === $('cmd') || e.target.tagName === 'SELECT') return;
+  if(e.key === 'Escape'){ selectedId = null; moveArmed = false; syncScene(); return; }
+  if(e.key === 'Delete' || e.key === 'Backspace'){ if(selectedId) removeIds([selectedId]); return; }
+  if((e.ctrlKey || e.metaKey) && e.key === 'z'){ undo(); e.preventDefault(); return; }
+  if(/^[0-9]$/.test(e.key) && !e.ctrlKey){ const r = pressButton(e.key === '0' ? 10 : +e.key); if(typeof r === 'string') say(r); return; }
+  if(e.key === 'ArrowLeft') orbit('left'); if(e.key === 'ArrowRight') orbit('right');
+  if(e.key === 'ArrowUp') zoom('in'); if(e.key === 'ArrowDown') zoom('out');
+  if(e.key === '/' || e.key === 'Enter'){ $('cmd').focus(); e.preventDefault(); }
+});
+
+// ---------------------------------------------------------------- files
+async function saveDoc(){
+  snapResources(doc, T.terrainH);
+  const v = validateGeorgeland(doc, T.terrainH);
+  if(!v.ok) return say('cannot save: ' + v.errors.join('; '), 'bad');
+  try{
+    const r = await fetch('/georgeland/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc }) });
+    const j = await r.json(); if(!j.ok) throw new Error(j.error);
+    return say(`saved ${j.file} (${j.bytes} bytes, ${doc.resources.length} resources${v.warnings.length ? `, ${v.warnings.length} warning${v.warnings.length > 1 ? 's' : ''}: ${v.warnings[0]}` : ''})`, 'ok');
+  }catch(e){ return say(`save failed (${e.message}) — the page must be served by serve_georgeland.py; “download JSON” still works`, 'bad'); }
+}
+function saveAs(name){ doc.displayName = name; doc.id = safeId(name); syncScene(); pushDoc(); return saveDoc(); }
+async function loadPrompt(){
+  let names = [];
+  try{ names = await (await fetch('/georgeland/list')).json(); }catch(e){}
+  const n = prompt('Load which Georgeland?\n' + (names.length ? names.map((s, i) => `${i + 1}. ${s}`).join('\n') : '(none saved yet)'), names[0] || '');
+  if(!n) return 'cancelled';
+  const pick = /^\d+$/.test(n.trim()) ? names[+n.trim() - 1] : n.trim();
+  return loadFile(pick);
+}
+async function loadFile(name){
+  if(!name) return say('no such file', 'bad');
+  const id = safeId(name.replace(/\.json$/, ''));
+  try{
+    const r = await fetch(`georgelands/${id}.json`, { cache: 'no-store' }); if(!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    return adoptDoc(d, `loaded ${id}.json`);
+  }catch(e){ return say(`could not load georgelands/${id}.json (${e.message})`, 'bad'); }
+}
+async function adoptDoc(d, msg){
+  const v = validateGeorgeland(d);
+  if(!v.ok) return say(`refused: ${v.errors.slice(0, 3).join('; ')}`, 'bad');
+  if(d.terrain.module !== T.id){ if(!TERRAINS[d.terrain.module]) return say(`unknown terrain module “${d.terrain.module}”`, 'bad'); await switchTerrain(d.terrain.module, d); }
+  snapshot(); doc = d; selectedId = null; snapResources(doc, T.terrainH); syncScene(); pushDoc();
+  return say(`${msg} — ${doc.resources.length} resources on ${T.id}` + (v.warnings.length ? ` (${v.warnings.length} warnings)` : ''), 'ok');
+}
+function newDoc(){
+  snapshot(); doc = newGeorgeland(T, { id: `${T.id}-new`, displayName: `${T.id} — new Georgeland`, editor: `Georgeland Editor ${VERSION}` });
+  selectedId = null; syncScene(); pushDoc(); return say(`new empty Georgeland on ${T.id}`, 'ok');
+}
+function download(){
+  snapResources(doc, T.terrainH);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' }));
+  a.download = `${doc.id}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); return say(`downloading ${doc.id}.json`);
+}
+async function play(){
+  const r = await saveDoc(); if(!/^saved/.test(r)) return r;
+  const url = `georgeworld.html?georgeland=georgelands/${doc.id}.json`;
+  window.open(url, '_blank'); return say(`opening the game with ${doc.id}.json (${url})`, 'ok');
+}
+
+// ---------------------------------------------------------------- capture: the frame + the number labels + a stamp, to captures/ (and a download)
+async function capture(){
+  fit(); controls.update(); renderer.render(scene, camera); updateLabels();
+  const src = renderer.domElement, oc = document.createElement('canvas');
+  oc.width = src.width; oc.height = src.height;
+  const g = oc.getContext('2d'); g.drawImage(src, 0, 0);
+  const k = src.width / innerWidth;
+  g.font = `bold ${Math.round(11 * k)}px Consolas, monospace`; g.textBaseline = 'bottom';
+  const drawLabel = (el, cls) => {
+    if(el.style.display === 'none') return;
+    const x = parseFloat(el.style.left) * k, y = parseFloat(el.style.top) * k, txt = el.textContent, w = g.measureText(txt).width + 10 * k;
+    const h = 15 * k, top = cls === 'pl' ? y - h / 2 : y - h;
+    g.fillStyle = cls === 'sel' ? 'rgba(255,217,74,0.92)' : cls === 'pl' ? 'rgba(20,50,70,0.62)' : 'rgba(14,22,30,0.66)';
+    g.beginPath(); g.roundRect(x - w / 2, top, w, h, 5 * k); g.fill();
+    g.fillStyle = cls === 'sel' ? '#1b1400' : '#fff'; g.fillText(txt, x - w / 2 + 5 * k, top + h - 2 * k);
+  };
+  for(const p of placeLabels) drawLabel(p.el, 'pl');
+  for(const [id, m] of meshes) drawLabel(m.label, id === selectedId ? 'sel' : 'rl');
+  const stamp = `Georgeland Editor ${VERSION} · ${doc.displayName} · ${T.id} · ${doc.resources.length} resources · ${nowStamp().slice(0, 16).replace('T', ' ')}`;
+  g.font = `${Math.round(12 * k)}px Consolas, monospace`; const tw = g.measureText(stamp).width;
+  g.fillStyle = 'rgba(10,18,24,0.6)'; g.fillRect(8 * k, oc.height - 26 * k, tw + 12 * k, 20 * k);
+  g.fillStyle = '#eaf4f8'; g.fillText(stamp, 14 * k, oc.height - 10 * k);
+  const png = oc.toDataURL('image/png');
+  try{
+    const j = await (await fetch('/shot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.id, png }) })).json();
+    if(j.ok) return say(`captured ${j.file}`, 'ok');
+  }catch(e){}
+  const a = document.createElement('a'); a.href = png; a.download = `${doc.id}_capture.png`; a.click();
+  return say('captured (downloaded — no server to keep it)');
+}
+
+// ---------------------------------------------------------------- the bridge (GET/PUT the document; queued sentences)
+async function pushDoc(){
+  if(pushing){ pushQueued = true; return; }
+  pushing = true;
+  try{
+    const r = await fetch('/bridge/georgeland', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, by: 'editor', baseRev: rev }) });
+    if(r.status === 409){ const j = await r.json(); rev = j.rev;   // Doug's hand wins: re-push on top of the newer rev
+      const r2 = await fetch('/bridge/georgeland', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, by: 'editor', baseRev: rev }) });
+      const j2 = await r2.json(); if(j2.ok) rev = j2.rev; }
+    else { const j = await r.json(); if(j.ok) rev = j.rev; }
+    bridgeOK = true;
+  }catch(e){ bridgeOK = false; }
+  pushing = false; refreshPanel();
+  if(pushQueued){ pushQueued = false; pushDoc(); }
+}
+async function pollBridge(){
+  try{
+    const r = await fetch(`/bridge/georgeland?since=${rev}`, { cache: 'no-store' });
+    bridgeOK = true;
+    if(r.status === 200){
+      const j = await r.json();
+      if(j.doc && j.rev > rev && j.by !== 'editor'){
+        const v = validateGeorgeland(j.doc);
+        if(v.ok){ rev = j.rev; snapshot();
+          if(j.doc.terrain.module !== T.id && TERRAINS[j.doc.terrain.module]){ await switchTerrain(j.doc.terrain.module, j.doc); }
+          else { doc = j.doc; snapResources(doc, T.terrainH); syncScene(); }
+          say(`bridge: document updated by ${j.by || 'a co-editor'} (rev ${rev}, ${doc.resources.length} resources)`, 'ok'); }
+        else { rev = j.rev; say(`bridge: rejected a document from ${j.by}: ${v.errors[0]}`, 'bad'); pushDoc(); }
+      } else if(j.rev > rev) rev = j.rev;
+    }
+    const c = await (await fetch(`/bridge/command?since=${lastCmdN}`, { cache: 'no-store' })).json();
+    for(const cmd of c.commands || []){
+      lastCmdN = Math.max(lastCmdN, cmd.n);
+      $('cmd').value = cmd.cmd;
+      const result = runCommand(cmd.cmd, `bridge/${cmd.by || 'claude'}`);
+      fetch('/bridge/command/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: cmd.n, result: String(result) }) }).catch(() => {});
+    }
+  }catch(e){ if(bridgeOK){ bridgeOK = false; refreshPanel(); } }
+  setTimeout(pollBridge, bridgeOK ? 500 : 3000);
+}
+async function bridgeHello(){
+  try{
+    const j = await (await fetch('/bridge/georgeland', { cache: 'no-store' })).json();
+    bridgeOK = true; rev = j.rev || 0;
+    if(j.doc && validateGeorgeland(j.doc).ok){
+      if(j.doc.terrain.module === T.id){ doc = j.doc; snapResources(doc, T.terrainH); say(`bridge: resumed the live document (rev ${rev}, ${doc.resources.length} resources)`); return; }
+    }
+  }catch(e){ bridgeOK = false; }
+  pushDoc();
+}
+
+// ---------------------------------------------------------------- the command grammar (voice, typed, or bridged)
+const NUMW = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, dozen:12, thirteen:13, fourteen:14, fifteen:15,
+  sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, couple:2, few:4, several:6, some:6, handful:5, lots:15, many:15, plenty:15 };
+const COMPASS = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'center', 'middle', 'centre'];
+function words(s){ return s.toLowerCase().replace(/[’']/g, '').replace(/-/g, ' ').replace(/[^a-z0-9%.\s]/g, ' ').split(/\s+/).filter(Boolean); }
+function numberIn(ws, skipIdx = -1){ for(let i = 0; i < ws.length; i++){ if(i === skipIdx) continue; if(/^\d+$/.test(ws[i])) return { n: +ws[i], i }; if(NUMW[ws[i]] != null && ws[i] !== 'a' && ws[i] !== 'an') return { n: NUMW[ws[i]], i }; } return null; }
+function typeIn(ws){ for(let i = 0; i < ws.length; i++){ const t = typeFromWord(ws[i]); if(t) return { t, i }; } return null; }
+function clusterByWords(s){
+  s = s.toLowerCase().replace(/^the\s+/, '').trim(); if(!s) return null;
+  let best = null, bs = 0;
+  for(const c of doc.clusters){ const l = c.label.toLowerCase(); let sc = 0; if(l === s) sc = 3; else if(l.includes(s) || s.includes(l)) sc = 1 + Math.min(l.length, s.length) / 40;
+    else { const a = new Set(words(l)), b = words(s); const k = b.filter(w => a.has(w)).length; if(k >= 2) sc = 0.5 + k / 10; }
+    if(sc > bs){ bs = sc; best = c; } }
+  return best;
+}
+// where does a phrase point? -> { x, z, name, r } or null
+function whereIn(text){
+  const ws = words(text);
+  const ci = ws.findIndex(w => COMPASS.includes(w));
+  const p = T.placeByWord(text.replace(/\b(north|south|east|west|northeast|northwest|southeast|southwest|of|the|side|end|slope|slopes|coast)\b/g, ' ').replace(/\s+/g, ' ').trim());
+  if(p){
+    let x = p.x, z = p.z;
+    if(ci >= 0 && !['center', 'middle', 'centre'].includes(ws[ci])){ const c = T.compassPoint(ws[ci], 1); const k = p.r * 0.9 / (T.radius || 1); x += c.x * k; z += c.z * k; }
+    return { x, z, name: p.name, r: p.r };
+  }
+  if(ci >= 0) return T.compassPoint(ws[ci]);
+  if(/\bhere\b/.test(text) && lastTap) return { x: lastTap.x, z: lastTap.z, name: 'here', r: 6 };
+  if(/\bthere\b/.test(text) && hoverPt) return { x: hoverPt.x, z: hoverPt.z, name: 'there', r: 6 };
+  if(/\b(it|selected|selection)\b/.test(text) && selectedId){ const r = byId(selectedId); return { x: r.x, z: r.z, name: labelFor(r), r: 6 }; }
+  return null;
+}
+function targetsIn(text){   // which resources does a phrase name? -> ids[] + a description
+  const ws = words(text);
+  if(/\b(all|every|everything)\b/.test(text)){ const t = typeIn(ws); const w = whereIn(text);
+    let ids = doc.resources.filter(r => !t || r.type === t.t).filter(r => !w || Math.hypot(r.x - w.x, r.z - w.z) <= (w.r || 10) * 1.2).map(r => r.id);
+    return { ids, what: `${t ? RESOURCE_TYPES[t.t].label.toLowerCase() : 'resources'}${w ? ' near ' + w.name : ''}` }; }
+  const nums = ws.filter(w => /^\d+$/.test(w)).map(Number).filter(n => idOfNumber.has(n));
+  if(nums.length) return { ids: nums.map(n => idOfNumber.get(n)), what: nums.map(n => '#' + n).join(', ') };
+  const c = clusterByWords(text.replace(/^(make|move|delete|remove|richer|poorer|select)\s+/, ''));
+  if(c) return { ids: doc.resources.filter(r => r.cluster === c.id).map(r => r.id), what: `“${c.label}”`, cluster: c };
+  if(/\b(it|this|selected|selection|that one)\b/.test(text) && selectedId) return { ids: [selectedId], what: labelFor(byId(selectedId)) };
+  return { ids: [], what: '' };
+}
+function runCommand(text, source = 'you'){
+  text = (text || '').trim(); if(!text) return 'say something';
+  $('cmd').value = '';
+  const low = text.toLowerCase(), ws = words(text);
+  const echo = `${source === 'you' ? '›' : '⇢ ' + source + ':'} ${text}`; say(echo);
+  const first = ws[0];
+  try{
+    // ---- meta
+    if(/^(help|\?)$/.test(low)){ return act('help'); }
+    if(/^undo$/.test(low)) return undo();
+    if(/^(save as|name it|call it|rename)\s+(.+)/.test(low)) return saveAs(text.replace(/^(save as|name it|call it|rename)\s+/i, ''));
+    if(/^save$/.test(low)) return saveDoc();
+    if(/^(load|open)\s+(.+)/.test(low)) return loadFile(text.replace(/^(load|open)\s+/i, ''));
+    if(/^new\b/.test(low)){ const m = /on\s+(\w+)/.exec(low); if(m && TERRAINS[m[1]] && m[1] !== T.id) return switchTerrain(m[1]).then(newDoc); return newDoc(); }
+    if(/^(play|play it|run the game|test in game)$/.test(low)) return play();
+    if(/^download/.test(low)) return download();
+    if(/^(capture|screenshot|snap|save image|take a picture)/.test(low)) return capture();
+    if(/^clear all|^clear everything|^delete everything/.test(low)) return clearAll();
+    if(/^(button|press)\s+(\d+)/.test(low)) return pressButton(+/(\d+)/.exec(low)[1]);
+    if(/^(terrain|island)\s+(\w+)/.test(low)){ const m = /^(terrain|island)\s+(\w+)/.exec(low); if(TERRAINS[m[2]]) return switchTerrain(m[2]).then(() => `terrain: ${m[2]}`); return say('terrains: ' + Object.keys(TERRAINS).join(', '), 'bad'); }
+    // ---- view
+    if(/^(overview|zoom out all|show (me )?everything)/.test(low)) return view('overview');
+    if(/^(top|top down|from above|map view)/.test(low)) return view('top');
+    if(/^(zoom|closer|nearer)/.test(low)) return zoom(/out|back|away/.test(low) ? 'out' : 'in');
+    if(/^(turn|rotate|orbit|spin)/.test(low)) return orbit(/right|clockwise/.test(low) ? 'right' : 'left');
+    if(/^(tilt)/.test(low)) return orbit(/up|flatter/.test(low) ? 'up' : 'down');
+    if(/^(place names|labels|names)/.test(low)) return act('labels');
+    if(/^(look at|view|show|go to|fly to|focus on|focus)\b/.test(low)){
+      const rest = text.replace(/^(look at|view|show me|show|go to|fly to|focus on|focus)\s*/i, '');
+      if(T.placeByWord(rest)) return view(rest.replace(/^the\s+/, ''));   // a place name wins over a cluster label
+      const t = targetsIn(rest); if(t.ids.length){ const r = byId(t.ids[0]); select(r.id); lookAt(r.x, r.y, r.z, 26, 0.3, 0.55); return `looking at ${t.what}`; }
+      return view(rest.replace(/^the\s+/, '') || 'overview');
+    }
+    // ---- brush settings
+    if(/^(single|one at a time|one at a tap)/.test(low)) return act('brush:single');
+    if(/^(cluster|clusters|scatter mode|paint)$/.test(low)) return act('brush:cluster');
+    { const m = /^(cluster size|size|count)\s+(\d+)/.exec(low); if(m){ clusterN = clamp(+m[2], 1, 60); refreshPanel(); return `cluster size ${clusterN}`; } }
+    { const m = /^radius\s+(\d+)/.exec(low); if(m){ clusterR = clamp(+m[1], 2, 80); refreshPanel(); return `radius ${clusterR}`; } }
+    { const m = /^richness\s+(\d+)/.exec(low); if(m){ richness = clamp(+m[1] / (+m[1] > 1 ? 100 : 1), 0, 1); refreshPanel(); return `richness ${Math.round(richness * 100)}%`; } }
+    { const m = /^amount\s+(\d+)/.exec(low); if(m){ amount = clamp(+m[1], 1, 5); refreshPanel(); return `amount ${amount}`; } }
+    // ---- select / bare number
+    if(/^\d+$/.test(low)){ const id = idOfNumber.get(+low); return id ? select(id) : say(`there is no #${low}`, 'bad'); }
+    if(/^(select|pick|choose)\b/.test(low)){ const t = targetsIn(text); return t.ids.length ? select(t.ids[0]) : say('select what? say a number, e.g. “select 3”', 'bad'); }
+    if(/^(deselect|unselect|nothing|cancel|escape)/.test(low)){ selectedId = null; moveArmed = false; syncScene(); return 'cleared the selection'; }
+    // ---- delete
+    if(/^(delete|remove|kill|erase|clear)\b/.test(low)){
+      const rest = text.replace(/^(delete|remove|kill|erase|clear)\s*/i, '');
+      let t = targetsIn(rest);
+      if(!t.ids.length){ const w = whereIn(rest), ty = typeIn(words(rest));
+        if(w){ t = { ids: doc.resources.filter(r => (!ty || r.type === ty.t) && Math.hypot(r.x - w.x, r.z - w.z) <= (w.r || 10) * 1.2).map(r => r.id), what: `${ty ? RESOURCE_TYPES[ty.t].label.toLowerCase() : 'resources'} near ${w.name}` }; }
+        else if(ty) t = { ids: doc.resources.filter(r => r.type === ty.t).map(r => r.id), what: 'all ' + RESOURCE_TYPES[ty.t].label.toLowerCase() };
+        else if(selectedId) t = { ids: [selectedId], what: labelFor(byId(selectedId)) }; }
+      return removeIds(t.ids, t.what);
+    }
+    // ---- move
+    if(/^(move|shift|drag|take|bring|put)\s+(\d+|the |it|this|selected)/.test(low) || /^move\b/.test(low)){
+      const rest = text.replace(/^(move|shift|drag|take|bring|put)\s*/i, '');
+      const parts = rest.split(/\s+(?:to|onto|over to|towards|toward|near|next to|by|at)\s+/i);
+      const t = targetsIn(parts[0]); if(!t.ids.length && selectedId) t.ids = [selectedId];
+      if(!t.ids.length) return say('move what? e.g. “move 7 to the beach”', 'bad');
+      const rel = /\b(north|south|east|west)\s*(\d+)?/.exec(rest.toLowerCase().replace(/\b(the|of)\b/g, ''));
+      const dest = parts[1] ? whereIn(parts[1]) : null;
+      if(!dest && rel){ const d = +(rel[2] || 8), v = { north:[0,-1], south:[0,1], east:[1,0], west:[-1,0] }[rel[1]];
+        if(t.cluster) return moveCluster(t.cluster, t.cluster.x + v[0] * d, t.cluster.z + v[1] * d);
+        const r = byId(t.ids[0]); return moveTo(r.id, r.x + v[0] * d, r.z + v[1] * d); }
+      if(!dest) return say('move where? e.g. “move 7 to the twin hills” or “move 7 north 10”', 'bad');
+      if(t.cluster) return moveCluster(t.cluster, dest.x, dest.z);
+      if(t.ids.length > 1){ snapshot(); let n = 0; for(const id of t.ids){ const r = byId(id); const nx = dest.x + rand(-4, 4), nz = dest.z + rand(-4, 4); if(T.isDry(nx, nz)){ r.x = +nx.toFixed(2); r.z = +nz.toFixed(2); n++; } } return commit(`moved ${n} to ${dest.name}`); }
+      return moveTo(t.ids[0], dest.x + (dest.r > 8 ? rand(-2, 2) : 0), dest.z + (dest.r > 8 ? rand(-2, 2) : 0));
+    }
+    // ---- richness / amount edits: "richer 7", "make the beach berries richer", "set 7 richness 80%", "7 amount 3", "more berries on 7"
+    if(/\b(richer|poorer|richness|amount|more|less|fewer|bigger|smaller|rich|poor)\b/.test(low) && !/^(scatter|sprinkle|spread|plant|sow|place|put|add|drop|paint)\b/.test(low)){
+      // "make <place> <type>-rich" is a scatter, handled below
+      const mk = /^make\b/.test(low) && typeIn(ws) && /\brich\b/.test(low) && !/\bricher\b/.test(low) && !targetsIn(text).ids.length;
+      if(!mk){
+        const t = targetsIn(text); if(!t.ids.length && selectedId) t.ids = [selectedId], t.what = labelFor(byId(selectedId));
+        if(!t.ids.length) return say('which one? say a number, a cluster name, or select something first', 'bad');
+        const pct = /(\d+)\s*(%|percent)/.exec(low); const num = /\b(amount|to)\s+(\d+)\b/.exec(low);
+        if(/richness|richer|poorer|rich|poor/.test(low)){ if(pct) return adjust(t.ids, 'richness', 0, clamp(+pct[1] / 100, 0, 1)); if(num && /richness/.test(low)) return adjust(t.ids, 'richness', 0, clamp(+num[2] / (+num[2] > 1 ? 100 : 1), 0, 1)); return adjust(t.ids, 'richness', /poorer|poor|less|lower|down/.test(low) ? -0.2 : 0.2); }
+        if(num) return adjust(t.ids, 'amount', 0, +num[2]);
+        return adjust(t.ids, 'amount', /less|fewer|smaller|down|lower/.test(low) ? -1 : 1);
+      }
+    }
+    // ---- placing: scatter / place / make X-rich / bare type
+    {
+      const ty = typeIn(ws);
+      if(ty){
+        const verbScatter = /^(scatter|sprinkle|spread|plant|sow|paint|seed|dot|fill|cover|make|litter|strew)\b/.test(low) || /\b(cluster|clump|patch|grove|forest|field|stand|rich)\b/.test(low);
+        const verbPlace = /^(place|put|add|drop|set|stick|plant a|plant one|one)\b/.test(low) && !verbScatter;
+        const bare = ws.length <= 2 && !verbScatter && !verbPlace;
+        if(bare){ curType = ty.t; refreshPanel(); return say(`placing ${RESOURCE_TYPES[ty.t].label.toLowerCase()} — tap the ground, or say where`); }
+        const numI = numberIn(ws); let n = numI ? numI.n : null;
+        const rm = /radius\s+(\d+)/.exec(low); const rr = rm ? +rm[1] : null;
+        if(rm && numI && numI.n === rr) n = numberIn(ws, numI.i)?.n ?? null;
+        const w = whereIn(text) || (lastTap ? { x: lastTap.x, z: lastTap.z, name: 'the last tap', r: 8 } : null);
+        if(!w) return say(`where? e.g. “scatter 12 ${RESOURCE_TYPES[ty.t].label.toLowerCase()} near the beach” — places: ${T.places.slice(0, 6).map(p => p.name).join(', ')}…`, 'bad');
+        const richW = /\b(rich|richest|lush|heavy|dense)\b/.test(low) ? 0.9 : /\b(poor|sparse|thin|scarce|meagre|meager)\b/.test(low) ? 0.25 : richness;
+        curType = ty.t;
+        if(verbPlace && (n == null || n === 1)) return placeAt(w.x + (w.r > 6 ? rand(-2, 2) : 0), w.z + (w.r > 6 ? rand(-2, 2) : 0), ty.t, { richness: richW });
+        const cnt = n ?? (/\b(rich|dense|lots|many|heavy|forest)\b/.test(low) ? Math.max(clusterN, 10) : clusterN);
+        const rad = rr ?? Math.max(4, Math.min(w.r || clusterR, /\b(all over|across|along|throughout)\b/.test(low) ? (w.r || clusterR) * 1.4 : Math.max(clusterR, (w.r || clusterR) * 0.8)));
+        const lab = `${RESOURCE_TYPES[ty.t].label.toLowerCase()} ${/north|south|east|west/.test(low) && !/^(the )?(north|south|east|west) (shore|beach)/.test(w.name) ? words(low).find(x => /^(north|south|east|west)/.test(x)) + ' of ' : 'near '}${w.name.replace(/^the /, '')}`;
+        return scatterAt(w.x, w.z, ty.t, cnt, rad, { richness: richW, label: lab });
+      }
+    }
+    if(/^(place|put|add|drop|scatter|sprinkle)\b/.test(low)){ const w = whereIn(text); if(w){ return brush === 'single' ? placeAt(w.x, w.z) : scatterAt(w.x, w.z); } }
+    return say(`I did not understand “${text}” — say “help” for the sentences I know`, 'bad');
+  }catch(e){ console.error(e); return say(`error: ${e.message}`, 'bad'); }
+}
+window.addEventListener('unhandledrejection', e => say('error: ' + (e.reason && e.reason.message || e.reason), 'bad'));
+
+// ---------------------------------------------------------------- speech (Chrome's Web Speech API; a real voice path in the page itself)
+let recog = null, listening = false;
+function toggleMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return say('this browser has no speech recognition — type in the box, or talk to a Claude on the bridge', 'bad');
+  if(listening){ recog.stop(); return 'listening stopped'; }
+  recog = new SR(); recog.lang = 'en-US'; recog.interimResults = true; recog.continuous = true;
+  recog.onresult = e => { let fin = '', interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){ const t = e.results[i][0].transcript; if(e.results[i].isFinal) fin += t; else interim += t; }
+    if(interim) $('cmd').value = interim; if(fin.trim()) runCommand(fin, 'voice'); };
+  recog.onend = () => { listening = false; $('mic').classList.remove('live'); $('mic').textContent = '🎤 talk'; };
+  recog.onerror = e => say('mic: ' + e.error, 'bad');
+  recog.start(); listening = true; $('mic').classList.add('live'); $('mic').textContent = '● listening';
+  return say('listening — say “scatter 12 berries near the beach”');
+}
+
+// ---------------------------------------------------------------- terrain switch / boot
+async function switchTerrain(id, adopt = null){
+  $('busy').style.display = 'flex'; $('busy').textContent = `raising ${id} out of the sea…`;
+  try{
+    const t = await loadTerrain(id);
+    if(T && T._iframe && T.id !== t.id) T._iframe.remove();
+    T = t; $('terrainsel').value = T.id;
+    for(const [, m] of meshes){ resG.remove(m.grp); pickG.remove(m.pick); m.label.remove(); } meshes.clear();
+    buildTerrain(); buildPlaceLabels();
+    if(adopt){ doc = adopt; snapResources(doc, T.terrainH); }
+    else if(!doc || doc.terrain.module !== T.id) doc = newGeorgeland(T, { id: `${T.id}-new`, displayName: `${T.id} — new Georgeland`, editor: `Georgeland Editor ${VERSION}` });
+    selectedId = null; syncScene(); view('overview');
+    if(!adopt && !booting) pushDoc();   // at boot the bridge (or ?file=) decides what the document is
+  }catch(e){ say('terrain failed: ' + e.message, 'bad'); console.error(e); }
+  $('busy').style.display = 'none';
+  return `terrain: ${id}`;
+}
+// the type palette
+for(const k of TYPE_ORDER){
+  const b = document.createElement('button'); b.className = 'nb'; b.dataset.type = k;
+  const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = '#' + RESOURCE_TYPES[k].color.toString(16).padStart(6, '0');
+  b.append(sw, document.createTextNode(`${RESOURCE_TYPES[k].emoji} ${RESOURCE_TYPES[k].label}`)); $('types').appendChild(b);
+}
+numberButtons();
+let booting = true;
+try{ const j = await (await fetch('/bridge/georgeland', { cache: 'no-store' })).json(); rev = j.rev || 0; bridgeOK = true; }catch(e){}   // learn the rev first: no 409 on the first push
+const startTerrain = TERRAINS[QS.get('terrain')] ? QS.get('terrain') : 'aipotu';
+await switchTerrain(startTerrain);
+if(QS.get('file')) await loadFile(QS.get('file')); else await bridgeHello();
+booting = false;
+syncScene(); pollBridge();
+say(`Georgeland Editor ${VERSION} — tap the ground to scatter ${RESOURCE_TYPES[curType].label.toLowerCase()}, or say what you want`, 'ok');
+
+// ---------------------------------------------------------------- frame
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  controls.update();
+  ring.rotation.z += dt * 1.2;
+  renderer.render(scene, camera);
+  updateLabels();
+}
+frame();
+// clamp to ≥1: a background tab can report 0×0, which would freeze the canvas at zero (and break captures)
+function fit(){ const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); }
+addEventListener('resize', fit); fit();
+
+// debug / scripting hook (headless verification drives this)
+window.GLE = { get doc(){ return doc; }, get terrain(){ return T; }, run: runCommand, select, view, capture, get rev(){ return rev; }, VERSION,
+  step(n = 1){ for(let i = 0; i < n; i++){ controls.update(); renderer.render(scene, camera); updateLabels(); } } };
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){ const [id, val] = pair.split(':'); const el = document.getElementById(id); if(el){ el.value = val; el.dispatchEvent(new Event('change')); } }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
+</script>
+</body>
+</html>
