@@ -13,8 +13,10 @@
 - **The George World Builder is this lane's** (decision 31, 2026-09-01): Populous-style placement of Vitas, resources and switches on an existing terrain, writing a Georgeland file; terraforming second; after the map loader lands.
 - **Full control of a Georgeland brings up parts of the Dramaton editor**, including a 3-D scene inside the editor (D, 2026-08-31 walk; George World DESIGN "GEORGELAND"). Direction, not built.
 - **One session per folder; this lane works in a worktree; merges through the builder for the game file** (decision 33). STATUS rewritten at every editor commit (decision 2 applied to this lane).
+- **Facing Alligators is authored in this editor from Chris Unruh's finished drawings; the editor imports them, never generates them.** (D, 2026-09-02) "I want to be able to create Facing Alligators in the Dramaton Editor. I want to import Chris's drawings into scenes and into characters/actors. Will repurpose assets for the book and the game." Built as DRAWINGS v0.1 on branch `facing-alligators` (`0870820`): one shared store (`drawings[]`), backdrops and actor poses point at it, the Asset Library carries it across documents. **Ruled 2026-09-02 14:22 PDT (Doug, digit 1): the book is scenes-as-pages inside the one Facing Alligators document, under the episode The Book, with the game's episode beside it.** One file, one store; a page-layout view over scenes is a later direction, not a separate book format.
 
 ## DIRECTIONS (not built)
+- **Facing Alligators, after v0.1:** a page-layout view over the scenes of The Book (reading order, spreads, text placement); the one-switch accessibility floor for the game (the FA memory's "1-bit floor"); artist/provenance line in the Library page; Trim undo.
 - MCP wrapper over the bridge (typed tools for any Claude surface).
 - Etag/version guard on bridge PUT.
 - The Builder (decision 31), phases one and two.
@@ -24,6 +26,9 @@
 - Voice → animation loop exercised end to end.
 
 ## LOG (dated, additive)
+
+### 2026-09-02 13:30–14:22 — Facing Alligators lane: DRAWINGS v0.1 and two rulings (EDITOR (Facing Alligators))
+Assessment first (mailbox 13:40): the editor was already 2-D (Drop = backdrop image, ActorGraphic = pose×expression sprite, DOM `<img>` on a 16:9 stage, all base64 in one .dram); missing were a shared store, batch/folder import, uncropped portrait display, a project space, a version number. Chris's five drawings located in Dropbox `Consolidated/Facing_Alligators_Art/` (the only durable copy; kept out of the repo). Built and committed as `0870820` + STATUS `982fe81`; verified headless with 13 screenshots sent to Doug; 407 tests green. **Rulings (Doug, by digit):** 14:18 — commit on the branch, keep iterating, no merge yet (1 of 3). 14:22 — the book is scenes-as-pages inside the one document (1 of 2). Open: Unrue/Unruh spelling and pronouns across records; merge order against the georgeland-editor branch.
 
 ### 2026-08-31 17:57–23:32 — the narraton-editor session (from THREAD_SUMMARIES §1)
 Built and committed on `narraton-editor`: the Narraton editor (NA tab) with the KoC selector, keys/phase/subplot, test mode; Dramscript upgrades (`+=`/`-=`, inline choice `[SET]`, scene-local variables; stale `[IF]`-after-`[SET]` bug fixed); skin library (SK tab); Vita instrumentation; armature harvest + authored clips + the DRAM bridge; the director (bags, phase gating, rotation, what-if sliders, Narraton Drive); booleans; an Opus review with fixes; two Netlify deploys; the Asset Foundry brief. Doug's words from that thread, kept verbatim in THREAD_SUMMARIES §1 "Doug's ideas": the skin-library idea (21:02), the port-variables idea (21:24), the AI-collaborator question (21:26), the voice-animation ask (21:28), the no-3-D-skin-editor rule (21:40), "We should be damn proud of this editor and game" (21:42), "I'd like to keep improving the Dramaton editor, especially the Narraton editor" (22:30), the show-a-friend ask (22:32) and "be sure to include Boolean variables" (22:35), "I'd like to publish the Dramaton stage on the net so I could play all the games" (22:56).
