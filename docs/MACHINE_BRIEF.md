@@ -84,18 +84,19 @@ Scene metadata gains optional selection keys, and a new command yields flow cont
 ```
 [NARRATON pool=main]
 ```
-Scene metadata (per scene, in the editor):
+Scene metadata (per scene, in the editor) — flat fields on the Scene, the one shape since 2026-09-02 (the older nested `narraton: {…}` object is lifted by the loader and never written):
 ```
-narraton: {
-  pool: "main",                    // selection pool membership
-  keys: { wages: 20, education: 30, flareUps: 4 },   // target values, least-squares matched
-  requires: [ {var:"era", op:"==", value:2} ],       // hard gates (booleans/exact)
-  repeatable: false,
-  subplot: "resistance_rises",     // one scene per subplot in rotation
-  weight: 1.0                      // tiebreak/bias multiplier
-}
+pool: "main",                                       // which [NARRATON pool=x] draws this scene
+key: { wages: 20, education: 30, flareUps: 4 },     // target values, least-squares matched
+keyScale: { flareUps: 6 },                          // a key's range when it is not 0-100 (default 100)
+requires: [ { variable: "era", operator: "==", value: 2 } ],  // hard gates
+repeatable: false,                                  // default: plays once
+weight: 1.0,                                        // score divides by this (bias)
+act: "MIDDLE",                                      // story-act gate against the `act` world variable (soft)
+phase: "BEGINNING",                                 // position in the subplot's bag
+subplotId: "resistance_rises"                       // the Subplot (owned bag) it belongs to
 ```
-Selection algorithm (King of Chicago, verbatim spirit): filter pool by `requires`, by repeatable/already-played, by subplot-rotation rules; among survivors compute Σ(currentVar − keyTarget)² over each scene's keys; pick lowest score (weight divides score); transition to it. 4–20 candidates is the expected healthy pool size. Log every selection decision to console — Doug wants narrative breakpoints and story-space visibility (his '95 paper's debugging wishlist).
+Selection algorithm (King of Chicago, verbatim spirit; `src/utils/narratonDirector.ts`): filter the pool by `requires`, by repeatable/already-played, by subplot phase order (MIDDLE waits for BEGINNING) and the soft act gate; among survivors compute Σ((currentVar − keyTarget) × 100 / scale)² over each scene's keys (a miss of more than half a key's scale excludes the scene); divide by weight, add a rotation penalty if the scene's subplot just played; pick the lowest score, ties random; transition to it. 4–20 candidates is the expected healthy pool size. Log every selection decision to console — Doug wants narrative breakpoints and story-space visibility (his '95 paper's debugging wishlist).
 
 ---
 

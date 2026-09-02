@@ -4,7 +4,7 @@
 
 ## CANON — as of the 2026-09-01 merge
 - **The editor is where scenes, Vitas and skins are authored; George World is a Dramaton runtime.** From the George World record (D, 2026-08-30): "I want to be able to edit the scenes in the Dramaton editor." Scenes become data the Narraton Editor edits and George World plays; "the chronicle IS a Dramaton script" (time as a script); saves are Dramaton files (`public/hvb-william.json` shape) — never a bespoke format.
-- **Narraton = the King of Chicago selector, reborn.** Scenes carry keys (0–100 targets per world variable), a phase (BEGINNING/MIDDLE/END) and a subplot; the selector ranks by least-squares distance to live world state; the director consumes played scenes (no repeats), gates phases within a subplot, and rotates subplots. Built 2026-08-31.
+- **Narraton = the King of Chicago selector, reborn.** Scenes carry keys (0–100 targets per world variable), a phase (BEGINNING/MIDDLE/END) and a subplot; the selector ranks by least-squares distance to live world state; the director consumes played scenes (no repeats), gates phases within a subplot, and rotates subplots. Built 2026-08-31. **One shape, one reader (ruled 2026-09-02, built on `narraton-unify`):** a scene's selection metadata is flat fields on the Scene — `pool`, `key`, `keyScale`, `requires`, `repeatable`, `weight`, `act`, `phase`, `subplotId` — read by one selector (`src/utils/narratonDirector.ts`) for both the editor's board and the play-time `[NARRATON pool=x]`. The older nested `scene.narraton` object is lifted by the loader and never written. See LOG 2026-09-02 14:17.
 - **Skins are imported finished, never modeled here.** (D, 2026-08-31 21:40) "I don't want a 3-D skin editor because that would drive me crazy. If I can't find a free one I'll get someone to create it for money." The editor imports GLB/VRM/glTF, harvests every animation clip (non-standard ones included) and the armature, and stops there. Standing rule in root `CLAUDE.md`.
 - **Vitas expose their instruments.** (D, 21:24) "All Vitas will expose their port variables, the variables of their gauges including level and red line, goal, and expose the knobs for coding and scripting purposes; we'll create a set of presets with names like Happy Voracious and Starving Lazy but will let advanced users dive in." Materialized as world variables (`george_hunger`, `george_hunger_redline`, `george_hunger_goal`, `george_appetite`), so `[SET]`/`[IF]`, Narraton keys, autocomplete and test mode all see them.
 - **An AI collaborator edits the same living document.** (D, 21:26) "I want to collaborate with an AI as I create a game, so I want to expose all the world and creature variables and text… a general-purpose editor that has access to anything editable in the editor. Does that mean an API?" (C, adopted): everything editable is one JSON document; the DRAM bridge (`GET`/`PUT /bridge/game`, read-modify-write through `migrateGameData`) is the whole API; an MCP wrapper is the polished form, not yet built.
@@ -19,7 +19,7 @@
 - Etag/version guard on bridge PUT.
 - The Builder (decision 31), phases one and two.
 - Externalizing George World's `SCENE_DEFS` as Dramaton scene data the Narraton editor opens (the keystone's game-side half).
-- Unifying the two Narraton metadata shapes (editor director vs theater runtime) — open decision.
+- ~~Unifying the two Narraton metadata shapes (editor director vs theater runtime) — open decision.~~ Ruled and built 2026-09-02 (branch `narraton-unify`, awaiting merge); see LOG 2026-09-02 14:17.
 - Publishing the editor itself on Netlify.
 - Voice → animation loop exercised end to end.
 
@@ -34,3 +34,26 @@ Open threads it left: merge parked (later done 2026-09-01, `968bd9c`); runtime n
 
 ### 2026-09-02 — fold instruction (Doug, confirmed)
 Editor / Narraton / bridge / skin-library / Vita-instrumentation content from the three debrief files is captured in this record and `docs/editor/STATUS.md`. The two items the instruction asked to flag as parked (narraton-editor merge; asset-foundry studies onto main) had both already been performed on 2026-09-01 (`968bd9c`, `995583e`); they are recorded as resolved in both STATUS files and nothing was performed on 2026-09-02.
+
+### 2026-09-02 14:17 PDT — Narraton metadata unified: one flat shape on Scene, one selector (Doug's ruling on editor DECIDE #1 / George World DECIDE #5; EDITOR, branch `narraton-unify`)
+**The ruling (Doug, 2026-09-02):** unify onto the NEW shape (`key/phase/subplotId`), one source of truth read everywhere — but AUDIT FIRST: if the old `narraton` object carries anything the new shape does not, extend the new shape before migrating so nothing is lost.
+
+**The audit.** The old nested object (GitHub's theater line) and the new flat fields (the editor's director) were compared field by field across `src/`, the seven shipped games in `public/`, and the builder scripts. The old shape carried SIX things the new one lacked; all six were added to the flat shape before any data moved:
+
+| Legacy `scene.narraton` | Flat shape before | Flat shape now | In shipped data |
+|---|---|---|---|
+| `pool` (which `[NARRATON pool=x]` draws the scene) | nothing — the director ranked the whole board | `pool` | every one of the 755 legacy scenes |
+| `keys` = target + per-key `scale` (hoard over 10000, flareUps over 6) | `key` = target only, fixed 0–100 | `key` + `keyScale` (scale as the variable's range; default 100 = identical to before) | most keyed scenes in william, leopold, capone, campaign, machine-toy |
+| `requires` (hard gates) | nothing | `requires` | campaign finales, the single-tax lever scenes |
+| `repeatable` | nothing — a played scene never came back | `repeatable` | every reaction pool (william, leopold, capone, elon) |
+| `weight` (score divides by it) | nothing | `weight` | campaign consequence scenes (2), personified witness (3) |
+| `act` (story act gate against the `act` world variable, soft) | nothing — `phase` is the position inside ONE subplot's bag, a different idea | `act`, kept distinct from `phase` | none |
+| `subplot` (free string; strict one-scene-per-subplot in list order) | `subplotId` (a Subplot entity; phase gating + rotation penalty) | `subplotId`; a legacy string becomes a Subplot, created if absent | none |
+
+Nothing in the flat shape was missing from the old one except `phase` and `localVars`, which the old runtime simply did not have.
+
+**What was built.** `Scene` gains `pool / keyScale / requires / repeatable / weight / act`; `narraton?: NarratonMeta` is gone from the type. `migrateGameData` lifts a legacy object onto the flat fields (flat wins on collision, legacy fills gaps; garbage tolerated; idempotent). `src/utils/narraton.ts` (the old runtime selector) is deleted; `src/utils/narratonDirector.ts` is the one reader: pool filter, per-key scale normalization (`(current − target) × 100 / scale`, squared), gates, repeatable, weight, the soft act gate, phase gating, rotation penalty, random tie-break at play time (stable on the board), and the story-space console log. `[NARRATON]` in `useScriptRunner` calls it. The scene editor's Narraton panel edits all the fields; the Narraton tab's scene detail gained pool, scale, repeatable and weight, and the board gained a pool filter showing exactly what `[NARRATON pool=x]` would draw from. The builders (`scripts/`) emit the flat shape through `scripts/narraton-fields.mjs`; `scripts/migrate-narraton.mjs` lifted the seven shipped games in place (755 scenes; verified field-by-field against the committed files — lossless; a rebuilt `machine-toy.json` matches the lifted one except the build stamp).
+
+**Behavior that changed at play time (flagged, not hidden):** (1) big misses now exclude at play time — a scene more than half a key's scale off is out, where the old runtime only ranked it lower; a pool written as "always pick something" can yield nothing more often, and `[NARRATON]` falls through as before. (2) The legacy `subplot` semantics (strict list-order rotation) are replaced by the director's phase gating + rotation penalty; no shipped data used `subplot`. (3) Pool-only scenes (gated finales, no keys) now show on the editor's board with a perfect score. (4) Score units are ×10000 the old normalized units; ranking is unchanged.
+
+**Tests:** the old 21 selector tests rewritten against the one API; new tests for the migration (six cases), the unified fields (eight cases), and the shipped data (no legacy object left; scales carried). Counts and hashes in `docs/editor/STATUS.md`.

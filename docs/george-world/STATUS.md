@@ -1,6 +1,6 @@
 # GEORGE WORLD — STATUS
 
-**Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
+**Amended 2026-09-02 14:17 PDT by EDITOR (branch `narraton-unify`)**: DECIDE #5 struck through as ruled and done on the branch; nothing else touched. **Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
@@ -16,7 +16,7 @@
 2. Approve the map/Georgeland contract once HvM Graphics posts the one-page proposal. (#23)
 3. Proper names for the Caldera, Ring Atoll, River Delta, Georgeland 2. (#17)
 4. ~~Where the HvB master record lives~~ — ruled 10b: repo `DougDroogSharp/hvb-design`, mirror Dropbox `HvB Design/`.
-5. **Two Narraton metadata shapes now coexist on Scene** after the editor merge: `key/phase/subplotId` (the editor's director) and `narraton` (the theater runtime from GitHub's line). Unify, or keep both? (EDITOR flagged it 2026-09-01.)
+5. ~~**Two Narraton metadata shapes now coexist on Scene** after the editor merge: `key/phase/subplotId` (the editor's director) and `narraton` (the theater runtime from GitHub's line). Unify, or keep both?~~ — **RULED 2026-09-02: UNIFY onto the flat shape**, audit first. Done on branch `narraton-unify` (2026-09-02 14:17 PDT, not merged): the legacy object carried six things the flat shape lacked (pool, per-key scale, requires, repeatable, weight, act), all added to the flat shape before migrating; loader lifts old saves; 755 shipped scenes converted losslessly; one selector for editor and play time. Record: `docs/editor/STATUS.md` (PARKED / RESOLVED) and `docs/editor/DESIGN.md` LOG 2026-09-02. Merge to main awaits Doug's go.
 
 ## LANES RUNNING (2026-09-01 evening)
 | Seat | Folder / branch | Doing |

@@ -97,7 +97,7 @@ Read these in order and you have 90% of the system:
 
 Supporting: `src/pages/Theater.tsx` (player shell, balloons, quote cards),
 `src/components/theater/StageConsole.tsx` (the fixed cabinet: stage + gauges +
-narration plate), `src/utils/narraton.ts` (scene selector), `src/types.ts`.
+narration plate), `src/utils/narratonDirector.ts` (scene selector), `src/types.ts`.
 
 ## 4. The five core mechanisms
 
@@ -126,12 +126,16 @@ body against the live world ref — deliberately off the `advance()` path so the
 simulation evolves while the player reads. Blocking commands are refused inside
 tick bodies.
 
-**Narraton.** `src/utils/narraton.ts` — the 1986 scene selector, reborn. Every scene
-may carry a pool name, hard requirements, and target key/value pairs. On
-`[NARRATON pool=x]` the selector filters by pool + requirements + play history +
-subplot rotation, then scores survivors by normalized least squares against current
-world state — `sum(((current - target)/scale)^2) / weight`, lowest wins. Every
-decision is console-logged.
+**Narraton.** `src/utils/narratonDirector.ts` — the 1986 scene selector, reborn, and
+the ONE reader of a scene's selection metadata (flat fields on `Scene`: `pool`, `key`,
+`keyScale`, `requires`, `repeatable`, `weight`, `act`, `phase`, `subplotId`; unified
+2026-09-02, the older nested `scene.narraton` object is lifted by `migrateGameData`).
+On `[NARRATON pool=x]` the selector filters by pool + requirements + play history +
+subplot phase order + the soft act gate, then scores survivors by normalized least
+squares against current world state — `sum(((current - target) * 100 / scale)^2) /
+weight` plus a rotation penalty for the subplot that just played, lowest wins, a miss
+of more than half a key's scale excludes. The editor's Narraton tab and test mode read
+the same function. Every decision is console-logged.
 
 ## 5. Invariants a reviewer should hold us to
 
