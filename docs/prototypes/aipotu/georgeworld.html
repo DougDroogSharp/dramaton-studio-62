@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.79</title>
+<title>George World v0.79-georgeland</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -1722,6 +1722,79 @@ const mine = { owner:null, claimPending:null, group:new THREE.Group(), banner:nu
 function updateMineBanner(){
   mine.banner.visible = !!mine.owner;
   if(mine.owner) mine.bannerCloth.material.color.set(mine.owner.dressColor);
+}
+
+// ==================== GEORGELAND FILE HOOK (?georgeland=<url>) ====================
+// EDITOR lane, 2026-09-02 (branch georgeland-editor): the Georgeland Editor
+// (georgeland_editor.html) WRITES georgeland/1 files (shape: georgeland_format.js);
+// this hook READS one and seats its resources on the island, so an authored
+// parcel can be checked in the live game before the map loader lands. For GW
+// BUILDER to fold into the loader. Phase-1 semantics:
+//   berry -> a live food bush (harvestables; richness >= 0.5 = the rich `far` bush,
+//            amount = berries on it)      fir -> a live fellable pine (FELLABLES)
+//   palm  -> a palm + obstacle (timber/shade)   stone -> scenery rocks + an obstacle
+//   gold  -> ore nuggets at each spot, and the MINE moves to the richest one
+// resourceMode 'replace' (the default): a type present in the file replaces the
+// built-in scatter of that type; 'add' lays the file's resources on top.
+const GEORGELAND_FILE = QS.get('georgeland');
+const GEORGELAND = GEORGELAND_FILE ? (() => {
+  try{
+    const xhr = new XMLHttpRequest();   // synchronous on purpose: module order stays exactly as it was
+    xhr.open('GET', GEORGELAND_FILE + (GEORGELAND_FILE.includes('?') ? '&' : '?') + 't=' + Date.now(), false);
+    xhr.send(null);
+    if(xhr.status !== 200) throw new Error('HTTP ' + xhr.status);
+    const d = JSON.parse(xhr.responseText);
+    if(d.format !== 'georgeland/1' || !Array.isArray(d.resources)) throw new Error('not a georgeland/1 file');
+    if(d.terrain && d.terrain.module && d.terrain.module !== 'aipotu')
+      console.warn(`[georgeland] ${d.id} was authored on module "${d.terrain.module}"; this build only has Aipotu (module #0) - positions used as-is`);
+    return d;
+  }catch(e){ console.error('[georgeland] could not load ' + GEORGELAND_FILE + ': ' + e.message); return null; }
+})() : null;
+if(GEORGELAND){
+  const types = new Set(GEORGELAND.resources.map(r => r.type));
+  const replace = (GEORGELAND.resourceMode || 'replace') === 'replace';
+  if(replace && types.has('berry')){
+    for(let i = harvestables.length - 1; i >= 0; i--){ const h = harvestables[i]; if(!h.isBush) continue;
+      if(h.bushGrp) flora.remove(h.bushGrp); if(h.marker) gMarkers.remove(h.marker); harvestables.splice(i, 1); }
+  }
+  if(replace && types.has('fir')){
+    for(let i = FELLABLES.length - 1; i >= 0; i--){ const f = FELLABLES[i]; if(!f.isFir) continue;
+      flora.remove(f.grp); const oi = OBSTACLES.indexOf(f.ob); if(oi >= 0) OBSTACLES.splice(oi, 1); FELLABLES.splice(i, 1); }
+  }
+  const matGLRock = new THREE.MeshLambertMaterial({ color:0x8e8577, flatShading:true });
+  let goldBest = null, seated = 0;
+  for(const r of GEORGELAND.resources){
+    if(typeof r.x !== 'number' || typeof r.z !== 'number') continue;
+    const rich = Math.max(0, Math.min(1, +r.richness || 0.5)), amt = Math.max(1, Math.round(+r.amount || 2));
+    if(r.type === 'berry'){
+      const h = makeBerryBush(r.x, r.z, rich >= 0.5); h.berryN = Math.min(3, amt); syncBush(h);
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.9), new THREE.MeshBasicMaterial({ color: h.far ? 0xffb340 : 0xb98aff, transparent:true }));
+      m.position.set(h.pos.x, h.pos.y + 3.4, h.pos.z); gMarkers.add(m); h.marker = m; seated++;
+    } else if(r.type === 'fir'){ makePine(r.x, r.z, 0.7 + 0.2 * Math.min(3, amt)); seated++; }
+    else if(r.type === 'palm'){
+      const { grp } = makePalm(0.9 + 0.15 * Math.min(3, amt), 0.2, amt >= 3); placeOnTerrain(grp, r.x, r.z);
+      const ob = { x:r.x, z:r.z, r:0.4 }; OBSTACLES.push(ob);
+      FELLABLES.push({ x:r.x, z:r.z, grp, ob, felled:false, claim:null, isDate:amt >= 3, stump:null, h:null }); seated++;
+    } else if(r.type === 'stone'){
+      const g = new THREE.Group();
+      for(let i = 0; i < amt + 1; i++){ const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.45, 0.85), 0), i % 2 ? matGLRock : matRock);
+        s.position.set(rand(-0.9, 0.9), 0.3, rand(-0.9, 0.9)); s.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); s.castShadow = true; g.add(s); }
+      placeOnTerrain(g, r.x, r.z, 0.15); OBSTACLES.push({ x:r.x, z:r.z, r:1.2 }); seated++;
+    } else if(r.type === 'gold'){
+      const g = new THREE.Group();
+      for(let i = 0; i < amt + 1; i++){ const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.18, 0.34), 0), matGoldOre);
+        s.position.set(rand(-1, 1), 0.2, rand(-1, 1)); s.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); g.add(s); }
+      placeOnTerrain(g, r.x, r.z, 0.05);
+      if(!goldBest || rich * amt > goldBest.score) goldBest = { r, score: rich * amt }; seated++;
+    }
+  }
+  if(goldBest){
+    MINE.x = goldBest.r.x; MINE.z = goldBest.r.z; MINE.y = terrainH(MINE.x, MINE.z);
+    mine.group.position.set(MINE.x, MINE.y - 0.1, MINE.z); mine.group.rotation.y = Math.atan2(0 - MINE.x, 0 - MINE.z);
+    mine.marker.position.set(MINE.x, MINE.y + 3.6, MINE.z);
+  }
+  console.log(`[georgeland] ${GEORGELAND.id}: ${seated} resources seated from ${GEORGELAND_FILE}` + (replace ? ` (replacing the built-in ${[...types].join('/')})` : ''));
+  window.GEORGELAND_LOADED = { file: GEORGELAND_FILE, id: GEORGELAND.id, seated, doc: GEORGELAND };
 }
 
 // ==================== THE VOLCANO ====================
