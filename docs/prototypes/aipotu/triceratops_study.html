@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     TRICERATOPS STUDY — the horned defender, for George World.
+     Filed 2026-08-31 23:51 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The animal: scalloped FRILL, two long brow horns and the short
+     nose horn, parrot beak, barrel body low on sturdy two-joint legs,
+     shoulder ~1.6 units. A dark theropod STAND-IN circles the meadow,
+     drifting in and out — the triceratops answers it honestly:
+
+     GRAZE (head down, cropping, tail swishing) while the threat is
+     far → ALERT (head snaps up, nostril snorts, a forefoot PAWS the
+     ground, dust) → DEFEND (horns presented low, pivoting to keep the
+     points on the threat as it circles) → LUNGE (a driving charge and
+     the upward horn TOSS, then the stiff-legged back-up). Land a lunge
+     and the theropod springs away. Chip overrides + auto.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triceratops Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e2cc; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,26,18,0.78); color:#f2f0de; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#7a5e3a; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#967648; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🦕 Triceratops Study</b> — graze, defend, lunge, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="auto">Auto</button><button data-m="graze">Graze</button><button
+    data-m="defend">Defend</button><button data-m="lunge">Lunge</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 33300111;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e0ca), 50, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(7, 4, 10);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2.5; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf4f0da), zenith = new THREE.Color(0x7cb0da),
+        below = new THREE.Color(0xd8d4be), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xa8a87c, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.4);
+sun.position.set(24, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xb4b47e }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x8fa050, flatShading:true });
+  for(let i=0;i<24;i++){
+    const a = rand(0, Math.PI*2), r = rand(4, 30);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.14,0.24), rand(0.4,0.8), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.2, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ==========================================================================
+//  THE TRICERATOPS — forward +Z; shoulder ~1.6.
+// ==========================================================================
+const matHide = new THREE.MeshLambertMaterial({ color:0x8f7d54, flatShading:true });
+const matHideDk = new THREE.MeshLambertMaterial({ color:0x6e5f40, flatShading:true });
+const matFrill = new THREE.MeshLambertMaterial({ color:0x9a6a46, flatShading:true });
+const matHorn = new THREE.MeshLambertMaterial({ color:0xe0d6bc, flatShading:true });
+const matBeakM = new THREE.MeshLambertMaterial({ color:0x54432c, flatShading:true });
+const T = { g: new THREE.Group() };
+scene.add(T.g);
+{
+  T.body = new THREE.Group();
+  T.body.position.y = 1.15;
+  T.g.add(T.body);
+  const barrelG = new THREE.CapsuleGeometry(0.62, 1.15, 8, 12);
+  barrelG.rotateX(Math.PI/2);
+  const barrel = new THREE.Mesh(barrelG, matHide);
+  barrel.scale.set(1.05, 0.95, 1);
+  barrel.castShadow = true;
+  T.body.add(barrel);
+  const rump = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 10), matHideDk);
+  rump.scale.set(1.05, 0.95, 1.1);
+  rump.position.set(0, 0.05, -0.7);
+  rump.castShadow = true;
+  T.body.add(rump);
+}
+// HEAD: frill, horns, beak, jaw — one group that pitches and yaws
+{
+  T.head = new THREE.Group();
+  T.head.position.set(0, 0.28, 0.85);
+  T.body.add(T.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), matHide);
+  skull.scale.set(0.85, 0.8, 1.2);
+  skull.position.z = 0.18;
+  skull.castShadow = true;
+  T.head.add(skull);
+  // the FRILL: tilted disc with scallop bumps round the rim
+  const frill = new THREE.Group();
+  frill.position.set(0, 0.22, -0.08);
+  frill.rotation.x = -0.5;
+  T.head.add(frill);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.42, 0.07, 14), matFrill);
+  plate.rotation.x = Math.PI/2;
+  plate.scale.set(1, 1.15, 1);
+  plate.castShadow = true;
+  frill.add(plate);
+  for(let i=0;i<9;i++){                          // scallops across the top arc
+    const knob = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 5), matHorn);
+    const aa = -Math.PI*0.15 + (i/8)*Math.PI*1.3;
+    knob.position.set(Math.cos(aa)*0.56, Math.sin(aa)*0.62, 0);
+    knob.rotation.z = aa - Math.PI/2;
+    frill.add(knob);
+  }
+  // brow horns + nose horn + beak
+  for(const s of [-1, 1]){
+    const hornG = new THREE.ConeGeometry(0.06, 0.75, 7);
+    const horn = new THREE.Mesh(hornG, matHorn);
+    horn.position.set(s*0.17, 0.22, 0.36);
+    horn.rotation.x = 1.15;
+    horn.rotation.z = s*-0.12;
+    horn.castShadow = true;
+    T.head.add(horn);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5),
+      new THREE.MeshLambertMaterial({ color:0x241e14 }));
+    eye.position.set(s*0.24, 0.06, 0.3);
+    T.head.add(eye);
+  }
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.28, 7), matHorn);
+  nose.position.set(0, 0.02, 0.56);
+  nose.rotation.x = 1.2;
+  nose.castShadow = true;
+  T.head.add(nose);
+  const beakG = new THREE.ConeGeometry(0.12, 0.3, 6);
+  beakG.rotateX(Math.PI/2 + 0.35);
+  const beak = new THREE.Mesh(beakG, matBeakM);
+  beak.position.set(0, -0.14, 0.62);
+  beak.castShadow = true;
+  T.head.add(beak);
+  T.jaw = new THREE.Group();
+  T.jaw.position.set(0, -0.2, 0.4);
+  T.head.add(T.jaw);
+  const jawG = new THREE.SphereGeometry(0.14, 8, 6);
+  jawG.scale(0.9, 0.5, 1.4);
+  jawG.translate(0, 0, 0.12);
+  T.jaw.add(new THREE.Mesh(jawG, matHideDk));
+  // nostril snort anchors
+  T.nostrils = [];
+  for(const s of [-1, 1]){
+    const n = new THREE.Group();
+    n.position.set(s*0.09, -0.04, 0.66);
+    T.head.add(n);
+    T.nostrils.push(n);
+  }
+}
+// TAIL: three segments
+T.tail = [];
+{
+  let parent = T.body, pz = -1.05, py = 0.12;
+  for(let i=0;i<3;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gT = new THREE.CapsuleGeometry(0.24 - i*0.07, 0.42, 5, 8);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.28);
+    const m = new THREE.Mesh(gT, matHideDk);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    T.tail.push(seg);
+    parent = seg; pz = -0.56; py = 0;
+  }
+}
+// LEGS: two-joint, hind longer than fore (the ceratopsian slope)
+T.legs = [];
+function makeLeg(x, z, front){
+  const hip = new THREE.Group();
+  hip.position.set(x, -0.42, z);
+  T.body.add(hip);
+  const upG = new THREE.CylinderGeometry(0.17, 0.13, front ? 0.42 : 0.52, 8);
+  upG.translate(0, front ? -0.2 : -0.25, 0);
+  const up = new THREE.Mesh(upG, matHideDk);
+  up.castShadow = true;
+  hip.add(up);
+  const knee = new THREE.Group();
+  knee.position.y = front ? -0.4 : -0.5;
+  hip.add(knee);
+  const lowG = new THREE.CylinderGeometry(0.11, 0.13, front ? 0.34 : 0.4, 8);
+  lowG.translate(0, front ? -0.16 : -0.19, 0);
+  const low = new THREE.Mesh(lowG, matHide);
+  low.castShadow = true;
+  knee.add(low);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.1, 8), matHideDk);
+  foot.position.y = front ? -0.36 : -0.42;
+  foot.castShadow = true;
+  knee.add(foot);
+  T.legs.push({ hip, knee, front });
+  return T.legs[T.legs.length-1];
+}
+makeLeg(-0.42,  0.72, true);
+makeLeg( 0.42,  0.72, true);
+makeLeg(-0.46, -0.68, false);
+makeLeg( 0.46, -0.68, false);
+
+// ---------- the THREAT: a dark theropod stand-in, circling ----------------
+const threat = new THREE.Group();
+scene.add(threat);
+{
+  const dark = new THREE.MeshLambertMaterial({ color:0x3a342c, flatShading:true });
+  const bodyG = new THREE.CapsuleGeometry(0.3, 0.7, 6, 10);
+  bodyG.rotateX(Math.PI/2);
+  const body = new THREE.Mesh(bodyG, dark);
+  body.position.y = 1.0;
+  body.castShadow = true;
+  threat.add(body);
+  const neckG = new THREE.CylinderGeometry(0.1, 0.16, 0.5, 7);
+  neckG.rotateX(0.7);
+  const neck = new THREE.Mesh(neckG, dark);
+  neck.position.set(0, 1.3, 0.5);
+  threat.add(neck);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 7), dark);
+  skull.scale.set(0.8, 0.8, 1.6);
+  skull.position.set(0, 1.52, 0.72);
+  skull.castShadow = true;
+  threat.add(skull);
+  const tailG = new THREE.ConeGeometry(0.16, 1.3, 7);
+  tailG.rotateX(-Math.PI/2);
+  const tl = new THREE.Mesh(tailG, dark);
+  tl.position.set(0, 1.05, -1.0);
+  tl.castShadow = true;
+  threat.add(tl);
+  threat.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.2, 1.0, -0.1);
+    const limbG = new THREE.CapsuleGeometry(0.07, 0.7, 4, 7);
+    limbG.translate(0, -0.45, 0);
+    const limb = new THREE.Mesh(limbG, dark);
+    limb.castShadow = true;
+    leg.add(limb);
+    threat.add(leg);
+    threat.legs.push(leg);
+  }
+}
+
+// dust puffs (paw scrapes, snorts, charge)
+const puffs = [];
+for(let i=0;i<8;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5),
+    new THREE.MeshLambertMaterial({ color:0xcbbc8e, transparent:true, opacity:0 }));
+  p.userData.t = 9;
+  scene.add(p);
+  puffs.push(p);
+}
+function puff(x, y, z, big){
+  const p = puffs.find(p => p.userData.t > 1);
+  if(!p) return;
+  p.userData.t = 0;
+  p.position.set(x, y, z);
+  p.scale.setScalar(big ? 1.4 : 0.7);
+}
+const _w = new THREE.Vector3();
+
+// ==========================================================================
+//  BEHAVIOR
+// ==========================================================================
+let mode = 'auto';
+let threatA = 0, threatR = 8;
+let yaw = 0, stance = 0, lungeT = -1, pawPh = 0, springAway = 0;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  if(m === 'lunge' && lungeT < 0) lungeT = 0;
+  else mode = m;
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === (m === 'lunge' ? mode : m)));
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('auto');
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // ---- the threat circles, drifting in and out; springs away when gored --
+  threatA += dt*0.32;
+  springAway = Math.max(0, springAway - dt*0.5);
+  const wantR = 5.2 + Math.sin(t*0.13)*2.6 + springAway*4;
+  threatR = lerp(threatR, wantR, Math.min(1, dt*0.8));
+  threat.position.set(Math.cos(threatA)*threatR, 0, Math.sin(threatA)*threatR);
+  threat.rotation.y = -threatA;                   // sidling round the circle
+  threat.position.y = Math.abs(Math.sin(t*4.2))*0.05;
+  threat.legs[0].rotation.x = Math.sin(t*8)*0.5;
+  threat.legs[1].rotation.x = -Math.sin(t*8)*0.5;
+
+  // ---- what does the trike want? ----
+  const dist = threat.position.length();
+  let level;                                      // 0 graze · 1 alert · 2 defend
+  if(mode === 'graze') level = 0;
+  else if(mode === 'defend') level = 2;
+  else level = dist > 6 ? 0 : dist > 4.6 ? 1 : 2;
+  if(mode === 'auto' && level === 2 && dist < 3.4 && lungeT < 0) lungeT = 0;
+  stance = lerp(stance, level >= 2 ? 1 : 0, Math.min(1, dt*2.2));
+
+  // face the threat whenever roused
+  if(level > 0){
+    const wantYaw = Math.atan2(threat.position.x, threat.position.z);
+    yaw += shortestArc(yaw, wantYaw) * Math.min(1, dt*(level === 1 ? 1.6 : 3));
+  }
+  T.g.rotation.y = yaw;
+
+  // ---- the LUNGE: drive out along the horns, toss, back up stiff ----
+  let dash = 0, toss = 0;
+  if(lungeT >= 0){
+    lungeT += dt;
+    const u = lungeT/1.9;
+    if(u < 0.3){ dash = smooth(u/0.3)*2.1; toss = 0; }             // the drive
+    else if(u < 0.45){ dash = 2.1; toss = Math.sin((u-0.3)/0.15*Math.PI); // the TOSS
+      if(springAway === 0 && dist < 4){ springAway = 1; }
+    } else if(u < 1){ dash = 2.1*(1 - smooth((u-0.45)/0.55)); toss = 0; } // back up
+    else lungeT = -1;
+    if(u < 0.32 && Math.random() < dt*10)
+      puff(T.g.position.x + Math.sin(yaw)*(dash-0.5), 0.15, T.g.position.z + Math.cos(yaw)*(dash-0.5), true);
+  }
+  T.g.position.set(Math.sin(yaw)*dash, 0, Math.cos(yaw)*dash);
+
+  // ---- body attitude ----
+  // graze: level. defend: crouched low over the forelegs, head down, horns out
+  T.body.position.y = 1.15 - stance*0.14 - Math.max(0, toss)*0.04;
+  T.body.rotation.x = stance*0.1 - toss*0.28;     // toss whips the front UP
+  T.body.rotation.z = Math.sin(t*0.9)*0.012*(1 - stance);
+
+  // head: graze down in the tufts · alert up · defend low with horns level
+  const grazeK = level === 0 ? 1 : 0;
+  const headX = grazeK * (0.62 + Math.sin(t*0.7)*0.06)   // cropping sweep
+    + (level === 1 ? -0.25 : 0)
+    + stance * 0.3
+    - toss * 0.9;
+  T.head.rotation.x = lerp(T.head.rotation.x, headX, Math.min(1, dt*(toss > 0 ? 18 : 3.5)));
+  T.head.rotation.y = lerp(T.head.rotation.y,
+    grazeK ? Math.sin(t*0.5)*0.3 : 0, Math.min(1, dt*2.5));
+  T.jaw.rotation.x = grazeK ? 0.1 + Math.sin(t*5.5)*0.1 : lerp(T.jaw.rotation.x, 0.02, dt*5);
+
+  // alert: snort puffs from both nostrils, twice
+  if(level === 1 && (t % 2.8) < dt*1.5){
+    for(const n of T.nostrils){
+      n.getWorldPosition(_w);
+      puff(_w.x, _w.y, _w.z, false);
+    }
+  }
+  // alert + defend: the near forefoot paws the ground
+  if(level >= 1 && lungeT < 0){
+    pawPh += dt*5.5;
+    const paw = Math.max(0, Math.sin(pawPh));
+    T.legs[1].hip.rotation.x = -paw*0.55;
+    T.legs[1].knee.rotation.x = paw*0.85;
+    if(Math.sin(pawPh) > 0.97){
+      T.legs[1].knee.children[1].getWorldPosition(_w);
+      puff(_w.x, 0.12, _w.z, false);
+    }
+  } else {
+    T.legs[1].hip.rotation.x = lerp(T.legs[1].hip.rotation.x, 0, dt*6);
+    T.legs[1].knee.rotation.x = lerp(T.legs[1].knee.rotation.x, 0, dt*6);
+  }
+  // the other legs: braced wide in defense, easy at graze; drive in the lunge
+  for(let i=0;i<4;i++){
+    if(i === 1 && level >= 1 && lungeT < 0) continue;
+    const L = T.legs[i];
+    let hip = 0, knee = 0;
+    if(lungeT >= 0 && dash > 0.1){
+      const ph = t*16 + i*1.6;
+      hip = Math.sin(ph)*0.5; knee = Math.max(0, -Math.sin(ph))*0.7;
+    } else {
+      hip = stance * (L.front ? 0.12 : -0.1);
+      knee = stance * (L.front ? -0.1 : 0.12);
+    }
+    L.hip.rotation.x = lerp(L.hip.rotation.x, hip, Math.min(1, dt*(lungeT >= 0 ? 26 : 5)));
+    L.knee.rotation.x = lerp(L.knee.rotation.x, knee, Math.min(1, dt*(lungeT >= 0 ? 26 : 5)));
+  }
+
+  // tail: lazy swish grazing, held stiff and high defending
+  for(let i=0;i<3;i++){
+    T.tail[i].rotation.y = Math.sin(t*(1.2 + stance*2) + i)*lerp(0.22, 0.08, stance);
+    T.tail[i].rotation.x = lerp(T.tail[i].rotation.x, i === 0 ? stance*0.18 : 0, dt*3);
+  }
+
+  for(const p of puffs){
+    if(p.userData.t > 1){ p.material.opacity = 0; continue; }
+    p.userData.t += dt*1.1;
+    p.position.y += dt*0.5;
+    p.scale.multiplyScalar(1 + dt*1.6);
+    p.material.opacity = 0.45*(1 - p.userData.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

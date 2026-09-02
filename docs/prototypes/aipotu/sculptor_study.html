@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SCULPTOR STUDY — a Vita with mallet and chisel, for George World.
+     Filed 2026-09-01 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     One sculptor, three commissions on the plinth, chosen by chip or
+     rotated automatically. The work itself is the animation: the
+     chisel hand sets against the stone, the MALLET taps three times
+     (chips fly, dust puffs, the work advances), the hands move to a
+     new spot, again — and when a piece is done the sculptor STEPS
+     BACK and looks it over before the next block is brought in.
+
+     1 GRAVESTONE — a rounded slab; the epitaph appears letter by
+       letter under the chisel (painted canvas, progressively drawn).
+     2 THE NUDE — a female figure study freed from a granite block:
+       nine rough chunks pop off one by one, revealing a smooth
+       abstract lathe form (a Venus the way a river stone is one),
+       which polishes bright at the finish.
+     3 MODERN — "after a random artist" (roughly Hepworth): a pierced
+       standing ovoid freed from a cylinder the same chunk-wise way.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sculptor Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e2d4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(26,26,20,0.78); color:#f0f0e4; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#6a6a72; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#84848e; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🗿 Sculptor Study</b> — mallet, chisel, three works, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="auto">Auto</button><button data-m="grave">Gravestone</button><button
+    data-m="nude">Figure</button><button data-m="modern">Modern</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 50105010;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2e0d2), 30, 200);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(2.8, 2, 3.6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1; controls.maxDistance = 26;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(240, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f0e4), zenith = new THREE.Color(0x84b2da),
+        below = new THREE.Color(0xd6d4c6), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/240;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaeaa8c, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(10, 14, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 48),
+    new THREE.MeshLambertMaterial({ color:0xb2ac86 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  // the yard: flagstones, a scatter of spare blocks
+  const flag = new THREE.MeshLambertMaterial({ color:0x9e988c });
+  for(let i=0;i<6;i++){
+    const p = new THREE.Mesh(new THREE.CircleGeometry(rand(0.35, 0.55), 6), flag);
+    p.rotation.x = -Math.PI/2; p.rotation.z = rand(0, 3);
+    p.position.set(rand(-2.4, 2.4), 0.005, rand(-2.4, 2.4));
+    p.receiveShadow = true;
+    scene.add(p);
+  }
+  const blockMat = new THREE.MeshLambertMaterial({ color:0x8f8a7c, flatShading:true });
+  for(const [bx, bz, s] of [[-1.9, 1.2, 0.4], [-2.2, 0.6, 0.3], [2.1, -1.3, 0.35]]){
+    const b = new THREE.Mesh(new THREE.BoxGeometry(s, s*0.8, s), blockMat);
+    b.position.set(bx, s*0.4, bz);
+    b.rotation.y = rand(0, 3);
+    b.castShadow = true;
+    scene.add(b);
+  }
+}
+// the PLINTH
+const matPlinth = new THREE.MeshLambertMaterial({ color:0x7c766a, flatShading:true });
+{
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.9), matPlinth);
+  plinth.position.y = 0.25;
+  plinth.castShadow = true; plinth.receiveShadow = true;
+  scene.add(plinth);
+}
+
+// ==========================================================================
+//  THE THREE WORKS — each a group on the plinth; chunks pop with progress.
+// ==========================================================================
+const matGranite = new THREE.MeshLambertMaterial({ color:0x8f8a7c, flatShading:true });
+const matRough = new THREE.MeshLambertMaterial({ color:0x9a948a, flatShading:true });
+const works = {};
+
+// -- 1: the GRAVESTONE, epitaph drawn letter by letter ----------------------
+const graveCv = document.createElement('canvas');
+graveCv.width = 128; graveCv.height = 160;
+const graveTex = new THREE.CanvasTexture(graveCv);
+graveTex.colorSpace = THREE.SRGBColorSpace;
+const EPITAPH = ['HERE', 'LIES', 'A', 'GOOD', 'VITA'];
+function drawEpitaph(k){                          // k: how many letters are cut
+  const g = graveCv.getContext('2d');
+  g.fillStyle = '#a8a294'; g.fillRect(0, 0, 128, 160);
+  g.fillStyle = '#57524a';
+  g.font = 'bold 22px Georgia, serif';
+  g.textAlign = 'center';
+  let drawn = 0;
+  EPITAPH.forEach((word, li) => {
+    let out = '';
+    for(const ch of word){
+      if(drawn < k) out += ch;
+      drawn++;
+    }
+    g.fillText(out, 64, 44 + li*24);
+  });
+  graveTex.needsUpdate = true;
+}
+const N_LETTERS = EPITAPH.join('').length;
+{
+  const w = new THREE.Group();
+  const slabG = new THREE.BoxGeometry(0.62, 0.85, 0.14);
+  const slab = new THREE.Mesh(slabG, [matGranite, matGranite, matGranite, matGranite,
+    new THREE.MeshLambertMaterial({ map: graveTex }), matGranite]);
+  slab.position.y = 0.42;
+  slab.castShadow = true;
+  w.add(slab);
+  const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.14, 16, 1, false, 0, Math.PI), matGranite);
+  arch.position.y = 0.85;
+  arch.rotation.set(Math.PI/2, 0, Math.PI/2);
+  arch.castShadow = true;
+  w.add(arch);
+  works.grave = { g: w, chunks: [] };
+}
+// -- 2: the FIGURE — an abstract lathe Venus inside nine granite chunks -----
+{
+  const w = new THREE.Group();
+  const prof = [
+    [0.02, 0], [0.16, 0.02], [0.2, 0.1], [0.23, 0.26], [0.2, 0.42],  // hips
+    [0.13, 0.56], [0.17, 0.72], [0.15, 0.84], [0.09, 0.94], [0.05, 1.0], // waist→shoulders
+  ].map(([r, y]) => new THREE.Vector2(r, y*0.95));
+  const figure = new THREE.Mesh(new THREE.LatheGeometry(prof, 14), matRough.clone());
+  figure.castShadow = true;
+  w.add(figure);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), figure.material);
+  head.position.y = 1.03;
+  head.scale.set(0.9, 1.1, 0.9);
+  head.castShadow = true;
+  w.add(head);
+  const chunks = [];
+  for(let i=0;i<9;i++){
+    const a = (i/9)*Math.PI*2;
+    const ch = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.16, 0.24), 0), matGranite);
+    ch.position.set(Math.cos(a)*0.21, 0.16 + (i%3)*0.38, Math.sin(a)*0.21);
+    ch.scale.y = 1.4;
+    ch.rotation.set(rand(3), rand(3), rand(3));
+    ch.castShadow = true;
+    w.add(ch);
+    chunks.push(ch);
+  }
+  works.nude = { g: w, chunks, figureMat: figure.material };
+}
+// -- 3: MODERN — a pierced standing ovoid, roughly after Hepworth -----------
+{
+  const w = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.13, 10, 18), matRough.clone());
+  ring.position.y = 0.52;
+  ring.scale.set(1, 1.25, 1);
+  ring.castShadow = true;
+  w.add(ring);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.24, 10), ring.material);
+  base.position.y = 0.12;
+  base.castShadow = true;
+  w.add(base);
+  const chunks = [];
+  for(let i=0;i<8;i++){
+    const a = (i/8)*Math.PI*2 + 0.4;
+    const ch = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.15, 0.22), 0), matGranite);
+    ch.position.set(Math.cos(a)*0.24, 0.2 + (i%3)*0.32, Math.sin(a)*0.24);
+    ch.scale.y = 1.3;
+    ch.rotation.set(rand(3), rand(3), rand(3));
+    ch.castShadow = true;
+    w.add(ch);
+    chunks.push(ch);
+  }
+  works.modern = { g: w, chunks, figureMat: ring.material };
+}
+for(const k of ['grave', 'nude', 'modern']){
+  works[k].g.position.y = 0.5;
+  works[k].g.visible = false;
+  scene.add(works[k].g);
+}
+
+// ==========================================================================
+//  THE SCULPTOR — stand-in Vita; mallet right, chisel left.
+// ==========================================================================
+const dress = new THREE.MeshLambertMaterial({ color:0x9a7450 });
+const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+const S = { g: new THREE.Group() };
+S.g.position.set(0.95, 0.1, 0.4);
+scene.add(S.g);
+{
+  S.hips = new THREE.Group();
+  S.hips.position.y = 0.42;
+  S.g.add(S.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22;
+  barrel.castShadow = true;
+  S.hips.add(barrel);
+  S.head = new THREE.Group();
+  S.head.position.y = 0.8;
+  S.hips.add(S.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true;
+  S.head.add(skull);
+  S.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    limb.castShadow = true;
+    arm.add(limb);
+    const hand = new THREE.Group();
+    hand.position.y = -0.5;
+    arm.add(hand);
+    S.hips.add(arm);
+    S.arms.push({ g: arm, hand, s });
+  }
+  for(const s of [-1, 1]){
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.set(s*0.14, -0.26, 0);
+    shin.castShadow = true;
+    S.hips.add(shin);
+  }
+  // tools live in the hands
+  const matIron = new THREE.MeshLambertMaterial({ color:0x4a4f55, flatShading:true });
+  const matWood = new THREE.MeshLambertMaterial({ color:0x6e5638, flatShading:true });
+  S.chisel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.02, 0.26, 6), matIron);
+  S.chisel.rotation.x = Math.PI/2 - 0.4;
+  S.arms[0].hand.add(S.chisel);
+  S.mallet = new THREE.Group();
+  const mHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.22, 6), matWood);
+  mHandle.position.y = 0.02;
+  S.mallet.add(mHandle);
+  const mHead = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.11, 8), matWood);
+  mHead.rotation.z = Math.PI/2;
+  mHead.position.y = 0.15;
+  S.mallet.add(mHead);
+  S.arms[1].hand.add(S.mallet);
+}
+// stone chips + dust
+const chips = [];
+for(let i=0;i<12;i++){
+  const c = new THREE.Mesh(new THREE.TetrahedronGeometry(0.025, 0), matGranite);
+  c.visible = false;
+  c.userData = { v: new THREE.Vector3(), t: 9 };
+  scene.add(c);
+  chips.push(c);
+}
+const puffs = [];
+for(let i=0;i<5;i++){
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5),
+    new THREE.MeshLambertMaterial({ color:0xcac4b4, transparent:true, opacity:0 }));
+  p.userData.t = 9;
+  scene.add(p);
+  puffs.push(p);
+}
+function strikeFx(x, y, z){
+  for(let k=0;k<3;k++){
+    const c = chips.find(c => c.userData.t > 1);
+    if(!c) break;
+    c.visible = true;
+    c.userData.t = 0;
+    c.position.set(x, y, z);
+    c.userData.v.set(rand(-1,1), rand(1.2, 2.4), rand(-1,1));
+  }
+  const p = puffs.find(p => p.userData.t > 1);
+  if(p){ p.userData.t = 0; p.position.set(x, y, z); p.scale.setScalar(0.7); }
+}
+
+// ==========================================================================
+//  THE WORK LOOP
+// ==========================================================================
+const ORDER = ['grave', 'nude', 'modern'];
+let mode = 'auto', current = 'grave', progress = 0, admireT = -1;
+let strikeT = 0, strikesInSpot = 0, spot = new THREE.Vector3(0, 1, 0.3);
+function pickSpot(){
+  const w = works[current];
+  spot.set(rand(-0.2, 0.2), 0.75 + rand(0, 0.7), 0.28 + rand(-0.1, 0.1));
+  strikesInSpot = 0;
+}
+function setWork(name){
+  current = name; progress = 0; admireT = -1;
+  for(const k of ORDER) works[k].g.visible = k === name;
+  for(const ch of works[name].chunks){ ch.visible = true; ch.scale.setScalar(1); ch.scale.y *= 1.35; }
+  if(name === 'grave') drawEpitaph(0);
+  if(works[name].figureMat) works[name].figureMat.color.set(0x9a948a);
+  pickSpot();
+}
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){
+  chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  if(m === 'auto'){ mode = 'auto'; return; }
+  mode = 'manual';
+  setWork(m);
+}
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setWork('grave');
+setMode('auto');
+
+const _w = new THREE.Vector3();
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  const done = progress >= 1;
+  let malletSwing = 0, working = !done;
+
+  if(!done){
+    // strike rhythm: three taps, then move the hands
+    strikeT += dt;
+    const TAP = 0.55;
+    const cyc = strikeT % TAP;
+    malletSwing = Math.max(0, Math.sin(cyc/TAP*Math.PI*2));
+    if(cyc < dt && strikeT > 0.1){                // a tap landed
+      progress = clamp(progress + 1/28, 0, 1);
+      strikesInSpot++;
+      works[current].g.getWorldPosition(_w);
+      strikeFx(_w.x + spot.x, spot.y, _w.z + spot.z*0.8);
+      // reveal per subject
+      if(current === 'grave') drawEpitaph(Math.floor(progress*N_LETTERS));
+      else {
+        const chunks = works[current].chunks;
+        const gone = Math.floor(progress*(chunks.length + 1));
+        chunks.forEach((ch, i) => { if(i < gone && ch.visible){
+          ch.visible = false;
+          strikeFx(_w.x + ch.position.x, 0.5 + ch.position.y, _w.z + ch.position.z);
+        }});
+      }
+      if(strikesInSpot >= 3) pickSpot();
+      if(progress >= 1){
+        admireT = 0;
+        if(works[current].figureMat) works[current].figureMat.color.set(0xcfc9ba);  // the polish
+      }
+    }
+  } else if(admireT >= 0){
+    admireT += dt;
+    if(admireT > 3.4 && mode === 'auto')
+      setWork(ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]);
+  }
+
+  // ---- the sculptor's pose ----
+  const stepBack = done ? 1 : 0;
+  S.g.position.x = lerp(S.g.position.x, 0.95 + stepBack*0.45, Math.min(1, dt*3));
+  S.g.position.z = lerp(S.g.position.z, 0.4 + stepBack*0.25, Math.min(1, dt*3));
+  S.g.rotation.y = Math.atan2(-S.g.position.x, -S.g.position.z);   // always facing the plinth
+
+  // chisel arm: set against the spot; mallet arm: the taps
+  if(working){
+    const reachY = clamp((spot.y - 0.9)*0.9, -0.5, 0.5);
+    S.arms[0].g.rotation.x = lerp(S.arms[0].g.rotation.x, -1.15 - reachY, Math.min(1, dt*5));
+    S.arms[0].g.rotation.z = lerp(S.arms[0].g.rotation.z, 0.3, dt*5);
+    S.arms[1].g.rotation.x = lerp(S.arms[1].g.rotation.x,
+      -1.35 - reachY + malletSwing*0.65, Math.min(1, dt*22));
+    S.arms[1].g.rotation.z = lerp(S.arms[1].g.rotation.z, -0.25, dt*5);
+    S.head.rotation.x = lerp(S.head.rotation.x, 0.3 + reachY*0.4, dt*4);
+    S.hips.rotation.x = lerp(S.hips.rotation.x, 0.12, dt*4);
+  } else {
+    // the admire: arms down, head tilting side to side, a slow breath
+    S.arms[0].g.rotation.x = lerp(S.arms[0].g.rotation.x, -0.1, dt*3);
+    S.arms[1].g.rotation.x = lerp(S.arms[1].g.rotation.x, -0.15, dt*3);
+    S.arms[0].g.rotation.z = lerp(S.arms[0].g.rotation.z, 0.12, dt*3);
+    S.arms[1].g.rotation.z = lerp(S.arms[1].g.rotation.z, -0.12, dt*3);
+    S.head.rotation.x = lerp(S.head.rotation.x, -0.05, dt*3);
+    S.head.rotation.z = Math.sin((admireT > 0 ? admireT : 0)*1.4)*0.12;
+    S.hips.rotation.x = lerp(S.hips.rotation.x, -0.04, dt*3);
+  }
+  S.hips.position.y = 0.42 + Math.sin(t*0.9)*0.005;
+
+  // ---- particles ----
+  for(const c of chips){
+    if(c.userData.t > 1) { c.visible = false; continue; }
+    c.userData.t += dt*0.9;
+    c.userData.v.y -= 6*dt;
+    c.position.addScaledVector(c.userData.v, dt);
+    c.rotation.x += dt*9; c.rotation.z += dt*7;
+    if(c.position.y < 0.03){ c.position.y = 0.03; c.userData.v.set(0, 0, 0); }
+  }
+  for(const p of puffs){
+    if(p.userData.t > 1){ p.material.opacity = 0; continue; }
+    p.userData.t += dt*1.6;
+    p.position.y += dt*0.3;
+    p.scale.multiplyScalar(1 + dt*1.5);
+    p.material.opacity = 0.4*(1 - p.userData.t);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

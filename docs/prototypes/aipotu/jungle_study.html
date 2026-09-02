@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     JUNGLE STUDY — canopy trees, a GIBBON, a MONKEY, for George World.
+     Filed 2026-08-31 23:39 by ASSET FOUNDRY. Standalone; vendored three
+     (r160), game importmap. Nothing here touches georgeworld.html.
+
+     Five canopy trees in a ring, buttress roots, hanging lianas, ferns.
+     Every gibbon handhold lies ON a real branch: the route is laid out
+     first and the branches are grown out from the nearest trunk to meet
+     it, so the animal never grips air.
+
+     THE GIBBON (lar): true BRACHIATION — pendulum under the handhold
+     (max speed at the bottom of the arc, like a real pendulum), release
+     at the top of the upswing, ballistic FLIGHT, catch the next branch
+     with the other hand. Hands alternate; the free arm swings through
+     and reaches. Long arms, no tail, cream face ring.
+
+     THE MONKEY (macaque-build): a full circuit — bounding ground RUN,
+     vertical CLIMB up the trunk, run OUT along a branch with the tail
+     hung low for balance, a stretched-then-tucked LEAP across the gap
+     to the next tree's branch, and a head-first DESCENT. Loops forever.
+
+     Wind is the one signal (base + gust envelope + flutter): canopy
+     clumps mid-stiff, lianas loose and slow. dt clamped to 0.05,
+     everything dt-scaled. Chip offers camera follow per animal.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jungle Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dbe4c6; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(22,28,16,0.78); color:#eef2e0; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#3f6b38; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#528a49; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🌴 Jungle Study</b> — gibbon + monkey, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="orbit">Orbit</button><button data-m="gibbon">Follow gibbon</button><button
+    data-m="monkey">Follow monkey</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 47112;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+const V3 = (x,y,z) => new THREE.Vector3(x,y,z);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd4e0be), 40, 260);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 700);
+camera.position.set(10, 6, 13);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3.5, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 2; controls.maxDistance = 50;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(320, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xeef2da), zenith = new THREE.Color(0x7fb2d8),
+        below = new THREE.Color(0xc8d4b0), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/320;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecda, 0x60784c, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(20, 30, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.camera.near = 8; sun.shadow.camera.far = 90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- floor ----------------------------------------------------------
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(260, 48),
+    new THREE.MeshLambertMaterial({ color:0x577c46 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const fernMat = new THREE.MeshLambertMaterial({ color:0x39632f, flatShading:true });
+  for(let i=0;i<34;i++){
+    const a = rand(0, Math.PI*2), r = rand(7, 30);
+    const clusterN = 3 + (rand() < 0.5 ? 2 : 0);
+    for(let j=0;j<clusterN;j++){
+      const frond = new THREE.Mesh(new THREE.ConeGeometry(rand(0.1,0.16), rand(0.5,0.9), 5), fernMat);
+      frond.position.set(Math.cos(a)*r + rand(-0.4,0.4), 0.25, Math.sin(a)*r + rand(-0.4,0.4));
+      frond.rotation.set(rand(-0.5,0.5), rand(0,6), rand(-0.5,0.5));
+      scene.add(frond);
+    }
+  }
+  const log = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 3.4, 8),
+    new THREE.MeshLambertMaterial({ color:0x5a4a34, flatShading:true }));
+  log.rotation.set(Math.PI/2, 0, 0.5);
+  log.position.set(-6.5, 0.28, 4.5);
+  log.castShadow = true;
+  scene.add(log);
+}
+
+// ==========================================================================
+//  TREES — a ring of five, plus the branches grown to meet the routes.
+// ==========================================================================
+const matBark = new THREE.MeshLambertMaterial({ color:0x6b5a42, flatShading:true });
+const LEAF_BASE = new THREE.Color(0x2f5c30), LEAF_TIP = new THREE.Color(0x6da23f);
+const matLeaf = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+const leafClumps = [], lianas = [];
+function leafGeo(r){
+  const geo = new THREE.SphereGeometry(r, 7, 5);
+  geo.scale(1, 0.55, 1);
+  const pos = geo.attributes.position, col = [], c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = clamp(pos.getY(i)/(r*0.55)*0.5 + 0.5, 0, 1);
+    c.copy(LEAF_BASE).lerp(LEAF_TIP, t);        // baked: tips lighter
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return geo;
+}
+function addClump(at, r){
+  const m = new THREE.Mesh(leafGeo(r), matLeaf);
+  m.position.copy(at);
+  m.castShadow = true;
+  m.userData.ph = rand(0, Math.PI*2);
+  scene.add(m);
+  leafClumps.push(m);
+}
+function cylBetween(a, b, r1, r2){
+  const len = a.distanceTo(b);
+  const geo = new THREE.CylinderGeometry(r2, r1, len, 7);
+  geo.translate(0, len/2, 0);
+  const m = new THREE.Mesh(geo, matBark);
+  m.position.copy(a);
+  m.quaternion.setFromUnitVectors(V3(0,1,0), b.clone().sub(a).normalize());
+  m.castShadow = true;
+  scene.add(m);
+  return m;
+}
+function addLiana(at){
+  let parent = scene, p = at.clone();
+  const segs = [];
+  for(let i=0;i<4;i++){
+    const g = new THREE.Group();
+    if(i === 0) g.position.copy(p); else g.position.y = -0.55;
+    const geo = new THREE.CylinderGeometry(0.028, 0.032, 0.58, 5);
+    geo.translate(0, -0.29, 0);
+    g.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color:0x4c6b38 })));
+    parent.add(g);
+    segs.push(g);
+    parent = g;
+  }
+  segs.ph = rand(0, Math.PI*2);
+  lianas.push(segs);
+}
+
+const TREES = [];
+for(let i=0;i<5;i++){
+  const a = (i/5)*Math.PI*2 + rand(-0.12, 0.12);
+  const p = V3(Math.cos(a)*5.2, 0, Math.sin(a)*5.2);
+  const h = rand(7.2, 8.2);
+  TREES.push({ p, h });
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, h, 9), matBark);
+  trunk.position.set(p.x, h/2, p.z);
+  trunk.castShadow = true;
+  scene.add(trunk);
+  for(let j=0;j<5;j++){                          // buttress roots
+    const ra = (j/5)*Math.PI*2 + rand(-0.3, 0.3);
+    const root = new THREE.Mesh(new THREE.ConeGeometry(rand(0.16,0.24), rand(1.0,1.6), 4), matBark);
+    root.position.set(p.x + Math.cos(ra)*0.55, 0.35, p.z + Math.sin(ra)*0.55);
+    root.rotation.set(Math.sin(ra)*0.35, 0, -Math.cos(ra)*0.35);
+    root.castShadow = true;
+    scene.add(root);
+  }
+  const nC = 4 + (rand() < 0.5 ? 2 : 1);         // the crown
+  for(let j=0;j<nC;j++)
+    addClump(V3(p.x + rand(-1.4,1.4), h - rand(0,1.1), p.z + rand(-1.4,1.4)), rand(0.9, 1.5));
+  if(rand() < 0.8)
+    addLiana(V3(p.x + rand(-0.9,0.9), rand(4.4, 5.6), p.z + rand(-0.9,0.9)));
+}
+
+// ==========================================================================
+//  THE GIBBON ROUTE — eight handholds on a ring INSIDE the trees; a branch
+//  is grown from the nearest trunk THROUGH each hold, foliage at its end.
+// ==========================================================================
+const HOLDS = [], HDIR = [], HYAW = [];
+const NH = 8;
+for(let i=0;i<NH;i++){
+  const a = (i/NH)*Math.PI*2 + 0.3;
+  HOLDS.push(V3(Math.cos(a)*4.2, 5.25 + Math.sin(i*2.1)*0.3, Math.sin(a)*4.2));
+}
+for(let i=0;i<NH;i++){
+  const d = HOLDS[(i+1)%NH].clone().sub(HOLDS[i]); d.y = 0; d.normalize();
+  HDIR.push(d);
+  HYAW.push(Math.atan2(d.x, d.z));
+  let best = TREES[0], bd = 1e9;                 // grow the supporting branch
+  for(const tr of TREES){
+    const dd = tr.p.distanceTo(V3(HOLDS[i].x, 0, HOLDS[i].z));
+    if(dd < bd){ bd = dd; best = tr; }
+  }
+  const root = V3(best.p.x, HOLDS[i].y + 0.3, best.p.z);
+  const out = HOLDS[i].clone().sub(root); out.normalize();
+  const tip = HOLDS[i].clone().add(out.clone().multiplyScalar(0.9));
+  cylBetween(root, tip, 0.13, 0.055);
+  addClump(tip.clone().add(V3(0, 0.25, 0)), rand(0.5, 0.7));
+}
+
+// ==========================================================================
+//  THE GIBBON — lar: dark fur, cream face ring, white hands, no tail.
+//  Body ~0.5; arm reach 0.62 each side. Hangs R below the hold.
+// ==========================================================================
+const G = { g: new THREE.Group() };
+{
+  const fur = new THREE.MeshLambertMaterial({ color:0x33291f, flatShading:true });
+  const cream = new THREE.MeshLambertMaterial({ color:0xe4dabc, flatShading:true });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.2, 6, 10), fur);
+  torso.castShadow = true;
+  G.g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), fur);
+  head.position.set(0, 0.26, 0.04);
+  head.castShadow = true;
+  G.g.add(head);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), cream);
+  face.scale.set(1, 1, 0.45);
+  face.position.set(0, 0.25, 0.11);
+  G.g.add(face);
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), fur);
+  muzzle.scale.set(1, 0.8, 0.6);
+  muzzle.position.set(0, 0.235, 0.145);
+  G.g.add(muzzle);
+  G.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.15, 0.16, 0);
+    const limbG = new THREE.CapsuleGeometry(0.042, 0.5, 4, 8);
+    limbG.translate(0, -0.31, 0);
+    const limb = new THREE.Mesh(limbG, fur);
+    limb.castShadow = true;
+    arm.add(limb);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), cream);
+    hand.position.y = -0.6;
+    arm.add(hand);
+    G.g.add(arm);
+    G.arms.push(arm);
+  }
+  G.legs = [];
+  for(const s of [-1, 1]){
+    const leg = new THREE.Group();
+    leg.position.set(s*0.075, -0.18, 0);
+    const limbG = new THREE.CapsuleGeometry(0.048, 0.28, 4, 8);
+    limbG.translate(0, -0.18, 0);
+    const limb = new THREE.Mesh(limbG, fur);
+    limb.castShadow = true;
+    leg.add(limb);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), cream);
+    foot.position.y = -0.36;
+    leg.add(foot);
+    G.g.add(leg);
+    G.legs.push(leg);
+  }
+  scene.add(G.g);
+}
+// brachiation state: pendulum swing (max speed at the bottom), then flight
+const R = 0.8, A0 = 0.85, T_SW = 0.62, T_FL = 0.38;
+let gSeg = 0, gPhase = 'swing', gU = 0, gYaw = HYAW[0];
+function swingPos(i, th, out){
+  return out.copy(HOLDS[i])
+    .addScaledVector(HDIR[i], R*Math.sin(th))
+    .add(V3(0, -R*Math.cos(th), 0));
+}
+const _gp = new THREE.Vector3(), _p0 = new THREE.Vector3(), _p1 = new THREE.Vector3();
+
+// ==========================================================================
+//  THE MONKEY CIRCUIT — run, climb, branch-run, leap, branch-run, descend.
+//  The two runway branches are real geometry, grown tree 0 → tree 1.
+// ==========================================================================
+const TA = TREES[0].p, TB = TREES[1].p;
+const uAB = TB.clone().sub(TA); uAB.y = 0;
+const D_AB = uAB.length(); uAB.normalize();
+const hA = 3.22, hB = 2.95;
+cylBetween(V3(TA.x, hA + 0.05, TA.z).addScaledVector(uAB, 0.25),
+           V3(TA.x, hA - 0.06, TA.z).addScaledVector(uAB, 2.75), 0.15, 0.07);
+cylBetween(V3(TB.x, hB + 0.05, TB.z).addScaledVector(uAB, -0.25),
+           V3(TB.x, hB - 0.06, TB.z).addScaledVector(uAB, -2.55), 0.15, 0.07);
+addClump(V3(TA.x, hA + 0.45, TA.z).addScaledVector(uAB, 2.75), 0.55);
+addClump(V3(TB.x, hB + 0.45, TB.z).addScaledVector(uAB, -2.55), 0.55);
+
+const wp = (alongFrom, k, y) =>
+  V3(alongFrom.x, y, alongFrom.z).addScaledVector(uAB, k);
+const M_PTS = [
+  { p: wp(TA,  3.4, 0.30), mode:'run',    speed:2.6 },   // the floor, mid-gap
+  { p: wp(TA,  0.55, 0.30), mode:'climb',  speed:1.35 }, // trunk base of A
+  { p: wp(TA,  0.53, hA + 0.32), mode:'branch', speed:1.7 }, // top of the climb
+  { p: wp(TA,  2.55, hA + 0.32), mode:'leap',   speed:0 },   // runway tip A
+  { p: wp(TB, -2.35, hB + 0.32), mode:'branch', speed:1.7 }, // caught: tip B
+  { p: wp(TB, -0.55, hB + 0.32), mode:'descend', speed:1.9 },// in at the trunk
+  { p: wp(TB, -0.55, 0.30), mode:'run',    speed:2.6 },   // grounded again
+];
+// segment i runs FROM pts[i] TO pts[i+1] using pts[i].mode's motion
+const M_SEGS = [];
+for(let i=0;i<M_PTS.length;i++){
+  const a = M_PTS[i], b = M_PTS[(i+1)%M_PTS.length];
+  const dist = a.p.distanceTo(b.p);
+  M_SEGS.push({ a:a.p, b:b.p, mode:a.mode,
+    T: a.mode === 'leap' ? 0.52 : dist/a.speed, dist });
+}
+
+const M = { g: new THREE.Group() };
+{
+  const fur = new THREE.MeshLambertMaterial({ color:0x8a6f52, flatShading:true });
+  const pale = new THREE.MeshLambertMaterial({ color:0xd8b08e, flatShading:true });
+  const dark = new THREE.MeshLambertMaterial({ color:0x5c452e, flatShading:true });
+  const bodyG = new THREE.CapsuleGeometry(0.11, 0.24, 6, 10);
+  bodyG.rotateX(Math.PI/2);
+  const body = new THREE.Mesh(bodyG, fur);
+  body.castShadow = true;
+  M.g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), fur);
+  head.position.set(0, 0.08, 0.21);
+  head.castShadow = true;
+  M.g.add(head);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 7), pale);
+  face.scale.set(1, 1, 0.5);
+  face.position.set(0, 0.07, 0.29);
+  M.g.add(face);
+  for(const s of [-1, 1]){
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), pale);
+    ear.position.set(s*0.09, 0.13, 0.18);
+    M.g.add(ear);
+  }
+  M.limbs = [];                                  // FL, FR, HL, HR
+  for(const [s, z, front] of [[-1,0.15,1],[1,0.15,1],[-1,-0.12,0],[1,-0.12,0]]){
+    const limb = new THREE.Group();
+    limb.position.set(s*0.1, -0.04, z);
+    const limbG = new THREE.CapsuleGeometry(0.034, 0.2, 4, 8);
+    limbG.translate(0, -0.13, 0);
+    const l = new THREE.Mesh(limbG, fur);
+    l.castShadow = true;
+    limb.add(l);
+    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), dark);
+    paw.position.y = -0.25;
+    limb.add(paw);
+    M.g.add(limb);
+    M.limbs.push({ g: limb, front: !!front });
+  }
+  M.tail = [];
+  let parent = M.g, pz = -0.2, py = 0.03;
+  for(let i=0;i<3;i++){
+    const seg = new THREE.Group();
+    seg.position.set(0, py, pz);
+    const gT = new THREE.CapsuleGeometry(0.026 - i*0.006, 0.2, 4, 6);
+    gT.rotateX(Math.PI/2);
+    gT.translate(0, 0, -0.11);
+    const m = new THREE.Mesh(gT, fur);
+    m.castShadow = true;
+    seg.add(m);
+    parent.add(seg);
+    M.tail.push(seg);
+    parent = seg; pz = -0.2; py = 0;
+  }
+  scene.add(M.g);
+}
+let mSeg = 0, mU = 0, mPh = 0, mYaw = 0, mPitch = 0;
+
+// ---------- chip: camera follow --------------------------------------------
+let camMode = 'orbit';
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ camMode = m; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('orbit');
+
+// ---------- animate --------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  // the ONE wind signal
+  const gust = Math.pow(0.5 + 0.5*Math.sin(t*0.27 + Math.sin(t*0.11)*1.3), 2);
+  const wind = 0.35 + 0.65*gust;
+  for(const c of leafClumps){                    // canopy: fir-ish stiffness
+    c.rotation.z = (Math.sin(t*3.1 + c.userData.ph)*0.03 + Math.sin(t*6.4 + c.userData.ph)*0.012) * wind;
+    c.rotation.x = Math.sin(t*2.7 + c.userData.ph*1.4)*0.025 * wind;
+  }
+  for(const segs of lianas){                     // lianas: loose, slow, deep
+    for(let i=0;i<segs.length;i++){
+      segs[i].rotation.x = Math.sin(t*0.9 + segs.ph + i*0.7)*0.09*wind;
+      segs[i].rotation.z = Math.sin(t*0.75 + segs.ph*1.6 + i*0.7)*0.1*wind;
+    }
+  }
+
+  // ===== GIBBON =====
+  {
+    const i = gSeg, j = (gSeg+1)%NH;
+    let armGripT = -Math.PI, armFreeT = -0.3, legT = -1.1, pitch = 0;
+    if(gPhase === 'swing'){
+      gU += dt/T_SW;
+      // pendulum timing: θ = -A0·cos(πu) — fastest at the bottom, honest
+      const th = -A0*Math.cos(Math.PI*Math.min(1, gU));
+      swingPos(i, th, _gp);
+      G.g.position.copy(_gp);
+      gYaw = HYAW[i];
+      pitch = -th*0.88;
+      armFreeT = lerp(-0.3, -2.9, smooth(clamp(gU, 0, 1)));
+      legT = -1.1 - th*0.3;
+      if(gU >= 1){ gPhase = 'flight'; gU = 0; }
+    } else {
+      gU += dt/T_FL;
+      const u = Math.min(1, gU);
+      swingPos(i, A0, _p0);                      // released here...
+      swingPos(j, -A0, _p1);                     // ...caught here
+      _gp.copy(_p0).lerp(_p1, u);
+      _gp.y += 0.3*Math.sin(Math.PI*u);          // the ballistic lob
+      G.g.position.copy(_gp);
+      gYaw = lerp(HYAW[i], HYAW[i] + shortestArc(HYAW[i], HYAW[j]), u);
+      pitch = lerp(-A0*0.88, A0*0.88, u);
+      armGripT = -4.4;                           // the old hand lets go OVER the top
+      armFreeT = -3.0;                           // the new hand reaches hard
+      legT = -0.55;                              // a little extension in the air
+      if(gU >= 1){ gPhase = 'swing'; gU = 0; gSeg = j; }
+    }
+    G.g.rotation.set(pitch, gYaw, (gSeg%2 ? 0.07 : -0.07), 'YXZ');
+    // hands alternate: even segments grip left, odd grip right
+    const grip = G.arms[gSeg%2], free = G.arms[(gSeg+1)%2];
+    grip.rotation.x = lerp(grip.rotation.x, gPhase === 'swing' ? -Math.PI : armGripT, Math.min(1, dt*14));
+    free.rotation.x = lerp(free.rotation.x, armFreeT, Math.min(1, dt*10));
+    G.legs[0].rotation.x = lerp(G.legs[0].rotation.x, legT + 0.1, Math.min(1, dt*8));
+    G.legs[1].rotation.x = lerp(G.legs[1].rotation.x, legT - 0.1, Math.min(1, dt*8));
+  }
+
+  // ===== MONKEY =====
+  {
+    const seg = M_SEGS[mSeg];
+    mU += dt/seg.T;
+    const u = Math.min(1, mU);
+    _gp.copy(seg.a).lerp(seg.b, u);
+    let pitchT = 0, bounce = 0;
+    const horiz = V3(seg.b.x - seg.a.x, 0, seg.b.z - seg.a.z);
+    if(seg.mode === 'run' || seg.mode === 'branch'){
+      mPh += dt * (seg.mode === 'run' ? 11 : 9.5);
+      bounce = Math.max(0, Math.sin(mPh)) * 0.06;
+      mYaw = Math.atan2(horiz.x, horiz.z);
+      pitchT = Math.sin(mPh + 1) * 0.07;
+      for(const L of M.limbs){                   // the bound: pairs together
+        const target = L.front ? Math.sin(mPh)*0.85 - 0.15 : Math.sin(mPh + 2.6)*0.85 + 0.15;
+        L.g.rotation.x = lerp(L.g.rotation.x, target, Math.min(1, dt*26));
+      }
+      // tail: arched high on the ground, hung LOW on the branch for balance
+      const arch = seg.mode === 'run' ? 1 : -1;
+      tailTo(arch > 0 ? [1.15, -0.5, -0.4] : [-1.05, -0.35, -0.2], t, dt, 1);
+    } else if(seg.mode === 'climb' || seg.mode === 'descend'){
+      mPh += dt * 9;
+      const upward = seg.mode === 'climb';
+      // belly to the bark; head-first coming down
+      mYaw = upward ? Math.atan2(-uAB.x, -uAB.z) : Math.atan2(uAB.x, uAB.z);
+      pitchT = upward ? -Math.PI/2 : Math.PI/2 * 0.9;
+      for(let k=0;k<4;k++){                      // diagonal pairs reach
+        const L = M.limbs[k];
+        const diag = (k === 0 || k === 3) ? 0 : Math.PI;
+        L.g.rotation.x = lerp(L.g.rotation.x, Math.sin(mPh + diag)*0.6 - 0.5, Math.min(1, dt*26));
+      }
+      tailTo([-0.9, -0.3, -0.15], t, dt, 0.5);
+    } else {                                     // LEAP
+      _gp.y += 0.34 * Math.sin(Math.PI*u);
+      mYaw = Math.atan2(horiz.x, horiz.z);
+      const vy = (seg.b.y - seg.a.y) + 0.34*Math.PI*Math.cos(Math.PI*u);
+      pitchT = -Math.atan2(vy, Math.max(0.6, horiz.length()));
+      const stretch = u < 0.55;
+      for(const L of M.limbs){                   // stretched, then the tuck
+        const target = stretch ? (L.front ? -1.9 : 1.5) : (L.front ? -0.5 : 0.4);
+        L.g.rotation.x = lerp(L.g.rotation.x, target, Math.min(1, dt*16));
+      }
+      tailTo([0.25, 0.1, 0.05], t, dt, 0.2);     // streaming behind
+    }
+    M.g.position.copy(_gp);
+    M.g.position.y += bounce;
+    mPitch = lerp(mPitch, pitchT, Math.min(1, dt*7));
+    M.g.rotation.set(mPitch, mYaw, 0, 'YXZ');
+    if(mU >= 1){ mU = 0; mSeg = (mSeg+1)%M_SEGS.length; }
+  }
+  function tailTo(base, t, dt, swayK){
+    for(let k=0;k<3;k++){
+      M.tail[k].rotation.x = lerp(M.tail[k].rotation.x, base[k], Math.min(1, dt*6));
+      M.tail[k].rotation.y = Math.sin(t*2.4 + k)*0.16*swayK;
+    }
+  }
+
+  // ---- camera follow ----
+  if(camMode === 'gibbon') controls.target.lerp(G.g.position, Math.min(1, dt*3));
+  else if(camMode === 'monkey') controls.target.lerp(M.g.position, Math.min(1, dt*3));
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+function shortestArc(a, b){
+  let d = (b - a) % (Math.PI*2);
+  if(d > Math.PI) d -= Math.PI*2;
+  if(d < -Math.PI) d += Math.PI*2;
+  return d;
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

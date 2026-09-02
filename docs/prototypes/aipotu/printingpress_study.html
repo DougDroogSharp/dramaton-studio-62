@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     PRINTING PRESS STUDY — a wooden common press, worked, for George
+     World. Filed 2026-09-01 by ASSET FOUNDRY. Standalone; vendored
+     three (r160), game importmap. Nothing here touches georgeworld.html.
+
+     The machine: two cheeks and a cap, the great SCREW with its BAR,
+     the PLATEN hanging under it, and the sliding BED carrying the
+     type forme, with a hinged TYMPAN for the sheet. A pressman Vita
+     works the full cycle:
+
+     INK (two dabs of the ink ball, the forme going glossy black) →
+     LAY the blank sheet on the tympan → FOLD the tympan down over the
+     forme → wind the bed IN under the platen → the PULL (the whole
+     Vita leans into the bar, the screw turns, the platen drives down,
+     a beat of dwell under pressure) → release, bed OUT, tympan OPEN →
+     PEEL the printed sheet (painted-canvas text) onto the growing
+     pile. Loop. Chip: run/pause and a one-pull override.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printing Press Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#e4e0d0; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(28,26,20,0.78); color:#f2f0e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#6e5638; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#8a6c46; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🖨️ Printing Press Study</b> — the common press, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="run">Run</button><button data-m="pause">Pause</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 14550001;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xe2dece), 30, 200);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(3.2, 2.2, 4.2);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.1, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1; controls.maxDistance = 30;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(240, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2eee0), zenith = new THREE.Color(0x84b0d8),
+        below = new THREE.Color(0xd6d2c2), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/240;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xdcecf6, 0xaca684, 1.0));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(10, 14, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(200, 48),
+    new THREE.MeshLambertMaterial({ color:0xaaa27c }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.06, 3.6),
+    new THREE.MeshLambertMaterial({ color:0x91805e }));
+  floor.position.y = 0.03;
+  floor.receiveShadow = true;
+  scene.add(floor);
+}
+
+// ==========================================================================
+//  THE PRESS — bed slides along X; the bar swings about the screw (Y).
+// ==========================================================================
+const matOak = new THREE.MeshLambertMaterial({ color:0x7a5c38, flatShading:true });
+const matOakDk = new THREE.MeshLambertMaterial({ color:0x5c4428, flatShading:true });
+const matIron = new THREE.MeshLambertMaterial({ color:0x4a4f55, flatShading:true });
+const matInkPad = new THREE.MeshLambertMaterial({ color:0x1c1a18, flatShading:true });
+const press = new THREE.Group();
+scene.add(press);
+let screwG, bar, platen, bed, tympan, forme, sheet;
+{
+  // cheeks, cap, winter
+  for(const sz of [-1, 1]){
+    const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.2, 0.22), matOak);
+    cheek.position.set(0, 1.16, sz*0.42);
+    cheek.castShadow = true;
+    press.add(cheek);
+  }
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 1.24), matOakDk);
+  cap.position.y = 2.28;
+  cap.castShadow = true;
+  press.add(cap);
+  const winter = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 1.24), matOakDk);
+  winter.position.y = 0.62;
+  winter.castShadow = true;
+  press.add(winter);
+  // rails out both sides for the bed run
+  for(const sz of [-0.16, 0.16]){
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.07, 0.07), matOak);
+    rail.position.set(0.55, 0.76, sz);
+    rail.castShadow = true;
+    press.add(rail);
+  }
+  for(const [lx, lz] of [[1.7, -0.16],[1.7, 0.16]]){
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.75, 0.09), matOak);
+    leg.position.set(lx, 0.38, lz);
+    press.add(leg);
+  }
+  // the SCREW + BAR + PLATEN
+  screwG = new THREE.Group();
+  screwG.position.y = 1.9;
+  press.add(screwG);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.75, 9), matIron);
+  shaft.position.y = -0.2;
+  screwG.add(shaft);
+  for(let i=0;i<5;i++){                           // the thread, suggested
+    const th = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.02, 5, 12), matIron);
+    th.rotation.x = Math.PI/2;
+    th.rotation.z = i*0.7;
+    th.position.y = 0.05 - i*0.1;
+    screwG.add(th);
+  }
+  bar = new THREE.Group();
+  bar.position.y = 0.12;
+  screwG.add(bar);
+  const barArm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.15, 7), matIron);
+  barArm.rotation.z = Math.PI/2;
+  barArm.position.x = 0.55;
+  bar.add(barArm);
+  const barGrip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), matOakDk);
+  barGrip.position.x = 1.12;
+  bar.add(barGrip);
+  platen = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.85), matOakDk);
+  platen.position.y = 1.42;
+  platen.castShadow = true;
+  press.add(platen);
+  // the BED (coffin) with the FORME; TYMPAN hinged at its inner end
+  bed = new THREE.Group();
+  bed.position.set(1.15, 0.8, 0);                 // OUT position
+  press.add(bed);
+  const coffin = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.09, 0.8), matOak);
+  coffin.castShadow = true;
+  bed.add(coffin);
+  forme = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.55),
+    new THREE.MeshLambertMaterial({ color:0x55504a, flatShading:true }));
+  forme.position.y = 0.07;
+  bed.add(forme);
+  for(let i=0;i<5;i++){                           // rows of type, suggested
+    const row = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.012, 0.05), matIron);
+    row.position.set(0, 0.1, -0.2 + i*0.1);
+    bed.add(row);
+  }
+  tympan = new THREE.Group();
+  tympan.position.set(0.5, 0.06, 0);              // hinge at the outer edge
+  bed.add(tympan);
+  const tFrame = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 0.62), matOak);
+  tFrame.position.x = 0.38;
+  tympan.add(tFrame);
+  tympan.rotation.z = -1.15;                      // open, waiting for its sheet
+  // the SHEET rides the tympan, then the pile
+  sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
+    new THREE.MeshLambertMaterial({ color:0xf4efe0, side:THREE.DoubleSide }));
+  sheet.rotation.x = -Math.PI/2;
+  sheet.position.set(0.38, 0.045, 0);
+  sheet.visible = false;
+  tympan.add(sheet);
+}
+// printed page: painted canvas of humble type
+function pageTexture(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#f4efe0'; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#2b2620';
+  for(let y=16; y<118; y+=9){
+    let x = 12;
+    while(x < 112){
+      const w = 6 + Math.floor(Math.random()*14);
+      g.fillRect(x, y, Math.min(w, 112 - x), 3.4);
+      x += w + 5;
+    }
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const matPrinted = new THREE.MeshLambertMaterial({ map: pageTexture(), side:THREE.DoubleSide });
+// the pile of finished work
+const pile = new THREE.Group();
+pile.position.set(1.9, 0.76, 0.55);
+scene.add(pile);
+const pileBench = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.06, 0.7), matOak);
+pileBench.position.y = -0.03;
+pileBench.castShadow = true;
+pile.add(pileBench);
+let pileN = 0;
+// the INK BALL on its handle, and its slab
+const inkBall = new THREE.Group();
+scene.add(inkBall);
+{
+  const pad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 9, 7), matInkPad);
+  pad.scale.y = 0.8;
+  pad.castShadow = true;
+  inkBall.add(pad);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.22, 6), matOakDk);
+  handle.position.y = 0.16;
+  inkBall.add(handle);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), matIron);
+  slab.position.set(1.05, 0.78, -0.6);
+  slab.castShadow = true;
+  scene.add(slab);
+}
+const INK_HOME = new THREE.Vector3(1.05, 0.86, -0.6);
+inkBall.position.copy(INK_HOME);
+
+// ==========================================================================
+//  THE PRESSMAN — stand-in Vita at the bar side.
+// ==========================================================================
+const dress = new THREE.MeshLambertMaterial({ color:0x8a6a4a });
+const skin = new THREE.MeshLambertMaterial({ color:0xecc9a2 });
+const P = { g: new THREE.Group() };
+P.g.position.set(1.15, 0.1, 0.95);
+P.g.rotation.y = Math.PI;                         // facing the press
+scene.add(P.g);
+{
+  P.hips = new THREE.Group();
+  P.hips.position.y = 0.42;
+  P.g.add(P.hips);
+  const barrel = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 6, 12), dress);
+  barrel.position.y = 0.22;
+  barrel.castShadow = true;
+  P.hips.add(barrel);
+  P.head = new THREE.Group();
+  P.head.position.y = 0.8;
+  P.hips.add(P.head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), skin);
+  skull.castShadow = true;
+  P.head.add(skull);
+  P.arms = [];
+  for(const s of [-1, 1]){
+    const arm = new THREE.Group();
+    arm.position.set(s*0.32, 0.5, 0);
+    const limb = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.4, 4, 8), skin);
+    limb.position.y = -0.24;
+    limb.castShadow = true;
+    arm.add(limb);
+    const hand = new THREE.Group();
+    hand.position.y = -0.5;
+    arm.add(hand);
+    P.hips.add(arm);
+    P.arms.push({ g: arm, hand, s });
+  }
+  for(const s of [-1, 1]){
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 4, 8),
+      new THREE.MeshLambertMaterial({ color:0x4c5666 }));
+    shin.position.set(s*0.14, -0.26, 0);
+    shin.castShadow = true;
+    P.hips.add(shin);
+  }
+}
+
+// ==========================================================================
+//  THE CYCLE
+// ==========================================================================
+const PHASES = [
+  ['ink',    3.0], ['lay',   1.6], ['fold',  1.2], ['bedin', 1.6],
+  ['pull',   2.4], ['bedout', 1.5], ['open',  1.2], ['peel',  1.8],
+];
+let phI = 0, phT = 0, running = true;
+const chipBtns = [...document.querySelectorAll('#chip button')];
+function setMode(m){ running = m === 'run'; chipBtns.forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+chipBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+setMode('run');
+
+const BED_OUT = 1.15, BED_IN = 0.0;
+let inked = 0;                                    // forme gloss
+const _a = new THREE.Vector3();
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if(running){
+    phT += dt;
+    if(phT >= PHASES[phI][1]){
+      phT = 0;
+      phI = (phI + 1) % PHASES.length;
+      if(PHASES[phI][0] === 'lay'){ sheet.visible = true; sheet.material = sheetBlank; }
+      if(PHASES[phI][0] === 'ink') inked = Math.max(0, inked - 0.5);
+    }
+  }
+  const [name, T] = PHASES[phI];
+  const u = clamp(phT/T, 0, 1);
+
+  // defaults each frame
+  let barA = 0, platenY = 1.42, bedX = bed.position.x, tymp = tympan.rotation.z;
+  let armL = { x: -0.2, z: 0.15 }, armR = { x: -0.2, z: -0.15 }, lean = 0, headX = 0.15;
+
+  if(name === 'ink'){
+    // two dabs: slab → forme → slab → forme
+    const cyc = u*2 % 1, half = u < 0.5;
+    const dip = Math.sin(cyc*Math.PI);
+    _a.copy(INK_HOME);
+    const formeW = new THREE.Vector3(bed.position.x, 0.92, 0);
+    inkBall.position.lerpVectors(INK_HOME, formeW, smooth(clamp((cyc - 0.25)/0.5, 0, 1)));
+    inkBall.position.y = 0.9 + dip*0.25 - Math.max(0, Math.sin(cyc*Math.PI*2))*0.0;
+    if(cyc > 0.7) inked = clamp(inked + dt*1.2, 0, 1);
+    armR = { x: -0.9 - dip*0.3, z: -0.3 };
+    headX = 0.35;
+    bedX = BED_OUT;
+  } else {
+    inkBall.position.lerp(INK_HOME, Math.min(1, dt*3));
+  }
+  forme.material.color.setRGB(
+    lerp(0.33, 0.08, inked), lerp(0.31, 0.075, inked), lerp(0.29, 0.07, inked));
+
+  if(name === 'lay'){
+    sheet.visible = true;
+    sheet.material = sheetBlank;
+    sheet.position.y = 0.045 + (1 - smooth(u))*0.3;   // floated down into place
+    armL = { x: -1.0 + u*0.3, z: 0.35 };
+    armR = { x: -1.0 + u*0.3, z: -0.35 };
+    headX = 0.4;
+  } else if(name === 'fold'){
+    tymp = lerp(-1.15, 0, smooth(u));
+    armR = { x: -0.8, z: -0.2 };
+  } else if(name === 'bedin'){
+    bedX = lerp(BED_OUT, BED_IN, smooth(u));
+    armL = { x: -0.7, z: 0.3 };                   // winding the rounce
+    armR = { x: -0.7 - Math.sin(u*Math.PI*4)*0.15, z: -0.3 };
+  } else if(name === 'pull'){
+    bedX = BED_IN;
+    // swing 0→0.33, dwell 0.33→0.6, return 0.6→1
+    const sw = u < 0.33 ? smooth(u/0.33) : u < 0.6 ? 1 : 1 - smooth((u - 0.6)/0.4);
+    barA = sw * 1.25;
+    platenY = 1.42 - sw*0.36;                     // screw drives it down
+    // the pressman: both hands to the bar, the whole body leaning
+    lean = sw*0.35;
+    armL = { x: -1.15 + sw*0.5, z: 0.35 };
+    armR = { x: -1.15 + sw*0.5, z: -0.4 };
+    headX = -0.1 + sw*0.25;
+  } else if(name === 'bedout'){
+    bedX = lerp(BED_IN, BED_OUT, smooth(u));
+    armL = { x: -0.7, z: 0.3 };
+    armR = { x: -0.7 + Math.sin(u*Math.PI*4)*0.15, z: -0.3 };
+  } else if(name === 'open'){
+    bedX = BED_OUT;
+    tymp = lerp(0, -1.15, smooth(u));
+    if(u > 0.5) sheet.material = matPrinted;      // the reveal
+    armR = { x: -0.8, z: -0.2 };
+  } else if(name === 'peel'){
+    bedX = BED_OUT;
+    // sheet rises off the tympan and flies to the pile
+    if(u < 0.99 && sheet.visible){
+      armR = { x: -1.1 + u*0.6, z: -0.5 + u*0.2 };
+      armL = { x: -0.5, z: 0.2 };
+      headX = 0.3;
+      if(u > 0.9){
+        sheet.visible = false;
+        const done = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), matPrinted);
+        done.rotation.x = -Math.PI/2;
+        done.rotation.z = rand(-0.12, 0.12);
+        done.position.set(rand(-0.02, 0.02), 0.004 + pileN*0.006, rand(-0.02, 0.02));
+        pile.add(done);
+        pileN++;
+        if(pileN > 40){ pile.children[1].removeFromParent(); }
+      }
+    }
+  }
+
+  // apply machine state
+  bar.rotation.y = lerp(bar.rotation.y, -barA, Math.min(1, dt*8));
+  screwG.rotation.y = bar.rotation.y;
+  platen.position.y = lerp(platen.position.y, platenY, Math.min(1, dt*8));
+  bed.position.x = bedX;
+  tympan.rotation.z = tymp;
+
+  // apply the pressman
+  P.hips.rotation.x = lerp(P.hips.rotation.x, lean, Math.min(1, dt*6));
+  P.hips.position.z = lerp(P.hips.position.z, -lean*0.25, dt*6);
+  P.head.rotation.x = lerp(P.head.rotation.x, headX, Math.min(1, dt*4));
+  P.arms[0].g.rotation.x = lerp(P.arms[0].g.rotation.x, armL.x, Math.min(1, dt*6));
+  P.arms[0].g.rotation.z = lerp(P.arms[0].g.rotation.z, armL.z, Math.min(1, dt*6));
+  P.arms[1].g.rotation.x = lerp(P.arms[1].g.rotation.x, armR.x, Math.min(1, dt*6));
+  P.arms[1].g.rotation.z = lerp(P.arms[1].g.rotation.z, armR.z, Math.min(1, dt*6));
+  // idle breath
+  P.hips.position.y = 0.42 + Math.sin(t*0.9)*0.005;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+const sheetBlank = sheet.material;
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
