@@ -1,11 +1,12 @@
 import { set, get } from 'idb-keyval';
-import { 
-  AssetLibrary, 
+import {
+  AssetLibrary,
   createDefaultLibrary,
-  Actor, Scene, Drop, Item, Sfx, Episode,
-  LibraryActor, LibraryScene, LibraryDrop, LibraryItem, LibrarySfx, LibraryEpisode,
+  Actor, Scene, Drop, Item, Sfx, Episode, Drawing,
+  LibraryActor, LibraryScene, LibraryDrop, LibraryItem, LibrarySfx, LibraryEpisode, LibraryDrawing,
   GameData
 } from '@/types';
+import { newDrawingId } from '@/utils/drawings';
 import { saveFileWithPicker, openFileWithPicker, LIBRARY_FILE_OPTIONS } from '@/utils/filePicker';
 
 const LIBRARY_KEY = 'dramaton_library_v1';
@@ -180,9 +181,35 @@ export const addEpisodeToLibrary = (
   return { ...library, episodes: [...(library.episodes ?? []), libraryEpisode] };
 };
 
+// Drawings are the cross-document store: the same file serves the book
+// document and the game document. Same file from the same folder replaces
+// its earlier library copy rather than piling up.
+export const addDrawingToLibrary = (
+  library: AssetLibrary,
+  drawing: Drawing,
+  source: string,
+  tags?: string[]
+): AssetLibrary => {
+  const libraryDrawing: LibraryDrawing = {
+    ...drawing,
+    libraryId: `lib_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    addedAt: Date.now(),
+    source,
+    tags: tags ?? drawing.tags,
+  };
+  const existing = (library.drawings ?? []).filter(
+    d => !(drawing.fileName && d.fileName === drawing.fileName && d.sourcePath === drawing.sourcePath)
+  );
+  return { ...library, drawings: [...existing, libraryDrawing] };
+};
+
 // ═══════════════════════════════════════════════════════════════
 // REMOVE FROM LIBRARY
 // ═══════════════════════════════════════════════════════════════
+
+export const removeDrawingFromLibrary = (library: AssetLibrary, libraryId: string): AssetLibrary => {
+  return { ...library, drawings: (library.drawings ?? []).filter(d => d.libraryId !== libraryId) };
+};
 
 export const removeActorFromLibrary = (library: AssetLibrary, libraryId: string): AssetLibrary => {
   return { ...library, actors: library.actors.filter(a => a.libraryId !== libraryId) };
@@ -309,15 +336,37 @@ export const addLibraryEpisodeToGame = (game: GameData, libraryEpisode: LibraryE
   return { ...game, episodes: [...(game.episodes ?? []), newEpisode] };
 };
 
+// A drawing pulled into a document keeps its provenance (file, folder,
+// artist) and gets a fresh id. If the document already holds the same file
+// from the same folder, that copy is returned instead of a duplicate.
+export const addLibraryDrawingToGame = (game: GameData, libraryDrawing: LibraryDrawing): GameData => {
+  const drawings = game.drawings ?? [];
+  const dup = libraryDrawing.fileName
+    ? drawings.find(d => d.fileName === libraryDrawing.fileName && d.sourcePath === libraryDrawing.sourcePath)
+    : undefined;
+  if (dup) return game;
+  const newDrawing: Drawing = {
+    ...libraryDrawing,
+    id: newDrawingId(),
+    importedAt: Date.now(),
+  };
+  delete (newDrawing as any).libraryId;
+  delete (newDrawing as any).addedAt;
+  delete (newDrawing as any).source;
+
+  return { ...game, drawings: [...drawings, newDrawing] };
+};
+
 // ═══════════════════════════════════════════════════════════════
 // LIBRARY STATS
 // ═══════════════════════════════════════════════════════════════
 
 export const getLibraryCount = (library: AssetLibrary): number => {
-  return library.actors.length + 
-         library.scenes.length + 
-         library.drops.length + 
-         library.items.length + 
+  return library.actors.length +
+         library.scenes.length +
+         library.drops.length +
+         library.items.length +
          library.sfx.length +
-         (library.episodes?.length ?? 0);
+         (library.episodes?.length ?? 0) +
+         (library.drawings?.length ?? 0);
 };

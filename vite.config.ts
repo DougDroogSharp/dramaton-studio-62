@@ -6,6 +6,7 @@ import { dramDocsPlugin } from "./vite-plugin-dram-docs";
 import { dramBridgePlugin } from "./vite-plugin-dram-bridge";
 import { fluxPlugin } from "./vite-plugin-flux";
 import { voicePlugin } from "./vite-plugin-voice";
+import { drawingsPlugin } from "./vite-plugin-drawings";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -41,6 +42,9 @@ export default defineConfig(({ mode }) => ({
     // Server-side ElevenLabs bridge; caches generated audio to disk so
     // a line is paid for once, however often a scene replays.
     voicePlugin(loadEnv(mode, process.cwd(), "")),
+    // Read-only folder import for the Drawings tab (dev-only, loopback,
+    // confined to the home directory)
+    drawingsPlugin(),
   ],
   resolve: {
     alias: {

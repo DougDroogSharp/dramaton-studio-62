@@ -1,0 +1,58 @@
+{
+  "info": {
+    "title": "Facing Alligators",
+    "author": "Doug Sharp",
+    "styleGuide": null,
+    "worldState": {},
+    "gameMode": "INTERACTIVE",
+    "enableAutosave": true,
+    "artFolder": "C:\\Users\\dougs\\Dropbox\\Droog Claude Projects\\Consolidated\\Facing_Alligators_Art"
+  },
+  "actors": [
+    {
+      "id": "actor_oberon",
+      "name": "Oberon",
+      "graphics": [],
+      "status": "new",
+      "note": "Cerebral palsy, wheelchair, twisted hands. Fairy familiars: the most physically constrained kid in the story has familiars that embody absolute freedom of movement. Art: a drawing from the DW tab, when Chris has one."
+    },
+    {
+      "id": "actor_ayo",
+      "name": "Ayo",
+      "graphics": [],
+      "status": "new",
+      "note": "Blind. Yoruba for Joy. Wheels Oberon; already a bonded pair."
+    },
+    {
+      "id": "actor_bop",
+      "name": "Bop",
+      "graphics": [],
+      "status": "new",
+      "note": "Non-binary, speechless, autistic; they/them. Bop is the only sound they can make. Familiar: a bat that echolocates by calling bop bop. Lost in the belly of their alligator."
+    }
+  ],
+  "scenes": [],
+  "drops": [],
+  "drawings": [],
+  "items": [],
+  "sfx": [],
+  "buttons": [],
+  "subplots": [],
+  "skins": [],
+  "episodes": [
+    {
+      "id": "episode_book",
+      "name": "The Book",
+      "description": "The illustrated book, one scene per page. Backdrops are Chris's drawings (DW tab -> Make a backdrop).",
+      "sceneIds": [],
+      "status": "new"
+    },
+    {
+      "id": "episode_game",
+      "name": "The Game",
+      "description": "The one-switch game that comes after the book. Same drawings, same actors, pulled from the shared store.",
+      "sceneIds": [],
+      "status": "new"
+    }
+  ]
+}

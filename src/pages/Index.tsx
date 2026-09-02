@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from "@/types";
+import { dehydrateDrawingRefs } from "@/utils/drawings";
 import { DramatonLogo } from "@/components/DramatonLogo";
 import { CostMeter } from "@/components/CostMeter";
 import { CyberInput } from "@/components/CyberInput";
@@ -36,6 +37,7 @@ import {
   Layers,
   Drama,
   Shirt,
+  PenTool,
 } from "lucide-react";
 import { SettingsEditor } from "@/components/editors/SettingsEditor";
 import { ActorEditor } from "@/components/editors/ActorEditor";
@@ -47,6 +49,7 @@ import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
 import { NarratonDirector } from "@/components/editors/NarratonDirector";
 import { SkinEditor } from "@/components/editors/SkinEditor";
+import { DrawingsEditor } from "@/components/editors/DrawingsEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
 import {
@@ -73,6 +76,12 @@ const SHIPPED_GAMES = [
   { file: 'hvb-machine.json', title: 'The Machine', scenes: '17 scenes' },
   { file: 'hvb-campaign.json', title: 'The Campaign', scenes: '107 scenes' },
 ];
+
+// Facing Alligators: Doug's book-that-becomes-a-game, hand-drawn by Chris
+// Unruh. Its own document, its own space. The seed carries NO art (the
+// drawings are the artist's and stay out of the repo); the Drawings tab
+// pulls them in from the art folder named in the seed.
+const FACING_ALLIGATORS = { file: 'facing-alligators.json', title: 'Facing Alligators', scenes: 'book + game' };
 
 const Index = () => {
   const navigate = useNavigate();
@@ -366,7 +375,9 @@ const Index = () => {
   };
 
   const handleSave = async () => {
-    const content = JSON.stringify(game, null, 2);
+    // A drawing's bytes go into the file once; drops and poses that show
+    // it are written as references and hydrated again on load.
+    const content = JSON.stringify(dehydrateDrawingRefs(game), null, 2);
     const suggestedName = `${game.info.title.replace(/\s+/g, "_")}.dram`;
 
     const saved = await saveFileWithPicker(
@@ -426,6 +437,14 @@ const Index = () => {
       abbrev: "DR",
       color: "text-diesel-paper",
       count: game?.drops?.length ?? 0,
+    },
+    {
+      type: "drawing" as const,
+      icon: PenTool,
+      label: "Drawings",
+      abbrev: "DW",
+      color: "text-diesel-cyan",
+      count: game?.drawings?.length ?? 0,
     },
     {
       type: "skin" as const,
@@ -691,6 +710,25 @@ const Index = () => {
               </p>
             </div>
 
+            {/* Facing Alligators: its own project. Opens the seed document;
+                save it out as a .dram of your own once the art is in. */}
+            <div className="mt-3 border-t border-diesel-border pt-2">
+              <p className="text-[9px] uppercase tracking-widest text-diesel-steel mb-1.5">
+                Facing Alligators
+              </p>
+              <button
+                onClick={() => handleOpenShipped(FACING_ALLIGATORS.file, FACING_ALLIGATORS.title)}
+                disabled={loadingShipped !== null}
+                className="w-full flex items-baseline justify-between gap-2 px-2 py-1 bg-diesel-black/40 border border-diesel-cyan/40 text-left hover:border-diesel-cyan transition-colors disabled:opacity-40"
+                title="Open the Facing Alligators project (hand-drawn art by Chris Unruh; import it in the DW tab)"
+              >
+                <span className="text-xs text-diesel-paper truncate">{FACING_ALLIGATORS.title}</span>
+                <span className="text-[9px] text-diesel-cyan truncate shrink-0">
+                  {loadingShipped === FACING_ALLIGATORS.file ? 'loading…' : FACING_ALLIGATORS.scenes}
+                </span>
+              </button>
+            </div>
+
             {/* Recent games: one click back into the last 5 files */}
             {recentGames.length > 0 && (
               <div className="mt-3 border-t border-diesel-border pt-2">
@@ -886,6 +924,7 @@ const Index = () => {
               {selection.type === "sfx" && "SFX EDITOR"}
               {selection.type === "narraton" && "NARRATON EDITOR"}
               {selection.type === "skin" && "SKIN LIBRARY"}
+              {selection.type === "drawing" && "DRAWINGS"}
             </h2>
 
             {selection.type === "actor" && (
@@ -932,6 +971,14 @@ const Index = () => {
             )}
             {selection.type === "skin" && (
               <SkinEditor
+                game={game}
+                selection={selection}
+                onChange={setGame}
+                onSelect={handleSelect}
+              />
+            )}
+            {selection.type === "drawing" && (
+              <DrawingsEditor
                 game={game}
                 selection={selection}
                 onChange={setGame}

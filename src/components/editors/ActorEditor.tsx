@@ -3,7 +3,8 @@ import { GameData, Actor, ActorGraphic, SelectionState, AssetStatus } from '@/ty
 import { CyberInput } from '@/components/CyberInput';
 import { VoiceBrowser } from '@/components/VoiceBrowser';
 import { POSES, EXPRESSIONS, ANGLES } from '@/constants';
-import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera, X, ZoomIn, Lock, Wand2, Check, Archive } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Image, Mic, ChevronRight, Sparkles, Camera, X, ZoomIn, Lock, Wand2, Check, Archive, PenTool } from 'lucide-react';
+import { DrawingPicker } from '@/components/DrawingPicker';
 import DieselpunkLoader from '@/components/DieselpunkLoader';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -28,6 +29,7 @@ interface ActorEditorProps {
 
 export const ActorEditor: React.FC<ActorEditorProps> = ({ game, selection, onChange, onSelect, styleGuide }) => {
   const [showVoiceBrowser, setShowVoiceBrowser] = useState(false);
+  const [showDrawingPicker, setShowDrawingPicker] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [styleLock, setStyleLock] = useState(true);
   
@@ -684,14 +686,43 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
 
       {/* Pose Library - Moved to top */}
       <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Pose Library ({selectedActor.graphics.length})
-        </h3>
-        
+        <div className="flex items-center justify-between mb-4 border-b border-diesel-border pb-2">
+          <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest">
+            Pose Library ({selectedActor.graphics.length})
+          </h3>
+          <button
+            onClick={() => setShowDrawingPicker(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-diesel-cyan/10 border border-diesel-cyan text-diesel-cyan text-xs font-bold uppercase hover:bg-diesel-cyan/20 transition-colors"
+            title="Add a pose from the shared drawings store (DW tab)"
+          >
+            <PenTool size={12} />
+            From Drawings
+          </button>
+        </div>
+        <DrawingPicker
+          game={game}
+          open={showDrawingPicker}
+          onOpenChange={setShowDrawingPicker}
+          askPose
+          title={`Add a drawing as a pose of ${selectedActor.name}`}
+          onPick={(d, p) => {
+            const graphic: ActorGraphic = {
+              id: `graphic_${Date.now()}`,
+              pose: p?.pose ?? 'Neutral',
+              expression: p?.expression ?? 'Neutral',
+              angle: 0,
+              image: d.image,
+              drawingId: d.id,
+            };
+            updateActor(selectedActor.id, { graphics: [...selectedActor.graphics, graphic] });
+            toast.success(`${graphic.pose} · ${graphic.expression} now shows "${d.name}"`);
+          }}
+        />
+
         {selectedActor.graphics.length === 0 ? (
           <div className="text-center py-4 text-diesel-steel">
             <User size={24} className="mx-auto mb-2 opacity-30" />
-            <p className="text-xs">No poses yet. Use the generator below!</p>
+            <p className="text-xs">No poses yet. Pick a drawing above, or use the generator below.</p>
           </div>
         ) : (
           <div className="grid grid-cols-4 md:grid-cols-5 gap-2">

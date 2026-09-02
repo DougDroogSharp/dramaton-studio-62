@@ -15,18 +15,20 @@ import {
   removeDropFromLibrary,
   removeItemFromLibrary,
   removeSfxFromLibrary,
+  removeDrawingFromLibrary,
   addLibraryActorToGame,
   addLibrarySceneToGame,
   addLibraryDropToGame,
   addLibraryItemToGame,
   addLibrarySfxToGame,
+  addLibraryDrawingToGame,
   getLibraryCount,
 } from '@/utils/library';
 import { loadGameFromDB, saveGameToDB } from '@/utils/db';
 import { DramatonLogo } from '@/components/DramatonLogo';
-import { 
-  ChevronRight, ChevronDown, User, Video, Monitor, Package, Music, 
-  Search, Download, Upload, Trash2, Plus, Archive, ArrowLeft
+import {
+  ChevronRight, ChevronDown, User, Video, Monitor, Package, Music,
+  Search, Download, Upload, Trash2, Plus, Archive, ArrowLeft, PenTool
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
@@ -37,7 +39,7 @@ import {
   IndustrialPanel,
 } from '@/components/DieselpunkDecorations';
 
-type AssetType = 'actor' | 'scene' | 'drop' | 'item' | 'sfx';
+type AssetType = 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'drawing';
 
 interface SelectedAsset {
   type: AssetType;
@@ -56,6 +58,7 @@ const Library = () => {
     drops: true,
     items: true,
     sfx: true,
+    drawings: true,
   });
 
   // Load library and game on mount
@@ -129,6 +132,11 @@ const Library = () => {
         if (sfx) updatedGame = addLibrarySfxToGame(game, sfx);
         break;
       }
+      case 'drawing': {
+        const drawing = (library.drawings ?? []).find(d => d.libraryId === selectedAsset.libraryId);
+        if (drawing) updatedGame = addLibraryDrawingToGame(game, drawing);
+        break;
+      }
     }
 
     setGame(updatedGame);
@@ -167,6 +175,9 @@ const Library = () => {
       case 'sfx':
         updatedLibrary = removeSfxFromLibrary(library, selectedAsset.libraryId);
         break;
+      case 'drawing':
+        updatedLibrary = removeDrawingFromLibrary(library, selectedAsset.libraryId);
+        break;
     }
 
     setLibrary(updatedLibrary);
@@ -195,6 +206,7 @@ const Library = () => {
         items: [...library.items, ...importedLibrary.items],
         sfx: [...library.sfx, ...importedLibrary.sfx],
         episodes: [...(library.episodes ?? []), ...(importedLibrary.episodes ?? [])],
+        drawings: [...(library.drawings ?? []), ...(importedLibrary.drawings ?? [])],
       };
       setLibrary(mergedLibrary);
       toast.success(`Imported ${getLibraryCount(importedLibrary)} assets!`);
@@ -208,6 +220,7 @@ const Library = () => {
   const filteredDrops = library.drops.filter(d => matchesSearch(d.name));
   const filteredItems = library.items.filter(i => matchesSearch(i.name));
   const filteredSfx = library.sfx.filter(s => matchesSearch(s.name));
+  const filteredDrawings = (library.drawings ?? []).filter(d => matchesSearch(d.name) || matchesSearch(d.artist ?? ''));
 
   const renderAssetItem = (
     asset: { libraryId: string; name: string; source: string; addedAt: number },
@@ -374,6 +387,7 @@ const Library = () => {
             {renderSection('Drops', 'drops', <Monitor size={14} />, 'text-diesel-paper', filteredDrops, 'drop')}
             {renderSection('Items', 'items', <Package size={14} />, 'text-diesel-gold', filteredItems, 'item')}
             {renderSection('SFX', 'sfx', <Music size={14} />, 'text-diesel-green', filteredSfx, 'sfx')}
+            {renderSection('Drawings', 'drawings', <PenTool size={14} />, 'text-diesel-cyan', filteredDrawings, 'drawing')}
 
             {getLibraryCount(library) === 0 && !searchQuery && (
               <div className="text-center py-12 text-diesel-steel">
@@ -398,7 +412,14 @@ const Library = () => {
                   {selectedAsset.type === 'drop' && <Monitor size={28} className="text-diesel-paper" />}
                   {selectedAsset.type === 'item' && <Package size={28} className="text-diesel-gold" />}
                   {selectedAsset.type === 'sfx' && <Music size={28} className="text-diesel-green" />}
+                  {selectedAsset.type === 'drawing' && <PenTool size={28} className="text-diesel-cyan" />}
                 </div>
+                {selectedAsset.type === 'drawing' && (() => {
+                  const d = (library.drawings ?? []).find(x => x.libraryId === selectedAsset.libraryId);
+                  return d ? (
+                    <img src={d.image} alt={d.name} className="max-h-48 w-auto max-w-full mx-auto mb-4 object-contain border border-diesel-border" />
+                  ) : null;
+                })()}
                 
                 <h3 className="text-xl font-bold text-diesel-paper uppercase tracking-wider mb-2">
                   {(() => {
@@ -408,6 +429,7 @@ const Library = () => {
                       case 'drop': return library.drops.find(d => d.libraryId === selectedAsset.libraryId)?.name;
                       case 'item': return library.items.find(i => i.libraryId === selectedAsset.libraryId)?.name;
                       case 'sfx': return library.sfx.find(s => s.libraryId === selectedAsset.libraryId)?.name;
+                      case 'drawing': return (library.drawings ?? []).find(d => d.libraryId === selectedAsset.libraryId)?.name;
                     }
                   })()}
                 </h3>

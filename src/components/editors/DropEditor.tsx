@@ -8,6 +8,8 @@ import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addDropToLibrary } from '@/utils/library';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
+import { DrawingPicker } from '@/components/DrawingPicker';
+import { PenTool } from 'lucide-react';
 
 interface DropEditorProps {
   game: GameData;
@@ -78,6 +80,7 @@ export const DropEditor: React.FC<DropEditorProps> = ({ game, selection, onChang
   const [styleLock, setStyleLock] = useState(true); // Default ON for style adherence
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   const [fullPromptOverride, setFullPromptOverride] = useState('');
+  const [showDrawingPicker, setShowDrawingPicker] = useState(false);
   
   const selectedDrop = selection.id 
     ? game.drops.find(d => d.id === selection.id) 
@@ -418,16 +421,89 @@ This is a background scene with no characters or text.`;
         <h3 className="text-sm font-bold text-diesel-paper uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
           Image
         </h3>
-        
+
+        {/* From the drawings store + how the picture meets the 16:9 window */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <button
+            onClick={() => setShowDrawingPicker(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-diesel-cyan/10 border border-diesel-cyan text-diesel-cyan text-xs font-bold uppercase hover:bg-diesel-cyan/20 transition-colors"
+            title="Use a drawing from the shared store (DW tab)"
+          >
+            <PenTool size={12} />
+            From Drawings
+          </button>
+          {selectedDrop.drawingId && (() => {
+            const d = (game.drawings ?? []).find(x => x.id === selectedDrop.drawingId);
+            return (
+              <button
+                onClick={() => onSelect('drawing', selectedDrop.drawingId!)}
+                className="text-[10px] font-mono text-diesel-cyan/80 hover:text-diesel-cyan underline-offset-2 hover:underline"
+                title="Open the drawing"
+              >
+                drawing: {d ? `${d.name}${d.artist ? ` · ${d.artist}` : ''}` : selectedDrop.drawingId}
+              </button>
+            );
+          })()}
+          {selectedDrop.image && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-widest text-diesel-steel">Fit</span>
+              {(['cover', 'contain'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => updateDrop(selectedDrop.id, { fit: f })}
+                  className={`px-2 py-0.5 border text-[10px] uppercase ${
+                    (selectedDrop.fit ?? 'cover') === f
+                      ? 'bg-diesel-paper/20 border-diesel-paper text-diesel-paper'
+                      : 'border-diesel-border text-diesel-steel hover:text-diesel-paper'
+                  }`}
+                  title={f === 'cover' ? 'Fill the window, crop the edges' : 'Show the whole picture, letterboxed'}
+                >
+                  {f}
+                </button>
+              ))}
+              {selectedDrop.fit === 'contain' && (
+                <label className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-diesel-steel" title="Colour behind the letterboxed picture">
+                  Behind
+                  <input
+                    type="color"
+                    value={selectedDrop.backdropColor ?? '#000000'}
+                    onChange={e => updateDrop(selectedDrop.id, { backdropColor: e.target.value })}
+                    className="w-6 h-5 bg-transparent border border-diesel-border cursor-pointer"
+                  />
+                  {selectedDrop.backdropColor && (
+                    <button onClick={() => updateDrop(selectedDrop.id, { backdropColor: undefined })} className="hover:text-diesel-paper" title="Clear">×</button>
+                  )}
+                </label>
+              )}
+            </div>
+          )}
+        </div>
+        <DrawingPicker
+          game={game}
+          open={showDrawingPicker}
+          onOpenChange={setShowDrawingPicker}
+          title="Use a drawing as this backdrop"
+          onPick={d => {
+            updateDrop(selectedDrop.id, {
+              image: d.image,
+              drawingId: d.id,
+              fit: selectedDrop.fit ?? 'contain',
+              name: selectedDrop.name === 'New Background' ? d.name : selectedDrop.name,
+            });
+            toast.success(`Backdrop now shows "${d.name}"`);
+          }}
+        />
+
         {selectedDrop.image ? (
           <div className="space-y-3">
             <div className="relative group">
               {/* Standard drop resolution: 1280x720 (16:9) */}
               <div className="w-full max-w-[640px] mx-auto relative">
-                <img 
-                  src={selectedDrop.image} 
-                  alt={selectedDrop.name} 
-                  className={`w-full aspect-video object-cover border border-diesel-border transition-opacity ${isGenerating || isEditing ? 'opacity-40' : ''}`}
+                <img
+                  src={selectedDrop.image}
+                  alt={selectedDrop.name}
+                  style={selectedDrop.backdropColor ? { backgroundColor: selectedDrop.backdropColor } : undefined}
+                  className={`w-full aspect-video ${selectedDrop.fit === 'contain' ? 'object-contain bg-diesel-black' : 'object-cover'} border border-diesel-border transition-opacity ${isGenerating || isEditing ? 'opacity-40' : ''}`}
                 />
                 
                 {/* Generation/Edit Progress Overlay */}

@@ -307,7 +307,10 @@ export const Stage: React.FC<StageProps> = ({
         <img
           src={background.image}
           alt={background.name}
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          // Drop.fit: cover crops to the window (the default); contain
+          // shows the whole drawing, letterboxed on backdropColor.
+          className={`absolute inset-0 w-full h-full ${background.fit === 'contain' ? 'object-contain' : 'object-cover'} pointer-events-none`}
+          style={background.backdropColor ? { backgroundColor: background.backdropColor } : undefined}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-diesel-steel text-sm bg-diesel-black">
@@ -321,8 +324,11 @@ export const Stage: React.FC<StageProps> = ({
           key={scriptBackdrop.id}
           src={scriptBackdrop.image}
           alt={scriptBackdrop.name}
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none animate-[backdrop-in_var(--backdrop-dur)_ease-in-out_forwards]"
-          style={{ ['--backdrop-dur' as string]: `${backdropDuration ?? 0}s` }}
+          className={`absolute inset-0 w-full h-full ${scriptBackdrop.fit === 'contain' ? 'object-contain' : 'object-cover'} pointer-events-none animate-[backdrop-in_var(--backdrop-dur)_ease-in-out_forwards]`}
+          style={{
+            ['--backdrop-dur' as string]: `${backdropDuration ?? 0}s`,
+            ...(scriptBackdrop.backdropColor ? { backgroundColor: scriptBackdrop.backdropColor } : {}),
+          }}
         />
       )}
 

@@ -1,6 +1,8 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin';
+import { hydrateDrawingRefs } from '@/utils/drawings';
+
+export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin' | 'drawing';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -39,6 +41,10 @@ export interface GameInfo {
   // holding a cached copy. See scripts/stamp.mjs.
   version?: string;
   builtAt?: string;
+  // Where this project's finished 2-D art lives on disk (an artist's
+  // folder). The Drawings tab scans it through the dev server; the path is
+  // a convenience, never a dependency — a saved file carries the bytes.
+  artFolder?: string;
 }
 
 export interface ActorGraphic {
@@ -51,7 +57,32 @@ export interface ActorGraphic {
   // a duplicate base64 copy, name another graphic in the same actor and
   // the load path (migrateGameData) fills `image` in.
   imageRef?: string;
+  // This sprite IS a drawing from the shared store (game.drawings). The
+  // file on disk keeps one copy of the bytes; the load path hydrates
+  // `image`. See src/utils/drawings.ts.
+  drawingId?: string;
   generatedPrompt?: string;  // Full prompt used to generate this graphic
+}
+
+// A finished 2-D drawing from outside the pipeline — scanned ink, a photo
+// of a page, an exported PNG — stored ONCE and used by any number of drops
+// and actor graphics through `drawingId`. This is the 2-D counterpart of
+// the skin library: the editor imports finished art, it does not make it.
+// (Facing Alligators, 2026-09-02: Chris Unruh's drawings serve the book
+// and the game from one store.)
+export interface Drawing {
+  id: string;
+  name: string;
+  artist?: string;
+  fileName?: string;     // the file it was read from
+  sourcePath?: string;   // the folder it was read from (provenance only)
+  image: string;         // data URL (or a public URL after cloud publish)
+  width?: number;
+  height?: number;
+  tags?: string[];
+  importedAt?: number;
+  note?: string;
+  status?: AssetStatus;
 }
 
 export interface Actor {
@@ -274,6 +305,14 @@ export interface Drop {
   prompt: string;
   anchors?: DropAnchor[];
   image?: string;
+  // This backdrop IS a drawing from the shared store; see ActorGraphic.drawingId.
+  drawingId?: string;
+  // How the image meets the 16:9 window. `cover` (the default, and what
+  // every existing game does) fills the window and crops; `contain` shows
+  // the whole picture and letterboxes on `backdropColor`. A portrait
+  // drawing wants contain; which one is the creator's choice.
+  fit?: 'cover' | 'contain';
+  backdropColor?: string;       // CSS colour behind a contained image
   referenceImage?: string;      // Reference image for composition/layout
   editHistory?: string[];       // Track previous versions
   lastEditPrompt?: string;      // Last edit instruction used
@@ -419,6 +458,8 @@ export interface GameData {
   subplots: Subplot[];
   skins: Skin[];
   vitaPresets: VitaPreset[];
+  // Shared store of finished 2-D art (always an array after migrateGameData)
+  drawings?: Drawing[];
   // What the world variables MEAN, for the live meter panel
   meters?: MeterMeaning[];
   quotes?: Quote[];
@@ -439,6 +480,7 @@ export interface LibraryDrop extends Drop, LibraryAsset {}
 export interface LibraryItem extends Item, LibraryAsset {}
 export interface LibrarySfx extends Sfx, LibraryAsset {}
 export interface LibraryEpisode extends Episode, LibraryAsset {}
+export interface LibraryDrawing extends Drawing, LibraryAsset {}
 
 export interface AssetLibrary {
   version: number;
@@ -448,6 +490,9 @@ export interface AssetLibrary {
   items: LibraryItem[];
   sfx: LibrarySfx[];
   episodes: LibraryEpisode[];
+  // Drawings cross documents: import Chris's art once, the book file and
+  // the game file both pull from here. Optional so older libraries load.
+  drawings?: LibraryDrawing[];
 }
 
 export const createDefaultLibrary = (): AssetLibrary => ({
@@ -458,6 +503,7 @@ export const createDefaultLibrary = (): AssetLibrary => ({
   items: [],
   sfx: [],
   episodes: [],
+  drawings: [],
 });
 
 // Starter Vita presets (Doug's naming style: mood + appetite). Editable
@@ -569,6 +615,16 @@ export const migrateGameData = (data: any): GameData => {
     migrated.vitaPresets = createStarterVitaPresets();
   }
 
+  // Ensure the drawings store exists (added 2026-09-02), then hydrate every
+  // drop/graphic that names a drawing but was saved without its bytes.
+  if (!Array.isArray(migrated.drawings)) {
+    migrated.drawings = [];
+  }
+  if (migrated.drawings.length > 0) {
+    if (!Array.isArray(migrated.drops)) migrated.drops = [];
+    Object.assign(migrated, hydrateDrawingRefs(migrated as GameData));
+  }
+
   // Dramaton Editor 2.0 called drops "screens"; rename the collection and
   // each scene's screenId reference.
   if (!migrated.drops && migrated.screens) {
@@ -635,4 +691,5 @@ export const createDefaultGame = (): GameData => ({
   subplots: [],
   skins: [],
   vitaPresets: createStarterVitaPresets(),
+  drawings: [],
 });
