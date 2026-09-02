@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THE DRAGON — George World's keystone. Study.
+     Filed 2026-08-31. Standalone; nothing here touches georgeworld.html.
+
+     WHAT IT IS
+     Tan-green, prickly, toothy and furious. Its hide is STUDDED WITH GOLD
+     COINS AND JEWELS — want-without-a-ceiling wearing its hoard as armour,
+     which is the whole point of the animal in this game. Long spiked tail it
+     can thrash, bat wings that fold for walking and open to fly.
+
+     THE FIRE IS A SEPARATE SYSTEM (Doug's call, and the right one)
+       window.DRAGONFIRE.create(scene) -> emitter
+         emitter.aim(originVec3, dirVec3)   — point it anywhere, every frame
+         emitter.breathe(seconds, power)    — start a gout
+         emitter.update(dt)
+       The emitter knows nothing about the dragon. It is driven from the MOUTH
+       ANCHOR's world transform, so wherever the head points, the flame goes —
+       and the same emitter can be hung on a volcano vent or anything else.
+       Flame and smoke are independent pools: smoke outlives the flame, which
+       is what makes a gout read as a gout and not a torch.
+
+     CYCLES
+       idle · walk · crouch · launch · fly · land · RAGE
+     RAGE is the hissy fit: tail thrashing, head swinging, jaw roaring, wings
+     shaking half-flared, and flame after flame thrown in different directions.
+
+     RIG NOTE that cost time on the crab and is reused here: limb mirroring
+     goes on a ROOT group ABOVE the animated joints (scale.x = ±1), because an
+     Object3D applies its own scale INSIDE its own rotation.
+     Three.js is VENDORED (vendor/three, r160) — the game's exact importmap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>The Dragon</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#2a2f3a;
+    font-family:"Segoe UI", system-ui, sans-serif; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:246px;
+    background:rgba(18,14,12,0.80); color:#f5e9dc; font:12.5px/1.45 system-ui,sans-serif;
+    padding:11px 13px; border-radius:12px; user-select:none; backdrop-filter:blur(6px);
+    border:1px solid rgba(255,190,120,0.22); max-height:calc(100vh - 24px); overflow:auto; }
+  #chip b { font-size:14px; letter-spacing:.5px; color:#ffcf8a; }
+  #chip .sub { opacity:.6; font-size:11px; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.14); margin:9px 0; }
+  #chip h4 { margin:0 0 5px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  .btns button { background:rgba(255,255,255,0.10); color:#f5e9dc;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:5px 9px;
+    font:11.5px system-ui,sans-serif; cursor:pointer; }
+  .btns button:hover { background:rgba(255,190,120,0.28); }
+  .btns button.on { background:#a33f14; border-color:#ffb173; font-weight:700; }
+  .btns button.fire { background:#7a2d10; border-color:#ff9a52; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:6px; font-size:11.5px; }
+  label.rw input[type=range] { flex:1; min-width:0; }
+  #note { margin-top:9px; font-size:11px; opacity:.78; line-height:1.4;
+    border-top:1px solid rgba(255,255,255,.14); padding-top:8px; }
+  #busy { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(12,8,6,0.8); color:#ffcf8a; z-index:30; font:15px system-ui,sans-serif; }
+</style>
+</head>
+<body>
+<div id="busy">waking the dragon…</div>
+<div id="chip">
+  <b>THE DRAGON</b><br><span class="sub">tan-green · coin-studded · furious</span>
+  <hr>
+  <h4>Cycle</h4>
+  <div class="btns" id="gaits"></div>
+  <h4 style="margin-top:9px">Breath — aim it anywhere</h4>
+  <div class="btns" id="fires"></div>
+  <label class="rw">speed <input id="spd" type="range" min="0.2" max="2" step="0.05" value="1"></label>
+  <hr>
+  <h4>Views</h4>
+  <div class="btns" id="views"></div>
+  <div id="note"></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2, D=Math.PI/180;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const RNG = mulberry32(0xD8A6);
+const rnd=(a,b)=>a+RNG()*(b-a);
+
+// ======================================================================
+// 1. THE FIRE — a wholly independent system. Give it a point and a
+//    direction each frame and it does the rest.
+// ======================================================================
+const DRAGONFIRE = (()=>{
+  function sprite(stops){
+    const S=64, cv=document.createElement('canvas'); cv.width=cv.height=S;
+    const g=cv.getContext('2d');
+    const gr=g.createRadialGradient(S/2,S/2,1,S/2,S/2,S/2);
+    for(const [o,c] of stops) gr.addColorStop(o,c);
+    g.fillStyle=gr; g.fillRect(0,0,S,S);
+    const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t;
+  }
+  const FLAME_TEX = sprite([[0,'rgba(255,255,242,1)'],[0.28,'rgba(255,226,140,0.95)'],
+                            [0.60,'rgba(255,140,40,0.55)'],[1,'rgba(200,50,10,0)']]);
+  const SMOKE_TEX = sprite([[0,'rgba(120,112,104,0.85)'],[0.5,'rgba(96,90,84,0.42)'],
+                            [1,'rgba(80,76,72,0)']]);
+  const C_HOT  = new THREE.Color(0xfff6e0), C_MID = new THREE.Color(0xffb43c),
+        C_COOL = new THREE.Color(0xd23c0c), C_DIE = new THREE.Color(0x521405);
+
+  function create(scene, opts){
+    opts = Object.assign({ flames:180, smokes:120, scale:1 }, opts||{});
+    const K = opts.scale;
+    const root = new THREE.Group(); scene.add(root);
+    const flames=[], smokes=[];
+    for(let i=0;i<opts.flames;i++){
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map:FLAME_TEX,
+        transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, opacity:0 }));
+      m.visible=false; root.add(m);
+      flames.push({ m, life:0, max:1, v:new THREE.Vector3(), turb:new THREE.Vector3(), s0:1 });
+    }
+    for(let i=0;i<opts.smokes;i++){
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map:SMOKE_TEX,
+        transparent:true, depthWrite:false, opacity:0 }));
+      m.visible=false; root.add(m);
+      smokes.push({ m, life:0, max:1, v:new THREE.Vector3(), spin:0, s0:1 });
+    }
+    const light = new THREE.PointLight(0xff7a28, 0, 60*K, 2);
+    root.add(light);
+
+    const origin = new THREE.Vector3(), dir = new THREE.Vector3(0,0,1);
+    const up = new THREE.Vector3(), side = new THREE.Vector3();
+    let burn = 0, power = 1, emitAcc = 0, smokeAcc = 0;
+
+    function aim(o, d){ origin.copy(o); dir.copy(d).normalize(); }
+    function breathe(sec, pw){ burn = Math.max(burn, sec||0.9); power = pw===undefined?1:pw; }
+    function stop(){ burn = 0; }
+
+    function spawnFlame(){
+      const f = flames.find(x=>x.life<=0); if(!f) return;
+      side.set(dir.z, 0, -dir.x); if(side.lengthSq()<1e-6) side.set(1,0,0);
+      side.normalize(); up.crossVectors(side, dir).normalize();
+      const spread = 0.16 + RNG()*0.20;
+      const a = RNG()*TAU, rr = Math.pow(RNG(), 0.6)*spread;
+      f.v.copy(dir).multiplyScalar(22*K*power*(0.7+RNG()*0.6))
+        .addScaledVector(side, Math.cos(a)*rr*20*K)
+        .addScaledVector(up,   Math.sin(a)*rr*20*K);
+      f.turb.set(rnd(-1,1), rnd(-0.4,1.4), rnd(-1,1)).multiplyScalar(2.4*K);
+      f.max = 0.34 + RNG()*0.36;
+      f.life = f.max;
+      f.s0 = (0.5 + RNG()*0.7)*K;
+      f.m.position.copy(origin).addScaledVector(dir, RNG()*1.2*K);
+      f.m.visible = true;
+    }
+    function spawnSmoke(at, vel){
+      const s = smokes.find(x=>x.life<=0); if(!s) return;
+      s.max = 1.9 + RNG()*1.9; s.life = s.max;
+      s.s0 = (1.1 + RNG()*1.3)*K;
+      s.v.copy(vel).multiplyScalar(0.22).add(
+        new THREE.Vector3(rnd(-1,1), rnd(0.8,2.2), rnd(-1,1)).multiplyScalar(K));
+      s.spin = rnd(-0.8, 0.8);
+      s.m.position.copy(at);
+      s.m.material.rotation = RNG()*TAU;
+      s.m.visible = true;
+    }
+
+    function update(dt){
+      // emit while the gout lasts — flames are dense, smoke is sparser and
+      // also keeps coming from the dying flame heads
+      if(burn > 0){
+        burn -= dt;
+        emitAcc += dt*190*power;
+        while(emitAcc >= 1){ emitAcc -= 1; spawnFlame(); }
+        smokeAcc += dt*9*power;
+        while(smokeAcc >= 1){ smokeAcc -= 1;
+          spawnSmoke(origin.clone().addScaledVector(dir, rnd(2,9)*K),
+                     dir.clone().multiplyScalar(9*K)); }
+        light.position.copy(origin).addScaledVector(dir, 3*K);
+        light.intensity = (7 + Math.sin(performance.now()*0.05)*2.5)*power;
+      } else {
+        light.intensity *= Math.max(0, 1 - dt*6);
+      }
+      for(const f of flames){
+        if(f.life<=0) continue;
+        f.life -= dt;
+        if(f.life<=0){
+          // a flame head that burns out leaves smoke behind — this is what
+          // turns a jet into a rolling gout
+          if(RNG()<0.08) spawnSmoke(f.m.position, f.v);
+          f.m.visible=false; continue;
+        }
+        const age = 1 - f.life/f.max;
+        f.v.addScaledVector(f.turb, dt);
+        f.v.y += 9*K*dt*age;                       // hot gas climbs as it slows
+        f.v.multiplyScalar(1 - Math.min(0.9, 2.6*dt));
+        f.m.position.addScaledVector(f.v, dt);
+        const sc = f.s0*(0.8 + age*3.4);
+        f.m.scale.set(sc, sc, 1);
+        const c = f.m.material.color;
+        if(age < 0.25) c.copy(C_HOT).lerp(C_MID, age/0.25);
+        else if(age < 0.62) c.copy(C_MID).lerp(C_COOL, (age-0.25)/0.37);
+        else c.copy(C_COOL).lerp(C_DIE, (age-0.62)/0.38);
+        f.m.material.opacity = Math.min(1, age*7) * (1-age*age) * 0.95;
+      }
+      for(const s of smokes){
+        if(s.life<=0) continue;
+        s.life -= dt;
+        if(s.life<=0){ s.m.visible=false; continue; }
+        const age = 1 - s.life/s.max;
+        s.v.y += 2.1*K*dt;
+        s.v.multiplyScalar(1 - Math.min(0.9, 0.9*dt));
+        s.m.position.addScaledVector(s.v, dt);
+        const sc = s.s0*(1 + age*4.2);
+        s.m.scale.set(sc, sc, 1);
+        s.m.material.rotation += s.spin*dt;
+        s.m.material.opacity = Math.min(1, age*5) * (1-age) * 0.26;
+      }
+    }
+    return { root, aim, breathe, stop, update, light,
+             get burning(){ return burn > 0; } };
+  }
+  return { create };
+})();
+window.DRAGONFIRE = DRAGONFIRE;
+
+// ======================================================================
+// 2. SCALE + TEXTURES
+// ======================================================================
+const TORSO_L = 3.3, TORSO_R = 1.18;   // deeper chest — it was reading crocodile
+const NECK_N = 7,  NECK_L = 0.38;
+const TAIL_N = 16, TAIL_L = 0.36;
+const HEAD_L = 1.75;                   // a bigger, heavier skull
+const STAND  = 2.35;                   // and it stands up off the ground
+
+function hideMap(){
+  const S=512, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d'), r=mulberry32(3391);
+  g.fillStyle='#6d7a4e'; g.fillRect(0,0,S,S);
+  // overlapping scales, drawn in rows, tan-green shading to olive
+  const rows=30, cols=34;
+  for(let i=0;i<rows;i++){
+    for(let j=0;j<cols;j++){
+      const x=(j+(i%2)*0.5)*(S/cols), y=i*(S/rows);
+      const w=(S/cols)*0.78, h=(S/rows)*0.92;
+      const t=r();
+      g.fillStyle=`rgb(${92+t*54|0},${104+t*46|0},${62+t*38|0})`;
+      g.beginPath(); g.ellipse(x,y,w*0.6,h*0.6,0,0,TAU); g.fill();
+      g.strokeStyle=`rgba(38,44,26,${0.30+r()*0.30})`; g.lineWidth=1.1;
+      g.stroke();
+      g.fillStyle=`rgba(210,214,168,${0.05+r()*0.13})`;   // a highlight lip
+      g.beginPath(); g.ellipse(x,y-h*0.16,w*0.42,h*0.24,0,0,TAU); g.fill();
+    }
+  }
+  for(let i=0;i<90;i++){    // old scars and darker blotches
+    const x=r()*S,y=r()*S;
+    g.fillStyle=`rgba(46,52,32,${0.05+r()*0.16})`;
+    g.beginPath(); g.ellipse(x,y,10+r()*40,8+r()*24,r()*3,0,TAU); g.fill();
+  }
+  const t=new THREE.CanvasTexture(cv);
+  t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  return t;
+}
+const HIDE = hideMap();
+
+// ======================================================================
+// 3. GEOMETRY HELPERS
+// ======================================================================
+// a closed tapered segment along +Z — ends pinch shut so joints never gape
+// (the lesson from the crab's knees)
+function segGeo(len, r0, r1, flat){
+  const NU=12, NV=flat?8:12, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;
+    const cap = Math.sin(Math.min(1,u/0.10)*Math.PI/2)*Math.sin(Math.min(1,(1-u)/0.10)*Math.PI/2);
+    const rr = lerp(r0,r1,u)*cap;
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU;
+      pos.push(Math.cos(a)*rr, Math.sin(a)*rr*(flat?0.7:0.94), u*len);
+      uv.push(u*1.4, j/NV*1.4);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+// the torso: a barrel, deep in the chest, narrowing to the hips
+function torsoGeo(){
+  const NU=26, NV=20, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;                                   // 0 = hips, 1 = chest
+    const prof = Math.pow(Math.sin(Math.PI*(0.10+0.82*u)),0.5);
+    const rr = TORSO_R*(0.52+0.48*prof)*(1+0.20*sstep(0.55,0.95,u));
+    const cap = Math.sin(Math.min(1,u/0.07)*Math.PI/2)*Math.sin(Math.min(1,(1-u)/0.07)*Math.PI/2);
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU, cs=Math.cos(a), sn=Math.sin(a);
+      // belly flatter than the back
+      pos.push(sn*rr*cap*0.92, (cs>0?cs*rr:cs*rr*0.80)*cap, (u-0.5)*TORSO_L);
+      uv.push(u*2.2, j/NV*2.2);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+// hand-rolled merge (vendor has no BufferGeometryUtils)
+function mergeGeos(list){
+  let n=0, hasUV=true;
+  for(const {g} of list){ n += g.attributes.position.count; if(!g.attributes.uv) hasUV=false; }
+  const P=new Float32Array(n*3), N=new Float32Array(n*3), U=hasUV?new Float32Array(n*2):null;
+  const idx=[]; let vo=0;
+  const nm=new THREE.Matrix3();
+  for(const {g,m} of list){
+    nm.getNormalMatrix(m);
+    const p=g.attributes.position, no=g.attributes.normal, uv=g.attributes.uv;
+    const v=new THREE.Vector3();
+    for(let i=0;i<p.count;i++){
+      v.fromBufferAttribute(p,i).applyMatrix4(m);
+      P[(vo+i)*3]=v.x; P[(vo+i)*3+1]=v.y; P[(vo+i)*3+2]=v.z;
+      v.fromBufferAttribute(no,i).applyMatrix3(nm).normalize();
+      N[(vo+i)*3]=v.x; N[(vo+i)*3+1]=v.y; N[(vo+i)*3+2]=v.z;
+      if(U && uv){ U[(vo+i)*2]=uv.getX(i); U[(vo+i)*2+1]=uv.getY(i); }
+    }
+    const gi=g.getIndex();
+    if(gi){ for(let i=0;i<gi.count;i++) idx.push(gi.getX(i)+vo); }
+    else  { for(let i=0;i<p.count;i++) idx.push(i+vo); }
+    vo += p.count;
+  }
+  const out=new THREE.BufferGeometry();
+  out.setAttribute('position',new THREE.BufferAttribute(P,3));
+  out.setAttribute('normal',new THREE.BufferAttribute(N,3));
+  if(U) out.setAttribute('uv',new THREE.BufferAttribute(U,2));
+  out.setIndex(idx);
+  return out;
+}
+const M4 = (x,y,z,rx,ry,rz,s)=> new THREE.Matrix4().compose(
+  new THREE.Vector3(x,y,z),
+  new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),
+  new THREE.Vector3(s||1, s||1, s||1));
+
+// ======================================================================
+// 4. THE DRAGON
+// ======================================================================
+const matHide  = new THREE.MeshStandardMaterial({ map:HIDE, roughness:0.78, metalness:0.04 });
+const matBelly = new THREE.MeshStandardMaterial({ color:0xb9ad76, roughness:0.72 });
+const matHorn  = new THREE.MeshStandardMaterial({ color:0x2b2620, roughness:0.42 });
+const matTooth = new THREE.MeshStandardMaterial({ color:0xefe6cf, roughness:0.34 });
+const matGold  = new THREE.MeshStandardMaterial({ color:0xffc447, roughness:0.26, metalness:1.0 });
+const matGem   = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.08,
+  metalness:0.0, vertexColors:true, emissive:0x220a0a, emissiveIntensity:0.5 });
+const matWing  = new THREE.MeshStandardMaterial({ color:0x6a6440, roughness:0.86,
+  side:THREE.DoubleSide, transparent:true, opacity:0.94 });
+const matEye   = new THREE.MeshStandardMaterial({ color:0xffc02a, roughness:0.15,
+  emissive:0xff7a00, emissiveIntensity:1.5 });
+
+const coinGeo = new THREE.CylinderGeometry(1, 1, 0.22, 12);
+coinGeo.rotateX(Math.PI/2);                       // face along +Z
+const gemGeo  = new THREE.OctahedronGeometry(1, 0);
+const GEM_COLS = [0xd21f3c, 0x1f9d55, 0x2a5bd7, 0x8e2fd0, 0xf0e14a];
+
+// Scatter coins and jewels over a segment's surface and MERGE them, so a
+// hoard-encrusted hide costs two draw calls per body part instead of two
+// hundred. They ride the segment rigidly, which is what studded means.
+function studs(joint, len, r0, r1, n, seed){
+  const r = mulberry32(seed);
+  const coins=[], gems=[];
+  for(let i=0;i<n;i++){
+    const u = 0.10 + r()*0.80;
+    const a = r()*TAU;
+    const rr = lerp(r0, r1, u);
+    const x = Math.cos(a)*rr, y = Math.sin(a)*rr*0.94, z = u*len;
+    // lie flat on the hide: +Z of the disc points out along the surface normal
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0,0,1), new THREE.Vector3(Math.cos(a), Math.sin(a), 0));
+    const isGem = r() < 0.30;
+    const s = isGem ? (0.055 + r()*0.075) : (0.075 + r()*0.085);
+    const m = new THREE.Matrix4().compose(
+      new THREE.Vector3(x*0.96, y*0.96, z), q, new THREE.Vector3(s,s,s));
+    if(isGem){
+      const g = gemGeo.clone();
+      const col = new THREE.Color(GEM_COLS[(r()*GEM_COLS.length)|0]);
+      const cc = new Float32Array(g.attributes.position.count*3);
+      for(let k=0;k<g.attributes.position.count;k++){ cc[k*3]=col.r; cc[k*3+1]=col.g; cc[k*3+2]=col.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(cc,3));
+      gems.push({ g, m });
+    } else {
+      coins.push({ g:coinGeo, m });
+    }
+  }
+  if(coins.length){
+    const mesh = new THREE.Mesh(mergeGeos(coins), matGold);
+    mesh.castShadow = true; joint.add(mesh);
+  }
+  if(gems.length){
+    const mesh = new THREE.Mesh(mergeGeos(gems), matGem);
+    mesh.castShadow = true; joint.add(mesh);
+  }
+}
+// a row of dorsal spikes along a segment
+function spikes(joint, len, r, n, h, seed){
+  const rr = mulberry32(seed), parts=[];
+  const cone = new THREE.ConeGeometry(1, 1, 5);
+  cone.translate(0, 0.5, 0);
+  for(let i=0;i<n;i++){
+    const u = (i+0.5)/n, hh = h*(0.7+rr()*0.6);
+    parts.push({ g:cone, m: new THREE.Matrix4().compose(
+      new THREE.Vector3(0, r*0.92, u*len),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.42+rr()*0.2, 0, 0)),
+      new THREE.Vector3(hh*0.26, hh, hh*0.26)) });
+  }
+  const mesh = new THREE.Mesh(mergeGeos(parts), matHorn);
+  mesh.castShadow = true; joint.add(mesh);
+}
+
+function buildDragon(){
+  const group = new THREE.Group();            // origin at ground, faces +Z
+  const body  = new THREE.Group();
+  body.position.y = STAND;
+  group.add(body);
+
+  const torso = new THREE.Mesh(torsoGeo(), matHide);
+  torso.castShadow = torso.receiveShadow = true;
+  body.add(torso);
+  { // spiked backbone across the torso
+    const j = new THREE.Group(); j.position.z = -TORSO_L*0.5; body.add(j);
+    spikes(j, TORSO_L, TORSO_R*0.95, 9, 0.46, 11);
+    studs(j, TORSO_L, TORSO_R*0.80, TORSO_R*0.80, 46, 21);
+  }
+
+  // ---- NECK + HEAD -----------------------------------------------------
+  const neck = [];
+  { let par = body, first = true;
+    for(let i=0;i<NECK_N;i++){
+      const j = new THREE.Group();
+      if(first){ j.position.set(0, TORSO_R*0.42, TORSO_L*0.46); first=false; }
+      par.add(j);
+      const t = i/(NECK_N-1);
+      const r0 = lerp(0.62, 0.30, t), r1 = lerp(0.58, 0.28, t);
+      const m = new THREE.Mesh(segGeo(NECK_L, r0, r1), matHide);
+      m.castShadow = true; j.add(m);
+      spikes(j, NECK_L, r0, 2, 0.30 - t*0.10, 100+i);
+      studs(j, NECK_L, r0, r1, 9, 200+i);
+      const nx = new THREE.Group(); nx.position.z = NECK_L; j.add(nx);
+      neck.push(j); par = nx;
+    }
+  }
+  const head = new THREE.Group();
+  neck[neck.length-1].add(head);
+  head.position.z = NECK_L;
+  {
+    const skull = new THREE.Mesh(segGeo(HEAD_L*0.72, 0.34, 0.26), matHide);
+    skull.castShadow = true; head.add(skull);
+    // brow ridges — the scowl
+    for(const s of [-1,1]){
+      const b = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.34, 5), matHorn);
+      b.rotation.set(-1.35, 0, s*0.30);
+      b.position.set(s*0.20, 0.20, 0.30);
+      b.castShadow = true; head.add(b);
+    }
+    // the long snout
+    const snout = new THREE.Mesh(segGeo(HEAD_L*0.56, 0.25, 0.15), matHide);
+    snout.position.z = HEAD_L*0.66; snout.rotation.x = 0.06;
+    snout.castShadow = true; head.add(snout);
+    // horns: a swept-back pair plus a cheek cluster
+    for(const s of [-1,1]){
+      const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.95, 6), matHorn);
+      h1.position.set(s*0.20, 0.26, -0.05);
+      h1.rotation.set(2.25, 0, s*-0.36);
+      h1.castShadow = true; head.add(h1);
+      const h2 = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.52, 5), matHorn);
+      h2.position.set(s*0.26, 0.05, -0.02);
+      h2.rotation.set(2.05, 0, s*-0.85);
+      h2.castShadow = true; head.add(h2);
+      for(let i=0;i<3;i++){
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.26, 4), matHorn);
+        sp.position.set(s*0.24, -0.10 - i*0.05, 0.10 + i*0.16);
+        sp.rotation.set(1.5, 0, s*-1.3);
+        head.add(sp);
+      }
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), matEye);
+      eye.position.set(s*0.235, 0.115, 0.36);
+      head.add(eye);
+    }
+    studs(head, HEAD_L*0.7, 0.32, 0.24, 10, 77);
+    // upper teeth
+    const up=[];
+    for(let i=0;i<9;i++){
+      const t=i/8, z=HEAD_L*(0.30+t*0.86), w=0.20-0.07*t;
+      for(const s of [-1,1]) up.push({ g:new THREE.ConeGeometry(0.036,0.20-0.06*t,4),
+        m: M4(s*w, -0.11, z, Math.PI, 0, 0, 1) });
+    }
+    const ut = new THREE.Mesh(mergeGeos(up), matTooth); head.add(ut);
+  }
+  // the JAW — hinged, so it can roar and gape
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.12, 0.18);
+  head.add(jaw);
+  {
+    const j1 = new THREE.Mesh(segGeo(HEAD_L*0.92, 0.19, 0.11, true), matHide);
+    j1.castShadow = true; jaw.add(j1);
+    const lo=[];
+    for(let i=0;i<8;i++){
+      const t=i/7, z=HEAD_L*(0.14+t*0.84), w=0.15-0.05*t;
+      for(const s of [-1,1]) lo.push({ g:new THREE.ConeGeometry(0.032,0.17-0.05*t,4),
+        m: M4(s*w, 0.07, z, 0, 0, 0, 1) });
+    }
+    const lt = new THREE.Mesh(mergeGeos(lo), matTooth); jaw.add(lt);
+  }
+  // where the fire comes from
+  const mouth = new THREE.Object3D();
+  mouth.position.set(0, -0.06, HEAD_L*1.06);
+  head.add(mouth);
+
+  // ---- TAIL ------------------------------------------------------------
+  const tail = [];
+  { const root = new THREE.Group();
+    root.position.set(0, TORSO_R*0.10, -TORSO_L*0.48);
+    root.rotation.y = Math.PI;                 // grows backward
+    body.add(root);
+    let par = root;
+    for(let i=0;i<TAIL_N;i++){
+      const t = i/(TAIL_N-1);
+      const j = new THREE.Group(); par.add(j);
+      const r0 = lerp(0.62, 0.06, t), r1 = lerp(0.60, 0.05, t);
+      const m = new THREE.Mesh(segGeo(TAIL_L, r0, r1), matHide);
+      m.castShadow = true; j.add(m);
+      spikes(j, TAIL_L, r0, 2, 0.34*(1-t*0.45), 300+i);
+      if(i < 11) studs(j, TAIL_L, r0, r1, 6, 400+i);
+      const nx = new THREE.Group(); nx.position.z = TAIL_L; j.add(nx);
+      tail.push(j); par = nx;
+    }
+    // a spiked club on the end
+    const club = new THREE.Group(); par.add(club);
+    for(let i=0;i<7;i++){
+      const a = (i/7)*TAU;
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.46, 5), matHorn);
+      sp.position.set(Math.cos(a)*0.10, Math.sin(a)*0.10, 0.05);
+      sp.rotation.set(Math.PI/2 + Math.sin(a)*0.5, 0, -Math.cos(a)*0.5 - Math.PI/2);
+      sp.castShadow = true; club.add(sp);
+    }
+  }
+
+  // ---- LEGS (2-link IK, mirror above the joints) -----------------------
+  const LEGDEF = [
+    { key:'F', ax:0.74, az: TORSO_L*0.30, l1:1.28, l2:1.28, l3:0.46, rad:0.23, ph:0.0 },
+    { key:'H', ax:0.86, az:-TORSO_L*0.32, l1:1.62, l2:1.62, l3:0.56, rad:0.32, ph:0.5 },
+  ];
+  const legs = [];
+  for(const s of [-1,1]) for(const d of LEGDEF){
+    const root = new THREE.Group();
+    root.position.set(s*d.ax, -TORSO_R*0.30, d.az);
+    root.scale.x = s;
+    body.add(root);
+    const hip = new THREE.Group(); root.add(hip);
+    const segA = new THREE.Mesh(segGeo(d.l1, d.rad*1.15, d.rad*0.85), matHide);
+    segA.castShadow = true; hip.add(segA);
+    const kn = new THREE.Mesh(new THREE.SphereGeometry(d.rad*1.10, 10, 8), matHide);
+    hip.add(kn);
+    const jB = new THREE.Group(); jB.position.z = d.l1; hip.add(jB);
+    const knB = new THREE.Mesh(new THREE.SphereGeometry(d.rad*0.92, 10, 8), matHide);
+    jB.add(knB);
+    const segB = new THREE.Mesh(segGeo(d.l2, d.rad*0.85, d.rad*0.55), matHide);
+    segB.castShadow = true; jB.add(segB);
+    const jC = new THREE.Group(); jC.position.z = d.l2; jB.add(jC);
+    const segC = new THREE.Mesh(segGeo(d.l3, d.rad*0.55, d.rad*0.40), matHide);
+    segC.castShadow = true; jC.add(segC);
+    // three big claws
+    for(let i=-1;i<=1;i++){
+      const cl = new THREE.Mesh(new THREE.ConeGeometry(d.rad*0.20, d.rad*1.5, 5), matHorn);
+      cl.position.set(i*d.rad*0.45, -d.rad*0.20, d.l3 + d.rad*0.55);
+      cl.rotation.set(Math.PI/2 + 0.55, 0, 0);
+      cl.castShadow = true; jC.add(cl);
+    }
+    studs(hip, d.l1, d.rad, d.rad*0.8, 6, 500 + legs.length);
+    legs.push({ s, d, root, hip, jB, jC,
+      rest: new THREE.Vector3(s*d.ax*1.18, -STAND, d.az + (d.key==='H' ? -0.25 : 0.18)) });
+  }
+  function placeFoot(L, fx, fy, fz){
+    const dx = (fx - L.root.position.x)*L.s;      // into the mirrored frame
+    const dy = fy - L.root.position.y;
+    const dz = fz - L.root.position.z;
+    L.hip.rotation.y = Math.atan2(dx, dz);
+    const r = Math.hypot(dx, dz);
+    const reach = (L.d.l1 + L.d.l2)*0.995;
+    let Dd = Math.hypot(r, dy); if(Dd > reach) Dd = reach;
+    const beta = Math.atan2(dy, r);
+    const ca = clamp((L.d.l1*L.d.l1 + Dd*Dd - L.d.l2*L.d.l2)/(2*L.d.l1*Dd), -1, 1);
+    const e1 = beta + Math.acos(ca);
+    const kx = Math.cos(e1)*L.d.l1, ky = Math.sin(e1)*L.d.l1;
+    const e2 = Math.atan2(dy - ky, r - kx);
+    L.hip.rotation.x = -e1;
+    L.jB.rotation.x  = -(e2 - e1);
+    L.jC.rotation.x  = -(-78*D - e2);
+  }
+
+  // ---- WINGS -----------------------------------------------------------
+  // The membrane is rebuilt every frame from the current strut positions, so
+  // it folds and stretches honestly instead of being a rigid sheet.
+  // wingspan ~20 units against a 3.3 torso — a dragon's wings have to look
+  // like they could actually carry the thing
+  const WING = { hum:2.45, fore:2.95, fing:[4.70, 4.25, 3.55, 2.60] };
+  const wings = [];
+  for(const s of [-1,1]){
+    const root = new THREE.Group();
+    root.position.set(s*TORSO_R*0.70, TORSO_R*0.62, TORSO_L*0.16);
+    body.add(root);
+    const NSEG = 5, NST = 5;                    // 5 struts, 5 samples each
+    const nTri = (NST-1)*(NSEG-1)*2;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NST*NSEG*3), 3));
+    const idx=[];
+    for(let i=0;i<NST-1;i++) for(let j=0;j<NSEG-1;j++){
+      const a=i*NSEG+j, b=(i+1)*NSEG+j;
+      idx.push(a,b,a+1, a+1,b,b+1);
+    }
+    geo.setIndex(idx);
+    const mem = new THREE.Mesh(geo, matWing);
+    mem.castShadow = true; mem.frustumCulled = false;
+    root.add(mem);
+    // the bones, drawn as thin tapered rods that we re-place each frame
+    const bones = [];
+    for(let i=0;i<6;i++){
+      const b = new THREE.Mesh(segGeo(1, 0.075, 0.045), matHide);
+      b.castShadow = true; root.add(b); bones.push(b);
+    }
+    // a claw at the wrist
+    const wc = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.42, 5), matHorn);
+    root.add(wc);
+    wings.push({ s, root, mem, geo, bones, wc, NSEG, NST });
+  }
+  const _a=new THREE.Vector3(), _b=new THREE.Vector3(), _c=new THREE.Vector3();
+  function poseWing(W, o){
+    // o: { sweep (back), dihedral (up), elbow, fold (0 open .. 1 folded), twist }
+    const s = W.s;
+    const S = new THREE.Vector3(0,0,0);
+    const spreadK = 1 - o.fold;
+    // elbow: out along ±x, swept back by `sweep`, lifted by `dihedral`
+    const dirSE = new THREE.Vector3(
+      s*Math.cos(o.sweep)*Math.cos(o.dihedral),
+      Math.sin(o.dihedral),
+      -Math.sin(o.sweep)*Math.cos(o.dihedral));
+    const E = S.clone().addScaledVector(dirSE, WING.hum);
+    const eb = o.elbow;
+    const dirEW = new THREE.Vector3(
+      s*Math.cos(o.sweep+eb)*Math.cos(o.dihedral*0.6),
+      Math.sin(o.dihedral*0.6) - o.droop*0.25,
+      -Math.sin(o.sweep+eb)*Math.cos(o.dihedral*0.6)).normalize();
+    const W2 = E.clone().addScaledVector(dirEW, WING.fore);
+    // fingers fan back from the wrist; folding collapses the fan and shortens
+    const tips = [];
+    for(let i=0;i<4;i++){
+      const fan = lerp(0.16 + i*0.44, 1.62 + i*0.10, spreadK);
+      const len = WING.fing[i]*lerp(0.42, 1, spreadK);
+      const d = new THREE.Vector3(
+        s*Math.cos(o.sweep + eb + fan*0.55)*0.92,
+        Math.sin(o.dihedral*0.35) - o.droop*(0.10 + i*0.10),
+        -Math.sin(o.sweep + eb + fan*0.85));
+      d.normalize();
+      tips.push(W2.clone().addScaledVector(d, len));
+    }
+    // the membrane's inboard anchor, back on the flank near the hip
+    const T0 = new THREE.Vector3(s*TORSO_R*0.30, -TORSO_R*0.55, -TORSO_L*0.42);
+    // struts, wrist outward, last one back to the body
+    const struts = [
+      [W2, tips[0]], [W2, tips[1]], [W2, tips[2]], [W2, tips[3]], [W2, T0],
+    ];
+    const pos = W.geo.attributes.position.array;
+    for(let i=0;i<W.NST;i++){
+      const [A,B] = struts[i];
+      for(let j=0;j<W.NSEG;j++){
+        const u = j/(W.NSEG-1);
+        _a.copy(A).lerp(B, u);
+        // sag: the membrane bellies away from the direction of travel
+        const sagAmt = o.sag * Math.sin(u*Math.PI) * (0.4 + 0.6*spreadK);
+        _a.y -= sagAmt;
+        pos[(i*W.NSEG+j)*3]   = _a.x;
+        pos[(i*W.NSEG+j)*3+1] = _a.y;
+        pos[(i*W.NSEG+j)*3+2] = _a.z;
+      }
+    }
+    W.geo.attributes.position.needsUpdate = true;
+    W.geo.computeVertexNormals();
+    W.geo.computeBoundingSphere();
+    // lay the bone rods along the arm and the four fingers
+    const put=(mesh, A, B, r)=>{
+      _b.subVectors(B,A); const L=_b.length();
+      mesh.position.copy(A);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), _b.clone().normalize());
+      mesh.scale.set(r, r, L);
+    };
+    put(W.bones[0], S, E, 1.0);
+    put(W.bones[1], E, W2, 0.85);
+    for(let i=0;i<4;i++) put(W.bones[2+i], W2, tips[i], 0.55 - i*0.07);
+    W.wc.position.copy(W2);
+    W.wc.rotation.set(Math.PI/2, 0, s*0.6);
+  }
+
+  return { group, body, torso, neck, head, jaw, mouth, tail, legs, wings,
+           placeFoot, poseWing };
+}
+
+// ======================================================================
+// 5. THE CYCLES
+// ======================================================================
+function makeDragon(scene, fire){
+  const R = buildDragon();
+  scene.add(R.group);
+  let state = 'idle', t = 0, phase = 0, stateT = 0, speed = 1;
+  let flyH = 0;                       // metres above the ground while airborne
+  let jawOpen = 0, roar = 0;
+  const rage = { burstT: 0, dirIdx: 0, headYaw: 0, headPitch: 0 };
+  let aimYaw = 0, aimPitch = 0;       // where the head is pointing the fire
+
+  const WALK_P = 1.15, DUTY = 0.62, WALK_V = 1.5;
+
+  function setState(s){
+    state = s; stateT = 0;
+    if(s === 'fly' && flyH < 1) flyH = 6;
+    if(s === 'launch') flyH = 0;
+    if(s === 'land') flyH = Math.max(flyH, 5);
+    if(s === 'walk' || s === 'idle' || s === 'crouch' || s === 'rage') flyH = 0;
+  }
+
+  // ---- shared bits ----
+  function chainWave(list, amp, freq, phase0, decay, axis){
+    for(let i=0;i<list.length;i++){
+      const k = Math.pow(decay, i);
+      const a = Math.sin(t*freq + phase0 - i*0.42)*amp*k;
+      if(axis === 'y') list[i].rotation.y = a; else list[i].rotation.x = a;
+    }
+  }
+  function neckPose(pitchTotal, yawTotal, curve){
+    for(let i=0;i<R.neck.length;i++){
+      const u = i/(R.neck.length-1);
+      const w = (curve||0)*Math.sin(u*Math.PI);
+      R.neck[i].rotation.x = pitchTotal/R.neck.length + w*0.10;
+      R.neck[i].rotation.y = yawTotal/R.neck.length;
+    }
+  }
+  function groundLegs(walkPhase, stride){
+    for(const L of R.legs){
+      const p = ((walkPhase + (L.d.ph + (L.s<0?0:0.5))) % 1 + 1) % 1;
+      let fz, fy;
+      if(p < DUTY){ const u=p/DUTY; fz = L.rest.z + stride*(0.5-u); fy = L.rest.y; }
+      else { const u=(p-DUTY)/(1-DUTY); fz = L.rest.z + stride*(-0.5+u);
+             fy = L.rest.y + Math.sin(u*Math.PI)*0.55; }
+      R.placeFoot(L, L.rest.x, fy, fz);
+    }
+  }
+  const FOLDED = { sweep:1.30, dihedral:0.30, elbow:2.05, fold:1, droop:0.15, sag:0.10 };
+  function foldWings(extra){
+    for(const W of R.wings) R.poseWing(W, Object.assign({}, FOLDED, extra||{}));
+  }
+
+  // ---- IDLE ----
+  function doIdle(dt){
+    groundLegs(0.0, 0);
+    R.body.position.y = STAND + Math.sin(t*0.9)*0.035;
+    R.body.rotation.set(0, 0, 0);
+    neckPose(-0.42, Math.sin(t*0.31)*0.28, 0.5);
+    R.head.rotation.set(0.30 + Math.sin(t*0.7)*0.06, Math.sin(t*0.23)*0.20, 0);
+    chainWave(R.tail, 0.06, 0.8, 0, 0.97, 'y');
+    foldWings({ sag:0.10 + Math.sin(t*0.8)*0.03 });
+    jawOpen = lerp(jawOpen, 0.04, dt*4);
+  }
+
+  // ---- WALK ----
+  function doWalk(dt, sp){
+    phase = (phase + dt*sp/WALK_P) % 1;
+    const v = WALK_V*sp;
+    groundLegs(phase, v*DUTY*WALK_P);
+    R.group.translateZ(v*dt);
+    R.body.position.y = STAND + Math.sin(phase*TAU*2)*0.05;
+    R.body.rotation.z = Math.sin(phase*TAU)*0.05;
+    R.body.rotation.y = Math.sin(phase*TAU)*0.04;
+    R.body.rotation.x = -0.02;
+    neckPose(-0.30 + Math.sin(phase*TAU*2)*0.05, Math.sin(phase*TAU)*0.10, 0.45);
+    R.head.rotation.set(0.24, -Math.sin(phase*TAU)*0.12, 0);
+    // the tail counter-swings — that is what makes a heavy quadruped read
+    chainWave(R.tail, 0.085, TAU/WALK_P*sp, Math.PI, 0.965, 'y');
+    foldWings({ sag:0.12 + Math.sin(phase*TAU*2)*0.05 });
+    jawOpen = lerp(jawOpen, 0.05, dt*4);
+  }
+
+  // ---- CROUCH ----
+  function doCrouch(dt){
+    const h = STAND*0.44;
+    for(const L of R.legs) R.placeFoot(L, L.rest.x*1.16, -h, L.rest.z*1.04);
+    R.body.position.y = h + Math.sin(t*1.5)*0.012;
+    R.body.rotation.set(0.06, 0, 0);
+    neckPose(0.30, Math.sin(t*0.6)*0.20, -0.7);         // head low, coiled
+    R.head.rotation.set(-0.22 + Math.sin(t*1.1)*0.04, Math.sin(t*0.45)*0.18, 0);
+    chainWave(R.tail, 0.16, 1.5, 0, 0.94, 'y');
+    foldWings({ fold:1, sweep:1.42, sag:0.06 });
+    jawOpen = lerp(jawOpen, 0.10 + Math.max(0,Math.sin(t*0.7))*0.10, dt*4);
+  }
+
+  // ---- LAUNCH (one-shot into fly) ----
+  function doLaunch(dt, sp){
+    stateT += dt*sp;
+    const T = 1.25;
+    const u = clamp(stateT/T, 0, 1);
+    // coil, then explode: legs drive, wings hammer down
+    const coil = u < 0.30 ? sstep(0,1,u/0.30) : 0;
+    const push = u >= 0.30 ? sstep(0,1,(u-0.30)/0.30) : 0;
+    const h = lerp(STAND, STAND*0.42, coil);
+    flyH = push > 0 ? Math.pow(push, 1.7)*7.5 : 0;
+    R.body.position.y = h + flyH;
+    R.body.rotation.x = -coil*0.10 + push*0.30 - sstep(0.62,1,u)*0.22;
+    for(const L of R.legs){
+      const tuck = sstep(0.55, 1, u);
+      R.placeFoot(L, L.rest.x*(1.15 - tuck*0.35),
+                     lerp(-h, -h + 1.5, tuck),
+                     L.rest.z*(1 - tuck*0.30));
+    }
+    // wings: cocked high, then one enormous downbeat
+    const wu = u < 0.32 ? -1 : Math.sin((u-0.32)/0.68*Math.PI*1.4);
+    for(const W of R.wings) R.poseWing(W, {
+      sweep: lerp(1.30, 0.16, sstep(0.15,0.55,u)),
+      dihedral: lerp(0.30, -0.55, (wu+1)/2)*1.0 + 0.55*(1-(wu+1)/2),
+      elbow: lerp(2.05, 0.30, sstep(0.15,0.6,u)),
+      fold: 1 - sstep(0.15, 0.55, u),
+      droop: 0.10, sag: 0.30 + 0.45*Math.max(0,-wu) });
+    neckPose(-0.55*push, 0, 0.6);
+    R.head.rotation.set(0.45 - push*0.5, 0, 0);
+    chainWave(R.tail, 0.10, 3.0, 0, 0.96, 'x');
+    jawOpen = lerp(jawOpen, push*0.55, dt*8);
+    if(u >= 1) setState('fly');
+  }
+
+  // ---- FLY ----
+  function doFly(dt, sp){
+    phase = (phase + dt*sp/1.45) % 1;
+    // asymmetric beat: a fast powerful downstroke, a slower folded recovery
+    const dn = phase < 0.38;
+    const u = dn ? phase/0.38 : (phase-0.38)/0.62;
+    const beat = dn ? Math.cos(u*Math.PI)           //  1 → -1  power
+                    : -Math.cos(u*Math.PI);         // -1 →  1  recovery
+    flyH = lerp(flyH, 7.5, dt*1.5);
+    R.body.position.y = flyH + Math.sin(phase*TAU - 0.9)*0.42;
+    R.body.rotation.x = -0.06 + Math.sin(phase*TAU - 0.6)*0.10;
+    R.body.rotation.z = Math.sin(t*0.5)*0.10;
+    R.group.translateZ(6.5*sp*dt);
+    for(const W of R.wings) R.poseWing(W, {
+      sweep: 0.20 + (dn?0.10:0.26)*(1-Math.abs(beat)),
+      dihedral: beat*0.80,
+      elbow: dn ? 0.22 : lerp(0.22, 1.05, 1-Math.abs(beat)),
+      fold: dn ? 0 : 0.30*(1-Math.abs(beat)),
+      droop: dn ? 0.05 : 0.22,
+      sag: dn ? 0.55*Math.max(0,beat) + 0.15 : 0.10 });
+    for(const L of R.legs){                             // legs trail, tucked
+      L.hip.rotation.set(-0.95 - L.d.ph*0.2, 0, 0);
+      L.jB.rotation.x = 1.75; L.jC.rotation.x = 0.9;
+    }
+    neckPose(-0.30, Math.sin(t*0.4)*0.18, 0.55);
+    R.head.rotation.set(0.20, Math.sin(t*0.33)*0.16, 0);
+    chainWave(R.tail, 0.10, 1.6, 0, 0.965, 'y');
+    jawOpen = lerp(jawOpen, 0.06, dt*4);
+  }
+
+  // ---- LAND (one-shot into idle) ----
+  function doLand(dt, sp){
+    stateT += dt*sp;
+    const T = 1.7;
+    const u = clamp(stateT/T, 0, 1);
+    flyH = lerp(flyH, 0, sstep(0, 0.78, u));
+    const settle = sstep(0.78, 1, u);
+    R.body.position.y = STAND + flyH - settle*0.30 + sstep(0.92,1,u)*0.30;
+    // wings CUP FORWARD and brake — the big flare
+    const flare = Math.sin(clamp(u/0.78,0,1)*Math.PI);
+    R.body.rotation.x = 0.42*flare - settle*0.10;
+    for(const W of R.wings) R.poseWing(W, {
+      sweep: lerp(0.20, -0.55, flare) + settle*1.9,
+      dihedral: lerp(0.10, 0.75, flare) - settle*0.5,
+      elbow: lerp(0.30, 0.95, flare) + settle*1.2,
+      fold: settle,
+      droop: 0.12, sag: 0.55*flare });
+    // legs reach down for the ground, then absorb
+    for(const L of R.legs){
+      const reach = sstep(0.35, 0.85, u);
+      const fy = lerp(-STAND - 1.4, -STAND, reach) - (1-sstep(0,0.78,u))*flyH*0;
+      R.placeFoot(L, L.rest.x*(1 + 0.2*reach), fy + settle*0.28, L.rest.z*1.05);
+    }
+    neckPose(-0.20 - flare*0.35, 0, 0.5);
+    R.head.rotation.set(0.10 + flare*0.35, 0, 0);
+    chainWave(R.tail, 0.18, 2.2, 0, 0.95, 'x');
+    jawOpen = lerp(jawOpen, 0.35*flare, dt*7);
+    if(u >= 1) setState('idle');
+  }
+
+  // ---- RAGE — the hissy fit ----
+  const RAGE_DIRS = [
+    { yaw:-0.95, pitch:-0.10 }, { yaw: 0.05, pitch:-0.30 },
+    { yaw: 0.95, pitch:-0.10 }, { yaw: 0.30, pitch: 0.55 },
+    { yaw:-0.55, pitch: 0.35 },
+  ];
+  function doRage(dt, sp){
+    stateT += dt*sp;
+    const th = t*sp;
+    // planted wide, stamping, body heaving
+    for(const L of R.legs){
+      const stamp = Math.max(0, Math.sin(th*4.5 + (L.d.key==='F'?0:1.6) + L.s))*0.45;
+      R.placeFoot(L, L.rest.x*1.26, L.rest.y + stamp*0.5, L.rest.z*1.06);
+    }
+    R.body.position.y = STAND*1.06 + Math.abs(Math.sin(th*2.2))*0.16;
+    R.body.rotation.x = -0.16 + Math.sin(th*2.2)*0.08;
+    R.body.rotation.y = Math.sin(th*1.35)*0.18;
+    R.body.rotation.z = Math.sin(th*1.9)*0.09;
+    // the tail THRASHES — big amplitude, whipping down the chain
+    for(let i=0;i<R.tail.length;i++){
+      const k = 0.35 + 0.65*(i/R.tail.length);
+      R.tail[i].rotation.y = Math.sin(th*4.2 - i*0.55)*0.30*k;
+      R.tail[i].rotation.x = Math.sin(th*3.1 - i*0.40)*0.12*k;
+    }
+    // head swings, snapping to a new bearing each burst
+    const swing = Math.sin(th*2.6);
+    rage.headYaw   = lerp(rage.headYaw,   RAGE_DIRS[rage.dirIdx].yaw,   dt*5);
+    rage.headPitch = lerp(rage.headPitch, RAGE_DIRS[rage.dirIdx].pitch, dt*5);
+    neckPose(-0.70 + rage.headPitch*0.6, rage.headYaw*0.8 + swing*0.12, 0.85);
+    R.head.rotation.set(0.30 + rage.headPitch*0.5, rage.headYaw*0.35, swing*0.10);
+    aimYaw = rage.headYaw; aimPitch = rage.headPitch;
+    // wings half-flared and SHAKING
+    for(const W of R.wings) R.poseWing(W, {
+      sweep: 0.70 + Math.sin(th*7.5)*0.10,
+      dihedral: 0.42 + Math.sin(th*9.0 + W.s)*0.16,
+      elbow: 1.05 + Math.sin(th*8.0)*0.12,
+      fold: 0.42, droop: 0.10, sag: 0.18 });
+    // flame after flame, each in a different direction
+    rage.burstT -= dt*sp;
+    if(rage.burstT <= 0){
+      rage.burstT = 1.35 + Math.random()*0.75;
+      rage.dirIdx = (rage.dirIdx + 1 + ((Math.random()*3)|0)) % RAGE_DIRS.length;
+      fire.breathe(0.75 + Math.random()*0.5, 1.15);
+      roar = 1;
+    }
+    roar = Math.max(0, roar - dt*1.4);
+    jawOpen = lerp(jawOpen, 0.35 + roar*0.65, dt*10);
+  }
+
+  function update(dt, tt, sp){
+    t = tt; speed = sp;
+    if(state === 'idle') doIdle(dt);
+    else if(state === 'walk') doWalk(dt, sp);
+    else if(state === 'crouch') doCrouch(dt);
+    else if(state === 'launch') doLaunch(dt, sp);
+    else if(state === 'fly') doFly(dt, sp);
+    else if(state === 'land') doLand(dt, sp);
+    else if(state === 'rage') doRage(dt, sp);
+    R.jaw.rotation.x = jawOpen*0.95;
+
+    // AIM THE FIRE from the mouth's world transform. The emitter is told a
+    // point and a direction; it has no idea a dragon exists.
+    R.mouth.updateWorldMatrix(true, false);
+    const o = new THREE.Vector3().setFromMatrixPosition(R.mouth.matrixWorld);
+    const d = new THREE.Vector3(0,0,1).transformDirection(R.mouth.matrixWorld).normalize();
+    fire.aim(o, d);
+  }
+
+  return { R, group:R.group, update, setState, get state(){ return state; },
+           breathe(sec, pw){ fire.breathe(sec||1.1, pw||1); jawOpen = 1; roar = 1; },
+           lookAt(yaw, pitch){ aimYaw = yaw; aimPitch = pitch;
+             neckPose(-0.35 + pitch*0.7, yaw*0.8, 0.6);
+             R.head.rotation.set(0.25 + pitch*0.5, yaw*0.4, 0); },
+           get flyH(){ return flyH; } };
+}
+
+// ======================================================================
+// 6. SCENE
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7d8496);
+scene.fog = new THREE.Fog(0x7d8496, 60, 220);
+
+// AN ENVIRONMENT, or the treasure is worthless. A fully metallic PBR material
+// reflects its surroundings and nothing else — with no environment map, gold
+// renders BLACK, which is exactly what the coins and jewels were doing. One
+// procedural equirect through PMREM fixes every metal and gem on the animal.
+scene.environment = (()=>{
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=128;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0,0,0,128);
+  grd.addColorStop(0,   '#dbe9ff');
+  grd.addColorStop(0.46,'#9fb2c8');
+  grd.addColorStop(0.54,'#7a6a58');
+  grd.addColorStop(1,   '#3c342c');
+  g.fillStyle=grd; g.fillRect(0,0,256,128);
+  g.fillStyle='rgba(255,246,224,0.98)';
+  g.beginPath(); g.arc(84,30,15,0,TAU); g.fill();
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.PMREMGenerator(renderer);
+  const rt = pm.fromEquirectangular(tex);
+  pm.dispose(); tex.dispose();
+  return rt.texture;
+})();
+
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 500);
+camera.position.set(14, 7, 17);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 3; controls.maxDistance = 90;
+
+scene.add(new THREE.HemisphereLight(0xcfe0f5, 0x6b5a44, 1.15));
+const key = new THREE.DirectionalLight(0xffeccb, 2.4);
+key.position.set(12, 18, 8);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-22; key.shadow.camera.right=22;
+key.shadow.camera.top=22; key.shadow.camera.bottom=-22;
+key.shadow.camera.far=70; key.shadow.bias=-0.0008;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xa8c4ff, 0.95);
+rim.position.set(-10, 5, -12); scene.add(rim);
+const bounce = new THREE.DirectionalLight(0xffd9a0, 0.45);
+bounce.position.set(2, -6, 4); scene.add(bounce);
+
+{ // scorched volcanic ground
+  const S=1024, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d'), r=mulberry32(9);
+  g.fillStyle='#4a4038'; g.fillRect(0,0,S,S);
+  for(let i=0;i<34000;i++){
+    const x=r()*S,y=r()*S,s=1+r()*3;
+    g.fillStyle=`rgba(${40+r()*70|0},${34+r()*56|0},${28+r()*44|0},${0.12+r()*0.3})`;
+    g.fillRect(x,y,s,s);
+  }
+  for(let i=0;i<260;i++){
+    const x=r()*S,y=r()*S;
+    g.fillStyle=`rgba(20,16,14,${0.06+r()*0.2})`;
+    g.beginPath(); g.ellipse(x,y,14+r()*70,10+r()*44,r()*3,0,TAU); g.fill();
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(5,5);
+  const gr=new THREE.Mesh(new THREE.PlaneGeometry(300,300),
+    new THREE.MeshStandardMaterial({ map:tex, roughness:0.98 }));
+  gr.rotation.x=-Math.PI/2; gr.receiveShadow=true; scene.add(gr);
+}
+
+const fire = DRAGONFIRE.create(scene, { scale:1 });
+const dragon = makeDragon(scene, fire);
+
+// ======================================================================
+// 7. UI
+// ======================================================================
+const CYCLES=[['idle','Idle'],['walk','Walk'],['crouch','Crouch'],
+              ['launch','Launch'],['fly','Fly'],['land','Land'],['rage','HISSY FIT']];
+const NOTES={
+  idle:'Standing. Wings folded, neck curved, tail idling.',
+  walk:'Quadrupedal alternating-diagonal walk on 2-link IK — the feet plant and '
+     + 'the body pulls past them. The tail counter-swings against the stride, '
+     + 'which is what sells the weight.',
+  crouch:'Coiled low, legs splayed, head down and forward, wings clamped. '
+     + 'Everything gathered, about to be a problem.',
+  launch:'Coil → drive. The legs push, one enormous downbeat hammers the air, '
+     + 'and the feet tuck. Runs once, then hands over to Fly.',
+  fly:'Asymmetric beat: fast powerful downstroke, slower recovery with the wing '
+     + 'partly folded so it does not fight the air on the way up. The membrane '
+     + 'is rebuilt every frame from the strut positions, so it bellies and sags.',
+  land:'Wings cup forward into a braking flare, legs reach, then everything '
+     + 'absorbs the impact and folds. Runs once, then Idle.',
+  rage:'The hissy fit. Tail thrashing down its whole length, head swinging to a '
+     + 'new bearing every burst, jaw roaring, wings half-flared and shaking — '
+     + 'and flame after flame thrown in a different direction each time.',
+};
+const gaitsEl=document.getElementById('gaits'), gaitBtns={};
+function setCycle(k){
+  dragon.setState(k);
+  for(const n in gaitBtns) gaitBtns[n].classList.toggle('on', n===k);
+  document.getElementById('note').textContent = NOTES[k];
+}
+for(const [k,l] of CYCLES){
+  const b=document.createElement('button'); b.textContent=l;
+  b.onclick=()=>setCycle(k); gaitsEl.appendChild(b); gaitBtns[k]=b;
+}
+const FIRES=[['Left',-1.0,-0.05],['Ahead',0,-0.05],['Right',1.0,-0.05],
+             ['Up',0.15,0.75],['Down',-0.1,-0.55]];
+const firesEl=document.getElementById('fires');
+for(const [l,y,p] of FIRES){
+  const b=document.createElement('button'); b.textContent='🔥 '+l;
+  b.className='fire';
+  b.onclick=()=>{ if(dragon.state!=='rage') dragon.lookAt(y,p); dragon.breathe(1.3, 1.2); };
+  firesEl.appendChild(b);
+}
+const VIEWS={ 'Three-quarter':[14,7,17], 'Side':[24,4,1], 'Front':[1,5,22],
+              'Head':[5,4.5,9], 'Top':[1,26,4], 'Wide':[30,12,34] };
+const viewsEl=document.getElementById('views');
+for(const k of Object.keys(VIEWS)){
+  const b=document.createElement('button'); b.textContent=k;
+  b.onclick=()=>{ const v=VIEWS[k]; const p=dragon.group.position;
+    camera.position.set(p.x+v[0], v[1], p.z+v[2]);
+    controls.target.set(p.x, 3 + dragon.flyH*0.8, p.z); controls.update(); };
+  viewsEl.appendChild(b);
+}
+let SPEED=1;
+document.getElementById('spd').oninput = e => SPEED = +e.target.value;
+
+// ======================================================================
+// 8. LOOP
+// ======================================================================
+const clock=new THREE.Clock();
+let T=0;
+function step(dt){
+  T += dt;
+  dragon.update(dt, T, SPEED);
+  fire.update(dt);
+  const p=dragon.group.position;
+  if(p.length() > 60){ p.set(0,0,-20); dragon.group.rotation.y += 2.4; }
+  controls.target.lerp(new THREE.Vector3(p.x, 3 + dragon.flyH*0.8, p.z), 0.05);
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+window.DRAGON = dragon;
+window.DRAGON_FIRE = fire;
+window.DRAGON_STEP=(n,dt)=>{ n=n||60; dt=dt||1/60;
+  for(let i=0;i<n;i++) step(dt);
+  renderer.render(scene,camera);
+  return { state:dragon.state, flyH:+dragon.flyH.toFixed(2) }; };
+window.DRAGON_VIEW=(k)=>{ const v=VIEWS[k]; if(!v) return; const p=dragon.group.position;
+  camera.position.set(p.x+v[0], v[1], p.z+v[2]);
+  controls.target.set(p.x, 3 + dragon.flyH*0.8, p.z); controls.update(); };
+window.DRAGON_CYCLE=setCycle;
+window.DRAGON_CAM=(px,py,pz,tx,ty,tz)=>{ camera.position.set(px,py,pz);
+  controls.target.set(tx,ty,tz); controls.update(); };
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+setCycle('idle');
+document.getElementById('busy').remove();
+frame();
+console.log('[Dragon] built.');
+</script>
+</body>
+</html>

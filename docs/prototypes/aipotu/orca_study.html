@@ -228,12 +228,16 @@ function orcaTexture(I){
 }
 
 // ---- lofted skinned body -------------------------------------------------
+// SLIMMED. The old profile peaked at r=1.00 on a 5.30 body — barely 2.6:1
+// length to depth, which reads as a porpoise that has eaten well. A real orca
+// runs about 4.5:1, torpedo-shaped, widest just behind the pectorals and
+// drawn out into a long thin tail stock. Peak radius is now 0.60.
 const bodyProfile = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(2.80, 0.05, 0), new THREE.Vector3(2.52, 0.40, 0),
-  new THREE.Vector3(2.05, 0.70, 0), new THREE.Vector3(1.35, 0.90, 0),
-  new THREE.Vector3(0.40, 1.00, 0), new THREE.Vector3(-0.65, 0.90, 0),
-  new THREE.Vector3(-1.55, 0.58, 0), new THREE.Vector3(-2.10, 0.30, 0),
-  new THREE.Vector3(-2.50, 0.14, 0),
+  new THREE.Vector3(2.80, 0.055, 0), new THREE.Vector3(2.52, 0.30, 0),
+  new THREE.Vector3(2.05, 0.47, 0),  new THREE.Vector3(1.35, 0.565, 0),
+  new THREE.Vector3(0.40, 0.60, 0),  new THREE.Vector3(-0.65, 0.545, 0),
+  new THREE.Vector3(-1.55, 0.345, 0),new THREE.Vector3(-2.10, 0.175, 0),
+  new THREE.Vector3(-2.50, 0.085, 0),
 ]);
 const BONE_X = [2.0, 1.0, 0.0, -1.0, -1.8, -2.5];
 

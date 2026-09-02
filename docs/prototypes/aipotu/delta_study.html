@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THE RIVER DELTA — a NEW George World island map study.
+     Filed 2026-08-31 20:57. Standalone; vendored three (r160), game
+     importmap. Nothing here touches georgeworld.html — this is a
+     self-contained 3D map the George World builder can lift.
+
+     THE CONCEPT: a broad, LOW, green island, gentle and fertile, split
+     by a BRANCHING RIVER that fans from a single soft VOLCANO at the
+     island's head down into a delta of fingers reaching the sea. The
+     river forces FORDS (stepping stones) and little BRIDGES to cross;
+     the factions spread along different branches (three camps, three
+     pennants). Lush grass, reed-lined banks, sandbars in the delta.
+     The king's hall stands on the higher ground near the volcano head;
+     food-berry forage flats line the fertile fingers; a wide beach at
+     the delta mouth waits for the saucer (the pale ring is where it
+     sets down); an Easter-egg chamber hides deep under the volcano.
+     Water everywhere but soft and calm.
+
+     THE AESTHETIC RULES (learned the hard way): SMOOTH heightfields —
+     no terraced contour-ring stepping, no jagged spires. The volcano
+     is soft and rounded, imposing by MASS. The river reads as smooth
+     flowing water in a gentle swale, not a trench. Terrain is smooth-
+     shaded (vertex normals); water runs the ocean/inland-water method
+     (per-vertex height + color per frame, STYLE.md palette).
+
+     STANDARD ASSETS lifted from the finished studies:
+     · FIR        — makeFir() from models/fir_study.html, baked to one
+                    vertex-colored geometry per specimen, instanced
+     · FOOD BERRY — the Joshua-gnarl bush from bushgrowth_study.html
+                    (young + mature), baked + instanced
+     · PALM       — the approved baked palm from georgeworld.html
+                    (curved ring-scarred trunk, merged crown, per-frond
+                    sway IN THE VERTEX SHADER), 2 draw calls a tree
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The River Delta</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#dce8dc; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(16,28,22,0.78); color:#eaf4ec;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px); max-width:300px;
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:6px 6px 0 0; padding:5px 11px; border:0; border-radius:7px;
+    background:#3f7a54; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#4d9166; }
+  #chip button.egg { background:#6a4a8a; }
+  #chip button.egg:hover { background:#7d5aa2; }
+  #rev {
+    position:fixed; left:12px; bottom:10px; z-index:10;
+    background:rgba(16,28,22,0.7); color:#cfe4d4;
+    font:11px/1.4 system-ui, sans-serif;
+    padding:4px 10px; border-radius:8px; user-select:none;
+  }
+  #fade {
+    position:fixed; inset:0; z-index:20; background:#04060a;
+    opacity:0; pointer-events:none; transition:opacity 0.4s ease;
+  }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🏞 The River Delta</b> — George World map study, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom · the river fans from the
+  soft volcano at the head down to the sea · fords + bridges cross it ·
+  three faction camps hold three fingers (red west · blue mid · gold east) ·
+  king's hall on the high ground · the saucer ring waits on the mouth beach</span><br>
+  <button id="savebtn">📷 Save Image</button><button id="eggbtn" class="egg">💎 Go to Easter Egg Room</button>
+</div>
+<div id="rev"></div>
+<div id="fade"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- REV STAMP (bump REV + re-stamp REV_BUILT on every save) --------
+const REV = 8;
+const REV_BUILT = '2026-08-31 21:34';
+document.getElementById('rev').textContent =
+  `THE RIVER DELTA · REV ${REV} · built ${REV_BUILT}`;
+
+let seed = 8212;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const sstep = (a,b,x) => { const t = clamp((x-a)/(b-a), 0, 1); return t*t*(3-2*t); };
+
+// ---------- renderer / scene ----------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOG_DAY = { color: new THREE.Color(0xdde9dc), near: 190, far: 520 };
+scene.fog = new THREE.Fog(FOG_DAY.color.clone(), FOG_DAY.near, FOG_DAY.far);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.3, 1400);
+camera.position.set(74, 62, 138);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2, 8);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 6;
+controls.maxDistance = 420;
+controls.maxPolarAngle = 1.52;
+
+// ---------- sky + light ----------------------------------------------------
+{
+  const geo = new THREE.SphereGeometry(650, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xf2f5e8), zenith = new THREE.Color(0x74b0dd),
+        below = new THREE.Color(0xd6ddc8), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/650;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd8ecf6, 0x9db47c, 0.95));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.2);
+sun.position.set(75, 115, 45);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -125; sun.shadow.camera.right = 125;
+sun.shadow.camera.top = 125;  sun.shadow.camera.bottom = -125;
+sun.shadow.camera.near = 20; sun.shadow.camera.far = 420;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+// ==========================================================================
+//  THE RIVER NETWORK — a main stem from the volcano's foot, forking at THE
+//  FORK into four delta fingers (plus a secondary fork off the mid-east).
+//  Everything downstream is derived from these polylines: the carved swale
+//  in the terrain, the animated water ribbons, the fords, the bridges.
+// ==========================================================================
+const VOLC = { x: 0, z: -52 };
+function makeBranch(name, pts, y0, y1, w0, w1, spd){
+  const seg = [], cum = [0];
+  let len = 0;
+  for(let i=0;i<pts.length-1;i++){
+    const dx = pts[i+1][0]-pts[i][0], dz = pts[i+1][1]-pts[i][1];
+    const l = Math.hypot(dx, dz);
+    seg.push({ ax:pts[i][0], az:pts[i][1], bx:pts[i+1][0], bz:pts[i+1][1], l });
+    len += l; cum.push(len);
+  }
+  return { name, pts, seg, cum, len, y0, y1, w0, w1, spd };
+}
+const MAIN = makeBranch('main',
+  [[0,-36],[3,-26],[-2,-14],[2,-4],[0,6]], 5.0, 1.7, 3.0, 4.0, 2.4);
+const BRANCHES = [
+  MAIN,
+  makeBranch('west',
+    [[0,6],[-14,16],[-24,32],[-33,50],[-40,74]], 1.7, -0.75, 2.7, 4.6, 1.5),
+  makeBranch('midwest',
+    [[0,6],[-5,22],[-9,40],[-11,58],[-12,78]], 1.7, -0.75, 2.6, 4.4, 1.4),
+  makeBranch('mideast',
+    [[0,6],[7,18],[11,36],[13,56],[15,78]], 1.7, -0.75, 2.6, 4.4, 1.4),
+  makeBranch('east',
+    [[0,6],[14,12],[26,24],[36,40],[43,58],[46,74]], 1.7, -0.75, 2.7, 4.8, 1.5),
+  makeBranch('eastfork',
+    [[11,36],[20,48],[27,62],[31,76]], 0.9, -0.75, 2.2, 3.8, 1.4),
+];
+function brY(br, f){ return lerp(br.y0, br.y1, Math.pow(f, 0.85)); }
+function brW(br, f){ return lerp(br.w0, br.w1, f); }
+function brPoint(br, f){
+  const s = f * br.len;
+  let i = 0;
+  while(i < br.seg.length-1 && br.cum[i+1] < s) i++;
+  const g = br.seg[i], t = clamp((s - br.cum[i]) / g.l, 0, 1);
+  const tx = (g.bx-g.ax)/g.l, tz = (g.bz-g.az)/g.l;
+  return { x: g.ax + (g.bx-g.ax)*t, z: g.az + (g.bz-g.az)*t, tx, tz };
+}
+// nearest branch info at (x,z): distance, station fraction, width, water level
+function riverInfo(x, z){
+  let best = null;
+  for(const br of BRANCHES){
+    for(let i=0;i<br.seg.length;i++){
+      const g = br.seg[i];
+      const abx = g.bx-g.ax, abz = g.bz-g.az;
+      const t = clamp(((x-g.ax)*abx + (z-g.az)*abz) / (g.l*g.l), 0, 1);
+      const dx = x - (g.ax + abx*t), dz = z - (g.az + abz*t);
+      const d = Math.hypot(dx, dz);
+      if(!best || d < best.d){
+        const f = (br.cum[i] + g.l*t) / br.len;
+        best = { d, br, f };
+      }
+    }
+  }
+  best.w = brW(best.br, best.f);
+  best.wy = brY(best.br, best.f);
+  return best;
+}
+
+// THE FORDS — wide shallow crossings with stepping stones
+const FORDS = [
+  { br: BRANCHES[1], f: 0.42 },   // the west ford
+  { br: BRANCHES[4], f: 0.48 },   // the east ford
+];
+function fordBoost(br, f){       // 0..1 how "fordy" this station is
+  let m = 0;
+  for(const fd of FORDS)
+    if(fd.br === br) m = Math.max(m, 1 - sstep(0.02, 0.07, Math.abs(f - fd.f)));
+  return m;
+}
+
+// THE PATH — hall → down the head → the fork bridge → the delta flats
+const PATH = [[21,-25],[12,-13],[3,-2],[0.6,2.5],[-3,16],[-5,26]];
+function pathDist(x, z){
+  let best = 1e9;
+  for(let i=0;i<PATH.length-1;i++){
+    const [ax,az]=PATH[i], [bx,bz]=PATH[i+1];
+    const abx=bx-ax, abz=bz-az;
+    const t = clamp(((x-ax)*abx+(z-az)*abz)/(abx*abx+abz*abz), 0, 1);
+    best = Math.min(best, Math.hypot(x-(ax+abx*t), z-(az+abz*t)));
+  }
+  return best;
+}
+
+// ==========================================================================
+//  TERRAIN — one SMOOTH heightfield. Broad low dome, the one soft volcano
+//  at the head (imposing by mass, rounded crater), a gently flattened hall
+//  knoll, low rolling noise, sandbars in the delta — and the river carved
+//  as a smooth SWALE (blend to a rounded channel section, never a trench).
+// ==========================================================================
+const SANDBARS = [[-26,80],[1,82],[24,79],[38,68]];
+function terrainH(x, z){
+  const ang = Math.atan2(z, x);
+  const de = Math.hypot(x, (z - 6)*1.08) *
+    (1 + 0.055*Math.sin(ang*3 + 1.3) + 0.04*Math.sin(ang*5 + 0.4));
+  let h = 7.5*(1 - sstep(46, 96, de)) - 3.0;
+  // THE VOLCANO — soft, rounded, huge of footprint; a gentle crater bowl
+  const dv = Math.hypot(x - VOLC.x, z - VOLC.z);
+  h += 23 * Math.exp(-Math.pow(dv/23, 2));
+  h -= 9 * Math.exp(-Math.pow(dv/5.5, 2));
+  // the hall knoll on the head's east shoulder, gently flattened crown
+  h += 5.5 * (1 - sstep(4, 14, Math.hypot(x - 21, z + 25)));
+  // low rolling ground — LOW frequency only, no jags
+  h += 0.5*Math.sin(x*0.11)*Math.sin(z*0.13)
+     + 0.3*Math.sin(x*0.05+2)*Math.sin(z*0.07+1);
+  // delta sandbars + the saucer-landing beach flat at the mouth
+  for(const [bx,bz] of SANDBARS)
+    h += 0.7 * Math.exp(-Math.pow((x-bx)/6,2) - Math.pow((z-bz)/4,2));
+  h += 1.2 * Math.exp(-Math.pow(x/10,2) - Math.pow((z-72)/6,2));
+  // THE RIVER SWALE — blend toward a rounded channel section near the course
+  const R = riverInfo(x, z);
+  const m = 1 - sstep(R.w*1.05, R.w*1.9, R.d);
+  if(m > 0){
+    const bed = 1.5 * (1 - fordBoost(R.br, R.f)*0.75);   // fords run shallow
+    const chY = R.wy + 0.55 - bed * Math.max(0, 1 - Math.pow(R.d/(R.w*1.05), 2));
+    h = lerp(h, Math.min(h, chY), m);
+  }
+  return h;
+}
+
+const TSIZE = 320, TSEG = 230;
+const tGeo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+tGeo.rotateX(-Math.PI/2);
+{
+  const pos = tGeo.attributes.position;
+  const colors = new Float32Array(pos.count*3);
+  const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+  const cLush = new THREE.Color(0x55a862);     // the fertile finger flats
+  const cMoss = new THREE.Color(0x7d9a63);     // the volcano's mossy shoulders
+  const cRock = new THREE.Color(0x8f877c), cRockHi = new THREE.Color(0xa8a296);
+  const cSand = new THREE.Color(0xeed9a4), cDeep = new THREE.Color(0x7d9a8a);
+  const cBank = new THREE.Color(0x5e8a4a), cMud = new THREE.Color(0x9a8a5c);
+  const cPath = new THREE.Color(0xd9b98a), cBasalt = new THREE.Color(0x4a3f38);
+  const cRing = new THREE.Color(0xcbb083);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x, z);
+    pos.setY(i, h);
+    const s = Math.hypot(terrainH(x+1.5,z)-terrainH(x-1.5,z),
+                         terrainH(x,z+1.5)-terrainH(x,z-1.5)) / 3;
+    const n = 0.5 + 0.5*Math.sin(x*0.23+3)*Math.sin(z*0.19+1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    // the delta fingers run extra lush
+    c.lerp(cLush, sstep(10, 40, z) * (1 - sstep(2.5, 5, h)) * 0.55);
+    // the volcano greens into moss on its upper slopes, then earns its
+    // rock only at the crown — no bald dune-tan dome
+    c.lerp(cMoss, sstep(8, 13, h) * 0.75);
+    const tr = Math.max(sstep(0.85, 1.2, s), sstep(14.5, 18, h));
+    c.lerp(h > 17.5 ? cRockHi : cRock, tr);
+    if(tr > 0.05) c.offsetHSL(0, 0, 0.02*Math.sin(x*0.9+1)*Math.sin(z*0.85)*tr);
+    // reedy banks + a mud line where grass meets river water
+    const R = riverInfo(x, z);
+    if(R.d < R.w*2.2){
+      c.lerp(cBank, (1 - sstep(R.w*0.9, R.w*2.2, R.d)) * 0.55);
+      c.lerp(cMud, (1 - sstep(R.w*0.75, R.w*1.15, R.d)) * 0.45);
+    }
+    // sand: the SHORELINE ring only (wide sweeps at the delta mouth),
+    // never blanketing the green delta plain inland
+    const de2 = Math.hypot(x, (z - 6)*1.08);
+    const sandW = Math.max(0.5, 1.4 + 0.7*Math.sin(ang3(x,z)*3 + 1.1)
+      + 1.0*sstep(0.3, 0.95, Math.sin(ang3(x,z) - 1.5)));
+    const ts = (1 - sstep(sandW, sandW + 1.0, h)) * (1 - tr*0.75) * sstep(64, 73, de2);
+    c.lerp(cSand, ts);
+    // the sandbars + saucer beach wear their sand regardless
+    let bar = sstep(70, 76, de2) * sstep(0.35, 0.9, h) * (1 - sstep(1.6, 2.6, h)) * sstep(62, 70, z);
+    c.lerp(cSand, clamp(bar, 0, 1)*0.85);
+    if(h < 0) c.lerp(cDeep, clamp(-h/5, 0, 1)*0.8);
+    // the dirt path from the hall down to the flats
+    const pd = pathDist(x, z);
+    if(pd < 2.6 && h > 0.5) c.lerp(cPath, (1 - pd/2.6)*0.7);
+    // warm basalt shoulders near the crater rim — soft, not scorched-black
+    const dv = Math.hypot(x - VOLC.x, z - VOLC.z);
+    if(dv < 11 && h > 13) c.lerp(cBasalt, (1 - dv/11) * 0.7);
+    // the saucer ring on the mouth beach
+    const rd = Math.abs(Math.hypot(x - 0, z - 72) - 5.2);
+    if(rd < 1.1 && h > 0.4) c.lerp(cRing, (1 - rd/1.1)*0.6);
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+  }
+  tGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();   // SMOOTH shading — rounded landforms
+}
+function ang3(x, z){ return Math.atan2(z - 6, x); }
+const terrain = new THREE.Mesh(tGeo,
+  new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:false }));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+// ==========================================================================
+//  WATER — the STYLE.md method everywhere. The SEA is the georgeworld
+//  surface (proven coastline). Each river branch is a RIBBON mesh built
+//  once along its course, animated per-vertex: downstream travelling
+//  waves, edge foam threads, riffle foam at the fords, pale delta mouths.
+// ==========================================================================
+const DEEP = new THREE.Color(0x2a6f9e), SHALLOW = new THREE.Color(0x4fa8c4),
+      FOAM = new THREE.Color(0xf2fbfd);
+
+const deepPlane = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400),
+  new THREE.MeshBasicMaterial({ color:0x1d7fa0 }));
+deepPlane.rotation.x = -Math.PI/2; deepPlane.position.y = -5.5;
+scene.add(deepPlane);
+
+const seaGeo = new THREE.PlaneGeometry(760, 760, 72, 72);
+seaGeo.rotateX(-Math.PI/2);
+const seaBase = seaGeo.attributes.position.array.slice();
+const sea = new THREE.Mesh(seaGeo, new THREE.MeshPhongMaterial({
+  color:0x3ec6e0, transparent:true, opacity:0.8, flatShading:true,
+  shininess:80, specular:0x9adfff }));
+scene.add(sea);
+
+// river ribbons — one per branch, verts tagged with (s, frac, across)
+const ribbons = [];
+for(let bi=0; bi<BRANCHES.length; bi++){
+  const br = BRANCHES[bi];
+  const N = Math.max(20, Math.round(br.len/1.3)), M = 10;
+  const posA = [], colA = [], idx = [], tag = [];
+  for(let i=0;i<=N;i++){
+    const f = i/N;
+    const p = brPoint(br, f);
+    const halfW = brW(br, f)*1.45 * (1 - 0.4*sstep(0.86, 1, f));
+    for(let j=0;j<=M;j++){
+      const a = (j/M)*2 - 1;
+      posA.push(p.x - p.tz*a*halfW, 0, p.z + p.tx*a*halfW);
+      colA.push(0,0,0);
+      tag.push({ s: f*br.len, f, a });
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<M;j++){
+    const q = i*(M+1)+j, r2 = q+M+1;
+    idx.push(q, q+1, r2, r2, q+1, r2+1);   // wound to face UP (+y)
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.DoubleSide }));
+  mesh.position.y = -bi*0.013;    // stagger the fork overlaps out of z-fighting
+  scene.add(mesh);
+  ribbons.push({ br, mesh, tag });
+}
+const _rc = new THREE.Color();
+function updateRibbons(t){
+  for(const R of ribbons){
+    const br = R.br;
+    const pos = R.mesh.geometry.attributes.position;
+    const col = R.mesh.geometry.attributes.color;
+    for(let i=0;i<R.tag.length;i++){
+      const { s, f, a } = R.tag[i];
+      const aa = Math.abs(a);
+      const wy = brY(br, f);
+      const ford = fordBoost(br, f);
+      let y = wy + 0.02
+        + (Math.sin(s*0.5 - t*br.spd)*0.05
+         + Math.sin(s*1.25 - t*br.spd*1.7 + a*1.5)*0.028
+         + ford*Math.sin(s*3.2 - t*br.spd*2.6)*0.03) * (1 - aa*0.7)
+        - Math.pow(aa, 6)*1.4;
+      pos.setY(i, y);
+      // color: shallow toward banks and downstream; foam threads at the
+      // edges, riffle-white across the fords, surf-pale at the mouths
+      let foam = 0;
+      if(aa > 0.55) foam = 0.32 * sstep(0.55, 0.85, aa)
+        * (0.5 + 0.5*Math.sin(s*1.8 - t*br.spd*1.3 + a*3));
+      foam = Math.max(foam, ford * (0.35 + 0.3*Math.sin(s*4 - t*4)) * (1 - aa*0.5));
+      if(f > 0.92 && br !== MAIN)
+        foam = Math.max(foam, (f-0.92)/0.08 * (0.3 + 0.25*Math.sin(s*1.2 - t*2)));
+      _rc.copy(DEEP).lerp(SHALLOW, clamp(0.3 + 0.5*(1-aa) + f*0.12, 0, 1))
+        .lerp(FOAM, clamp(foam, 0, 1));
+      col.setXYZ(i, _rc.r, _rc.g, _rc.b);
+    }
+    pos.needsUpdate = true; col.needsUpdate = true;
+    R.mesh.geometry.computeVertexNormals();
+  }
+}
+
+// THE CRATER LAKE — the volcano holds a still turquoise eye
+const crater = (() => {
+  const geo = new THREE.CircleGeometry(4.6, 40);
+  geo.rotateX(-Math.PI/2);
+  const n = geo.attributes.position.count;
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n*3), 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  m.position.set(VOLC.x, 17.7, VOLC.z);
+  scene.add(m);
+  return m;
+})();
+const LAKE_A = new THREE.Color(0x4fb8b0), LAKE_B = new THREE.Color(0x2a8f9e);
+function updateCrater(t){
+  const pos = crater.geometry.attributes.position;
+  const col = crater.geometry.attributes.color;
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const d = Math.hypot(x, z);
+    pos.setY(i, Math.sin(d*2.2 - t*0.9)*0.02*clamp(1-d/4.6,0,1)
+      + Math.sin(x*0.9 + t*0.5)*0.012);
+    _rc.copy(LAKE_B).lerp(LAKE_A, clamp(1 - d/4.6, 0, 1)*0.7)
+      .lerp(FOAM, d > 4.1 ? 0.2 : 0);
+    col.setXYZ(i, _rc.r, _rc.g, _rc.b);
+  }
+  pos.needsUpdate = true; col.needsUpdate = true;
+}
+
+// soft smoke wisps breathing from the crater
+const smoke = [];
+{
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(32,32,4, 32,32,30);
+  rg.addColorStop(0, 'rgba(230,228,220,0.55)');
+  rg.addColorStop(1, 'rgba(230,228,220,0)');
+  g.fillStyle = rg; g.fillRect(0,0,64,64);
+  const tex = new THREE.CanvasTexture(cv);
+  for(let i=0;i<6;i++){
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:tex, transparent:true, opacity:0.35, depthWrite:false }));
+    sp.position.set(VOLC.x, 18, VOLC.z);
+    sp.scale.setScalar(4);
+    scene.add(sp);
+    smoke.push({ sp, t: i/6 });
+  }
+}
+function updateSmoke(dt){
+  for(const s of smoke){
+    s.t += dt*0.09;
+    if(s.t > 1) s.t -= 1;
+    const f = s.t;
+    s.sp.position.set(VOLC.x + Math.sin(f*9)*1.5 + f*3, 19 + f*13, VOLC.z + Math.cos(f*7)*1.5);
+    s.sp.scale.setScalar(3 + f*8);
+    s.sp.material.opacity = 0.30*(1 - f)*(0.4 + 0.6*sstep(0, 0.15, f));
+  }
+}
+
+// ==========================================================================
+//  ASSET BAKING — merge a maker-function group into ONE vertex-colored
+//  geometry (bark tints painted in from material colors), so a whole fir
+//  or bush is a single instanced draw.
+// ==========================================================================
+function bakeGroup(group){
+  const root = new THREE.Group();
+  root.add(group);
+  root.updateMatrixWorld(true);
+  const posA = [], colA = [], c = new THREE.Color();
+  group.traverse(o => {
+    if(!o.isMesh) return;
+    const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone());
+    g.applyMatrix4(o.matrixWorld);
+    const p = g.attributes.position, vc = g.attributes.color;
+    for(let i=0;i<p.count;i++){
+      posA.push(p.getX(i), p.getY(i), p.getZ(i));
+      if(vc) colA.push(vc.getX(i), vc.getY(i), vc.getZ(i));
+      else { c.copy(o.material.color); colA.push(c.r, c.g, c.b); }
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+const matBaked = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+
+// ---------- THE FIR (lifted whole from models/fir_study.html) --------------
+const matBark = new THREE.MeshLambertMaterial({ color:0x5c4632, flatShading:true });
+const matBarkGrey = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+const FIR_DEEP = new THREE.Color(0x2c4a34), FIR_FRESH = new THREE.Color(0x5d7d3c),
+      FIR_DEAD = new THREE.Color(0x7a6a4c);
+function foliageMat(){
+  return new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+}
+function paintFoliage(geo, dead){
+  const pos = geo.attributes.position, col = [];
+  const c = new THREE.Color();
+  let maxX = 0;
+  for(let i = 0; i < pos.count; i++) maxX = Math.max(maxX, pos.getX(i));
+  for(let i = 0; i < pos.count; i++){
+    const f = clamp(pos.getX(i) / (maxX || 1), 0, 1);
+    if(dead) c.copy(FIR_DEAD).lerp(new THREE.Color(0x8a7a58), f);
+    else c.copy(FIR_DEEP).lerp(FIR_FRESH, Math.pow(f, 1.6)).offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+}
+function makeFir(spec){
+  const { h, baseR, whorls, perWhorl, spread, droop, sparse = 0,
+          lean = 0, flag = 0, deadTop = 0, jitter = 1 } = spec;
+  const tree = new THREE.Group();
+  let tx = 0, tz = 0, ty = 0;
+  const segN = 5;
+  for(let i = 0; i < segN; i++){
+    const f0 = i/segN, f1 = (i+1)/segN;
+    const r0 = baseR * (1 - f0*0.82), r1 = baseR * (1 - f1*0.82);
+    const segH = h / segN;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segH, 8),
+      deadTop && f0 > 0.55 ? matBarkGrey : matBark);
+    const dx = lean * segH * (i+0.5)/segN + rand(-0.04, 0.04)*jitter;
+    const dz = rand(-0.04, 0.04)*jitter;
+    seg.position.set(tx + dx/2, ty + segH/2, tz + dz/2);
+    seg.rotation.z = -Math.atan2(dx, segH);
+    seg.rotation.x = Math.atan2(dz, segH);
+    tree.add(seg);
+    tx += dx; tz += dz; ty += segH;
+  }
+  if(deadTop){
+    const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.05, h*0.22, 6), matBarkGrey);
+    spike.position.set(tx, ty + h*0.1, tz);
+    tree.add(spike);
+  } else {
+    const tipG = new THREE.ConeGeometry(0.16, 0.55, 7);
+    paintFoliage(tipG);
+    const tip = new THREE.Mesh(tipG, foliageMat());
+    tip.position.set(tx, ty + 0.24, tz);
+    tree.add(tip);
+  }
+  const y0 = h * 0.16;
+  for(let w = 0; w < whorls; w++){
+    const f = w / (whorls - 1);
+    if(deadTop && f > 1 - deadTop) continue;
+    const wy = y0 + f * (h - y0 - h*0.14);
+    const wr = spread * (1 - f*0.78);
+    const n = Math.max(3, Math.round(perWhorl * (1 - f*0.3)));
+    const wobble = rand(0, Math.PI*2);
+    for(let b = 0; b < n; b++){
+      if(sparse && rand() < sparse) continue;
+      let a = wobble + (b/n) * Math.PI*2 + rand(-0.25, 0.25)*jitter;
+      if(flag && Math.cos(a) < -0.1 && rand() < flag) continue;
+      const len = wr * rand(0.75, 1.15);
+      const dr = droop * (0.5 + f*0.2 + rand(0, 0.5)) * (1 + (1-f)*0.6);
+      const br = new THREE.Group();
+      br.position.set(tx * f, wy, tz * f);
+      br.rotation.y = -a;
+      const fanG = new THREE.ConeGeometry(len*0.30, len, 5);
+      fanG.rotateZ(-Math.PI/2);
+      fanG.scale(1, 0.26, 1);
+      fanG.translate(len*0.52, 0, 0);
+      paintFoliage(fanG, deadTop && f > 0.5 - deadTop);
+      const fan = new THREE.Mesh(fanG, foliageMat());
+      fan.rotation.z = -dr;
+      br.add(fan);
+      const butt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, len*0.3, 5), matBark);
+      butt.rotation.z = Math.PI/2 + dr*0.5;
+      butt.position.set(len*0.14, 0, 0);
+      br.add(butt);
+      tree.add(br);
+    }
+  }
+  return tree;
+}
+const FIR_SPECS = [
+  { h:7.2, baseR:0.26, whorls:11, perWhorl:8, spread:1.9, droop:0.28 },
+  { h:6.6, baseR:0.18, whorls:13, perWhorl:6, spread:1.05, droop:0.16 },
+  { h:5.6, baseR:0.34, whorls:8,  perWhorl:9, spread:2.5, droop:0.55, sparse:0.18 },
+  { h:2.2, baseR:0.07, whorls:5,  perWhorl:5, spread:0.75, droop:0.1, jitter:1.6 },
+  { h:5.8, baseR:0.22, whorls:9,  perWhorl:7, spread:1.6, droop:0.35, lean:0.35, flag:0.75 },
+  { h:6.4, baseR:0.24, whorls:9,  perWhorl:7, spread:1.8, droop:0.5, sparse:0.3, deadTop:0.45 },
+];
+const FIR_GEOS = FIR_SPECS.map(s => bakeGroup(makeFir(s)));
+
+// ---------- THE FOOD BERRY BUSH (from models/bushgrowth_study.html) --------
+const matWood = new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true });
+const matRosL  = new THREE.MeshLambertMaterial({ color:0x50783a, flatShading:true });
+const matRosD  = new THREE.MeshLambertMaterial({ color:0x3f6030, flatShading:true });
+const matRed   = new THREE.MeshLambertMaterial({ color:0xd8433c, flatShading:true });
+const matGreen = new THREE.MeshLambertMaterial({ color:0x7fa24a, flatShading:true });
+function makeBush(stage){
+  const G = new THREE.Group();
+  const armN = stage === 1 ? 1 : stage === 2 ? 2 : 4;
+  const scaleT = stage === 1 ? 0.45 : stage === 2 ? 0.75 : 1;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12*scaleT, 0.18*scaleT, 0.6*scaleT, 7), matWood);
+  trunk.position.y = 0.3*scaleT;
+  G.add(trunk);
+  for(let i = 0; i < armN; i++){
+    const a = (i/armN)*Math.PI*2 + rand(-0.3, 0.3);
+    const arm = new THREE.Group();
+    arm.position.y = 0.55*scaleT;
+    arm.rotation.y = -a;
+    arm.rotation.z = -rand(0.5, 0.9);
+    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06*scaleT, 0.09*scaleT, 0.55*scaleT, 6), matWood);
+    seg1.position.y = 0.27*scaleT;
+    arm.add(seg1);
+    const elbow = new THREE.Group();
+    elbow.position.y = 0.55*scaleT;
+    elbow.rotation.z = rand(0.5, 1.0);
+    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.045*scaleT, 0.06*scaleT, 0.45*scaleT, 6), matWood);
+    seg2.position.y = 0.22*scaleT;
+    elbow.add(seg2);
+    const ros = new THREE.Group();
+    ros.position.y = 0.48*scaleT;
+    for(let s = 0; s < (stage === 1 ? 5 : 7); s++){
+      const sp = new THREE.Group();
+      sp.rotation.y = -(s/7)*Math.PI*2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04*scaleT, 0.32*scaleT, 4),
+        s % 3 ? matRosL : matRosD);
+      spike.rotation.z = -1.05;
+      spike.position.x = 0.12*scaleT;
+      sp.add(spike);
+      ros.add(sp);
+    }
+    elbow.add(ros);
+    if(stage === 3 || (stage === 2 && i === 0)){
+      const stem = new THREE.Group();
+      stem.position.set(0.1*scaleT, 0.36*scaleT, 0);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16*scaleT, 4), matWood);
+      st.position.y = -0.08*scaleT;
+      stem.add(st);
+      const fruit = new THREE.Mesh(new THREE.OctahedronGeometry(0.07*scaleT, 0),
+        i % 2 ? matRed : matGreen);
+      fruit.scale.set(1, 1.4, 1);
+      fruit.position.y = -0.18*scaleT;
+      stem.add(fruit);
+      elbow.add(stem);
+    }
+    arm.add(elbow);
+    G.add(arm);
+  }
+  return G;
+}
+const BUSH_GEOS = [bakeGroup(makeBush(2)), bakeGroup(makeBush(3)), bakeGroup(makeBush(3))];
+
+// ---------- instanced placement -------------------------------------------
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(),
+      _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler();
+function scatterInstances(geos, spots, scaleLo, scaleHi){
+  // round-robin the spots across the variants, one InstancedMesh each
+  const per = geos.map(() => []);
+  spots.forEach((sp, i) => per[i % geos.length].push(sp));
+  per.forEach((list, gi) => {
+    if(!list.length) return;
+    const im = new THREE.InstancedMesh(geos[gi], matBaked, list.length);
+    list.forEach((sp, i) => {
+      _e.set(0, rand(0, Math.PI*2), 0);
+      _q.setFromEuler(_e);
+      _p.set(sp.x, sp.y, sp.z);
+      _s.setScalar(rand(scaleLo, scaleHi) * (sp.s || 1));
+      _m4.compose(_p, _q, _s);
+      im.setMatrixAt(i, _m4);
+    });
+    im.castShadow = true;
+    im.instanceMatrix.needsUpdate = true;
+    scene.add(im);
+  });
+}
+// FIRS — the head's high ground and the volcano's green shoulders
+{
+  const spots = [];
+  let guard = 0;
+  while(spots.length < 95 && guard++ < 4000){
+    const a = rand(0, Math.PI*2), r = rand(9, 40);
+    const x = VOLC.x + Math.cos(a)*r, z = VOLC.z + Math.sin(a)*r*1.15;
+    const h = terrainH(x, z);
+    const R = riverInfo(x, z);
+    if(h < 3.2 || h > 14.5) continue;
+    if(R.d < R.w + 2.5) continue;
+    if(Math.hypot(x-21, z+25) < 9) continue;         // keep the hall crown clear
+    if(pathDist(x, z) < 3) continue;
+    spots.push({ x, y: h - 0.15, z });
+  }
+  scatterInstances(FIR_GEOS, spots, 0.8, 1.25);
+}
+// FOOD BERRY BUSHES — forage flats along the fertile fingers
+{
+  const spots = [];
+  let guard = 0;
+  while(spots.length < 120 && guard++ < 6000){
+    const br = BRANCHES[1 + Math.floor(rand(0, 5)) % 5];
+    const f = rand(0.08, 0.9);
+    const p = brPoint(br, f);
+    const side = rand() < 0.5 ? -1 : 1;
+    const off = brW(br, f) + rand(2.2, 9.5);
+    const x = p.x - p.tz*side*off, z = p.z + p.tx*side*off;
+    const h = terrainH(x, z);
+    const R = riverInfo(x, z);
+    if(h < 0.9 || h > 4.2) continue;
+    if(R.d < R.w + 1.6) continue;
+    if(pathDist(x, z) < 2.5) continue;
+    if(Math.hypot(x, z-72) < 8) continue;            // not on the saucer beach
+    spots.push({ x, y: h - 0.06, z });
+  }
+  scatterInstances(BUSH_GEOS, spots, 0.85, 1.3);
+}
+// REEDS — lining every bank, thickest in the delta
+{
+  const geo = new THREE.ConeGeometry(0.055, 1.15, 4);
+  geo.translate(0, 0.55, 0);
+  const im = new THREE.InstancedMesh(geo,
+    new THREE.MeshLambertMaterial({ flatShading:true }), 620);
+  const cA = new THREE.Color(0x7d9a4e), cB = new THREE.Color(0x5e8a4a), c = new THREE.Color();
+  let n = 0, guard = 0;
+  while(n < 620 && guard++ < 20000){
+    const br = BRANCHES[Math.floor(rand(0, BRANCHES.length))];
+    const f = rand(0.05, 0.97);
+    const p = brPoint(br, f);
+    const side = rand() < 0.5 ? -1 : 1;
+    const w = brW(br, f);
+    const off = w * rand(1.02, 1.4);
+    const x = p.x - p.tz*side*off + rand(-0.4, 0.4);
+    const z = p.z + p.tx*side*off + rand(-0.4, 0.4);
+    const h = terrainH(x, z);
+    const wy = brY(br, f);
+    if(h < wy - 0.35 || h > wy + 0.85) continue;
+    if(fordBoost(br, f) > 0.4) continue;             // fords stay open
+    _e.set(rand(-0.14, 0.14), rand(0, Math.PI*2), rand(-0.14, 0.14));
+    _q.setFromEuler(_e);
+    _p.set(x, h - 0.05, z);
+    _s.set(1, rand(0.7, 1.5), 1);
+    _m4.compose(_p, _q, _s);
+    im.setMatrixAt(n, _m4);
+    im.setColorAt(n, c.copy(cA).lerp(cB, rand()));
+    n++;
+  }
+  im.count = n;
+  im.instanceMatrix.needsUpdate = true;
+  scene.add(im);
+}
+
+// ---------- THE PALM (the approved baked palm, lifted from georgeworld) ----
+const U_SWAY_T = { value: 0 };
+const U_SWAY_W = { value: 1 };
+function palmTrunkTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#cdc2aa'; g.fillRect(0,0,256,128);
+  for(let i=0;i<130;i++){
+    const x = rand(0,256);
+    g.strokeStyle = rand() < 0.5
+      ? `rgba(90,75,55,${rand(0.04,0.11)})`
+      : `rgba(240,230,205,${rand(0.05,0.14)})`;
+    g.lineWidth = rand(0.6, 2.2);
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + rand(-6,6), 128); g.stroke();
+  }
+  const band = g.createLinearGradient(0, 96, 0, 128);
+  band.addColorStop(0, 'rgba(0,0,0,0)');
+  band.addColorStop(0.55, 'rgba(70,58,40,0.2)');
+  band.addColorStop(0.75, 'rgba(52,42,28,0.32)');
+  band.addColorStop(1, 'rgba(40,32,20,0.16)');
+  g.fillStyle = band; g.fillRect(0, 96, 256, 32);
+  g.fillStyle = 'rgba(235,220,190,0.22)'; g.fillRect(0, 92, 256, 5);
+  for(let i=0;i<160;i++){
+    g.fillStyle = rand() < 0.7 ? `rgba(80,66,46,${rand(0.05,0.15)})`
+                               : `rgba(205,208,185,${rand(0.05,0.14)})`;
+    g.fillRect(rand(0,256), rand(0,128), rand(1,4), rand(1,3));
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function bakeTrunkGeo({ height = 8.2, lean = 0.16, rBase = 0.30, rTop = 0.15, N = 48, RADIAL = 10, RINGS = 22 }){
+  const spine = [];
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    spine.push(new THREE.Vector3(
+      lean*height*Math.pow(t,1.65) + 0.06*Math.sin(t*6.2 + 1.4)*t,
+      t*height,
+      0.05*Math.sin(t*4.7)*t));
+  }
+  const ringAmp = [];
+  for(let r=0;r<=RINGS;r++) ringAmp.push(rand(0.014, 0.032));
+  const posA = [], uvA = [], colA = [], idx = [];
+  const tang = new THREE.Vector3(), nrm = new THREE.Vector3(), bin = new THREE.Vector3();
+  const cGray = new THREE.Color(0xffffff), cTop = new THREE.Color(0xd9ddb8), c = new THREE.Color();
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    let r = rBase + (rTop - rBase)*Math.pow(t, 0.85);
+    r += 0.17*Math.exp(-t*9);
+    const ringPh = t*RINGS, ringI = Math.min(RINGS, Math.floor(ringPh));
+    r *= 1 + ringAmp[ringI]*(0.5 + 0.5*Math.cos(ringPh*Math.PI*2));
+    const p = spine[i];
+    tang.copy(spine[Math.min(N,i+1)]).sub(spine[Math.max(0,i-1)]).normalize();
+    bin.set(0,0,1);
+    nrm.crossVectors(bin, tang).normalize();
+    bin.crossVectors(tang, nrm).normalize();
+    c.copy(cGray).lerp(cTop, Math.max(0, (t-0.86)/0.14));
+    for(let j=0;j<=RADIAL;j++){
+      const a = (j/RADIAL)*Math.PI*2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const rr = r*(1 + 0.012*Math.sin(a*7 + ringI*2.4));
+      posA.push(p.x + (nrm.x*ca + bin.x*sa)*rr,
+                p.y + (nrm.y*ca + bin.y*sa)*rr,
+                p.z + (nrm.z*ca + bin.z*sa)*rr);
+      uvA.push(j/RADIAL*2, ringPh);
+      colA.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RADIAL;j++){
+    const a = i*(RADIAL+1)+j, b = a+RADIAL+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const top = spine[N].clone();
+  const tv = spine[N].clone().sub(spine[N-3]).normalize();
+  return { geo, top, tiltZ: Math.atan2(tv.x, tv.y) };
+}
+function bakeFrondArrays({ length = 4.0, elev = 0.5, droop = 1.5,
+  nLeaf = 16, leafMax = 0.88, leafW = 0.062,
+  cInner = 0x3e6b25, cOuter = 0x74a742, collapsed = 0, NSEG = 14, MSEG = 2 }){
+  const posA = [], colA = [], idx = [];
+  const colorIn = new THREE.Color(cInner), colorOut = new THREE.Color(cOuter);
+  const cc = new THREE.Color();
+  const spine = [], angs = [];
+  {
+    let p = new THREE.Vector3(0,0,0);
+    const step = length/NSEG;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG;
+      const a = elev - droop*Math.pow(t, 1.6);
+      spine.push(p.clone()); angs.push(a);
+      p.x += Math.cos(a)*step; p.y += Math.sin(a)*step;
+    }
+  }
+  {
+    const RAD = 4, base = posA.length/3;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG, p = spine[i], a = angs[i];
+      const r = 0.05*(1-t) + 0.007;
+      const nx = -Math.sin(a), ny = Math.cos(a);
+      cc.copy(colorIn).lerp(colorOut, t*0.6);
+      if(collapsed) cc.multiplyScalar(0.9);
+      for(let j=0;j<=RAD;j++){
+        const th = (j/RAD)*Math.PI*2, ct = Math.cos(th), st = Math.sin(th);
+        posA.push(p.x + nx*ct*r, p.y + ny*ct*r, p.z + st*r);
+        colA.push(cc.r, cc.g, cc.b);
+      }
+    }
+    for(let i=0;i<NSEG;i++) for(let j=0;j<RAD;j++){
+      const a2 = base + i*(RAD+1)+j, b2 = a2+RAD+1;
+      idx.push(a2, b2, a2+1, b2, b2+1, a2+1);
+    }
+  }
+  const T = new THREE.Vector3(), U = new THREE.Vector3(), S = new THREE.Vector3();
+  const d = new THREE.Vector3(), e = new THREE.Vector3(), n = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  for(let side = -1; side <= 1; side += 2){
+    for(let i=0;i<nLeaf;i++){
+      const tt = (i + 0.5)/nLeaf;
+      const t = 0.13 + 0.87*tt + rand(-0.006, 0.006);
+      const si = Math.min(NSEG-1, Math.floor(t*NSEG));
+      const f = t*NSEG - si;
+      const p0 = q.copy(spine[si]).lerp(spine[si+1], f).clone();
+      const a = angs[si] + (angs[si+1]-angs[si])*f;
+      T.set(Math.cos(a), Math.sin(a), 0);
+      U.set(-Math.sin(a), Math.cos(a), 0);
+      S.set(0, 0, side);
+      const len = leafMax * (0.22 + 0.78*Math.pow(Math.sin(Math.PI*(0.08 + 0.88*tt)), 0.7))
+                  * rand(0.92, 1.08);
+      const sweep = 0.5 + 0.35*tt + collapsed*0.75;
+      const upAmt = (0.55 - 0.75*tt) * (1 - collapsed*0.9) - collapsed*0.25;
+      d.copy(S).multiplyScalar(Math.cos(sweep))
+       .addScaledVector(T, Math.sin(sweep))
+       .addScaledVector(U, upAmt).normalize();
+      const droopL = (0.30 + 1.15*tt + collapsed*0.8) / MSEG;
+      const w0 = leafW*(1 - collapsed*0.55)*rand(0.85,1.15);
+      const base = posA.length/3;
+      const pp = p0.clone(), dd = d.clone();
+      for(let m=0;m<=MSEG;m++){
+        const u = m/MSEG;
+        e.crossVectors(dd, T).normalize();
+        n.crossVectors(e, dd).normalize();
+        if(n.y < 0){ n.negate(); e.negate(); }
+        const w = w0*(1 - u*u*0.96) * Math.min(1, 0.35 + u*3);
+        const foldDrop = w*0.45;
+        cc.copy(colorIn).lerp(colorOut, Math.min(1, tt*0.5 + u*0.65))
+          .multiplyScalar(rand(0.94, 1.03));
+        posA.push(pp.x - e.x*w + n.x*-foldDrop, pp.y - e.y*w + n.y*-foldDrop, pp.z - e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        posA.push(pp.x, pp.y, pp.z);
+        colA.push(cc.r, cc.g, cc.b);
+        posA.push(pp.x + e.x*w + n.x*-foldDrop, pp.y + e.y*w + n.y*-foldDrop, pp.z + e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        pp.addScaledVector(dd, len/MSEG);
+        dd.y -= droopL; dd.normalize();
+      }
+      for(let m=0;m<MSEG;m++){
+        const r0 = base + m*3, r1 = r0 + 3;
+        idx.push(r0, r1, r0+1,  r1, r1+1, r0+1,
+                 r0+1, r1+1, r0+2,  r1+1, r1+2, r0+2);
+      }
+    }
+  }
+  return { posA, colA, idx };
+}
+function bakeCrownGeo({ frondLen = 4.1, dense = true, withNuts = true, crownTilt = 0 }){
+  const RINGS = dense ? [
+    { n:3, elev:1.12, droop:0.95, len:0.52, amp:0.45, y: 0.30 },
+    { n:5, elev:0.72, droop:1.30, len:0.86, amp:0.75, y: 0.16 },
+    { n:5, elev:0.34, droop:1.55, len:1.00, amp:1.00, y: 0.04 },
+    { n:4, elev:0.02, droop:1.72, len:0.94, amp:1.15, y:-0.06 },
+    { n:3, elev:-0.5, droop:1.25, len:0.72, amp:0.55, y:-0.14, dead:true },
+  ] : [
+    { n:3, elev:0.95, droop:1.05, len:0.62, amp:0.55, y: 0.20 },
+    { n:4, elev:0.45, droop:1.45, len:0.95, amp:0.95, y: 0.06 },
+    { n:3, elev:0.02, droop:1.65, len:0.85, amp:1.10, y:-0.08 },
+  ];
+  const pos = [], col = [], swd = [], sph = [], idx = [];
+  const Mrot = new THREE.Matrix4();
+  const Rx = new THREE.Matrix4(), Ry = new THREE.Matrix4(), Rc = new THREE.Matrix4();
+  const dRz = new THREE.Matrix4().set(0,-1,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,1);
+  const v = new THREE.Vector3(), dv = new THREE.Vector3();
+  let ringOfs = rand(0, Math.PI*2);
+  Rc.makeRotationZ(crownTilt);
+  for(const ring of RINGS){
+    ringOfs += 2.399963;
+    for(let i=0;i<ring.n;i++){
+      const fr = bakeFrondArrays({
+        length: frondLen*ring.len*rand(0.94,1.06),
+        elev:  ring.elev + rand(-0.07, 0.07),
+        droop: ring.droop*rand(0.92, 1.08),
+        leafMax: 0.88*Math.sqrt(ring.len)*(frondLen/4.1),
+        nLeaf: dense ? 15 : 10,
+        collapsed: ring.dead ? 0.85 : 0,
+        cInner: ring.dead ? 0x6b512e : 0x3e6b25,
+        cOuter: ring.dead ? 0xa8854e : 0x74a742,
+      });
+      Ry.makeRotationY(ringOfs + (i/ring.n)*Math.PI*2 + rand(-0.18, 0.18));
+      Rx.makeRotationX(rand(-0.1, 0.1));
+      Mrot.multiplyMatrices(Rc, Ry).multiply(Rx);
+      const amp = 0.028*ring.amp*(ring.dead ? 0.5 : 1);
+      const phase = rand(0, 9), freq = rand(0.75, 1.05);
+      const base = pos.length/3;
+      for(let k=0;k<fr.posA.length;k+=3){
+        v.set(fr.posA[k], fr.posA[k+1], fr.posA[k+2]);
+        dv.copy(v).applyMatrix4(dRz);
+        dv.applyMatrix4(Mrot).multiplyScalar(amp);
+        v.applyMatrix4(Mrot);
+        v.y += ring.y;
+        pos.push(v.x, v.y, v.z);
+        swd.push(dv.x, dv.y, dv.z);
+        sph.push(phase, freq);
+      }
+      col.push(...fr.colA);
+      for(const ix of fr.idx) idx.push(base + ix);
+    }
+  }
+  {
+    const bulb = new THREE.SphereGeometry(0.3, 10, 8).toNonIndexed();
+    bulb.scale(1, 1.4, 1); bulb.translate(0, 0.04, 0);
+    const bp = bulb.attributes.position, base = pos.length/3;
+    const bc = new THREE.Color(0x74804a);
+    for(let k=0;k<bp.count;k++){
+      pos.push(bp.getX(k), bp.getY(k), bp.getZ(k));
+      col.push(bc.r, bc.g, bc.b);
+      swd.push(0,0,0); sph.push(0,1);
+      idx.push(base + k);
+    }
+  }
+  {
+    const nut = new THREE.SphereGeometry(0.17, 8, 6).toNonIndexed();
+    nut.scale(1, 1.18, 1);
+    const np = nut.attributes.position;
+    const cg = new THREE.Color(0x7d8b3c), cb = new THREE.Color(0x6b5432);
+    if(withNuts) for(let i=0;i<4;i++){
+      const a = rand(0, Math.PI*2), ox = Math.cos(a)*rand(0.24,0.42),
+            oy = rand(-0.34,-0.14), oz = Math.sin(a)*rand(0.24,0.42);
+      const c = i%3 ? cg : cb, base = pos.length/3;
+      for(let k=0;k<np.count;k++){
+        pos.push(np.getX(k)+ox, np.getY(k)+oy, np.getZ(k)+oz);
+        col.push(c.r, c.g, c.b);
+        swd.push(0,0,0); sph.push(0,1);
+        idx.push(base + k);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute('aSwayDir', new THREE.Float32BufferAttribute(swd, 3));
+  geo.setAttribute('aSwayPh', new THREE.Float32BufferAttribute(sph, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+function makeSwayMaterial(){
+  const m = new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide });
+  m.onBeforeCompile = shader => {
+    shader.uniforms.uSwayT = U_SWAY_T;
+    shader.uniforms.uSwayW = U_SWAY_W;
+    shader.vertexShader = `attribute vec3 aSwayDir; attribute vec2 aSwayPh;
+uniform float uSwayT; uniform float uSwayW;
+` + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  float ph = aSwayPh.x;
+  float sw = sin(uSwayT*aSwayPh.y + ph) + 0.45*sin(uSwayT*aSwayPh.y*2.3 + ph*1.7);
+  transformed += aSwayDir * sw * uSwayW;
+}`);
+  };
+  m.customProgramCacheKey = () => 'palmsway';
+  return m;
+}
+const palmTrunkMat = new THREE.MeshLambertMaterial({ map:palmTrunkTexture(), vertexColors:true });
+const palmCrownMat = makeSwayMaterial();
+const PALM_VARIANTS = [];
+for(let i=0;i<3;i++){
+  const tr = bakeTrunkGeo({ height: rand(7.4, 8.8), lean: rand(0.1, 0.2) });
+  PALM_VARIANTS.push({ ...tr,
+    crown: bakeCrownGeo({ frondLen: 4.1, dense:true, withNuts:true, crownTilt: -tr.tiltZ*0.55 }) });
+}
+function placePalm(x, z, scale=1){
+  const V = PALM_VARIANTS[Math.floor(rand(0, 3))];
+  const grp = new THREE.Group();
+  const trunk = new THREE.Mesh(V.geo, palmTrunkMat);
+  trunk.castShadow = trunk.receiveShadow = true;
+  grp.add(trunk);
+  const crown = new THREE.Mesh(V.crown, palmCrownMat);
+  crown.position.copy(V.top);
+  crown.castShadow = true;
+  grp.add(crown);
+  grp.position.set(x, terrainH(x, z) - 0.25, z);
+  grp.rotation.y = rand(0, Math.PI*2);
+  grp.scale.setScalar(scale * rand(0.92, 1.08));
+  scene.add(grp);
+}
+// palms fringe the delta mouth beach + the sandbars
+{
+  let n = 0, guard = 0;
+  while(n < 22 && guard++ < 2000){
+    const x = rand(-48, 50), z = rand(62, 90);
+    const h = terrainH(x, z);
+    const R = riverInfo(x, z);
+    if(h < 0.5 || h > 2.4) continue;
+    if(R.d < R.w + 1.8) continue;
+    if(Math.hypot(x, z-72) < 7.5) continue;          // the saucer ring stays clear
+    placePalm(x, z);
+    n++;
+  }
+  for(const [bx,bz] of SANDBARS)
+    if(terrainH(bx, bz) > 0.4) placePalm(bx + rand(-2,2), bz + rand(-2,2), 0.85);
+}
+
+// ==========================================================================
+//  BUILT THINGS — bridges over the branches, stepping stones at the fords,
+//  the king's hall on its knoll, three faction camps on three fingers.
+// ==========================================================================
+const matPlank = new THREE.MeshLambertMaterial({ color:0x8a6239, flatShading:true });
+const matPlank2 = new THREE.MeshLambertMaterial({ color:0x7a5630, flatShading:true });
+const matStone = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+
+function makeBridge(span){
+  const g = new THREE.Group();
+  const n = 11, rise = 0.9;
+  for(let i=0;i<n;i++){
+    const t = i/(n-1);
+    const x = (t - 0.5)*span;
+    const y = rise*Math.sin(Math.PI*t);
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(span/n + 0.12, 0.09, 1.7),
+      i % 2 ? matPlank : matPlank2);
+    plank.position.set(x, y, 0);
+    plank.rotation.z = -Math.atan2(rise*Math.PI*Math.cos(Math.PI*t)/(n-1)*2, span/(n-1)*2)*0.5;
+    plank.castShadow = true;
+    g.add(plank);
+  }
+  for(const sz of [-0.85, 0.85]){
+    for(const tx of [-0.42, -0.14, 0.14, 0.42]){
+      const t = tx + 0.5;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.55, 5), matPlank2);
+      post.position.set(tx*span, rise*Math.sin(Math.PI*t) + 0.3, sz);
+      g.add(post);
+    }
+    for(const half of [0, 1]){
+      const t0 = half*0.5, t1 = t0 + 0.5;
+      const x0 = (t0-0.5)*span, x1 = (t1-0.5)*span;
+      const y0 = rise*Math.sin(Math.PI*t0) + 0.55, y1 = rise*Math.sin(Math.PI*t1) + 0.55;
+      const len = Math.hypot(x1-x0, y1-y0);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.06), matPlank);
+      rail.position.set((x0+x1)/2, (y0+y1)/2 + (half===0 ? 0.12 : 0.12)*Math.sin(Math.PI*(t0+t1)/2), sz);
+      rail.rotation.z = Math.atan2(y1-y0, x1-x0);
+      g.add(rail);
+    }
+  }
+  return g;
+}
+const BRIDGES = [
+  { br: MAIN,        f: 0.86 },   // the fork bridge, where the path crosses
+  { br: BRANCHES[2], f: 0.30 },   // the midwest finger
+  { br: BRANCHES[3], f: 0.52 },   // the mideast finger
+];
+for(const B of BRIDGES){
+  const p = brPoint(B.br, B.f);
+  const w = brW(B.br, B.f);
+  const bridge = makeBridge(w*2 + 2.6);
+  bridge.position.set(p.x, brY(B.br, B.f) + 0.55, p.z);
+  bridge.rotation.y = -Math.atan2(p.tx, p.tz) + Math.PI/2;
+  scene.add(bridge);
+}
+// ford stepping stones
+for(const fd of FORDS){
+  const p = brPoint(fd.br, fd.f);
+  const w = brW(fd.br, fd.f);
+  const wy = brY(fd.br, fd.f);
+  const n = 6;
+  for(let i=0;i<n;i++){
+    const a = ((i+0.5)/n)*2 - 1;
+    const st = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.32, 0.48), 0), matStone);
+    st.position.set(p.x - p.tz*a*w*0.95 + rand(-0.25,0.25),
+      wy + 0.12, p.z + p.tx*a*w*0.95 + rand(-0.25,0.25));
+    st.rotation.set(rand(0,3), rand(0,3), rand(0,3));
+    st.castShadow = true;
+    scene.add(st);
+  }
+}
+
+// THE KING'S HALL — the long hall on the flattened knoll by the volcano head
+{
+  const hall = new THREE.Group();
+  const HX = 21, HZ = -25;
+  const hy = terrainH(HX, HZ);
+  const matWall = new THREE.MeshLambertMaterial({ color:0x7a5a38, flatShading:true });
+  const matRoof = new THREE.MeshLambertMaterial({ color:0xb89a55, flatShading:true });
+  const matDark = new THREE.MeshLambertMaterial({ color:0x54402a, flatShading:true });
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.8, 7.5), matStone);
+  plinth.position.y = 0.3;
+  hall.add(plinth);
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(10.5, 3.0, 5.6), matWall);
+  walls.position.y = 2.1;
+  walls.castShadow = true;
+  hall.add(walls);
+  for(const s of [-1, 1]){
+    const slope = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.22, 3.9), matRoof);
+    slope.position.set(0, 4.6, s*1.62);
+    slope.rotation.x = s*0.62;   // outer edge low, ridge high — a peaked gable
+    slope.castShadow = true;
+    hall.add(slope);
+  }
+  const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 11.9, 6), matDark);
+  ridge.rotation.z = Math.PI/2;
+  ridge.position.y = 5.55;
+  hall.add(ridge);
+  for(const e of [-1, 1]){   // crossed beam horns at the gable ends
+    for(const s of [-1, 1]){
+      const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 2.2, 5), matDark);
+      horn.position.set(e*5.9, 5.9, s*0.45);
+      horn.rotation.x = s*0.5;
+      hall.add(horn);
+    }
+  }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.9, 1.3), matDark);
+  door.position.set(-5.3, 1.7, 0);
+  hall.add(door);
+  for(const s of [-1, 1]){   // gold pennant poles flanking the door
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.6, 5), matDark);
+    pole.position.set(-6.3, 2.6, s*2.4);
+    hall.add(pole);
+    const pen = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.3, 3),
+      new THREE.MeshLambertMaterial({ color:0xc9a12e, flatShading:true, side:THREE.DoubleSide }));
+    pen.rotation.z = Math.PI/2;
+    pen.position.set(-6.3 + 0.7, 4.6, s*2.4);
+    hall.add(pen);
+  }
+  hall.position.set(HX, hy - 0.15, HZ);
+  hall.rotation.y = 0.35;
+  scene.add(hall);
+}
+
+// THE THREE CAMPS — factions strung along different fingers
+const CAMPS = [
+  { br: BRANCHES[1], f: 0.62, side: -1, color: 0xc0392b },   // the west reach — RED
+  { br: BRANCHES[2], f: 0.68, side:  1, color: 0x2e6fb8 },   // the middle water — BLUE
+  { br: BRANCHES[4], f: 0.62, side:  1, color: 0xc9a12e },   // the east run — GOLD
+];
+const emberMat = new THREE.MeshLambertMaterial({ color:0x502818, emissive:0xff7a3c,
+  emissiveIntensity:0.9, flatShading:true });
+for(const C of CAMPS){
+  const p = brPoint(C.br, C.f);
+  const off = brW(C.br, C.f) + 6;
+  const cx = p.x - p.tz*C.side*off, cz = p.z + p.tx*C.side*off;
+  const cy = terrainH(cx, cz);
+  const camp = new THREE.Group();
+  // the fire ring
+  for(let i=0;i<7;i++){
+    const a = (i/7)*Math.PI*2;
+    const st = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.16, 0.26), 0), matStone);
+    st.position.set(Math.cos(a)*0.75, 0.1, Math.sin(a)*0.75);
+    camp.add(st);
+  }
+  const ember = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.4, 6), emberMat);
+  ember.position.y = 0.2;
+  camp.add(ember);
+  // two lean-tos
+  for(let k=0;k<2;k++){
+    const la = rand(0, Math.PI*2), lr = rand(2.2, 3.4);
+    const lean = new THREE.Group();
+    for(const s of [-1, 1]){
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.1, 1.5), matPlank2);
+      slab.position.set(0, 0.75, s*0.62);
+      slab.rotation.x = -s*0.95;
+      slab.castShadow = true;
+      lean.add(slab);
+    }
+    lean.position.set(Math.cos(la)*lr, 0, Math.sin(la)*lr);
+    lean.rotation.y = rand(0, Math.PI*2);
+    camp.add(lean);
+  }
+  // the faction pennant
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.6, 5), matPlank2);
+  pole.position.set(1.6, 1.8, -1.2);
+  camp.add(pole);
+  const pen = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.15, 3),
+    new THREE.MeshLambertMaterial({ color:C.color, flatShading:true, side:THREE.DoubleSide }));
+  pen.rotation.z = Math.PI/2;
+  pen.position.set(2.2, 3.35, -1.2);
+  camp.add(pen);
+  camp.position.set(cx, cy - 0.05, cz);
+  scene.add(camp);
+}
+
+// ==========================================================================
+//  THE EASTER EGG CHAMBER — the hidden fantastical room, deep under the
+//  volcano (the easteregg_study vocabulary: lumpy cave, stalactites, a
+//  glowing pool, jeweled walls, a treasure heap, the temple facade).
+// ==========================================================================
+const EGG = { x: VOLC.x, y: -46, z: VOLC.z };
+const eggRoom = new THREE.Group();
+{
+  const rockM = new THREE.MeshLambertMaterial({ color:0x2e3442, flatShading:true });
+  // the cave shell
+  const geo = new THREE.SphereGeometry(11, 40, 24);
+  const pos = geo.attributes.position, col = [];
+  const cDeep = new THREE.Color(0x141a26), cWarm = new THREE.Color(0x2c2434),
+        c = new THREE.Color();
+  for(let i = 0; i < pos.count; i++){
+    const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const nn = v.clone().normalize();
+    const lump = Math.sin(nn.x*7 + 1) * Math.sin(nn.y*6 + 2) * Math.sin(nn.z*8) * 0.7
+               + Math.sin(nn.x*17) * Math.sin(nn.z*13) * 0.25;
+    v.multiplyScalar(1 + lump*0.06);
+    if(v.y < -0.2) v.y = -0.2;
+    pos.setXYZ(i, v.x, v.y, v.z);
+    c.copy(cDeep).lerp(cWarm, clamp(0.5 + lump*0.5, 0, 1));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  eggRoom.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.BackSide, flatShading:true })));
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(11, 36),
+    new THREE.MeshLambertMaterial({ color:0x1e222c, flatShading:true }));
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  eggRoom.add(floor);
+  // stalactites + stalagmites
+  for(let i = 0; i < 22; i++){
+    const a = rand(0, Math.PI*2), r = rand(2.5, 8.6);
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
+    const drop = new THREE.Mesh(new THREE.ConeGeometry(rand(0.18, 0.5), rand(1.2, 3.4), 6), rockM);
+    const ceilY = Math.sqrt(Math.max(0, 11*11 - x*x - z*z)) * 0.96;
+    drop.position.set(x, ceilY - 0.4, z);
+    drop.rotation.x = Math.PI;
+    eggRoom.add(drop);
+    if(rand() < 0.5){
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(rand(0.2, 0.45), rand(0.6, 1.6), 6), rockM);
+      spike.position.set(x + rand(-0.4, 0.4), 0.3, z + rand(-0.4, 0.4));
+      eggRoom.add(spike);
+    }
+  }
+  // the glowing pool
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 24),
+    new THREE.MeshBasicMaterial({ color:0x3ec6a0 }));
+  pool.rotation.x = -Math.PI/2;
+  pool.position.set(-3.2, 0.06, 2.4);
+  eggRoom.add(pool);
+  const poolGlow = new THREE.PointLight(0x40e0b0, 14, 16, 2);
+  poolGlow.position.set(-3.2, 1.6, 2.4);
+  eggRoom.add(poolGlow);
+  // the temple facade against the back wall
+  const templeM = new THREE.MeshLambertMaterial({ color:0x6b6250, flatShading:true });
+  const glyphM = new THREE.MeshLambertMaterial({ color:0x574f3e, flatShading:true });
+  for(const s of [-1, 1]){
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 4.6, 8), templeM);
+    pillar.position.set(s*2.6, 2.3, -8.2);
+    eggRoom.add(pillar);
+    const guard = new THREE.Group();   // a squat guardian statue
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 1.3, 7), glyphM);
+    body.position.y = 0.75;
+    guard.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.65, 0.6), templeM);
+    head.position.y = 1.75;
+    guard.add(head);
+    guard.position.set(s*4.6, 0, -6.4);
+    guard.rotation.y = -s*0.4;
+    eggRoom.add(guard);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.0, 1.4), templeM);
+  lintel.position.set(0, 5.0, -8.2);
+  eggRoom.add(lintel);
+  for(let i=0;i<6;i++){   // carved glyph blocks
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.55, 0.25), glyphM);
+    gl.position.set(-2.5 + i, 5.0, -7.45);
+    eggRoom.add(gl);
+  }
+  const steps = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 2.2), glyphM);
+  steps.position.set(0, 0.25, -6.9);
+  eggRoom.add(steps);
+  // the JEWELS in the rock + the treasure heap
+  const jewelColors = [0xe04868, 0x40b8e8, 0x58d888, 0xd8b840, 0xa868e8];
+  for(let i = 0; i < 16; i++){
+    const jc = jewelColors[i % jewelColors.length];
+    const j = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.16, 0.3), 0),
+      new THREE.MeshLambertMaterial({ color:jc, emissive:jc, emissiveIntensity:0.55, flatShading:true }));
+    // set INTO the cave wall: radius follows the shell at this height
+    const a = rand(0, Math.PI*2), y = rand(0.5, 5.5);
+    const r = Math.sqrt(Math.max(1, 11*11 - y*y)) * rand(0.9, 0.95);
+    j.position.set(Math.cos(a)*r, y, Math.sin(a)*r);
+    j.rotation.set(rand(0,3), rand(0,3), rand(0,3));
+    eggRoom.add(j);
+  }
+  const goldM = new THREE.MeshStandardMaterial({ color:0xd8b840, metalness:0.75,
+    roughness:0.35, flatShading:true });
+  for(let i = 0; i < 5; i++){    // the treasure heap — lumpy, not a tent
+    const lump = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.55, 0.95), 0), goldM);
+    lump.position.set(3.4 + rand(-0.9, 0.9), rand(0.15, 0.5), 1.6 + rand(-0.8, 0.8));
+    lump.scale.y = 0.6;
+    lump.rotation.set(rand(0,3), rand(0,3), rand(0,3));
+    eggRoom.add(lump);
+  }
+  for(let i=0;i<10;i++){
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.04, 8),
+      new THREE.MeshStandardMaterial({ color:0xe8cc58, metalness:0.8, roughness:0.3 }));
+    coin.position.set(3.4 + rand(-1.6, 1.6), 0.08, 1.6 + rand(-1.4, 1.4));
+    coin.rotation.set(rand(-0.4,0.4), rand(0,3), rand(-0.4,0.4));
+    eggRoom.add(coin);
+  }
+  const heapGlow = new THREE.PointLight(0xffd870, 10, 12, 2);
+  heapGlow.position.set(3.4, 2.2, 1.6);
+  eggRoom.add(heapGlow);
+  const caveAmb = new THREE.PointLight(0x8878b8, 10, 26, 2);
+  caveAmb.position.set(0, 6, 0);
+  eggRoom.add(caveAmb);
+  eggRoom.position.set(EGG.x, EGG.y, EGG.z);
+  scene.add(eggRoom);
+}
+
+// ---------- the Easter-egg jump (fade, swap, fade back) --------------------
+let inEgg = false;
+const fadeEl = document.getElementById('fade');
+const eggBtn = document.getElementById('eggbtn');
+const savedCam = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+eggBtn.addEventListener('click', () => {
+  fadeEl.style.opacity = 1;
+  setTimeout(() => {
+    inEgg = !inEgg;
+    if(inEgg){
+      savedCam.pos.copy(camera.position);
+      savedCam.tgt.copy(controls.target);
+      camera.position.set(EGG.x + 6.5, EGG.y + 3.2, EGG.z + 7.5);
+      controls.target.set(EGG.x, EGG.y + 1.6, EGG.z);
+      controls.minDistance = 2; controls.maxDistance = 18;
+      scene.fog.color.set(0x06080e);
+      scene.fog.near = 8; scene.fog.far = 42;
+      renderer.toneMappingExposure = 1.0;
+      eggBtn.textContent = '🏞 Return to the Delta';
+    } else {
+      camera.position.copy(savedCam.pos);
+      controls.target.copy(savedCam.tgt);
+      controls.minDistance = 6; controls.maxDistance = 420;
+      scene.fog.color.copy(FOG_DAY.color);
+      scene.fog.near = FOG_DAY.near; scene.fog.far = FOG_DAY.far;
+      renderer.toneMappingExposure = 1.08;
+      eggBtn.textContent = '💎 Go to Easter Egg Room';
+    }
+    fadeEl.style.opacity = 0;
+  }, 420);
+});
+
+// ---------- Save Image ------------------------------------------------------
+document.getElementById('savebtn').addEventListener('click', () => {
+  renderer.render(scene, camera);
+  renderer.domElement.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    a.download = `delta_rev${REV}_${stamp}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+});
+
+// ---------- animate ---------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  U_SWAY_T.value = t;
+
+  // the sea (georgeworld's calm swell)
+  const wp = seaGeo.attributes.position;
+  for(let i=0;i<wp.count;i++){
+    const x = seaBase[i*3], z = seaBase[i*3+2];
+    wp.setY(i, Math.sin(x*0.08 + t*1.1) * 0.14 + Math.cos(z*0.1 + t*0.8) * 0.12);
+  }
+  wp.needsUpdate = true;
+
+  updateRibbons(t);
+  updateCrater(t);
+  updateSmoke(dt);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// dev hook: lets the builder (and the verifier) drive the camera
+window.DELTA = { camera, controls, terrainH, brPoint, BRANCHES, renderer, scene };
+
+</script>
+</body>
+</html>

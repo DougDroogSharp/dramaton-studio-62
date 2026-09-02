@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     COCONUT CRAB — Birgus latro. Study.
+     Filed 2026-08-31. Standalone; nothing here touches georgeworld.html.
+
+     WHAT MAKES IT A COCONUT CRAB AND NOT A GENERIC CRAB
+       · It is a HERMIT crab that gave up the shell. Adults carry a hardened
+         abdomen tucked forward under the body — modelled here as a segmented
+         curl, not a flat crab apron.
+       · It WALKS FORWARD. Most crabs scuttle sideways; Birgus does not. The
+         gait below is a forward alternating-diagonal trot.
+       · TEN legs, and only six of them do anything you can see:
+           pair 1  the chelipeds — and the LEFT claw is markedly the bigger,
+                   which is the field mark people photograph
+           pairs 2-3  the long walking legs, the entire drivetrain
+           pair 4  small, tipped with tiny chelae, used for gripping when
+                   climbing; here it touches down lightly and takes no load
+           pair 5  vestigial, hidden inside the branchial chamber — not built
+       · Stalked eyes, two antenna pairs (long whips + short antennules).
+       · Colour varies by island from orange-red to deep blue-violet; both
+         morphs are here, on a toggle.
+
+     THE THREE BEHAVIOURS
+       SCUTTLE   — real 2-link IK per leg, so the feet PLANT and the body
+                   pulls past them. No sliding. Diagonal pairs, 62% duty.
+       CROUCH    — flattens to the sand, legs folded wide and low, claws drawn
+                   in under the face. What it does when it is unsure.
+       BRANDISH  — rears back onto the rear legs, both claws up and open,
+                   swaying, with occasional snaps. The threat display.
+
+     DROP-IN CONTRACT
+       window.CRAB = { build(opts) -> { group, update(dt,t), setGait, gait },
+                       makeCrab }
+       Head faces +Z, origin at ground — the same convention as the turtle and
+       the game's other props. build({lambert:true}) for the game's flat look.
+     Three.js is VENDORED (vendor/three, r160) — the game's exact importmap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Coconut Crab — Birgus latro</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#8fcbe4;
+    font-family:"Segoe UI", system-ui, sans-serif; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:236px;
+    background:rgba(20,16,14,0.78); color:#f2e9e2; font:12.5px/1.45 system-ui,sans-serif;
+    padding:11px 13px; border-radius:12px; user-select:none; backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,0.12); }
+  #chip b { font-size:14px; letter-spacing:.4px; }
+  #chip .sub { opacity:.6; font-size:11px; font-style:italic; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.15); margin:9px 0; }
+  #chip h4 { margin:0 0 5px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  .btns button { background:rgba(255,255,255,0.11); color:#f2e9e2;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:5px 9px;
+    font:11.5px system-ui,sans-serif; cursor:pointer; }
+  .btns button:hover { background:rgba(255,255,255,0.26); }
+  .btns button.on { background:#a8471f; border-color:#ffab7a; font-weight:700; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:6px; font-size:11.5px; }
+  label.rw input[type=range] { flex:1; min-width:0; }
+  #note { margin-top:9px; font-size:11px; opacity:.78; line-height:1.4;
+    border-top:1px solid rgba(255,255,255,.14); padding-top:8px; }
+  #busy { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(16,10,8,0.7); color:#f2e9e2; z-index:30; font:15px system-ui,sans-serif; }
+</style>
+</head>
+<body>
+<div id="busy">hatching a coconut crab…</div>
+<div id="chip">
+  <b>COCONUT CRAB</b><br><span class="sub">Birgus latro</span>
+  <hr>
+  <h4>Behaviour</h4>
+  <div class="btns" id="gaits"></div>
+  <label class="rw">speed <input id="spd" type="range" min="0.2" max="2.2" step="0.05" value="1"></label>
+  <hr>
+  <h4>Morph</h4>
+  <div class="btns" id="morphs"></div>
+  <h4 style="margin-top:9px">Views</h4>
+  <div class="btns" id="views"></div>
+  <div id="note"></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2, D=Math.PI/180;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// ======================================================================
+// 1. PROPORTIONS. Everything scales off carapace length.
+//    A big Birgus runs ~20 cm carapace to a ~1 m legspan — the legs are
+//    startlingly long relative to the body, and that ratio is most of what
+//    makes the silhouette read as this animal.
+// ======================================================================
+const CL    = 0.70;              // carapace length (world units)
+const CW    = CL*0.86;           // carapace width
+const CH    = CL*0.50;           // carapace height
+const STAND = CL*0.62;           // body ride height when standing
+const L1    = CL*0.74;           // merus      (upper leg)
+const L2    = CL*0.80;           // propodus   (lower leg)
+const L3    = CL*0.32;           // dactyl     (the pointed foot)
+
+// ======================================================================
+// 2. SHELL TEXTURE — granulated chitin, two colour morphs
+// ======================================================================
+function shellMap(morph){
+  const S=512, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d'), r=mulberry32(morph==='blue'?8821:1174);
+  const A = morph==='blue' ? [58,54,104] : [150,52,24];
+  const B = morph==='blue' ? [118,102,176] : [214,106,44];
+  const mix=(t)=>`rgb(${A[0]+(B[0]-A[0])*t|0},${A[1]+(B[1]-A[1])*t|0},${A[2]+(B[2]-A[2])*t|0})`;
+  const grd=g.createLinearGradient(0,0,0,S);
+  grd.addColorStop(0,mix(0.75)); grd.addColorStop(0.55,mix(0.42)); grd.addColorStop(1,mix(0.12));
+  g.fillStyle=grd; g.fillRect(0,0,S,S);
+  // granulation: thousands of little tubercles, each a lit dot with a shadow
+  for(let i=0;i<9000;i++){
+    const x=r()*S, y=r()*S, rad=1+r()*3.1;
+    g.fillStyle=`rgba(0,0,0,${0.05+r()*0.16})`;
+    g.beginPath(); g.arc(x+rad*0.35,y+rad*0.4,rad,0,TAU); g.fill();
+    g.fillStyle=`rgba(255,${210+r()*40|0},${170+r()*60|0},${0.06+r()*0.20})`;
+    g.beginPath(); g.arc(x,y,rad*0.8,0,TAU); g.fill();
+  }
+  // a few darker mottles and pale abrasion scars
+  for(let i=0;i<160;i++){
+    const x=r()*S,y=r()*S;
+    g.fillStyle=`rgba(${A[0]*0.5|0},${A[1]*0.5|0},${A[2]*0.5|0},${0.05+r()*0.14})`;
+    g.beginPath(); g.ellipse(x,y,8+r()*30,6+r()*18,r()*3,0,TAU); g.fill();
+  }
+  for(let i=0;i<40;i++){
+    const x=r()*S,y=r()*S;
+    g.strokeStyle=`rgba(240,225,200,${0.05+r()*0.14})`; g.lineWidth=1+r()*2.4;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+(r()-0.5)*40,y+(r()-0.5)*22); g.stroke();
+  }
+  const t=new THREE.CanvasTexture(cv);
+  t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  return t;
+}
+
+// ======================================================================
+// 3. GEOMETRY
+// ======================================================================
+// the carapace: an oval shield, widest behind the middle, domed, with the
+// transverse CERVICAL GROOVE that every decapod carapace carries
+function carapaceGeo(){
+  const NU=30, NV=40, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;                                   // 0 = rear, 1 = front
+    // plan half-width: broad at the back, pinched to the eyestalk notch
+    const w = CW*0.5*Math.pow(Math.sin(Math.PI*(0.10+0.86*u)),0.55)
+                    *(1 - 0.28*sstep(0.62,1,u));
+    const groove = 1 - 0.13*Math.exp(-Math.pow((u-0.56)/0.055,2));   // cervical groove
+    const hgt = CH*Math.pow(Math.sin(Math.PI*(0.12+0.82*u)),0.62)*groove;
+    const yc  = CH*0.06;
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU, cs=Math.cos(a), sn=Math.sin(a);
+      pos.push(sn*w, yc + (cs>0 ? cs*hgt : cs*hgt*0.34), (u-0.42)*CL);
+      uv.push(u*1.5, j/NV*1.5);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+// a tapered shell segment, used for every limb piece — built along +Z so the
+// IK can just rotate it about X
+function limbGeo(len, r0, r1, bend){
+  const NU=14, NV=10, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;
+    // CLOSED ENDS. These were open tubes butted end to end, so every bent
+    // joint showed you straight down the inside of the leg. Each end now
+    // rounds off to a point over the last 9% of its length; a knuckle sphere
+    // then sits over the join and hides the seam.
+    const cap = Math.sin(Math.min(1, u/0.09) * Math.PI/2)
+              * Math.sin(Math.min(1, (1-u)/0.09) * Math.PI/2);
+    const rr=lerp(r0,r1,u)*(1+0.12*Math.sin(u*Math.PI))*cap;
+    const droop=(bend||0)*Math.pow(u,2);
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU;
+      pos.push(Math.cos(a)*rr, Math.sin(a)*rr*0.86 + droop, u*len);
+      uv.push(u*1.2, j/NV);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+// the CLAW HAND: a deep flattened palm with a fixed lower finger
+function handGeo(len, h, w){
+  const NU=14, NV=14, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;
+    // swells to a heavy palm then draws out into the fixed finger
+    const bulk = Math.pow(Math.sin(Math.PI*(0.10+0.70*u)),0.7);
+    const cap = Math.sin(Math.min(1, u/0.07) * Math.PI/2)
+              * Math.sin(Math.min(1, (1-u)/0.05) * Math.PI/2);
+    const hh = h*(0.42+0.58*bulk)*(1-0.72*sstep(0.55,1,u))*cap;
+    const ww = w*(0.45+0.55*bulk)*(1-0.66*sstep(0.55,1,u))*cap;
+    const yc = -h*0.30*sstep(0.5,1,u);            // the finger droops
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU;
+      pos.push(Math.cos(a)*ww, yc+Math.sin(a)*hh, u*len);
+      uv.push(u*1.3, j/NV);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// ======================================================================
+// 4. BUILD
+// ======================================================================
+const MAPS = { orange: shellMap('orange'), blue: shellMap('blue') };
+
+function build(opts){
+  opts = opts||{};
+  const flat = !!opts.lambert;
+  const map = MAPS[opts.morph === 'blue' ? 'blue' : 'orange'];
+  const mk = (m)=> flat
+    ? new THREE.MeshLambertMaterial({ map:m, flatShading:true })
+    : new THREE.MeshStandardMaterial({ map:m, roughness:0.52, metalness:0.06 });
+  const matShell = mk(map);
+  const matDark  = new THREE.MeshStandardMaterial({ color:0x16100c, roughness:0.35 });
+  const matEye   = new THREE.MeshStandardMaterial({ color:0x1a0d08, roughness:0.18 });
+
+  const group = new THREE.Group();          // origin at ground, head faces +Z
+  const body  = new THREE.Group();          // rides, pitches, rolls
+  body.position.y = STAND;
+  group.add(body);
+
+  const cara = new THREE.Mesh(carapaceGeo(), matShell);
+  cara.castShadow = cara.receiveShadow = true;
+  body.add(cara);
+
+  // THE ABDOMEN — a hermit crab's tail, hardened and curled forward under the
+  // body. This is the single most species-specific piece of the silhouette.
+  const abdomen = new THREE.Group();
+  abdomen.position.set(0, -CH*0.10, -CL*0.36);
+  body.add(abdomen);
+  {
+    let par = abdomen, z = 0, curl = 0;
+    for(let i=0;i<5;i++){
+      const t = i/4;
+      const seg = new THREE.Mesh(
+        limbGeo(CL*0.19, CL*(0.30-0.045*i), CL*(0.27-0.045*i), 0), matShell);
+      seg.rotation.x = i===0 ? -0.30 : -0.42;      // tucks under and forward
+      seg.castShadow = true;
+      par.add(seg);
+      const nx = new THREE.Group();
+      nx.position.z = CL*0.19;
+      seg.add(nx);
+      par = nx;
+    }
+  }
+
+  // ---- EYES + ANTENNAE -------------------------------------------------
+  const face = new THREE.Group();
+  face.position.set(0, CH*0.20, CL*0.52);
+  body.add(face);
+  const eyes = [];
+  for(const s of [-1,1]){
+    const st = new THREE.Group();
+    st.position.set(s*CW*0.20, 0, 0);
+    st.rotation.set(-0.5, s*0.16, 0);
+    const stalk = new THREE.Mesh(limbGeo(CL*0.17, CL*0.035, CL*0.045, 0), matShell);
+    st.add(stalk);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(CL*0.058, 12, 10), matEye);
+    ball.position.z = CL*0.19; st.add(ball);
+    face.add(st); eyes.push(st);
+  }
+  const antennae = [];
+  for(const s of [-1,1]){
+    // long whip antennae
+    const a1 = new THREE.Group();
+    a1.position.set(s*CW*0.26, -CH*0.06, 0);
+    a1.rotation.set(-0.18, s*0.55, 0);
+    let par = a1;
+    for(let i=0;i<5;i++){
+      const seg = new THREE.Mesh(limbGeo(CL*0.20, CL*0.022-i*0.002, CL*0.018-i*0.002, 0), matShell);
+      seg.rotation.x = 0.10;
+      par.add(seg);
+      const nx = new THREE.Group(); nx.position.z = CL*0.20; seg.add(nx); par = nx;
+    }
+    face.add(a1); antennae.push({ g:a1, s });
+    // short antennules
+    const a2 = new THREE.Mesh(limbGeo(CL*0.16, CL*0.022, CL*0.012, 0), matShell);
+    a2.position.set(s*CW*0.11, -CH*0.12, 0);
+    a2.rotation.set(0.22, s*0.30, 0);
+    face.add(a2);
+  }
+  // the mouthparts, just a dark wedge so the face isn't blank
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(CL*0.10, 10, 8), matDark);
+  mouth.scale.set(1.3, 0.7, 0.7);
+  mouth.position.set(0, -CH*0.22, CL*0.46);
+  body.add(mouth);
+
+  // ---- WALKING LEGS ----------------------------------------------------
+  // Pairs 2 and 3 carry the animal; pair 4 is small and only steadies it.
+  // azim is measured in body space from +Z (forward), positive to the right.
+  const LEGDEF = [
+    { pair:2, az: 46*D, ax:0.30, az0: 0.24, ph:0.0,  sc:1.00 },
+    { pair:3, az: 84*D, ax:0.32, az0: 0.02, ph:0.5,  sc:1.06 },
+    { pair:4, az:126*D, ax:0.28, az0:-0.22, ph:0.5,  sc:0.52 },
+  ];
+  // a condyle: the ball that lives at an arthropod joint. Parented to the
+  // group that PIVOTS, so it stays centred on the hinge through the whole
+  // range of motion and there is never a gap to see through.
+  const knuckleGeo = new THREE.SphereGeometry(1, 12, 10);
+  function knuckle(parent, r, mat){
+    const k = new THREE.Mesh(knuckleGeo, mat || matShell);
+    k.scale.setScalar(r);
+    k.castShadow = true;
+    parent.add(k);
+    return k;
+  }
+
+  const legs = [];
+  for(const s of [-1,1]) for(const d of LEGDEF){
+    const root = new THREE.Group();
+    root.position.set(s*CW*d.ax, -CH*0.04, CL*d.az0);
+    body.add(root);
+    const l1 = L1*d.sc, l2 = L2*d.sc, l3 = L3*d.sc;
+    const rad = CL*0.055*d.sc;
+    const segA = new THREE.Mesh(limbGeo(l1, rad*1.25, rad*0.95, 0), matShell);
+    segA.castShadow = true; root.add(segA);
+    knuckle(root, rad*1.30);                      // hip
+    const jB = new THREE.Group(); jB.position.z = l1; segA.add(jB);
+    knuckle(jB, rad*1.02);                        // knee — the one that gaped
+    const segB = new THREE.Mesh(limbGeo(l2, rad*0.95, rad*0.55, 0), matShell);
+    segB.castShadow = true; jB.add(segB);
+    const jC = new THREE.Group(); jC.position.z = l2; segB.add(jC);
+    knuckle(jC, rad*0.58);                        // ankle
+    const segC = new THREE.Mesh(limbGeo(l3, rad*0.5, rad*0.10, 0), matDark);
+    segC.castShadow = true; jC.add(segC);
+    // spines along the merus — Birgus legs are conspicuously spiny
+    for(let i=0;i<4;i++){
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(rad*0.22, rad*0.85, 5), matShell);
+      sp.position.set(0, rad*0.9, l1*(0.22+i*0.20));
+      sp.rotation.x = -0.5; segA.add(sp);
+    }
+    legs.push({ s, def:d, root, segA, jB, jC, l1, l2, l3,
+      // neutral foot, in BODY space, on the ground
+      rest: new THREE.Vector3(
+        s*Math.sin(d.az)*(l1+l2)*0.66 + s*CW*d.ax,
+        -STAND,
+        Math.cos(d.az)*(l1+l2)*0.66 + CL*d.az0),
+      phase: d.ph, load: d.pair !== 4 });
+  }
+
+  // 2-link IK, elbow UP — an arthropod leg peaks above the body and comes
+  // back down to the foot, and solving elbow-down instead is the single
+  // difference between "crab" and "melting spider".
+  const _v = new THREE.Vector3();
+  function placeFoot(L, fx, fy, fz){
+    const dx = fx - L.root.position.x;
+    const dy = fy - L.root.position.y;
+    const dz = fz - L.root.position.z;
+    L.root.rotation.y = Math.atan2(dx, dz);
+    const r = Math.hypot(dx, dz);
+    const reach = (L.l1 + L.l2) * 0.995;
+    let Ddist = Math.hypot(r, dy);
+    if(Ddist > reach) Ddist = reach;
+    const beta = Math.atan2(dy, r);
+    const ca = clamp((L.l1*L.l1 + Ddist*Ddist - L.l2*L.l2)/(2*L.l1*Ddist), -1, 1);
+    const e1 = beta + Math.acos(ca);                       // elbow up
+    const kx = Math.cos(e1)*L.l1, ky = Math.sin(e1)*L.l1;
+    const e2 = Math.atan2(dy - ky, r - kx);
+    L.segA.rotation.x = -e1;
+    L.jB.rotation.x   = -(e2 - e1);
+    L.jC.rotation.x   = -(-70*D - e2);                     // dactyl stabs down
+  }
+
+  // ---- CHELIPEDS -------------------------------------------------------
+  // The LEFT one is the big one. That asymmetry is the field mark.
+  const claws = [];
+  for(const s of [-1,1]){
+    const big = (s < 0);
+    const k = big ? 1.30 : 1.0;
+    const root = new THREE.Group();
+    root.position.set(s*CW*0.34, -CH*0.02, CL*0.34);
+    body.add(root);
+    const mer = new THREE.Mesh(limbGeo(CL*0.46*k, CL*0.10*k, CL*0.085*k, 0), matShell);
+    mer.castShadow = true; root.add(mer);
+    knuckle(root, CL*0.105*k);
+    const jW = new THREE.Group(); jW.position.z = CL*0.46*k; mer.add(jW);
+    knuckle(jW, CL*0.095*k);
+    const car = new THREE.Mesh(limbGeo(CL*0.24*k, CL*0.095*k, CL*0.105*k, 0), matShell);
+    car.castShadow = true; jW.add(car);
+    const jH = new THREE.Group(); jH.position.z = CL*0.24*k; car.add(jH);
+    knuckle(jH, CL*0.108*k);
+    const hand = new THREE.Mesh(handGeo(CL*0.60*k, CL*0.17*k, CL*0.115*k), matShell);
+    hand.castShadow = true; jH.add(hand);
+    // the movable finger, hinged at the top of the palm
+    const jD = new THREE.Group();
+    jD.position.set(0, CL*0.10*k, CL*0.30*k);
+    hand.add(jD);
+    knuckle(jD, CL*0.062*k);
+    const dact = new THREE.Mesh(limbGeo(CL*0.30*k, CL*0.055*k, CL*0.014*k, -CL*0.05*k), matShell);
+    dact.castShadow = true; jD.add(dact);
+    claws.push({ s, big, k, root, mer, jW, car, jH, hand, jD, dact });
+  }
+
+  // ==================================================================
+  // 5. BEHAVIOUR
+  // ==================================================================
+  let gait = 'scuttle', phase = 0, t = 0;
+  let clawOpen = 0, sway = 0;
+  const P_CYCLE = 0.92;                 // seconds per full leg cycle
+  const DUTY    = 0.62;                 // fraction of it with the foot planted
+  const SPEED   = CL*1.15;              // world units per second at speed 1
+
+  const api = { group, body, LEN:CL, legs, claws,
+    get gait(){ return gait; },
+    setGait(g){ gait = g; }, update, speed:1 };
+
+  function setClaw(c, opts){
+    c.root.rotation.set(opts.rx||0, opts.ry||0, opts.rz||0);
+    c.jW.rotation.x = opts.wrist||0;
+    c.jH.rotation.set(opts.hx||0, opts.hy||0, opts.hz||0);
+    c.jD.rotation.x = -(opts.open||0);
+  }
+
+  // -- SCUTTLE ---------------------------------------------------------
+  function doScuttle(dt, sp){
+    const v = SPEED*sp;
+    phase = (phase + dt*sp/P_CYCLE) % 1;
+    const travel = v*DUTY*P_CYCLE;          // exactly what stance must retract
+    for(const L of legs){
+      const p = (phase + L.phase) % 1;
+      let fz, fy;
+      if(p < DUTY){                          // STANCE — foot pinned to the world
+        const u = p/DUTY;
+        fz = L.rest.z + travel*(0.5 - u);
+        fy = L.rest.y;
+      } else {                               // SWING — lift and reach ahead
+        const u = (p - DUTY)/(1 - DUTY);
+        fz = L.rest.z + travel*(-0.5 + u);
+        fy = L.rest.y + Math.sin(u*Math.PI)*CL*(L.load?0.30:0.16);
+      }
+      placeFoot(L, L.rest.x, fy, fz);
+    }
+    group.translateZ(v*dt);
+    // the body answers the diagonal gait: a small bob at twice leg frequency
+    // and a roll toward whichever pair is currently loaded
+    body.position.y = STAND + Math.sin(phase*TAU*2)*CL*0.022;
+    body.rotation.z = Math.sin(phase*TAU)*2.6*D;
+    body.rotation.x = -3*D + Math.sin(phase*TAU*2 + 1)*1.4*D;
+    // claws carried forward and low, swinging a little
+    for(const c of claws){
+      setClaw(c, { rx: 26*D + Math.sin(phase*TAU + (c.s<0?0:Math.PI))*5*D,
+                   ry: c.s*34*D, rz: c.s*-10*D,
+                   wrist: -40*D, hx: 16*D, hy: c.s*-22*D, open: 0.10 });
+    }
+    faceIdle(dt, 1);
+  }
+
+  // -- CROUCH ----------------------------------------------------------
+  function doCrouch(dt){
+    const h = STAND*0.34;
+    for(const L of legs){
+      // feet stay put but splay wider — the whole animal flattens outward
+      placeFoot(L, L.rest.x*1.22, -h, L.rest.z*1.10);
+    }
+    body.position.y = h + Math.sin(t*1.7)*CL*0.004;
+    body.rotation.z = 0;
+    body.rotation.x = 2*D;
+    for(const c of claws){
+      // drawn in tight under the face, the way a wary crab shields its mouth
+      setClaw(c, { rx: 60*D, ry: c.s*72*D, rz: c.s*-6*D,
+                   wrist: -86*D, hx: 8*D, hy: c.s*-58*D, open: 0.02 });
+    }
+    faceIdle(dt, 0.35, -0.30);
+  }
+
+  // -- BRANDISH --------------------------------------------------------
+  // Rears onto pairs 3 and 4, front legs off the sand, both claws up and
+  // gaping, with a slow menacing sway and the odd snap.
+  function doBrandish(dt, sp){
+    sway += dt*2.1*sp;
+    const rear = 26*D;
+    const snap = Math.max(0, Math.sin(sway*0.85));
+    clawOpen = 0.35 + 0.55*Math.pow(snap, 3);
+    body.position.y = STAND*1.34 + Math.sin(sway*0.7)*CL*0.02;
+    body.rotation.x = rear + Math.sin(sway*0.7)*2.4*D;
+    body.rotation.z = Math.sin(sway*0.5)*4.5*D;
+    for(const L of legs){
+      if(L.def.pair === 2){
+        // front pair lifted and pawing the air
+        placeFoot(L, L.rest.x*1.05,
+                     L.rest.y + CL*(0.62 + 0.10*Math.sin(sway*1.6 + L.s)),
+                     L.rest.z*1.02);
+      } else {
+        // rear pairs planted wide and braced
+        placeFoot(L, L.rest.x*1.16, L.rest.y, L.rest.z*1.06 - CL*0.10);
+      }
+    }
+    for(const c of claws){
+      setClaw(c, { rx: -66*D - Math.sin(sway*0.9 + (c.s<0?0:0.7))*10*D,
+                   ry: c.s*30*D, rz: c.s*-16*D,
+                   wrist: -22*D, hx: -26*D, hy: c.s*-14*D,
+                   open: clawOpen });
+    }
+    faceIdle(dt, 1.6, 0.25);
+  }
+
+  // -- IDLE ------------------------------------------------------------
+  function doIdle(dt){
+    for(const L of legs) placeFoot(L, L.rest.x, L.rest.y, L.rest.z);
+    body.position.y = STAND + Math.sin(t*1.1)*CL*0.008;
+    body.rotation.set(-2*D, 0, Math.sin(t*0.7)*1.2*D);
+    for(const c of claws){
+      setClaw(c, { rx: 20*D + Math.sin(t*0.8 + c.s)*4*D, ry: c.s*40*D, rz: c.s*-8*D,
+                   wrist: -46*D, hx: 14*D, hy: c.s*-26*D,
+                   open: 0.06 + 0.06*Math.max(0, Math.sin(t*0.45 + c.s)) });
+    }
+    faceIdle(dt, 0.8);
+  }
+
+  // eyestalks and antennae never stop moving — it is most of what sells a
+  // living arthropod
+  function faceIdle(dt, energy, lower){
+    const l = lower || 0;
+    for(let i=0;i<eyes.length;i++){
+      const s = i===0 ? -1 : 1;
+      eyes[i].rotation.x = -0.5 + l + Math.sin(t*1.3*energy + s)*0.10*energy;
+      eyes[i].rotation.y = s*0.16 + Math.sin(t*0.9*energy + s*2)*0.13*energy;
+    }
+    for(const a of antennae){
+      a.g.rotation.x = -0.18 + l*0.6 + Math.sin(t*2.4*energy + a.s)*0.17*energy;
+      a.g.rotation.y = a.s*0.55 + Math.sin(t*1.7*energy + a.s*1.5)*0.22*energy;
+    }
+  }
+
+  function update(dt, tt){
+    t = tt;
+    const sp = api.speed === undefined ? 1 : api.speed;
+    if(gait === 'scuttle') doScuttle(dt, sp);
+    else if(gait === 'crouch') doCrouch(dt);
+    else if(gait === 'brandish') doBrandish(dt, sp);
+    else doIdle(dt);
+  }
+  update(0, 0);
+  return api;
+}
+window.CRAB = { build, makeCrab:build, CL };
+
+// ======================================================================
+// 6. STUDY SCENE
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fd7ef);
+scene.fog = new THREE.Fog(0x9fd7ef, 14, 46);
+
+const camera = new THREE.PerspectiveCamera(44, innerWidth/innerHeight, 0.02, 200);
+camera.position.set(1.9, 1.1, 2.3);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 0.5; controls.maxDistance = 14;
+
+scene.add(new THREE.HemisphereLight(0xd8eeff, 0xa08a62, 0.8));
+const sun = new THREE.DirectionalLight(0xfff2d6, 2.1);
+sun.position.set(3, 5, 2.2);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-4; sun.shadow.camera.right=4;
+sun.shadow.camera.top=4; sun.shadow.camera.bottom=-4;
+sun.shadow.camera.far=20; sun.shadow.bias=-0.0006;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbfe6ff, 0.5);
+fill.position.set(-3, 1.6, -2.4); scene.add(fill);
+
+// sand
+{
+  const S=1024, cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const g=cv.getContext('2d'), r=mulberry32(31);
+  g.fillStyle='#e0c99d'; g.fillRect(0,0,S,S);
+  for(let i=0;i<40000;i++){
+    const x=r()*S,y=r()*S,s=1+r()*2.4;
+    g.fillStyle=`rgba(${186+r()*58|0},${164+r()*52|0},${120+r()*48|0},${0.10+r()*0.24})`;
+    g.fillRect(x,y,s,s);
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(4,4);
+  const sand=new THREE.Mesh(new THREE.PlaneGeometry(60,60),
+    new THREE.MeshStandardMaterial({ map:tex, roughness:0.97 }));
+  sand.rotation.x=-Math.PI/2; sand.receiveShadow=true; scene.add(sand);
+}
+// a couple of coconuts, because that is the whole point of the animal
+{
+  const husk=new THREE.MeshStandardMaterial({ color:0x6b4a2a, roughness:0.9 });
+  const rr=mulberry32(5);
+  for(let i=0;i<3;i++){
+    const c=new THREE.Mesh(new THREE.SphereGeometry(CL*0.34,14,12), husk);
+    c.scale.set(1,0.92,1.12);
+    c.position.set((rr()-0.5)*3.2, CL*0.30, (rr()-0.5)*3.2 - 0.8);
+    c.castShadow=c.receiveShadow=true; scene.add(c);
+  }
+}
+
+let crab = build();
+scene.add(crab.group);
+
+// ======================================================================
+// 7. UI
+// ======================================================================
+const GAITS=[['scuttle','Scuttle'],['crouch','Crouch'],['brandish','Brandish'],['idle','Idle']];
+const NOTES={
+  scuttle:'Forward alternating-diagonal trot — Birgus walks forward, unlike most '
+        + 'crabs. Real 2-link IK: the feet plant and the body pulls past them, '
+        + 'so nothing slides. 62% duty, pairs 2 and 3 carrying.',
+  crouch: 'Flattened to the sand, legs splayed wide and low, both claws drawn in '
+        + 'under the mouthparts. Only the eyestalks and antennae keep working.',
+  brandish:'Threat display: reared back onto the rear legs, front pair pawing air, '
+        + 'both claws up and gaping with the occasional snap. The left claw is '
+        + 'the big one — that asymmetry is the field mark.',
+  idle:   'Standing. Eyestalks and antennae never stop; that restlessness is most '
+        + 'of what makes an arthropod look alive.',
+};
+const gaitsEl=document.getElementById('gaits'), gaitBtns={};
+function setGait(g){
+  crab.setGait(g);
+  for(const k in gaitBtns) gaitBtns[k].classList.toggle('on', k===g);
+  document.getElementById('note').textContent = NOTES[g];
+}
+for(const [k,label] of GAITS){
+  const b=document.createElement('button'); b.textContent=label;
+  b.onclick=()=>setGait(k); gaitsEl.appendChild(b); gaitBtns[k]=b;
+}
+document.getElementById('spd').oninput = e => crab.speed = +e.target.value;
+
+let morph='orange';
+const morphEl=document.getElementById('morphs'), morphBtns={};
+function setMorph(m){
+  morph=m;
+  for(const k in morphBtns) morphBtns[k].classList.toggle('on', k===m);
+  const g=crab.gait, sp=crab.speed, pos=crab.group.position.clone(), ry=crab.group.rotation.y;
+  scene.remove(crab.group);
+  crab = build({ morph:m });
+  crab.setGait(g); crab.speed=sp;
+  crab.group.position.copy(pos); crab.group.rotation.y=ry;
+  scene.add(crab.group);
+}
+for(const [k,label] of [['orange','Orange-red'],['blue','Blue-violet']]){
+  const b=document.createElement('button'); b.textContent=label;
+  b.onclick=()=>setMorph(k); morphEl.appendChild(b); morphBtns[k]=b;
+}
+
+// the animal is ~2.6 units across the legs, so a 2.5-unit standoff puts the
+// camera inside it — these are all pulled well back
+const VIEWS={
+  'Three-quarter':[3.4,2.0,4.1], 'Side':[5.4,1.0,0.2], 'Top':[0.3,6.2,0.5],
+  'Front':[0.2,1.4,5.4], 'Face':[1.1,0.8,2.4], 'Low':[3.2,0.30,3.2],
+};
+const viewsEl=document.getElementById('views');
+for(const k of Object.keys(VIEWS)){
+  const b=document.createElement('button'); b.textContent=k;
+  b.onclick=()=>{ const v=VIEWS[k];
+    camera.position.set(crab.group.position.x+v[0], v[1], crab.group.position.z+v[2]);
+    controls.target.set(crab.group.position.x, 0.28, crab.group.position.z);
+    controls.update(); };
+  viewsEl.appendChild(b);
+}
+
+// ======================================================================
+// 8. LOOP  (step() is separable — a hidden tab suspends rAF entirely)
+// ======================================================================
+const clock=new THREE.Clock();
+let T=0;
+function step(dt){
+  T+=dt;
+  crab.update(dt, T);
+  if(crab.group.position.length() > 9){
+    crab.group.position.set(0,0,-2.5); crab.group.rotation.y += 2.2;
+  }
+  const p=crab.group.position;
+  controls.target.lerp(new THREE.Vector3(p.x, 0.28, p.z), 0.06);
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+window.CRAB_STEP=(n,dt)=>{ n=n||60; dt=dt||1/60;
+  for(let i=0;i<n;i++) step(dt);
+  renderer.render(scene,camera);
+  return { gait:crab.gait, z:+crab.group.position.z.toFixed(2) }; };
+window.CRAB_VIEW=(k)=>{ const v=VIEWS[k]; if(!v) return;
+  camera.position.set(crab.group.position.x+v[0], v[1], crab.group.position.z+v[2]);
+  controls.target.set(crab.group.position.x, 0.28, crab.group.position.z);
+  controls.update(); };
+window.CRAB_GAIT=setGait;
+window.CRAB_MORPH=setMorph;
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+setGait('scuttle'); setMorph('orange');
+document.getElementById('busy').remove();
+frame();
+console.log('[Coconut crab] built.', { CL });
+</script>
+</body>
+</html>
