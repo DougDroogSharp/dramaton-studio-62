@@ -409,8 +409,10 @@ function animate(){
   for(const c of consist){
     const a = trackAt(S - c.off);
     c.g.position.copy(a.p);
-    c.g.rotation.set(0, Math.atan2(a.t.x, a.t.z) - Math.PI/2 + Math.PI, 0);
-    c.g.rotateY(Math.PI/2);
+    // every car is built nose +X (cowcatcher at +2.55, cab at -1.4); face the
+    // track tangent. (2026-09-01: the old "+ PI" then rotateY(PI/2) left the
+    // whole consist 90 degrees off, sliding sideways — Doug's stage note.)
+    c.g.rotation.set(0, Math.atan2(a.t.x, a.t.z) - Math.PI/2, 0);
     // little independent sway
     c.g.rotation.z = Math.sin(t*2.2 + c.off)*0.008;
     c.g.rotation.x = Math.sin(t*1.7 + c.off*2)*0.006;
