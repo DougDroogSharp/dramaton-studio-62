@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.79</title>
+<title>George World v0.80</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -6520,31 +6520,72 @@ let drama = null;   // {def, id, a, b, beats, i, t, why, title}
 // category shuffles its whole pool, deals lines out IN ORDER, and no line can
 // return until every other line in its category has played once. It should
 // feel like you rarely hear the same line twice in a session.
+// v0.80 THE TEN-WORD RULE (decision 36, Doug's ride notes): any entry over
+// ~10 words (both halves of an exchange counted together) is SINGLE-USE per
+// run — once said, never again in this playthrough. Short lines keep the
+// shuffle-bag. A pool whose long lines are all spent falls back to its short
+// ones; a pool with nothing left goes SILENT rather than repeat. The spent
+// set rides the snapshots (a count into an ordered log), so a rewind unsays
+// whatever was said in the discarded future.
 const DLG_BAGS = {};
-function pickLine(cat, A, B){
+const DLG_USED = new Set();     // 'cat:idx' of every long entry said this run
+const DLG_USED_LOG = [];        // the same keys in the order they were said
+const DLG_LONG_WORDS = 10;
+function dlgText(raw){ return Array.isArray(raw) ? raw.join(' ') : String(raw); }
+function dlgIsLong(raw){ return dlgText(raw).trim().split(/\s+/).length > DLG_LONG_WORDS; }
+function dlgShuffle(cat, pool, prev){
+  const order = pool.map((_, i) => i);
+  for(let i = order.length - 1; i > 0; i--){   // Fisher–Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  // never let a reshuffle open with the line that just played
+  if(prev && order.length > 1 && order[0] === prev.last)
+    [order[0], order[order.length - 1]] = [order[order.length - 1], order[0]];
+  return DLG_BAGS[cat] = { order, i: 0, n: pool.length, last: prev ? prev.last : -1 };
+}
+// `ok(raw)` — an optional veto the caller applies BEFORE an entry is dealt,
+// so a long line rejected for not matching history is not spent unheard.
+function pickLine(cat, A, B, ok){
   const pool = (window.GW_DIALOGUE || {})[cat] || [];
   if(!pool.length) return null;
-  let bag = DLG_BAGS[cat];
-  if(!bag || bag.n !== pool.length || bag.i >= bag.order.length){
-    const order = pool.map((_, i) => i);
-    for(let i = order.length - 1; i > 0; i--){   // Fisher–Yates
-      const j = Math.floor(Math.random() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
+  const spent = i => dlgIsLong(pool[i]) && DLG_USED.has(cat + ':' + i);
+  if(!pool.some((raw, i) => !spent(i) && (!ok || ok(raw)))) return null;   // dry: silence beats a repeat
+  let bag = DLG_BAGS[cat], idx = -1;
+  for(let pass = 0; pass < 2 && idx < 0; pass++){
+    if(!bag || bag.n !== pool.length || bag.i >= bag.order.length) bag = dlgShuffle(cat, pool, bag);
+    while(bag.i < bag.order.length){
+      const c = bag.order[bag.i++];
+      if(!spent(c) && (!ok || ok(pool[c]))){ idx = c; break; }
     }
-    // never let a reshuffle open with the line that just played
-    if(bag && order.length > 1 && order[0] === bag.last)
-      [order[0], order[order.length - 1]] = [order[order.length - 1], order[0]];
-    bag = DLG_BAGS[cat] = { order, i: 0, n: pool.length, last: bag ? bag.last : -1 };
   }
-  const idx = bag.order[bag.i++];
+  if(idx < 0) return null;
   bag.last = idx;
   const raw = pool[idx];
+  if(dlgIsLong(raw)){
+    const key = cat + ':' + idx;
+    if(!DLG_USED.has(key)){ DLG_USED.add(key); DLG_USED_LOG.push(key); }
+  }
   const pair = Array.isArray(raw) ? raw : [raw, ''];
   const THING = Math.random() < 0.5 ? 'berries' : 'red berries';
   const sub = s => s.replace(/\{A\}/g, A).replace(/\{B\}/g, B)
     .replace(/\{THING\}/g, THING).replace(/\{TECH\}/g, latestTechName());
   return pair.map(sub);
 }
+// console helper: how deep is each pool, and how much of it has this run spent?
+window.dlgStats = function(){
+  const out = {};
+  let longs = 0, total = 0;
+  for(const cat in (window.GW_DIALOGUE || {})){
+    const pool = window.GW_DIALOGUE[cat];
+    const L = pool.filter(dlgIsLong).length;
+    const used = pool.filter((raw, i) => dlgIsLong(raw) && DLG_USED.has(cat + ':' + i)).length;
+    out[cat] = { entries: pool.length, long: L, short: pool.length - L, longSpent: used };
+    longs += L; total += pool.length;
+  }
+  console.table(out);
+  return { categories: Object.keys(out).length, entries: total, long: longs, spent: DLG_USED.size };
+};
 function latestTechName(){
   for(let i = TECHS.length - 1; i >= 1; i--) if(hasTech(i)) return TECHS[i].name;
   return 'the new art';
@@ -6831,18 +6872,17 @@ function pickMorningLine(v, nb){
   const king = VITAS.find(x => !x.state.dead && tierOf(x) === 2);
   const dukes = VITAS.some(x => !x.state.dead && tierOf(x) >= 1);
   const built = buildings.some(b => b.progress > 0 || b.done);
-  for(let tries = 0; tries < 4; tries++){
-    const others = VITAS.filter(x => x !== v && x !== nb && !x.isBaby && !x.state.dead);
-    const B = king ? king.name : (others.length ? others[Math.floor(Math.random()*others.length)].name : nb.name);
-    const ln = pickLine('morning', v.name, B);
-    if(!ln) return null;
-    const txt = ln.join(' ');
-    if(/crown/i.test(txt) && !king) continue;
-    if(/hall|wall/i.test(txt) && !built) continue;
-    if(/shared one fire/i.test(txt) && !dukes) continue;
-    return ln;
-  }
-  return null;
+  // v0.80: vetoed BEFORE the deal, so a long memory line is never spent unheard
+  const ok = raw => {
+    const txt = dlgText(raw);
+    if(/crown|king/i.test(txt) && !king) return false;
+    if(/hall|wall/i.test(txt) && !built) return false;
+    if(/shared one fire|duke/i.test(txt) && !dukes) return false;
+    return true;
+  };
+  const others = VITAS.filter(x => x !== v && x !== nb && !x.isBaby && !x.state.dead);
+  const B = king ? king.name : (others.length ? others[Math.floor(Math.random()*others.length)].name : nb.name);
+  return pickLine('morning', v.name, B, ok);
 }
 // SOLO MUTTERS: one-liners to nobody — a boss lounging smugly (boss_smug),
 // a sprung worker sighing at the sky (worker_weary). Bubble only, no scene.
@@ -6966,6 +7006,7 @@ function updateDrama(dt){
           drawBubbleText(v, Array.isArray(ln[0]) ? ln[0][0] : ln[0]);
           v.bubble.visible = true;
           mutters.push({ v, t: 2.8 });
+          if(ln[1]) pendingReplies.push({ who: other, text: ln[1], t: 2.4 });   // v0.80: the answer is heard too
           v.waveT = 1.5;                   // the little wave
           if(!other.walking)
             other.group.rotation.y = Math.atan2(v.group.position.x - other.group.position.x, v.group.position.z - other.group.position.z);
@@ -7065,6 +7106,7 @@ function snap(){
     commonsActive: commons.active, commonsHoard: commons.hoard,
     landTax, outputEMA,
     techMask, totalHarvests, springSeen, lastTechT,
+    dlgUsedN: DLG_USED_LOG.length,   // v0.80: how many long lines had been said by now
   };
 }
 function pushSnapshot(){
@@ -7113,6 +7155,11 @@ function restore(s){
   dragon.out = 0; dragon.head.visible = false; dragon.cave.visible = false;   // a peek never survives a rewind
   for(const m of mutters) m.v.bubble.visible = false;
   mutters.length = 0;
+  pendingReplies.length = 0;
+  // v0.80: the ten-word rule folds with history — long lines said in the
+  // discarded future are UNSAID and may play again
+  if(typeof s.dlgUsedN === 'number')
+    while(DLG_USED_LOG.length > s.dlgUsedN) DLG_USED.delete(DLG_USED_LOG.pop());
   for(const v of VITAS) if(v.nameTag) v.nameTag.t = 0;   // intro tags never time-travel
   lastBriefDay = dayNow(); dawnBrief(true);   // the synopsis re-briefs from the scrubbed state, quietly
   for(const p of pulses){ p.pts = null; p.m.visible = false; }
