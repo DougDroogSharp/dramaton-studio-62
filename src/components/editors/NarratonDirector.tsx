@@ -37,6 +37,7 @@ const sectionLabel = 'text-[10px] text-diesel-steel uppercase tracking-widest mb
 export const NarratonDirector = ({ game, selection, onChange, onSelect }: NarratonDirectorProps) => {
   const [testSceneId, setTestSceneId] = useState<string | null>(null);
   const [newSceneEpisodeId, setNewSceneEpisodeId] = useState<string>(game.episodes?.[0]?.id ?? '');
+  const [poolFilter, setPoolFilter] = useState<string>('');
   const scenes = game.scenes ?? [];
   const subplots = game.subplots ?? [];
   const worldState = game.info.worldState ?? {};
@@ -140,10 +141,12 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
     );
   }
 
-  // ── Master view: director ranking + unkeyed scenes + subplots + world state ──
+  // ── Master view: director ranking + off-board scenes + subplots + world state ──
   // Empty history = the story's opening board: phase gating shows which
   // scenes could START (MIDDLE/END wait for their subplot's earlier phases).
-  const ranked = narratonRank(scenes, worldState);
+  // The pool filter shows exactly what [NARRATON pool=x] would draw from.
+  const pools = Array.from(new Set(scenes.map(s => s.pool).filter((p): p is string => !!p))).sort();
+  const ranked = narratonRank(scenes, worldState, undefined, poolFilter ? { pool: poolFilter } : {});
   const keyedIds = new Set(ranked.map(m => m.scene.id));
   const unkeyed = scenes.filter(s => !keyedIds.has(s.id));
   const subplotName = (id?: string) => subplots.find(sp => sp.id === id)?.name;
@@ -188,13 +191,28 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
         <div className="lg:col-span-2 flex flex-col min-h-0">
           <div className={sectionLabel}>
             <Tag size={11} />
-            Selector ranking — keyed scenes vs live world state
+            Selector ranking — candidate scenes vs live world state
+            {pools.length > 0 && (
+              <select
+                value={poolFilter}
+                onChange={e => setPoolFilter(e.target.value)}
+                title="Show only what [NARRATON pool=…] would draw from"
+                className="ml-auto bg-diesel-panel border border-diesel-border rounded px-1.5 py-0.5 text-[10px] text-diesel-paper normal-case tracking-normal focus:outline-none focus:border-diesel-cyan/50"
+              >
+                <option value="">every pool</option>
+                {pools.map(p => (
+                  <option key={p} value={p}>pool {p}</option>
+                ))}
+              </select>
+            )}
           </div>
           <ScrollArea className="flex-1 border border-diesel-border rounded bg-diesel-dark">
             <div className="p-2 space-y-1">
               {ranked.length === 0 ? (
                 <div className="text-center text-diesel-steel py-8 text-xs">
-                  No keyed scenes yet. Create a scene and tag it with target variables.
+                  {poolFilter
+                    ? `No scene is in pool "${poolFilter}".`
+                    : 'No candidate scenes yet. Create a scene and tag it with target variables.'}
                 </div>
               ) : (
                 ranked.map((match, i) => (
@@ -216,11 +234,16 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
                     {subplotName(match.scene.subplotId) && (
                       <span className="text-[10px] text-diesel-purple">{subplotName(match.scene.subplotId)}</span>
                     )}
-                    <span className="ml-auto font-mono text-xs text-diesel-steel">
+                    {match.scene.pool && !poolFilter && (
+                      <span className="text-[9px] text-diesel-cyan/70 font-mono">pool {match.scene.pool}</span>
+                    )}
+                    <span className="ml-auto font-mono text-xs text-diesel-steel" title={match.detail}>
                       {match.ineligible === 'big-miss' && 'BIG MISS'}
                       {match.ineligible === 'wrong-phase' && 'WAITS FOR PHASE'}
+                      {match.ineligible === 'wrong-act' && 'WRONG ACT'}
+                      {match.ineligible === 'gated' && 'GATED'}
                       {match.ineligible === 'played' && 'PLAYED'}
-                      {!match.ineligible && `Δ² ${match.score}`}
+                      {!match.ineligible && `Δ² ${Math.round(match.adjustedScore)}`}
                     </span>
                     {Object.entries(match.scene.key || {}).map(([v, t]) => (
                       <span key={v} className="text-[9px] font-mono text-diesel-gold/70 hidden xl:inline">
@@ -247,7 +270,9 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
             <>
               <div className={`${sectionLabel} mt-3`}>
                 <Video size={11} />
-                Unkeyed scenes — invisible to the selector
+                {poolFilter
+                  ? `Off this board — not in pool "${poolFilter}"`
+                  : 'Off the board — no key and no pool, invisible to the selector'}
               </div>
               <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
                 {unkeyed.map(s => (
@@ -503,8 +528,16 @@ const SceneDetail = ({
 
   const worldState = game.info.worldState ?? {};
   const key = scene.key || {};
+  const keyScale = scene.keyScale || {};
   const localVars = scene.localVars || {};
   const untaggedVars = Object.keys(worldState).filter(v => !(v in key));
+
+  const setScale = (variable: string, raw: string) => {
+    const s = Number(raw);
+    const { [variable]: _old, ...rest } = keyScale;
+    const next = Number.isFinite(s) && s > 0 && s !== 100 ? { ...rest, [variable]: s } : rest;
+    onUpdate({ keyScale: Object.keys(next).length > 0 ? next : undefined });
+  };
 
   const addTag = () => {
     const value = Number(tagVal);
@@ -516,7 +549,8 @@ const SceneDetail = ({
 
   const removeTag = (variable: string) => {
     const { [variable]: _, ...rest } = key;
-    onUpdate({ key: rest });
+    const { [variable]: _s, ...restScale } = keyScale;
+    onUpdate({ key: rest, keyScale: Object.keys(restScale).length > 0 ? restScale : undefined });
   };
 
   const addLocal = () => {
@@ -566,6 +600,48 @@ const SceneDetail = ({
         onChange={e => onUpdate({ name: e.target.value })}
       />
 
+      {/* Pool / repeatable / weight — what [NARRATON pool=x] draws and how it biases */}
+      <div className="flex gap-4 items-end">
+        <div className="flex-1">
+          <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Pool</label>
+          <input
+            value={scene.pool ?? ''}
+            onChange={e => onUpdate({ pool: e.target.value.trim() || undefined })}
+            placeholder="none — not drawn by [NARRATON]"
+            list={`narraton-pools-${scene.id}`}
+            className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs font-mono text-diesel-paper placeholder:text-diesel-steel/50 focus:outline-none focus:border-diesel-cyan/50"
+          />
+          <datalist id={`narraton-pools-${scene.id}`}>
+            {Array.from(new Set(game.scenes.map(s => s.pool).filter(Boolean))).map(p => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-diesel-paper cursor-pointer pb-1.5">
+          <input
+            type="checkbox"
+            checked={scene.repeatable ?? false}
+            onChange={e => onUpdate({ repeatable: e.target.checked || undefined })}
+            className="accent-[#c9a227]"
+          />
+          Repeatable
+        </label>
+        <div className="w-20">
+          <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Weight</label>
+          <input
+            type="number"
+            step="0.1"
+            value={scene.weight ?? 1}
+            onChange={e => {
+              const w = Number(e.target.value);
+              onUpdate({ weight: Number.isFinite(w) && w > 0 && w !== 1 ? w : undefined });
+            }}
+            title="Score divides by this (default 1)"
+            className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs font-mono text-diesel-paper focus:outline-none focus:border-diesel-gold/50"
+          />
+        </div>
+      </div>
+
       <div className="flex gap-4">
         <div>
           <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Phase</label>
@@ -607,7 +683,7 @@ const SceneDetail = ({
       <div>
         <div className={sectionLabel}>
           <Tag size={11} />
-          Key — target world-state values (0–100); the selector picks the closest match
+          Key — target world-state values; the selector picks the closest match (over scale, default 100)
         </div>
         <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1">
           {Object.entries(key).map(([variable, target]) => (
@@ -622,6 +698,14 @@ const SceneDetail = ({
                   if (Number.isFinite(v)) onUpdate({ key: { ...key, [variable]: v } });
                 }}
                 className="w-16 bg-diesel-panel border border-diesel-border rounded px-1.5 py-0.5 text-xs font-mono text-diesel-paper focus:outline-none focus:border-diesel-gold/50"
+              />
+              <span className="text-diesel-steel/60">/</span>
+              <input
+                type="number"
+                value={keyScale[variable] ?? 100}
+                onChange={e => setScale(variable, e.target.value)}
+                title="Scale: the variable's range (100 for 0–100). A miss of more than half the scale excludes the scene."
+                className="w-16 bg-diesel-panel border border-diesel-border rounded px-1.5 py-0.5 text-xs font-mono text-diesel-steel focus:outline-none focus:border-diesel-gold/50"
               />
               <span className="text-diesel-steel/60 text-[10px] ml-auto">
                 now: {String(worldState[variable] ?? '—')}

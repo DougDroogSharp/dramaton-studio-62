@@ -46,6 +46,7 @@ import { SfxEditor } from "@/components/editors/SfxEditor";
 import { ButtonEditor } from "@/components/editors/ButtonEditor";
 import { EpisodeEditor } from "@/components/editors/EpisodeEditor";
 import { NarratonDirector } from "@/components/editors/NarratonDirector";
+import { isNarratonCandidate } from "@/utils/narratonDirector";
 import { SkinEditor } from "@/components/editors/SkinEditor";
 import { PublishDialog } from "@/components/PublishDialog";
 import { AssetTree } from "@/components/AssetTree";
@@ -417,7 +418,7 @@ const Index = () => {
       label: "Narraton",
       abbrev: "NA",
       color: "text-diesel-cyan",
-      count: game?.scenes?.filter((s) => s.key && Object.keys(s.key).length > 0).length ?? 0,
+      count: game?.scenes?.filter(isNarratonCandidate).length ?? 0,
     },
     {
       type: "drop" as const,

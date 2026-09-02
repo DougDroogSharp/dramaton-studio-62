@@ -170,51 +170,54 @@ export interface SceneAudio {
 // AGENCY = the player acts; WITNESS = the player watches, but reacts.
 export type SceneType = 'AGENCY' | 'WITNESS';
 
-// Narraton (King-of-Chicago mechanism, CGDC 1989): each scene may carry a KEY —
-// target values (0–100) for one or more world-state variables. The selector
-// ranks candidate scenes by least-squares distance from the live world state.
+// ============ NARRATON ============
+// The 1986 King of Chicago storyteller (CGDC 1989 paper). Each scene may
+// carry selection metadata as FLAT fields on the Scene (the one shape,
+// unified 2026-09-02 — decision "editor DECIDE #1 / George World DECIDE #5"):
+//
+//   pool       which [NARRATON pool=x] draws this scene
+//   key        target values per world variable, least-squares matched
+//   keyScale   per-variable range for the match (default 100)
+//   requires   hard gates
+//   repeatable may play more than once (default: plays once)
+//   weight     bias — score divides by this (default 1)
+//   act        story-act gate against the `act` world variable (soft)
+//   phase      position in the subplot's arc (BEGINNING → MIDDLE → END)
+//   subplotId  the Subplot (owned bag) this scene belongs to
+//
+// The selector lives in src/utils/narratonDirector.ts and is the single
+// reader for both the editor's board and the play-time [NARRATON] command.
+
+// KEY: target values (usually 0–100) for one or more world-state
+// variables. The selector ranks candidate scenes by least-squares distance
+// from the live world state.
 export type SceneKey = Record<string, number>;
+
+// KEY SCALE: the range of each keyed variable, so a big-range variable
+// (hoard in the thousands) does not drown out the 0–100 ones. The
+// distance on a key is normalized as (current − target) × 100 / scale
+// before squaring; a variable with no entry here uses 100 (identity).
+// A miss of more than half the scale excludes the scene ("big misses
+// exclude themselves").
+export type SceneKeyScale = Record<string, number>;
 
 // Phase marker within a subplot's arc (KoC: position in a sequence's bag).
 export type ScenePhase = 'BEGINNING' | 'MIDDLE' | 'END';
-// ============ NARRATON ============
-// The 1986 King of Chicago storyteller: scenes carry selection keys and
-// the [NARRATON pool=x] command picks the scene whose keys least-squares
-// match the current world state. See src/utils/narraton.ts.
 
+// Hard gate: the scene is not a candidate unless the condition holds.
 export interface NarratonRequirement {
   variable: string;
   operator: '==' | '!=' | '>' | '<' | '>=' | '<=';
   value: string | number | boolean;
 }
 
-// A selection key: the scene "wants" the variable near target.
-// scale normalizes the delta before squaring (default 100, i.e. a
-// 0-100 variable); without it, big-range variables like hoard would
-// drown out everything else.
-export interface NarratonKey {
-  target: number;
-  scale?: number;
-}
-
-// Where in the story a scene belongs. The selector matches economic
-// state; this matches dramatic position, so an introduction cannot
-// play at the climax and a summing-up cannot play third.
+// Where in the STORY a scene belongs (distinct from `phase`, which is the
+// position within one subplot's bag). The selector matches economic state;
+// this matches dramatic position, so an introduction cannot play at the
+// climax. Read against the `act` world variable — 1/2/3 or the names —
+// and applied softly: if no scene in the pool fits the current act, the
+// gate is dropped rather than dead-ending. Untagged scenes play in any act.
 export type NarratonAct = 'BEGINNING' | 'MIDDLE' | 'END';
-
-export interface NarratonMeta {
-  pool: string;                                   // selection pool membership
-  keys?: Record<string, number | NarratonKey>;    // target values, least-squares matched
-  requires?: NarratonRequirement[];               // hard gates
-  repeatable?: boolean;                           // default false: plays once
-  subplot?: string;                               // one scene per subplot in rotation
-  weight?: number;                                // bias: score divides by this (default 1)
-  // Act gate. Untagged scenes play in any act (so existing games are
-  // unaffected). Matched against the `act` world variable —
-  // 1/2/3 or the names — and applied softly: if no scene in the pool
-  // fits the current act, the filter is dropped rather than dead-end.
-  act?: NarratonAct;
-}
 
 export interface Scene {
   id: string;
@@ -225,17 +228,101 @@ export interface Scene {
   script?: string;
   audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
-  narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
-  // Narraton fields — all optional; absent on scenes the selector ignores.
+  // Narraton fields — all optional; a scene with neither a pool nor a
+  // non-empty key is invisible to the selector.
+  pool?: string;
   key?: SceneKey;
+  keyScale?: SceneKeyScale;
+  requires?: NarratonRequirement[];
+  repeatable?: boolean;
+  weight?: number;
+  act?: NarratonAct;
   phase?: ScenePhase;
   subplotId?: string;
   // In-scene variables: scene-local initial values, invisible to the Narraton
   // selector and never written to info.worldState.
   localVars?: Record<string, string | number | boolean>;
 }
+
+// ---- Legacy shape (read-only; lifted by migrateGameData, never written) ----
+// Before 2026-09-02 the theater runtime kept its metadata in a nested
+// `scene.narraton` object. Saves, bridge PUTs and hand-edited .dram files
+// in the wild still carry it; the loader lifts it onto the flat fields.
+/** @deprecated The nested `scene.narraton` object. Only the loader reads it. */
+export interface LegacyNarratonKey {
+  target: number;
+  scale?: number;
+}
+
+/** @deprecated The nested `scene.narraton` object. Only the loader reads it. */
+export interface LegacyNarratonMeta {
+  pool: string;
+  keys?: Record<string, number | LegacyNarratonKey>;
+  requires?: NarratonRequirement[];
+  repeatable?: boolean;
+  subplot?: string;
+  weight?: number;
+  act?: NarratonAct;
+}
+
+// Lift one scene's legacy `narraton` object onto the flat fields. Flat
+// fields already present WIN (the editor's director wrote them on
+// purpose); the legacy object only fills what is missing. A legacy
+// `subplot` string becomes a Subplot with that id, created in `subplots`
+// if absent. Returns the scene unchanged when it carries no legacy object.
+export const liftLegacyNarraton = (
+  scene: Scene & { narraton?: LegacyNarratonMeta | null },
+  subplots: Subplot[],
+): Scene => {
+  const meta = scene.narraton;
+  if (meta === undefined) return scene;
+  const { narraton: _dropped, ...rest } = scene;
+  const lifted: Scene = { ...rest };
+  if (!meta || typeof meta !== 'object') return lifted;
+
+  const pool = typeof meta.pool === 'string' ? meta.pool.trim() : '';
+  if (lifted.pool === undefined && pool !== '') lifted.pool = pool;
+
+  if (meta.keys && typeof meta.keys === 'object') {
+    const key: SceneKey = { ...(lifted.key ?? {}) };
+    const keyScale: SceneKeyScale = { ...(lifted.keyScale ?? {}) };
+    for (const [variable, raw] of Object.entries(meta.keys)) {
+      if (variable in key) continue; // flat wins
+      const target = typeof raw === 'number' ? raw : Number(raw?.target);
+      if (!Number.isFinite(target)) continue;
+      key[variable] = target;
+      const scale = typeof raw === 'number' ? undefined : raw?.scale;
+      if (typeof scale === 'number' && Number.isFinite(scale) && scale > 0 && scale !== 100 && !(variable in keyScale)) {
+        keyScale[variable] = scale;
+      }
+    }
+    if (Object.keys(key).length > 0) lifted.key = key;
+    if (Object.keys(keyScale).length > 0) lifted.keyScale = keyScale;
+  }
+
+  if (lifted.requires === undefined && Array.isArray(meta.requires) && meta.requires.length > 0) {
+    lifted.requires = meta.requires;
+  }
+  if (lifted.repeatable === undefined && typeof meta.repeatable === 'boolean') {
+    lifted.repeatable = meta.repeatable;
+  }
+  if (lifted.weight === undefined && typeof meta.weight === 'number' && Number.isFinite(meta.weight) && meta.weight !== 1) {
+    lifted.weight = meta.weight;
+  }
+  if (lifted.act === undefined && (meta.act === 'BEGINNING' || meta.act === 'MIDDLE' || meta.act === 'END')) {
+    lifted.act = meta.act;
+  }
+  const subplot = typeof meta.subplot === 'string' ? meta.subplot.trim() : '';
+  if (lifted.subplotId === undefined && subplot !== '') {
+    lifted.subplotId = subplot;
+    if (!subplots.some(sp => sp.id === subplot)) {
+      subplots.push({ id: subplot, name: subplot, status: 'work' });
+    }
+  }
+  return lifted;
+};
 
 // What a world variable MEANS, in words, so a moving gauge can explain
 // itself. Doug's rule: say it in general terms and in concrete terms —
@@ -554,8 +641,17 @@ export const migrateGameData = (data: any): GameData => {
   }
 
   // Ensure subplots array exists (Narraton, added 2026-08-31)
-  if (!migrated.subplots) {
+  if (!Array.isArray(migrated.subplots)) {
     migrated.subplots = [];
+  }
+
+  // Lift the legacy nested `scene.narraton` object onto the flat Narraton
+  // fields (unified 2026-09-02). Legacy `subplot` strings become Subplots.
+  if (Array.isArray(migrated.scenes)) {
+    const subplots: Subplot[] = migrated.subplots;
+    migrated.scenes = migrated.scenes.map((s: any) =>
+      s && typeof s === 'object' && 'narraton' in s ? liftLegacyNarraton(s, subplots) : s,
+    );
   }
 
   // Ensure skins array exists (skin library, added 2026-08-31)

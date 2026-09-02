@@ -214,7 +214,7 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                 <p className="text-diesel-steel text-sm uppercase tracking-wider mb-1">— End of Scene —</p>
                 {topPick ? (
                   <p className="text-diesel-cyan text-xs mb-3 font-mono">
-                    Narraton would pick: {topPick.scene.name} (Δ² {topPick.adjustedScore})
+                    Narraton would pick: {topPick.scene.name} (Δ² {Math.round(topPick.adjustedScore)})
                     {driveMode && ' — driving there…'}
                   </p>
                 ) : (
@@ -406,11 +406,13 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                     {m.scene.id === state.currentSceneId && ' (here)'}
                     {m.sameSubplot && !m.ineligible && ' ↻'}
                   </span>
-                  <span className="font-mono shrink-0">
+                  <span className="font-mono shrink-0" title={m.detail}>
                     {m.ineligible === 'played' && 'PLAYED'}
                     {m.ineligible === 'wrong-phase' && 'PHASE'}
+                    {m.ineligible === 'wrong-act' && 'ACT'}
+                    {m.ineligible === 'gated' && 'GATED'}
                     {m.ineligible === 'big-miss' && 'MISS'}
-                    {!m.ineligible && `Δ² ${m.adjustedScore}`}
+                    {!m.ineligible && `Δ² ${Math.round(m.adjustedScore)}`}
                   </span>
                 </div>
               ))

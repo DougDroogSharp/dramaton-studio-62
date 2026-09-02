@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GameData, Scene, StageElement, StageElementOverride, ActorGraphic } from '@/types';
 import { parseScript, ScriptCommand, IfCommand, TickCommand, SliderCommand, GaugeCommand, ChoiceOption, SetCommand, findActorByName } from '@/utils/scriptParser';
 import { resolveSetValue, evaluateIfCondition, evaluateExpressionSource, warnOnce, WorldVars } from '@/utils/expression';
-import { selectNarratonScene, createNarratonHistory } from '@/utils/narraton';
+import { narratonRank, pickFromRanked, createNarratonHistory, logNarratonSelection } from '@/utils/narratonDirector';
 import { AbilitySettings, DEFAULT_ABILITY_SETTINGS } from '@/utils/accessibility';
 
 export type VarScope = 'world' | 'local';
@@ -1230,17 +1230,20 @@ export function useScriptRunner({
       }
 
       case 'NARRATON': {
-        const { winner } = selectNarratonScene(
-          command.pool,
-          game.scenes,
-          worldStateRef.current,
-          narratonHistoryRef.current,
-        );
-        if (!winner) {
+        // One selector for editor and play time: the director over the
+        // scenes in this pool, ties broken randomly, every decision logged.
+        const ranked = narratonRank(game.scenes, worldStateRef.current, narratonHistoryRef.current, {
+          pool: command.pool,
+        });
+        const pick = pickFromRanked(ranked, 'random');
+        logNarratonSelection(command.pool, ranked, pick, worldStateRef.current);
+        if (!pick) {
           warnOnce(`NARRATON: no eligible scene in pool "${command.pool}"; continuing script`);
           return true; // fail soft: fall through to the next command
         }
-        narratonHistoryRef.current.played.add(winner.id);
+        const winner = pick.scene;
+        narratonHistoryRef.current.playedSceneIds.push(winner.id);
+        narratonHistoryRef.current.lastSubplotId = winner.subplotId;
         // Transition exactly like SCENE
         clearTimeouts();
         bindingsRef.current = new Map();
