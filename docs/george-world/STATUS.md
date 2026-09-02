@@ -1,10 +1,10 @@
 # GEORGE WORLD — STATUS
 
-**Rewritten 2026-09-01 17:29 PDT by DISPATCH.** This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
+**Rewritten 2026-09-01 17:51 PDT by DISPATCH** (consolidation step 2 landed: DESIGN, CHANGELOG, STUDY_PIPELINE, READMEs, CLAUDE.md all in the repo). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
-- **Repo:** `main` = `852ac98` (GitHub main merged in 2026-09-01; local and GitHub now equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`.
+- **Repo:** `main` = `58d650e` (GitHub main merged in 2026-09-01 at `852ac98`, then the consolidation docs; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`.
 - **Branches:** `gw-studies` `a357170` (nine orphaned studies committed + FBX loader vendored) · `gw-dialogue` (new, empty, the dialogue batch) · `narraton-editor` `ad780bd` (editor lane, merge parked) · `asset-foundry` `52bdab2` local / `828d1e4` GitHub (16 foundry studies, to be moved onto main).
 - **Servers:** game + stage `http://10.0.0.137:8201/` (phone) · `http://localhost:8201/` (laptop). Public: `https://george-world-aipotu.netlify.app` (game, v0.79) · `https://dramaton-stage.netlify.app` (stage, STALE: 62 entries).
 - **Builder lock:** HvM Graphics (GW BUILDER) is the only session that edits `georgeworld.html`, in `C:\Users\dougs\dramaton-studio-62`. Ludo's mailbox entry declared a lock on the map/terrain layer "by HvM"; no BLOCK file exists.
@@ -17,9 +17,9 @@
 4. Where the HvB master record lives after eviction from this repo (Dropbox HvB or the HvB chat project). (#10)
 
 ## NEXT THREE MOVES
-1. **HvM Graphics:** post the map-contract proposal (terrainH/terrainNormal + sea/bounds/spawn + named anchors + room for tier list, cast names, switches, resources, egg chamber, locked cast); Aipotu = module #0 byte-for-byte. Then build.
-2. **DISPATCH:** step 2 of the consolidation (CHANGELOG, DESIGN restructure, README, CLAUDE.md, STUDY_PIPELINE, protocol amendments, archive sweep, deletions), then brief the HvB and EDITOR lanes.
-3. **gw-dialogue session:** the dialogue-richness batch on its own worktree (`C:\Users\dougs\gw-dialogue`), brief in `DIALOGUE_BATCH_BRIEF.md`.
+1. **GW BUILDER (HvM Graphics):** post the map-contract proposal (terrainH/terrainNormal + sea/bounds/spawn + named anchors + room for tier list, cast names, switches, resources, egg chamber, locked cast); Aipotu = module #0 byte-for-byte. Then build. Also: merge `gw-studies` (nine studies + FBX loader) and wire the FBX loader into the skin gallery.
+2. **DISPATCH:** step 3, brief and start the HVB and EDITOR lane sessions (terminal sessions, own worktrees); then the HvB eviction (#10) once Doug names its home.
+3. **GW DIALOGUE:** the dialogue-richness batch, running in `C:\Users\dougs\gw-dialogue` (launched 2026-09-01 ~17:35), brief in Dropbox `DIALOGUE_BATCH_BRIEF.md`.
 
 ## BUILDER QUEUE (ruled order)
 map loader → Georgeotron round trip (long-press entry; any-layer default; king-only as a switch) → industry/steam engine → births/weddings/child-labour. In parallel: dialogue batch (own worktree). Editor lane: Populous builder after the loader. Studies seat: foundry queue (16 pending), beaver/pig/dolphins, coal/iron art.
@@ -62,7 +62,7 @@ map loader → Georgeotron round trip (long-press entry; any-layer default; king
 | v0.18 | `e1ae6df` | 08-30 02:19 | first commit: society sim, chronicle, day/night, Opus fixes, values fix |
 
 ## POINTERS
-- Design record: `Consolidated/Projects/AIPOTU/DESIGN.md` (moving to `docs/george-world/DESIGN.md`) · Decisions of 2026-09-01: `DECISIONS_2026-09-01.md` · Consolidation plan: `CONSOLIDATION_PLAN.md` · Changelog: `GEORGE_WORLD_BUGS.md` (→ `CHANGELOG.md`).
-- Channels: `MAILBOX.md` (append-only), `HvB Comm/COM_PROTOCOL.md` (canonical), BLOCK files.
-- Pipeline: `docs/prototypes/aipotu/STYLE.md`, `ASSET_FOUNDRY_BRIEF.md` + `FOUNDRY_ANSWERS.md` (→ `STUDY_PIPELINE.md`), `stage.html`, `skins_inbox/`.
+- **Repo master, `docs/george-world/`:** `STATUS.md` (this) · `DESIGN.md` (canon + directions + the verbatim log) · `CHANGELOG.md` (per-version verification notes, v0.8–v0.79) · `STUDY_PIPELINE.md` (how studies are built, registered, redeployed). Also `docs/prototypes/aipotu/README.md` (what/run/data contract), `STYLE.md` (style contract), root `CLAUDE.md` (standing rules). Dropbox `Consolidated/Projects/AIPOTU/` mirrors these (files headed MIRROR) and holds `DECISIONS_2026-09-01.md`, `CONSOLIDATION_PLAN.md`, the briefs, the provenance notes (WALK/EVENING/RIDE notes, POPPY spec, IDEAS_DIGEST), `IDEAS.md`, `GEORGES_EXAMPLES.md`, `skins_inbox/`, and `archive/` (superseded docs).
+- Channels: `MAILBOX.md` (append-only), `HvB Comm/COM_PROTOCOL.md` (the only canonical copy), BLOCK files.
+- Retired/deleted 2026-09-01: HANDOVER, the playbook, BUGS (now CHANGELOG), the two foundry docs (now STUDY_PIPELINE), VISION/RELATIONSHIPS/NOTES/TASKS (archived), DESIGN_backup, MAILBOX_prev, handover/, aipotu.zip, the Aug-30 briefing (deleted). Dropbox `models/` is retired (redeploy the public stage instead).
 - Lane roster: DESIGN CHAT (Ludo) · DISPATCH (this file's author today) · GW BUILDER (HvM Graphics) · GW STUDIES · EDITOR · HVB · COWORK.
