@@ -6546,7 +6546,7 @@ function dlgShuffle(cat, pool, prev){
 }
 // `ok(raw)` — an optional veto the caller applies BEFORE an entry is dealt,
 // so a long line rejected for not matching history is not spent unheard.
-function pickLine(cat, A, B, ok){
+function pickLine(cat, A, B, ok, ctx){
   const pool = (window.GW_DIALOGUE || {})[cat] || [];
   if(!pool.length) return null;
   const spent = i => dlgIsLong(pool[i]) && DLG_USED.has(cat + ':' + i);
@@ -6568,9 +6568,79 @@ function pickLine(cat, A, B, ok){
   }
   const pair = Array.isArray(raw) ? raw : [raw, ''];
   const THING = Math.random() < 0.5 ? 'berries' : 'red berries';
+  const cx = ctx || {};   // v0.80: the wider token set (see the pool file's header)
   const sub = s => s.replace(/\{A\}/g, A).replace(/\{B\}/g, B)
-    .replace(/\{THING\}/g, THING).replace(/\{TECH\}/g, latestTechName());
+    .replace(/\{THING\}/g, THING).replace(/\{TECH\}/g, latestTechName())
+    .replace(/\{C\}/g, cx.C || B).replace(/\{S\}/g, cx.S || B)
+    .replace(/\{PLACE\}/g, cx.PLACE || randomPlace().name)
+    .replace(/\{HERE\}/g, cx.HERE || randomPlace().name)
+    .replace(/\{DIR\}/g, cx.DIR || COMPASS[Math.floor(Math.random() * COMPASS.length)])
+    .replace(/\{DAYS\}/g, String(dayNow()))
+    .replace(/\{N\}/g, String(VITAS.filter(x => !x.state.dead && !x.isBaby).length));
   return pair.map(sub);
+}
+// v0.80 NAMED PLACES — Aipotu's, until the map contract exposes its anchors:
+// the words a Vita uses for where it stands and where it points. Built on
+// first use (some of these consts are declared further down the module).
+const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+let _PLACES = null;
+function placesList(){
+  if(_PLACES) return _PLACES;
+  return _PLACES = [
+    { name: 'the landing beach', x: commonsFireSpot.x, z: commonsFireSpot.z },
+    { name: 'the ridge', x: 0, z: RIDGE_Z },
+    { name: 'the saddle', x: 18*WS, z: -6*WS },
+    { name: 'the far grove', x: -2*WS, z: -38*WS },
+    { name: 'the volcano', x: VOLC.x, z: VOLC.z },
+    { name: "the king's hill", x: CASTLE_PLOT.x, z: CASTLE_PLOT.z },
+    { name: 'the surf bay', x: SURF_STAND.x, z: SURF_STAND.z },
+    { name: 'the twin hills', x: -20*WS, z: 8*WS },
+    { name: 'the north shore', x: -5*WS, z: -60*WS },
+    { name: 'the quiet slope', x: GRAVEYARD.x, z: GRAVEYARD.z },
+  ];
+}
+function nearestPlace(x, z){
+  let best = null, bd = 1e9;
+  for(const p of placesList()){ const d = Math.hypot(p.x - x, p.z - z); if(d < bd){ bd = d; best = p; } }
+  return best;
+}
+function randomPlace(not){
+  const L = placesList().filter(p => p !== not);
+  return L[Math.floor(Math.random() * L.length)];
+}
+function compassDir(fx, fz, tx, tz){   // north = -z, east = +x
+  const a = Math.atan2(tx - fx, -(tz - fz));
+  return COMPASS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+}
+// where a Vita is, and a place to talk about (the destination, or any other)
+function placeCtx(v, dest){
+  const p = v.group.position, here = nearestPlace(p.x, p.z);
+  const place = dest || randomPlace(here);
+  return { HERE: here.name, PLACE: place.name, DIR: compassDir(p.x, p.z, place.x, place.z), place, here };
+}
+// which gossip pool fits the one talked about — keyed by the subject's traits
+function gossipCatFor(c){
+  const t = c.traits || {}, opts = ['gossip', 'gossip'];
+  if(t.greed > 0.65) opts.push('gossip_stingy', 'gossip_stingy');
+  if(t.greed < 0.3) opts.push('gossip_kind', 'gossip_kind');
+  if(t.industry > 0.72) opts.push('gossip_hardworking');
+  if(t.industry < 0.45) opts.push('gossip_idle');
+  if((t.dominance || 0) > 0.6) opts.push('gossip_bossy');
+  if(t.cruel) opts.push('gossip_cruel', 'gossip_cruel');
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+// an exchange OUTSIDE any scene: line 0 on v now, the rest alternating
+// v ↔ nb a beat apart (pendingReplies carries them)
+function sayExchange(v, nb, ln, hold = 3.4){
+  drawBubbleText(v, ln[0]);
+  v.bubble.visible = true;
+  mutters.push({ v, t: hold });
+  let t = 2.4;
+  for(let i = 1; i < ln.length; i++){
+    if(!ln[i]) continue;
+    pendingReplies.push({ who: i % 2 ? nb : v, text: ln[i], t });
+    t += 2.6;
+  }
 }
 // console helper: how deep is each pool, and how much of it has this run spent?
 window.dlgStats = function(){
@@ -6592,13 +6662,34 @@ function latestTechName(){
 }
 // beats from a pool pick. `first` = which of the pair speaks the opening line
 // ('a'|'b'); subjectB overrides the {B} token (gossip talks about a THIRD Vita)
-function poolBeats(cat, a, b, faces, first = 'a', subjectB){
+// v0.80: an entry may run to three or four lines — the two voices alternate.
+function poolBeats(cat, a, b, faces, first = 'a', subjectB, ctx, ok){
   const spk1 = first === 'a' ? a : b, spk2 = first === 'a' ? b : a;
-  const ln = pickLine(cat, spk1.name, subjectB || spk2.name);
+  const ln = pickLine(cat, spk1.name, subjectB || spk2.name, ok, ctx);
   if(!ln) return [];
-  const beats = [{ who: first, text: ln[0], face: faces[0], dur: 1.6 + ln[0].length * 0.05 }];
-  if(ln[1]) beats.push({ who: first === 'a' ? 'b' : 'a', text: ln[1], face: faces[1],
-    dur: 1.6 + ln[1].length * 0.05 });
+  const beats = [];
+  ln.forEach((text, i) => {
+    if(!text) return;
+    const who = ((first === 'a') === (i % 2 === 0)) ? 'a' : 'b';
+    beats.push({ who, text, face: faces[Math.min(i, faces.length - 1)], dur: 1.6 + text.length * 0.05 });
+  });
+  return beats;
+}
+// v0.80 GROUP beats over a cast of 2–4: entries shaped "A: line" / "B: line"
+// (A = cast[0] …). Only entries whose highest letter fits the cast are dealt,
+// so nothing is spent unheard; a plain pair in a group pool alternates A ↔ B.
+function groupBeats(cat, cast, faces, ctx){
+  const letter = s => { const m = /^([A-D]):\s/.exec(s); return m ? m[1].charCodeAt(0) - 65 : -1; };
+  const fits = raw => (Array.isArray(raw) ? raw : [raw]).every(s => letter(s) < cast.length);
+  const ln = pickLine(cat, cast[0].name, cast[1] ? cast[1].name : cast[0].name, fits, ctx);
+  if(!ln) return [];
+  const beats = [];
+  ln.forEach((s, i) => {
+    if(!s) return;
+    const L = letter(s);
+    const who = L >= 0 ? L : i % 2, text = L >= 0 ? s.replace(/^[A-D]:\s/, '') : s;
+    beats.push({ who, text, face: Array.isArray(faces) ? faces[who % faces.length] : faces, dur: 1.6 + text.length * 0.05 });
+  });
   return beats;
 }
 
@@ -6688,24 +6779,93 @@ const SCENE_DEFS = {
       return !VITAS.some(x => !x.state.dead && tierOf(x) === 2) && !!risingVita(a, b);
     },
   },
+  // v0.80: same-camp serfs out of the hat's earshot — warm, wry, mutual
+  camp_mates: {
+    title: 'THE CAMP MATES', cd: 150, ambient: true, w: 1.5,
+    why(a, b){ return `KEYED BY · ${a.name} and ${b.name} both sprung by the same boss — one fire, one quota, no hat in earshot`; },
+    script(a, b){ return poolBeats('camp_mates', a, b, ['content', 'content']); },
+    match(a, b){
+      if(tierOf(a) !== 0 || tierOf(b) !== 0) return false;
+      const ba = a.links.sprungBy, bb = b.links.sprungBy;
+      if(!ba || ba !== bb) return false;
+      return !VITAS.some(x => !x.state.dead && tierOf(x) >= 1 && x.group.position.distanceTo(a.group.position) < 16);
+    },
+  },
+  // v0.80: two dukes within earshot — cold civility
+  duke_rivalry: {
+    title: 'THE RIVALS', cd: 200, ambient: true,
+    why(a, b){ return `KEYED BY · two dukes (hats ${a.hatLevel}, ${b.hatLevel}) — parallel claims, one crown above them`; },
+    script(a, b){ return poolBeats('duke_rivalry', a, b, ['smug', 'smug']); },
+    match(a, b){ return tierOf(a) === 1 && tierOf(b) === 1; },
+  },
+  // v0.80: giving directions with the island's real place names
+  directions: {
+    title: 'THE DIRECTIONS', cd: 220, ambient: true,
+    why(a, b){ return `KEYED BY · ${a.name} asks the way; ${b.name} answers from ${placeCtx(b).HERE} — the map's named spots in a Vita's mouth`; },
+    script(a, b){ return poolBeats('directions', a, b, ['peckish', 'content'], 'a', undefined, placeCtx(b)); },
+    match(a, b){ return true; },
+  },
+  // v0.80: teasing between peers — and, half the time, a CHASE after
+  tease: {
+    title: 'THE TEASING', cd: 260, ambient: true, w: 1.2,
+    why(a, b){ return `KEYED BY · ${a.name} and ${b.name} are peers, fed and rested — play is what surplus energy does`; },
+    script(a, b){ return poolBeats('tease', a, b, ['smug', 'exult']); },
+    match(a, b){
+      return tierOf(a) === tierOf(b) && a.state.hunger < 55 && b.state.hunger < 55 &&
+        a.state.energy > 35 && b.state.energy > 35 && !a.links.springing.length && !b.links.springing.length;
+    },
+    after(d){ if(Math.random() < 0.55) beginChase(d); },
+  },
   smalltalk: {
-    title: 'SMALL TALK', cd: 70, ambient: true,
+    title: 'SMALL TALK', cd: 70, ambient: true, w: 3,
     why(a, b){ return `KEYED BY · ${a.name} and ${b.name} idle near each other — no machine state required`; },
-    script(a, b){ return poolBeats('smalltalk', a, b, ['content', 'content']); },
+    script(a, b){ return poolBeats(Math.random() < 0.25 ? 'humor' : 'smalltalk', a, b, ['content', 'content']); },
     match(a, b){ return true; },
   },
   gossip: {
-    title: 'THE GOSSIP', cd: 120, ambient: true,
-    why(a, b){ return `KEYED BY · a third Vita's reputation — character talked about behind their back`; },
+    title: 'THE GOSSIP', cd: 120, ambient: true, w: 2,
+    why(a, b){ return `KEYED BY · a third Vita's reputation — character talked about behind their back, the pool keyed by their traits`; },
     script(a, b){
       const others = VITAS.filter(x => !x.isBaby && x !== a && x !== b && !x.state.collapsed && !x.state.dead);
       if(!others.length) return [];
       // half the time the most NOTABLE islander (greediest / highest hat), else anyone
       others.sort((p, q) => (q.traits.greed + q.hatLevel) - (p.traits.greed + p.hatLevel));
       const c = Math.random() < 0.5 ? others[0] : others[Math.floor(Math.random() * others.length)];
-      return poolBeats('gossip', a, b, ['peckish', 'content'], 'a', c.name);
+      return poolBeats(gossipCatFor(c), a, b, ['peckish', 'content'], 'a', c.name);
     },
     match(a, b){ return VITAS.some(x => !x.isBaby && x !== a && x !== b); },
+  },
+  // ---- v0.80 FIRESIDE scenes: a cast of 2–4 eating together (fireScene()
+  // picks them; not ambient — the meal is the trigger). {S} = someone absent.
+  meal_gossip: {
+    title: 'FIRESIDE GOSSIP', cd: 0, group: true,
+    why(a, b, cast, cx){ return `KEYED BY · ${cast.length} at one fire, food in hand · ${cx.S} is elsewhere — reputation travels faster than feet`; },
+    script(a, b, cast, cx){ return groupBeats('meal_gossip', cast, ['content', 'eat', 'content', 'eat'], cx); },
+    match(){ return false; },
+  },
+  meal_chat: {
+    title: 'FIRESIDE TALK', cd: 0, group: true,
+    why(a, b, cast){ return `KEYED BY · ${cast.length} at one fire, food in hand — talk is what a full mouth does between bites`; },
+    script(a, b, cast, cx){ return groupBeats('meal_chat', cast, ['content', 'eat', 'content', 'eat'], cx); },
+    match(){ return false; },
+  },
+  campfire_wonder: {
+    title: 'THE FIRE — WHERE DID WE COME FROM?', cd: 0, group: true,
+    why(a, b, cast){ return `KEYED BY · evening fire, day ${dayNow()} of a cast with no history — the question nobody can answer, asked anyway`; },
+    script(a, b, cast, cx){ return groupBeats('campfire_wonder', cast, ['peckish', 'content', 'content', 'content'], cx); },
+    match(){ return false; },
+  },
+  campfire_story: {
+    title: 'A STORY AT THE FIRE', cd: 0, group: true,
+    why(a, b, cast){ return `KEYED BY · ${cast.length} at the evening fire in the first weeks — ${a.name} makes up why we're here; a story is said once and never again`; },
+    script(a, b, cast, cx){ return groupBeats('campfire_story', cast, ['exult', 'content', 'content', 'content'], cx); },
+    match(){ return false; },
+  },
+  campfire_saucer: {
+    title: 'THE HALF-MEMORY', cd: 0, group: true,
+    why(a, b){ return `KEYED BY · ${a.name} is one of the one-or-two who half-remember the ship — spoken before settling for the night`; },
+    script(a, b){ return poolBeats('campfire_saucer', a, b, ['peckish', 'content']); },
+    match(){ return false; },
   },
   discovery_benefit: {
     title: 'THE NEW ART', cd: 110, ambient: true,
@@ -6716,13 +6876,36 @@ const SCENE_DEFS = {
 };
 
 function cdKey(id, a, b){ return id + ':' + a.name + ':' + b.name; }
+// v0.80 console hook for testing the dialogue layer (not a player surface)
+window.dlgDebug = {
+  pick: (cat, A, B, ctx) => pickLine(cat, A || 'Ada', B || 'Bo', null, ctx),
+  pair: (cat, i, j) => poolBeats(cat, VITAS[i || 0], VITAS[j || 1], ['content', 'content']),
+  group: (cat, n) => groupBeats(cat, VITAS.slice(0, n || 4), 'content', { S: 'Somebody' }),
+  place: i => placeCtx(VITAS[i || 0]),
+  scene: (id, i, j, extra, ctx) => startDrama(id, VITAS[i || 0], VITAS[j || 1], (extra || []).map(k => VITAS[k]), ctx),
+  fire: () => fireScene(),
+  drama: () => drama && { id: drama.id, title: drama.title, i: drama.i, n: drama.beats.length, run: !!drama.run,
+    cast: drama.cast.map(v => v.name), beats: drama.beats.map(b => b.who + ': ' + b.text) },
+  clock: () => ({ histClock, dayPhase, night: nightNow, day: dayNow(), meal: mealSlotNow() }),
+  skip: () => skipIntro(),
+  scenes: () => dlgSceneLog,
+  run: () => { if(drama && !drama.run) beginChase(drama); },
+  pos: i => { const p = VITAS[i].group.position; return [Math.round(p.x * 10) / 10, Math.round(p.z * 10) / 10]; },
+};
+const dlgSceneLog = [];   // every scene id started this session, in order (debug only)
 // (the scrolling scene-transcript box is gone — the dialogue lives in the
 // speech balloons alone; the CHRONICLE below is the only bottom log)
-function startDrama(id, a, b){
+// v0.80: a scene's CAST is a, b and up to two more (fireside groups); beats
+// name their speaker 'a' | 'b' | a cast index. `after(drama)` runs once the
+// beats are spent and may hand the scene a RUN phase (the chase).
+function startDrama(id, a, b, extra, ctx){
   const def = SCENE_DEFS[id];
-  drama = { def, id, a, b, beats: def.script(a, b), i: -1, t: 0, why: def.why(a, b), title: def.title };
+  const cast = [a, b].concat(extra || []);
+  const cx = ctx || {};
+  drama = { def, id, a, b, cast, beats: def.script(a, b, cast, cx), i: -1, t: 0, why: def.why(a, b, cast, cx), title: def.title };
   sceneCooldowns.set(cdKey(id, a, b), def.cd);
-  a.inScene = drama; b.inScene = drama;
+  dlgSceneLog.push(id + (cast.length > 2 ? '×' + cast.length : ''));
+  for(const v of cast) v.inScene = drama;
   whylineEl.textContent = '⟡ ' + drama.why;
   whylineEl.style.display = mvOn ? 'block' : 'none';
   // (v0.48: no "press G" toast — the persistent SCENE BAR carries the title)
@@ -6730,10 +6913,18 @@ function startDrama(id, a, b){
 }
 function nextBeat(){
   drama.i++;
-  if(drama.i >= drama.beats.length){ endDrama(); return; }
+  if(drama.i >= drama.beats.length){
+    if(drama.def.after && !drama.afterDone){
+      drama.afterDone = true;
+      drama.def.after(drama);
+      if(drama && drama.run) return;   // the scene carries on as a run phase
+    }
+    endDrama(); return;
+  }
   const beat = drama.beats[drama.i];
-  const speaker = beat.who === 'a' ? drama.a : drama.b;
-  const other = beat.who === 'a' ? drama.b : drama.a;
+  const wi = beat.who === 'a' ? 0 : beat.who === 'b' ? 1 : beat.who;
+  const speaker = drama.cast[wi] || drama.a;
+  const other = drama.cast.find(x => x !== speaker) || drama.b;
   // v0.50 BABY TALK: a baby NEVER delivers adult dialogue — whatever the
   // script hands it, out comes goo-goo (the `baby` pool)
   let text = beat.text;
@@ -6743,15 +6934,74 @@ function nextBeat(){
   }
   drawBubbleText(speaker, text);
   speaker.bubble.visible = true;
-  other.bubble.visible = false;
+  for(const v of drama.cast) if(v !== speaker) v.bubble.visible = false;
   if(beat.face) setMood(speaker, beat.face, beat.dur);
   drama.t = beat.dur;
 }
 function endDrama(){
   if(!drama) return;
-  for(const v of [drama.a, drama.b]){ v.inScene = null; v.bubble.visible = false; }
+  for(const v of drama.cast){
+    v.inScene = null; v.bubble.visible = false;
+    if(drama.run) v.state.task = null;   // a chase cut short hands the runners back to their own reasons
+  }
   whylineEl.style.display = 'none';
   drama = null;
+}
+// ---- v0.80 THE CHASE: after a teasing, one runs and the other gives chase.
+// The pair are released from the scene freeze and steered by the game's own
+// 'attend' walk (real gait, real avoidance); the drama stays live so nothing
+// else starts, and both shout `chase` lines as they go. Ends caught or spent,
+// then the `chase_end` exchange, laughing.
+function beginChase(d){
+  const [runner, chaser] = Math.random() < 0.5 ? [d.a, d.b] : [d.b, d.a];
+  d.run = { runner, chaser, t: rand(6, 9), shoutT: 1.0, bend: Math.random() < 0.5 ? 1 : -1 };
+  for(const v of d.cast){ v.inScene = null; v.bubble.visible = false; }
+  d.title = 'THE CHASE';
+  const at = nearestPlace(runner.group.position.x, runner.group.position.z);
+  recordEvent('fun', `🏃 ${chaser.name} chases ${runner.name} round ${at.name} — shrieking, laughing, baskets forgotten`);
+}
+function chaseTick(d, dt){
+  const r = d.run, R = r.runner, C = r.chaser;
+  if(R.state.dead || C.state.dead || R.state.collapsed || C.state.collapsed || nightNow) return true;
+  const rp = R.group.position, cp = C.group.position;
+  const dist = Math.hypot(rp.x - cp.x, rp.z - cp.z);
+  r.t -= dt;
+  if(r.t <= 0 || (dist < 1.7 && r.t < 5)) return true;
+  // the runner flees away from the chaser but keeps bending to one side, so
+  // the pair CIRCLE the spot instead of crossing the island; if the water's
+  // ahead the bend flips
+  let dx = rp.x - cp.x, dz = rp.z - cp.z;
+  const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+  let fx = dx * 0.7 - dz * r.bend * 0.75, fz = dz * 0.7 + dx * r.bend * 0.75;
+  let tx = rp.x + fx * 6, tz = rp.z + fz * 6;
+  if(terrainH(tx, tz) < 1.0){
+    r.bend = -r.bend;
+    fx = dx * 0.7 - dz * r.bend * 0.75; fz = dz * 0.7 + dx * r.bend * 0.75;
+    tx = rp.x + fx * 6; tz = rp.z + fz * 6;
+    if(terrainH(tx, tz) < 1.0){ tx = rp.x - dx * 4; tz = rp.z - dz * 4; }
+  }
+  R.state.task = { kind: 'attend', tx, tz };
+  C.state.task = { kind: 'attend', tx: rp.x, tz: rp.z };
+  r.shoutT -= dt;
+  if(r.shoutT <= 0){
+    r.shoutT = rand(2.2, 3.4);
+    const who = Math.random() < 0.5 ? R : C, oth = who === R ? C : R;
+    if(!who.bubble.visible){
+      const ln = pickLine('chase', who.name, oth.name);
+      if(ln){ drawBubbleText(who, ln[0]); who.bubble.visible = true; mutters.push({ v: who, t: 2.2 }); setMood(who, 'exult', 2.2); }
+    }
+  }
+  return false;
+}
+function finishChase(){
+  const d = drama, r = d.run;
+  d.run = null;
+  for(const v of d.cast){ v.state.task = null; v.inScene = d; v.bubble.visible = false; }
+  d.beats = poolBeats('chase_end', r.chaser, r.runner, ['exult', 'exult']);
+  d.i = -1;
+  d.afterDone = true;
+  if(!d.beats.length){ endDrama(); return; }
+  nextBeat();
 }
 function requestScene(id, a, b){
   if(drama) return;
@@ -6763,7 +7013,41 @@ function requestScene(id, a, b){
   if(camera.position.distanceTo(controls.target) > 55) return;
   startDrama(id, a, b);
 }
-let ambientT = 0, whisperT = 8, chatGapT = 20;
+let ambientT = 0, whisperT = 8, chatGapT = 20, fireChatT = 12, describeT = 90;
+// v0.80 fireScene(): who's eating together right now, and what they talk about
+let saucerAssigned = false;
+function fireScene(){
+  if(!saucerAssigned){   // one or two half-remember the ship: the second and fifth to land
+    saucerAssigned = true;
+    VITAS.forEach((v, i) => { v.remembersSaucer = !v.isBaby && (i === 1 || i === 4); });
+  }
+  const eaters = VITAS.filter(v => !v.isBaby && !v.state.dead && !v.state.collapsed && !v.sleeping && !v.inScene &&
+    !v.inMeeting && !v.walking && v.state.task && v.state.task.kind === 'meal');
+  if(eaters.length < 2) return;
+  const seed = eaters.find(v => Math.hypot(controls.target.x - v.group.position.x, controls.target.z - v.group.position.z) < 45);
+  if(!seed) return;
+  const cast = eaters.filter(v => v.group.position.distanceTo(seed.group.position) < 9).slice(0, 4);
+  if(cast.length < 2) return;
+  const fireKey = 'fire:' + (seed.links.sprungBy ? seed.links.sprungBy.name : tierOf(seed) >= 1 ? seed.name : 'commons');
+  if((sceneCooldowns.get(fireKey) || 0) > 0) return;
+  sceneCooldowns.set(fireKey, 40);
+  for(let i = cast.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [cast[i], cast[j]] = [cast[j], cast[i]]; }
+  const others = VITAS.filter(x => !x.isBaby && !x.state.dead && !cast.includes(x));
+  const S = others.length ? others[Math.floor(Math.random() * others.length)] : null;
+  const evening = mealSlotNow() === 2, early = dayNow() <= 21;
+  let id;
+  if(evening && early){
+    const rem = cast.find(v => v.remembersSaucer && v.saucerDay !== dayNow());
+    if(rem && Math.random() < 0.4){
+      rem.saucerDay = dayNow();
+      startDrama('campfire_saucer', rem, cast.find(v => v !== rem));
+      return;
+    }
+    id = cast.length >= 4 && Math.random() < 0.55 ? 'campfire_story'
+       : Math.random() < 0.6 ? 'campfire_wonder' : (S ? 'meal_gossip' : 'meal_chat');
+  } else id = S && Math.random() < 0.6 ? 'meal_gossip' : 'meal_chat';
+  startDrama(id, cast[0], cast[1], cast.slice(2), { S: S ? S.name : cast[0].name });
+}
 // v0.61 NIGHT QUIET: the island doesn't chatter in its sleep. After dark the
 // only voices are the occasional SNORE — and the woken neighbor who shushes
 // it. Rare and cute; otherwise, silence till dawn.
@@ -6833,11 +7117,8 @@ function landingTick(){
     ln = pickLine('landing_intro', v.name, v.story);   // {B} = the tidbit, by design
   } else ln = pickLine('landing', v.name, nb.name);
   if(!ln) return;
-  drawBubbleText(v, ln[0]);
-  v.bubble.visible = true;
-  mutters.push({ v, t: 3.6 });
+  sayExchange(v, nb, ln, 3.6);
   setMood(v, Math.random() < 0.4 ? 'wail' : 'peckish', 3);   // rattled, wide-eyed
-  if(ln[1]) pendingReplies.push({ who: nb, text: ln[1], t: 2.6 });
 }
 // v0.64 MORNING TALK: for the first stretch after dawn the island wakes up
 // TALKING — good-mornings, weather speculation, and memories of yesterday's
@@ -6861,10 +7142,7 @@ function morningTick(){
   if(!nb || bd > 12) return;   // morning talk needs a neighbor to aim it at
   const ln = pickMorningLine(v, nb);
   if(!ln) return;
-  drawBubbleText(v, ln[0]);
-  v.bubble.visible = true;
-  mutters.push({ v, t: 3.4 });
-  if(ln[1]) pendingReplies.push({ who: nb, text: ln[1], t: 2.4 });
+  sayExchange(v, nb, ln, 3.4);
 }
 function pickMorningLine(v, nb){
   // MEMORY lines must match real history — no crown talk without a king, no
@@ -6918,6 +7196,7 @@ function updateDrama(dt){
   }
   mutterT -= dt;
   if(drama){
+    if(drama.run){ if(chaseTick(drama, dt)) finishChase(); return; }   // v0.80: the chase runs on
     drama.t -= dt;
     if(drama.t <= 0) nextBeat();
     return;
@@ -7003,15 +7282,42 @@ function updateDrama(dt){
       } else {
         const ln = pickLine(Math.random() < 0.75 ? 'greeting' : 'smalltalk', v.name, other.name);
         if(ln){
-          drawBubbleText(v, Array.isArray(ln[0]) ? ln[0][0] : ln[0]);
-          v.bubble.visible = true;
-          mutters.push({ v, t: 2.8 });
-          if(ln[1]) pendingReplies.push({ who: other, text: ln[1], t: 2.4 });   // v0.80: the answer is heard too
+          sayExchange(v, other, ln, 2.8);   // v0.80: the answer is heard too
           v.waveT = 1.5;                   // the little wave
           if(!other.walking)
             other.group.rotation.y = Math.atan2(v.group.position.x - other.group.position.x, v.group.position.z - other.group.position.z);
           if(Math.random() < 0.1) recordEvent('fun', `👋 ${v.name} and ${other.name} cross paths and trade a hello`);
         }
+      }
+    }
+  }
+  // v0.80 THE FIRE: three or four eating together TALK — gossip about someone
+  // who isn't there, fire-chat, and in the first weeks the evening fire is
+  // where they wonder where they came from and make up stories about it
+  fireChatT -= 0.7;
+  if(fireChatT <= 0 && camDist <= 60){
+    fireChatT = rand(3, 6);
+    fireScene();
+    if(drama) return;
+  }
+  // v0.80 POINTING: now and then an idle Vita describes what it sees from
+  // where it stands, by name, and points (the wave arm stands in for the
+  // pointing clip until the armature Vita lands)
+  describeT -= 0.7;
+  if(describeT <= 0 && camDist <= 45){
+    describeT = rand(140, 260);
+    const cands = VITAS.filter(v => !v.isBaby && !v.state.dead && !v.state.collapsed && !v.sleeping && !v.inScene &&
+      !v.inMeeting && !v.surfing && !v.bubble.visible &&
+      Math.hypot(controls.target.x - v.group.position.x, controls.target.z - v.group.position.z) < 26);
+    if(cands.length){
+      const v = cands[Math.floor(Math.random() * cands.length)];
+      const cx = placeCtx(v);
+      const ln = pickLine('describe', v.name, v.name, null, cx);
+      if(ln){
+        drawBubbleText(v, ln[0]); v.bubble.visible = true; mutters.push({ v, t: 4 });
+        v.waveT = 2.4;
+        if(!v.walking) v.group.rotation.y = Math.atan2(cx.place.x - v.group.position.x, cx.place.z - v.group.position.z);
+        setMood(v, 'content', 3);
       }
     }
   }
@@ -7025,13 +7331,22 @@ function updateDrama(dt){
       if(Math.hypot(a.group.position.x - b.group.position.x, a.group.position.z - b.group.position.z) > 9) continue;
       const mx = (a.group.position.x + b.group.position.x)/2, mz = (a.group.position.z + b.group.position.z)/2;
       if(Math.hypot(controls.target.x - mx, controls.target.z - mz) > 24) continue;
+      // v0.80: every ambient scene whose conditions hold is a candidate, and
+      // one is drawn by weight — the situation triggers the scene, but WHICH
+      // scene (and which words) stays unexpected
+      const opts = [];
       for(const id of AMBIENT_IDS){
         const def = SCENE_DEFS[id];
         const pair = def.match(a, b) ? [a, b] : def.match(b, a) ? [b, a] : null;
         if(!pair) continue;
         if((sceneCooldowns.get(cdKey(id, pair[0], pair[1])) || 0) > 0) continue;
+        opts.push({ id, pair, w: def.w || 1 });
+      }
+      if(opts.length){
+        let r = Math.random() * opts.reduce((s, o) => s + o.w, 0), pick = opts[0];
+        for(const o of opts){ r -= o.w; if(r <= 0){ pick = o; break; } }
         chatGapT = rand(65, 115);   // v0.42: chats spaced further out — the pool lasts longer
-        startDrama(id, pair[0], pair[1]);
+        startDrama(pick.id, pick.pair[0], pick.pair[1]);
         break outer;
       }
     }
@@ -9782,6 +10097,7 @@ function updateOrcas(simDt){
       // and whatever the camera was doing, it keeps doing.
       const face = vv => { if(!vv.walking) vv.group.rotation.y = Math.atan2(podX - vv.group.position.x, podZ - vv.group.position.z); };
       face(spotter);
+      spotter.waveT = 2.6;   // v0.80: the arm goes up at the water — pointing, until the pointing clip lands
       if(!spotter.bubble.visible){
         const ln = pickLine('orca_sighting', spotter.name, '');
         if(ln){ drawBubbleText(spotter, ln[0]); spotter.bubble.visible = true; mutters.push({ v: spotter, t: 4 }); }
@@ -9795,8 +10111,8 @@ function updateOrcas(simDt){
         face(nb);
         setMood(nb, 'exult', 2.2);
         if(joined++ < 2 && !nb.bubble.visible){
-          const l2 = pickLine('orca_sighting', nb.name, '');
-          if(l2){ drawBubbleText(nb, l2[0]); nb.bubble.visible = true; mutters.push({ v: nb, t: 3.4 }); }
+          const l2 = pickLine('orca_reply', nb.name, spotter.name);   // v0.80: the answering voices have their own pool
+          if(l2){ drawBubbleText(nb, l2[0]); nb.bubble.visible = true; mutters.push({ v: nb, t: 3.4 + joined * 1.2 }); }
         }
       }
     }
