@@ -1,5 +1,8 @@
 {
-  "_readme": "Skins for the Skin Gallery (skin_test_study.html). Drop a .glb in this folder, add a line to skins[], refresh the gallery. Xbot.glb is the standing right-side reference and is loaded separately.",
+  "_readme": "Skins for the Skin Gallery (skin_test_study.html) and the Terrain Walk. Drop a .glb/.gltf or a Mixamo .fbx (T-pose, With Skin) in this folder, add a line to skins[], refresh. Bone names must be Mixamo's (mixamorig:*), which is what Mixamo exports. Xbot.glb is the standing right-side reference and is loaded separately. Installed 2026-09-01 from Doug's skins_inbox: Eve + two random picks.",
   "skins": [
+    { "file": "Eve_By_J.Gonzales.fbx", "name": "Eve (J. Gonzales)" },
+    { "file": "akai_e_espiritu.fbx", "name": "Akai e Espiritu" },
+    { "file": "Peasant_Girl.fbx", "name": "Peasant Girl" }
   ]
 }
