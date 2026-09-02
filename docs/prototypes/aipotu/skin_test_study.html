@@ -443,8 +443,10 @@ function playAll(clip, src, si = -1){
     ourAction.reset().play();
   } else {
     const d = DL[activeDL];
-    d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : (d.mesh && (src === 'ours' || xbotMesh) ? retargetFor(d, clip, src) : quatsOnly(clip)));
-    d.action.reset().play();
+    if(d.mesh){   // an unrigged import (a static Meshy/Fab mesh) just stands there
+      d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : ((src === 'ours' || xbotMesh) ? retargetFor(d, clip, src) : quatsOnly(clip)));
+      d.action.reset().play();
+    }
   }
   if(xbot){
     xbot.action = xbot.mixer.clipAction(src === 'xbot' ? clip : quatsOnly(clip));

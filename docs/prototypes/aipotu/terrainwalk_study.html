@@ -453,8 +453,8 @@ skinSel.addEventListener('change', () => {
     if(o) o.textContent = label + ' (loading…)';
     loadAny('./vendor/models/' + file, g => {
       const idx = adoptGltf(label, g);
-      if(o) o.remove();
-      if(idx >= 0){ skinSel.value = idx; activate(idx); }
+      if(idx >= 0){ if(o) o.remove(); skinSel.value = idx; activate(idx); }
+      else { if(o) o.textContent = label + ' (no Mixamo rig — cannot walk)'; skinSel.value = 0; activate(0); }
     }, err => { if(o) o.textContent = label + ' (failed to load)'; console.warn('skin load failed', file, err); });
     return;
   }

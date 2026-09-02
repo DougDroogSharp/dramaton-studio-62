@@ -62,6 +62,24 @@
       "file": "kaya.fbx",
       "name": "Kaya",
       "mb": 8.4
+    },
+    {
+      "file": "boy_static.glb",
+      "name": "Boy (Meshy) — static, no rig",
+      "mb": 27.4,
+      "rig": false
+    },
+    {
+      "file": "charlotte_static.glb",
+      "name": "Charlotte (Meshy) — static, no rig",
+      "mb": 73.1,
+      "rig": false
+    },
+    {
+      "file": "wanderer_static.glb",
+      "name": "Wanderer (Meshy) — static, no rig",
+      "mb": 52.7,
+      "rig": false
     }
   ]
 }
