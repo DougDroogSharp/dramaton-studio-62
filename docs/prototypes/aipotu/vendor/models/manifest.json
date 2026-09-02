@@ -1,8 +1,67 @@
 {
-  "_readme": "Skins for the Skin Gallery (skin_test_study.html) and the Terrain Walk. Drop a .glb/.gltf or a Mixamo .fbx (T-pose, With Skin) in this folder, add a line to skins[], refresh. Bone names must be Mixamo's (mixamorig:*), which is what Mixamo exports. Xbot.glb is the standing right-side reference and is loaded separately. Installed 2026-09-01 from Doug's skins_inbox: Eve + two random picks.",
+  "_readme": "Skins for the Skin Gallery (skin_test_study.html) and the Terrain Walk. Drop a .glb/.gltf or a Mixamo .fbx (T-pose, With Skin) here and add a line to skins[]; the studies list every entry and LOAD IT ONLY WHEN PICKED (some are 60 MB). Bone names must be Mixamo's (mixamorig:*). Xbot.glb is the standing right-side reference and is loaded separately. 2026-09-01: all 13 of Doug's skins_inbox exports installed.",
   "skins": [
-    { "file": "Eve_By_J.Gonzales.fbx", "name": "Eve (J. Gonzales)" },
-    { "file": "akai_e_espiritu.fbx", "name": "Akai e Espiritu" },
-    { "file": "Peasant_Girl.fbx", "name": "Peasant Girl" }
+    {
+      "file": "Eve_By_J.Gonzales.fbx",
+      "name": "Eve (J. Gonzales)"
+    },
+    {
+      "file": "akai_e_espiritu.fbx",
+      "name": "Akai e Espiritu"
+    },
+    {
+      "file": "Peasant_Girl.fbx",
+      "name": "Peasant Girl"
+    },
+    {
+      "file": "Aj.fbx",
+      "name": "Aj",
+      "mb": 6.7
+    },
+    {
+      "file": "Ch14_nonPBR.fbx",
+      "name": "Ch14",
+      "mb": 28.4
+    },
+    {
+      "file": "Ch19_nonPBR.fbx",
+      "name": "Ch19",
+      "mb": 51.4
+    },
+    {
+      "file": "Ch34_nonPBR.fbx",
+      "name": "Ch34",
+      "mb": 26.8
+    },
+    {
+      "file": "Ch46_nonPBR.fbx",
+      "name": "Ch46",
+      "mb": 27.6
+    },
+    {
+      "file": "Mutant.fbx",
+      "name": "Mutant",
+      "mb": 18.9
+    },
+    {
+      "file": "Peasant_Man.fbx",
+      "name": "Peasant Man",
+      "mb": 3.5
+    },
+    {
+      "file": "character_1.fbx",
+      "name": "Character 2",
+      "mb": 59.4
+    },
+    {
+      "file": "character.fbx",
+      "name": "Character 1",
+      "mb": 4.7
+    },
+    {
+      "file": "kaya.fbx",
+      "name": "Kaya",
+      "mb": 8.4
+    }
   ]
 }
