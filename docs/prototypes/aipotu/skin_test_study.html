@@ -52,6 +52,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';   // Mixamo FBX exports (2026-09-01, decision 35a)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
@@ -390,7 +391,27 @@ const OURS = [];
 const ourMixer = new THREE.AnimationMixer(meshes[0]);
 const animSel = document.getElementById('animsel');
 const loader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
+// One entry point for .glb/.gltf AND .fbx: both come back as {scene, animations}.
+// FBX bones arrive as "mixamorig:Hips"; our clips address "mixamorigHips", so the
+// bone NAMES are normalized on load (skeleton references are by object, so this
+// is safe) and the clip tracks bind.
+function normalizeBones(obj){
+  obj.traverse(o => { if(o.isBone || o.isSkinnedMesh || o.isObject3D) o.name = o.name.replace('mixamorig:', 'mixamorig'); });
+  return obj;
+}
+function loadAny(path, ok, fail){
+  if(/\.fbx$/i.test(path)) fbxLoader.load(path, obj => ok({ scene: normalizeBones(obj), animations: obj.animations || [] }), undefined, fail);
+  else loader.load(path, g => { normalizeBones(g.scene); ok(g); }, undefined, fail);
+}
+function parseAny(name, buf, ok, fail){
+  if(/\.fbx$/i.test(name)){
+    try { const obj = fbxLoader.parse(buf, './'); ok({ scene: normalizeBones(obj), animations: obj.animations || [] }); }
+    catch(err){ fail(err); }
+  } else loader.parse(buf, './', g => { normalizeBones(g.scene); ok(g); }, fail);
+}
 const DL = [];                    // downloaded skins {name, obj, mixer, clips, action}
+window.SG = { DL, scene };        // debug handle
 let activeDL = -1;                // -1 = a built-in body is on stage
 let xbot = null;                  // {mixer, clips, action}
 let ourAction = null;
@@ -449,7 +470,7 @@ skinSel.appendChild(ogDL);
 // visible even when empty, so the feature is discoverable
 const dlHint = document.createElement('option');
 dlHint.disabled = true;
-dlHint.textContent = '(none yet — drag a .glb here, or Dropbox AIPOTU/skins_inbox + tell HvM "skins")';
+dlHint.textContent = '(none yet — drag a .glb or Mixamo .fbx here, or Dropbox AIPOTU/skins_inbox + say "skins")';
 ogDL.appendChild(dlHint);
 
 function groundAndScale(obj, x){
@@ -461,7 +482,9 @@ function groundAndScale(obj, x){
 }
 function registerSkin(name, gltf){
   const obj = gltf.scene;
-  obj.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
+  obj.traverse(o => { if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; o.frustumCulled = false; } });
+  // (frustumCulled off: a SkinnedMesh's bounding sphere is its bind pose, so
+  //  limbs of an imported skin get culled once a clip moves them)
   groundAndScale(obj, -0.9);
   obj.visible = false;
   scene.add(obj);
@@ -492,9 +515,9 @@ fetch('./vendor/models/manifest.json')
     if(!man?.skins) return;
     for(const it of man.skins){
       if(it.file === 'Xbot.glb') continue;   // Xbot is the standing reference
-      loader.load('./vendor/models/' + it.file,
+      loadAny('./vendor/models/' + it.file,
         g => registerSkin(it.name || it.file, g),
-        undefined, err => console.warn('skin load failed', it.file, err));
+        err => console.warn('skin load failed', it.file, err));
     }
   }).catch(() => {});
 
@@ -503,8 +526,8 @@ addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
   e.preventDefault();
   for(const f of e.dataTransfer.files){
-    f.arrayBuffer().then(buf => loader.parse(buf, './', g => {
-      const si = registerSkin(f.name.replace(/\.(glb|gltf)$/i, ''), g);
+    f.arrayBuffer().then(buf => parseAny(f.name, buf, g => {
+      const si = registerSkin(f.name.replace(/\.(glb|gltf|fbx)$/i, ''), g);
       skinSel.value = 'dl:' + si;
       showSkin('dl:' + si);
     }, err => console.warn('drop parse failed', err)));

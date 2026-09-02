@@ -56,6 +56,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';   // Mixamo FBX exports (2026-09-01, decision 35a)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
@@ -356,6 +357,23 @@ function activate(i){
 
 // ---------- imported skins: manifest + drag-drop ---------------------------
 const loader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
+// .glb/.gltf and .fbx both come back as {scene, animations}; FBX bone names
+// "mixamorig:Hips" are normalized to "mixamorigHips" so the walk clip binds.
+function normalizeBones(obj){
+  obj.traverse(o => { o.name = o.name.replace('mixamorig:', 'mixamorig'); });
+  return obj;
+}
+function loadAny(path, ok, fail){
+  if(/\.fbx$/i.test(path)) fbxLoader.load(path, obj => ok({ scene: normalizeBones(obj), animations: obj.animations || [] }), undefined, fail);
+  else loader.load(path, g => { normalizeBones(g.scene); ok(g); }, undefined, fail);
+}
+function parseAny(name, buf, ok, fail){
+  if(/\.fbx$/i.test(name)){
+    try { const obj = fbxLoader.parse(buf, './'); ok({ scene: normalizeBones(obj), animations: obj.animations || [] }); }
+    catch(err){ fail(err); }
+  } else loader.parse(buf, './', g => { normalizeBones(g.scene); ok(g); }, fail);
+}
 const skinSel = document.getElementById('skinsel');
 function adoptGltf(name, gltf){
   const node = gltf.scene;
@@ -365,7 +383,9 @@ function adoptGltf(name, gltf){
   const s = 1.55/h;
   node.scale.setScalar(s);
   node.position.y = -box.min.y*s;
-  node.traverse(o => { if(o.isMesh || o.isSkinnedMesh) o.castShadow = true; });
+  node.traverse(o => { if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; o.frustumCulled = false; } });
+  // (frustumCulled off: an imported SkinnedMesh's bounding sphere is its bind
+  //  pose at the origin, so parts of a walker vanish once the bones carry it away)
   // find the mixamorig bones (colon variants normalized)
   const B = {};
   node.traverse(o => {
@@ -389,22 +409,23 @@ function adoptGltf(name, gltf){
   return idx;
 }
 skinSel.addEventListener('change', () => activate(+skinSel.value));
+window.TW = { rigs, get active(){ return active; }, scene, activate };   // debug handle
 fetch('./vendor/models/manifest.json')
   .then(r => r.ok ? r.json() : null)
   .then(man => {
     const files = [{ file:'Xbot.glb', name:'Xbot' }, ...((man && man.skins) || [])];
     for(const it of files){
-      loader.load('./vendor/models/' + it.file,
+      loadAny('./vendor/models/' + it.file,
         g => adoptGltf(it.name || it.file, g),
-        undefined, err => console.warn('skin load failed', it.file, err));
+        err => console.warn('skin load failed', it.file, err));
     }
   }).catch(() => {});
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
   e.preventDefault();
   for(const f of e.dataTransfer.files){
-    f.arrayBuffer().then(buf => loader.parse(buf, './', g => {
-      const idx = adoptGltf(f.name.replace(/\.(glb|gltf)$/i, ''), g);
+    f.arrayBuffer().then(buf => parseAny(f.name, buf, g => {
+      const idx = adoptGltf(f.name.replace(/\.(glb|gltf|fbx)$/i, ''), g);
       if(idx >= 0){ skinSel.value = idx; activate(idx); }
     }, err => console.warn('drop parse failed', err)));
   }
