@@ -14,6 +14,7 @@ import {
   ACTORS as CORE_ACTORS, SFX as CORE_SFX,
 } from '../machine-core.mjs';
 import { buildStamp } from '../stamp.mjs';
+import { narratonFields } from '../narraton-fields.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -666,7 +667,7 @@ for (const ev of EVENTS) {
         '- "Back to the moments" -> lp_voices',
         '[/CHOICE]',
       ),
-      narraton: { pool: 'leopold_reactions', keys: ev.keys, repeatable: true },
+      ...narratonFields({ pool: 'leopold_reactions', keys: ev.keys, repeatable: true }),
       status: 'work',
     });
   }
@@ -1030,7 +1031,7 @@ for (const d of DUETS) {
         '- "Back to the duets" -> lp_duets',
         '[/CHOICE]',
       ),
-      narraton: { pool: 'leopold_reactions', keys: d.keys, repeatable: true },
+      ...narratonFields({ pool: 'leopold_reactions', keys: d.keys, repeatable: true }),
       status: 'work',
     });
   });
@@ -1288,7 +1289,7 @@ for (const ev of AFTERMATHS) {
           '- "Back to the aftermaths" -> lp_aftermaths',
           '[/CHOICE]',
         ),
-        narraton: { pool: 'leopold_reactions', keys: ev.keys, repeatable: true },
+        ...narratonFields({ pool: 'leopold_reactions', keys: ev.keys, repeatable: true }),
         status: 'work',
       });
     });
@@ -1662,7 +1663,7 @@ const recordScenes = RECORD.map((r) => ({
     '- "Return to Brussels" -> lp_palace',
     '[/CHOICE]',
   ),
-  narraton: { pool: 'leopold_reactions', keys: r.keys, repeatable: true },
+  ...narratonFields({ pool: 'leopold_reactions', keys: r.keys, repeatable: true }),
   status: 'work',
 }));
 

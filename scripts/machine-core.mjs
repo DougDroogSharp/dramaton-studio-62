@@ -6,6 +6,9 @@
 
 // ---------------------------------------------------------------- helpers
 
+import { narratonFields } from './narraton-fields.mjs';
+export { narratonFields };
+
 export const lines = (...xs) => xs.flat().join('\n');
 
 export const balloon = (id, text, x, y, { scale = 1, zIndex = 2, rotation = 0 } = {}) => ({
@@ -461,7 +464,7 @@ export const witnessScene = (id, name, narraton, returnTo, ...dialogue) => ({
   dropId: null,
   stage: [actorEl('witness_figure', 'witness', 50, 60, { scale: 1.4 })],
   script: lines(...dialogue, `[SCENE ${returnTo}]`),
-  narraton,
+  ...narratonFields(narraton),
   status: 'work',
 });
 

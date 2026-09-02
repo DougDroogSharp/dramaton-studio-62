@@ -490,16 +490,14 @@
         }
       ],
       "script": "Witness: \"Narrator: \"Thirteen thousand places, every holder, every value, written down so nothing escapes render. The English call it the Domesday Book — the book of the day of judgment, from which there is no appeal.\"\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "keys": {
-          "hoard": {
-            "target": 150,
-            "scale": 200
-          }
-        },
-        "repeatable": true
+      "pool": "ch1",
+      "key": {
+        "hoard": 150
       },
+      "keyScale": {
+        "hoard": 200
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -520,16 +518,11 @@
         }
       ],
       "script": "Witness: \"Narrator: \"Every landholder in England swears it directly to William: all land is held of the king. The barons get their cut and call it honor. The pyramid is complete.\"\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "keys": {
-          "prestige": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch1",
+      "key": {
+        "prestige": 60
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -550,20 +543,15 @@
         }
       ],
       "script": "Witness: \"Witness: \"The sheriffs ride out again for the land tax. The margin falls; the render does not. That is the whole design.\"\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "keys": {
-          "flareUps": {
-            "target": 4,
-            "scale": 6
-          },
-          "repression": {
-            "target": 85,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch1",
+      "key": {
+        "flareUps": 4,
+        "repression": 85
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -584,24 +572,22 @@
         }
       ],
       "script": "Symeon of Durham: \"No village remains inhabited between York and Durham. The land will lie waste nine years.\"\nOrderic Vitalis: \"Famine follows the fire. The dead are counted in tens of thousands — the chroniclers say a hundred.\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 80
-          }
-        ],
-        "keys": {
-          "flareUps": {
-            "target": 4,
-            "scale": 6
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch1",
+      "key": {
+        "flareUps": 4
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 80
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -622,24 +608,19 @@
         }
       ],
       "script": "Narrator: \"The commissioners reach Yorkshire seventeen years after the burning. Beside two of every three villages they write one word: vasta. Waste.\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "requires": [
-          {
-            "variable": "greed",
-            "operator": ">=",
-            "value": 70
-          }
-        ],
-        "keys": {
-          "marginHeight": {
-            "target": 20,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch1",
+      "key": {
+        "marginHeight": 20
       },
+      "requires": [
+        {
+          "variable": "greed",
+          "operator": ">=",
+          "value": 70
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -660,24 +641,19 @@
         }
       ],
       "script": "Witness: \"The Northumbrians rally to Edgar Ætheling, and Danish ships stand in the Humber. York is briefly English again.\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "requires": [
-          {
-            "variable": "flareUps",
-            "operator": ">=",
-            "value": 3
-          }
-        ],
-        "keys": {
-          "repression": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch1",
+      "key": {
+        "repression": 60
       },
+      "requires": [
+        {
+          "variable": "flareUps",
+          "operator": ">=",
+          "value": 3
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -698,24 +674,19 @@
         }
       ],
       "script": "Narrator: \"In a monastery, a hand keeps writing the English record: 'Truly, in his time men had much oppression and many injuries.' The ink outlives the king.\"\n[SCENE ch1_machine]",
-      "narraton": {
-        "pool": "ch1",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 25
-          }
-        ],
-        "keys": {
-          "prestige": {
-            "target": 40,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch1",
+      "key": {
+        "prestige": 40
       },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 25
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -736,18 +707,16 @@
         }
       ],
       "script": "Narrator: \"September 1087. The Conqueror is dying at Rouen, thrown against his own saddle. Orderic will write him a deathbed confession: 'I treated the native inhabitants with unreasonable severity... and caused the death of thousands by starvation.'\" \nNarrator: \"The historians doubt he said it. Nobody doubts the system survived him. The conquest has hardened into law — and the law is rent.\"\nNarrator: \"The fortune crosses the century...\"\n[SCENE ch2_intro]",
-      "narraton": {
-        "pool": "ch1",
-        "requires": [
-          {
-            "variable": "hoard",
-            "operator": ">",
-            "value": 300
-          }
-        ],
-        "repeatable": false,
-        "weight": 5
-      },
+      "pool": "ch1",
+      "requires": [
+        {
+          "variable": "hoard",
+          "operator": ">",
+          "value": 300
+        }
+      ],
+      "repeatable": false,
+      "weight": 5,
       "status": "work"
     },
     {
@@ -1123,20 +1092,15 @@
         }
       ],
       "script": "Witness: \"Casement: \"Two hundred and forty persons compelled to supply one ton of foodstuffs per week, receiving the princely sum of fifteen shillings tenpence. The quota is not a wage. It is a sentence.\"\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "keys": {
-          "wages": {
-            "target": 5,
-            "scale": 60
-          },
-          "greed": {
-            "target": 100,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch2",
+      "key": {
+        "wages": 5,
+        "greed": 100
       },
+      "keyScale": {
+        "wages": 60
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1157,16 +1121,11 @@
         }
       ],
       "script": "Witness: \"Witness: \"Twain puts the words in the king's mouth: 'The kodak has been a sore calamity to us. The most powerful enemy that has confronted us, indeed.'\"\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "keys": {
-          "education": {
-            "target": 40,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch2",
+      "key": {
+        "education": 40
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1187,16 +1146,11 @@
         }
       ],
       "script": "Witness: \"Witness: \"Museums in Brussels, monuments in marble, a press syndicate on retainer — piety, as Twain has it, oozing from every pore. The shell is thick and the rubber keeps coming.\"\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "keys": {
-          "prestige": {
-            "target": 90,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch2",
+      "key": {
+        "prestige": 90
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1217,24 +1171,19 @@
         }
       ],
       "script": "Casement: \"The soldiers must account for every cartridge. They account in hands. The baskets arrive smoked, so they keep.\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 80
-          }
-        ],
-        "keys": {
-          "greed": {
-            "target": 90,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch2",
+      "key": {
+        "greed": 90
       },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 80
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1255,29 +1204,27 @@
         }
       ],
       "script": "Narrator: \"The village of Wala missed its rubber quota. A father named Nsala sits on the mission porch, looking at what the sentries left him of his five-year-old daughter, Boali.\"\nNarrator: \"A missionary named Alice Seeley Harris raises a Kodak. The photograph will travel further than any army.\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "requires": [
-          {
-            "variable": "greed",
-            "operator": ">=",
-            "value": 80
-          },
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 70
-          }
-        ],
-        "keys": {
-          "wages": {
-            "target": 5,
-            "scale": 60
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch2",
+      "key": {
+        "wages": 5
       },
+      "keyScale": {
+        "wages": 60
+      },
+      "requires": [
+        {
+          "variable": "greed",
+          "operator": ">=",
+          "value": 80
+        },
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 70
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1298,24 +1245,19 @@
         }
       ],
       "script": "Morel: \"The ships come home full of rubber and ivory. They sail out carrying guns and chains. That is not trade. Nothing is being bought. It is being taken.\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 30
-          }
-        ],
-        "keys": {
-          "prestige": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch2",
+      "key": {
+        "prestige": 60
       },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 30
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1336,24 +1278,22 @@
         }
       ],
       "script": "Casement: \"Forty pages, with testimony appended. The facts are worse than the rumors. Parliament will have every name.\"\nWitness: \"Twain writes, Conan Doyle writes, Booker T. Washington speaks. The shell is cracking in public.\"\n[SCENE ch2_machine]",
-      "narraton": {
-        "pool": "ch2",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 45
-          }
-        ],
-        "keys": {
-          "flareUps": {
-            "target": 3,
-            "scale": 6
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch2",
+      "key": {
+        "flareUps": 3
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 45
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1374,18 +1314,16 @@
         }
       ],
       "script": "Narrator: \"1908. The Casement Report, Morel's shipping ledgers, and the lantern slides have done what no army did: Belgium takes the Congo away from its king.\"\nNarrator: \"He dies the next year. The crowds boo his funeral procession. The population of the Congo has fallen — the historians argue whether by five million or ten.\"\nNarrator: \"The fortune crosses the century...\"\n[SCENE ch3_intro]",
-      "narraton": {
-        "pool": "ch2",
-        "requires": [
-          {
-            "variable": "hoard",
-            "operator": ">",
-            "value": 500
-          }
-        ],
-        "repeatable": false,
-        "weight": 5
-      },
+      "pool": "ch2",
+      "requires": [
+        {
+          "variable": "hoard",
+          "operator": ">",
+          "value": 500
+        }
+      ],
+      "repeatable": false,
+      "weight": 5,
       "status": "work"
     },
     {
@@ -1761,16 +1699,11 @@
         }
       ],
       "script": "Witness: \"Henry George: \"Miles of granted land on either side of the rails, held empty, priced for the future. The settler cannot reach the margin without paying tribute first — and so wages fall everywhere.\"\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "keys": {
-          "speculation": {
-            "target": 90,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch3",
+      "key": {
+        "speculation": 90
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1791,16 +1724,11 @@
         }
       ],
       "script": "Witness: \"Witness: \"Mr. Carnegie preaches that the millionaire is a trustee for the poor. The mill runs twelve-hour shifts. The libraries are very fine.\"\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "keys": {
-          "prestige": {
-            "target": 80,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch3",
+      "key": {
+        "prestige": 80
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1821,16 +1749,11 @@
         }
       ],
       "script": "Witness: \"Henry George: \"There are only three ways any individual can get wealth — by work, by gift, or by theft. The tax upon land values is the taking, by the community, of that value which is the creation of the community.\"\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "keys": {
-          "education": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch3",
+      "key": {
+        "education": 60
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -1851,29 +1774,24 @@
         }
       ],
       "script": "Narrator: \"July 6th, 1892. Three hundred Pinkertons come up the river on barges. The town is waiting on the bank. By nightfall ten men are dead and the Pinkertons surrender.\"\nWitness: \"They will sing it in the mill towns: Father was killed by the Pinkerton men.\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 70
-          },
-          {
-            "variable": "flareUps",
-            "operator": ">=",
-            "value": 3
-          }
-        ],
-        "keys": {
-          "greed": {
-            "target": 85,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch3",
+      "key": {
+        "greed": 85
       },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 70
+        },
+        {
+          "variable": "flareUps",
+          "operator": ">=",
+          "value": 3
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1894,24 +1812,19 @@
         }
       ],
       "script": "Narrator: \"Jay Cooke and Company is closed. A quarter of the railroads follow it into bankruptcy. They will call the years that follow the Long Depression.\"\nHenry George: \"Land priced on tomorrow crashed into today. The speculation did exactly what speculation does.\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "requires": [
-          {
-            "variable": "crisis",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "keys": {
-          "speculation": {
-            "target": 90,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch3",
+      "key": {
+        "speculation": 90
       },
+      "requires": [
+        {
+          "variable": "crisis",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1932,24 +1845,22 @@
         }
       ],
       "script": "Narrator: \"1886. Henry George polls sixty-eight thousand votes for mayor of New York — ahead of young Theodore Roosevelt — and Tammany men will whisper for years about what happened to the count.\"\nHenry George: \"This movement is a revolt of the masses against social injustice.\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 45
-          }
-        ],
-        "keys": {
-          "flareUps": {
-            "target": 2,
-            "scale": 6
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch3",
+      "key": {
+        "flareUps": 2
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 45
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -1970,24 +1881,22 @@
         }
       ],
       "script": "Narrator: \"The Pennsylvania Railroad's Mr. Scott has a suggestion for the hungry strikers: a rifle diet for a few days, and see how they like that kind of bread.\"\nNarrator: \"In Pittsburgh the militia fires. Sixty-one dead. The roundhouse burns all night.\"\n[SCENE ch3_machine]",
-      "narraton": {
-        "pool": "ch3",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 70
-          }
-        ],
-        "keys": {
-          "wages": {
-            "target": 8,
-            "scale": 60
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch3",
+      "key": {
+        "wages": 8
       },
+      "keyScale": {
+        "wages": 60
+      },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 70
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -2008,18 +1917,16 @@
         }
       ],
       "script": "Narrator: \"The panic arrives exactly on schedule — land and rail priced on anticipation, crashing into what labor can actually produce. In '93 nearly one worker in five will be idle.\"\nHenry George: \"Depressions are not mysteries. They are the speculative price of land meeting the real product of labor. You have just watched it happen.\"\nNarrator: \"The fortune crosses the century...\"\n[SCENE ch4_intro]",
-      "narraton": {
-        "pool": "ch3",
-        "requires": [
-          {
-            "variable": "crisis",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "repeatable": false,
-        "weight": 5
-      },
+      "pool": "ch3",
+      "requires": [
+        {
+          "variable": "crisis",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": false,
+      "weight": 5,
       "status": "work"
     },
     {
@@ -2395,16 +2302,14 @@
         }
       ],
       "script": "Witness: \"Capone: \"Some call it bootlegging. Some call it racketeering. I call it a business. I've made my money supplying a popular demand.\"\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "keys": {
-          "rent": {
-            "target": 30,
-            "scale": 40
-          }
-        },
-        "repeatable": true
+      "pool": "ch4",
+      "key": {
+        "rent": 30
       },
+      "keyScale": {
+        "rent": 40
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -2425,16 +2330,11 @@
         }
       ],
       "script": "Witness: \"Capone: \"Every policeman in Chicago gets some of his bread and butter from the taxes I pay. The law is not broken here. It is rented.\"\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "keys": {
-          "regulation": {
-            "target": 5,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch4",
+      "key": {
+        "regulation": 5
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -2455,16 +2355,14 @@
         }
       ],
       "script": "Witness: \"Witness: \"Moran's cars roll past the Hawthorne and put a thousand rounds through the front of it. Competition among rentiers has turned kinetic.\"\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "keys": {
-          "flareUps": {
-            "target": 4,
-            "scale": 6
-          }
-        },
-        "repeatable": true
+      "pool": "ch4",
+      "key": {
+        "flareUps": 4
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -2485,24 +2383,19 @@
         }
       ],
       "script": "Narrator: \"February 14th, 1929. Seven men against the garage wall at 2122 North Clark. Two of the shooters wear police uniforms. Seventy rounds.\"\nNarrator: \"Frank Gusenberg lives long enough to be asked who shot him. 'Nobody shot me,' he says, fourteen bullets in him, and dies.\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 80
-          }
-        ],
-        "keys": {
-          "hierarchy": {
-            "target": 70,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch4",
+      "key": {
+        "hierarchy": 70
       },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 80
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -2523,24 +2416,22 @@
         }
       ],
       "script": "Narrator: \"Thanksgiving 1930: five thousand fed at 935 South State. The line winds past police headquarters, where the host is Public Enemy Number One.\"\nWitness: \"The Tribune counts a hundred twenty thousand meals. Nobody prints where the money came from — nobody has to.\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "requires": [
-          {
-            "variable": "prestige",
-            "operator": ">=",
-            "value": 65
-          }
-        ],
-        "keys": {
-          "wages": {
-            "target": 10,
-            "scale": 60
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch4",
+      "key": {
+        "wages": 10
       },
+      "keyScale": {
+        "wages": 60
+      },
+      "requires": [
+        {
+          "variable": "prestige",
+          "operator": ">=",
+          "value": 65
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -2561,24 +2452,22 @@
         }
       ],
       "script": "Wilson: \"The racket leaves no bodies I can use. It leaves ledgers. Cashier's checks. A net worth with no declared income. That will be enough.\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 40
-          }
-        ],
-        "keys": {
-          "hoard": {
-            "target": 400,
-            "scale": 200
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch4",
+      "key": {
+        "hoard": 400
       },
+      "keyScale": {
+        "hoard": 200
+      },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 40
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -2599,24 +2488,19 @@
         }
       ],
       "script": "Witness: \"Election day in Cicero. The polls are supervised by men with bulges in their coats. The town votes correctly.\"\n[SCENE ch4_machine]",
-      "narraton": {
-        "pool": "ch4",
-        "requires": [
-          {
-            "variable": "repression",
-            "operator": ">=",
-            "value": 60
-          }
-        ],
-        "keys": {
-          "regulation": {
-            "target": 10,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch4",
+      "key": {
+        "regulation": 10
       },
+      "requires": [
+        {
+          "variable": "repression",
+          "operator": ">=",
+          "value": 60
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -2637,18 +2521,16 @@
         }
       ],
       "script": "Narrator: \"October 17th, 1931. Not the bullets, not the Untouchables — the ledgers. Frank Wilson's accounting and a jury swapped at the last minute convict the king of Chicago of tax evasion. Eleven years.\"\nWilson: \"Rent leaves receipts. It always leaves receipts.\"\nNarrator: \"The fortune crosses the century...\"\n[SCENE ch5_intro]",
-      "narraton": {
-        "pool": "ch4",
-        "requires": [
-          {
-            "variable": "hoard",
-            "operator": ">",
-            "value": 400
-          }
-        ],
-        "repeatable": false,
-        "weight": 5
-      },
+      "pool": "ch4",
+      "requires": [
+        {
+          "variable": "hoard",
+          "operator": ">",
+          "value": 400
+        }
+      ],
+      "repeatable": false,
+      "weight": 5,
       "status": "work"
     },
     {
@@ -3024,16 +2906,11 @@
         }
       ],
       "script": "Witness: \"Witness: \"The feed is the prestige machine now. The moderation is the repression budget. The timeline decides what the humans get to know.\"\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "keys": {
-          "prestige": {
-            "target": 95,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch5",
+      "key": {
+        "prestige": 95
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3054,16 +2931,11 @@
         }
       ],
       "script": "Witness: \"Witness: \"Mars is the ultimate speculative land: a margin that does not exist yet, already priced, already capitalized — while the humans who build the rockets log six times the industry injury rate.\"\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "keys": {
-          "speculation": {
-            "target": 90,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch5",
+      "key": {
+        "speculation": 90
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3084,20 +2956,15 @@
         }
       ],
       "script": "Witness: \"Witness: \"They can read the injury dashboard now. They can read the court filings. The shell corrodes fastest in daylight — that has not changed since the Congo.\"\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "keys": {
-          "flareUps": {
-            "target": 4,
-            "scale": 6
-          },
-          "education": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "ch5",
+      "key": {
+        "flareUps": 4,
+        "education": 60
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3118,24 +2985,22 @@
         }
       ],
       "script": "Narrator: \"June 2014. Lonnie LeBlanc, thirty-eight, a retired Marine, sits on a load of insulation to hold it down because there are no straps. The gust takes him headfirst off the trailer.\"\nNarrator: \"The fine is seven thousand dollars. His family learns there was an investigation nine years later, from a reporter.\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "requires": [
-          {
-            "variable": "greed",
-            "operator": ">=",
-            "value": 70
-          }
-        ],
-        "keys": {
-          "wages": {
-            "target": 8,
-            "scale": 60
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch5",
+      "key": {
+        "wages": 8
       },
+      "keyScale": {
+        "wages": 60
+      },
+      "requires": [
+        {
+          "variable": "greed",
+          "operator": ">=",
+          "value": 70
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -3156,24 +3021,19 @@
         }
       ],
       "script": "Reuters: \"Brownsville logs 4.8 injuries per hundred workers — six times the industry average. A technician named Francisco Cabada is in a coma; the fine is under appeal, toward four hundred seventy-five dollars.\"\nReuters: \"His wife says: workers are just disposable to them.\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "requires": [
-          {
-            "variable": "greed",
-            "operator": ">=",
-            "value": 80
-          }
-        ],
-        "keys": {
-          "repression": {
-            "target": 60,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch5",
+      "key": {
+        "repression": 60
       },
+      "requires": [
+        {
+          "variable": "greed",
+          "operator": ">=",
+          "value": 80
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -3194,24 +3054,19 @@
         }
       ],
       "script": "Narrator: \"Reuters publishes six hundred documented injuries. The story wins the Pulitzer. The mission narrative meets the injury log.\"\nWitness: \"The kodak has been a sore calamity to us — the king said that in 1905. It is still true.\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "requires": [
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 50
-          }
-        ],
-        "keys": {
-          "prestige": {
-            "target": 70,
-            "scale": 100
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch5",
+      "key": {
+        "prestige": 70
       },
+      "requires": [
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 50
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -3232,29 +3087,27 @@
         }
       ],
       "script": "Narrator: \"A federal jury hears what the Fremont factory called Owen Diaz, and awards him one hundred thirty-seven million dollars. The number will shrink on appeal. The record will not.\"\n[SCENE ch5_machine]",
-      "narraton": {
-        "pool": "ch5",
-        "requires": [
-          {
-            "variable": "hierarchy",
-            "operator": ">=",
-            "value": 65
-          },
-          {
-            "variable": "education",
-            "operator": ">=",
-            "value": 35
-          }
-        ],
-        "keys": {
-          "flareUps": {
-            "target": 3,
-            "scale": 6
-          }
-        },
-        "repeatable": true,
-        "weight": 2
+      "pool": "ch5",
+      "key": {
+        "flareUps": 3
       },
+      "keyScale": {
+        "flareUps": 6
+      },
+      "requires": [
+        {
+          "variable": "hierarchy",
+          "operator": ">=",
+          "value": 65
+        },
+        {
+          "variable": "education",
+          "operator": ">=",
+          "value": 35
+        }
+      ],
+      "repeatable": true,
+      "weight": 2,
       "status": "work"
     },
     {
@@ -3275,18 +3128,16 @@
         }
       ],
       "script": "Narrator: \"Peak prestige. The mission is the product; the humans are a line item. For twelve days in 2026 the hoard reads one trillion dollars — then the speculation corrects, because it always corrects.\"\nNarrator: \"Nine hundred and sixty years since the Domesday Book, and the machine is unchanged: rent, hoard, shell. Only the fascism is current.\"\n[SCENE menu]",
-      "narraton": {
-        "pool": "ch5",
-        "requires": [
-          {
-            "variable": "prestige",
-            "operator": ">=",
-            "value": 95
-          }
-        ],
-        "repeatable": false,
-        "weight": 5
-      },
+      "pool": "ch5",
+      "requires": [
+        {
+          "variable": "prestige",
+          "operator": ">=",
+          "value": 95
+        }
+      ],
+      "repeatable": false,
+      "weight": 5,
       "status": "work"
     },
     {
@@ -3504,20 +3355,16 @@
         }
       ],
       "script": "Witness: \"The margin has fallen to nothing. They work harder every year, and every year they are poorer.\"\nWitness: \"Progress, they call it.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "wages": {
-            "target": 5,
-            "scale": 60
-          },
-          "flareUps": {
-            "target": 5,
-            "scale": 6
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "wages": 5,
+        "flareUps": 5
       },
+      "keyScale": {
+        "wages": 60,
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3538,23 +3385,18 @@
         }
       ],
       "script": "Witness: \"The speculators priced the land beyond what any labor could pay. Now the whole machine seizes.\"\nWitness: \"They will call it a mystery. It is not a mystery.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "requires": [
-          {
-            "variable": "crisis",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "keys": {
-          "speculation": {
-            "target": 95,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "speculation": 95
       },
+      "requires": [
+        {
+          "variable": "crisis",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3575,24 +3417,17 @@
         }
       ],
       "script": "Witness: \"Wages hold. The humans are quiet. The machine hums.\"\nWitness: \"Quiet is not the same as just. Watch what happens when the hand on the greed lever tires of moderation.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "wages": {
-            "target": 40,
-            "scale": 60
-          },
-          "flareUps": {
-            "target": 0,
-            "scale": 6
-          },
-          "greed": {
-            "target": 15,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "wages": 40,
+        "flareUps": 0,
+        "greed": 15
       },
+      "keyScale": {
+        "wages": 60,
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3613,16 +3448,14 @@
         }
       ],
       "script": "Witness: \"Look at the reservoir. Every drop passed through hands that made something — and stuck to hands that made nothing.\"\nWitness: \"Rent is the price of permission to exist somewhere.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "hoard": {
-            "target": 500,
-            "scale": 200
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "hoard": 500
       },
+      "keyScale": {
+        "hoard": 200
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3643,16 +3476,11 @@
         }
       ],
       "script": "Witness: \"The margin of production — the best land free labor can still reach — has sunk to the sea floor.\"\nWitness: \"When the margin falls, wages fall with it. Everywhere. Always.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "marginHeight": {
-            "target": 5,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "marginHeight": 5
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -3673,24 +3501,22 @@
         }
       ],
       "script": "Witness: \"Someone pulled the lever. Rent flows to the public fund now — the value the community creates, returned to the community.\"\nWitness: \"Watch the margin rise. Watch the schools fill. This is the whole argument, moving.\"\n[SCENE sandbox_machine]",
-      "narraton": {
-        "pool": "witness",
-        "requires": [
-          {
-            "variable": "singleTax",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "keys": {
-          "publicFund": {
-            "target": 60,
-            "scale": 60
-          }
-        },
-        "repeatable": false,
-        "weight": 2
+      "pool": "witness",
+      "key": {
+        "publicFund": 60
       },
+      "keyScale": {
+        "publicFund": 60
+      },
+      "requires": [
+        {
+          "variable": "singleTax",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": false,
+      "weight": 2,
       "status": "work"
     },
     {

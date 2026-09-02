@@ -16,6 +16,7 @@ import {
   ACTORS as CORE_ACTORS, SFX as CORE_SFX,
 } from '../machine-core.mjs';
 import { buildStamp } from '../stamp.mjs';
+import { narratonFields } from '../narraton-fields.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -1447,7 +1448,7 @@ for (const ev of EVENTS) {
       sceneType: 'WITNESS',
       dropId: dropId(r.drop),
       stage: [el(`vg_${ev.id}_${r.id}_a`, r.actor, 50, 62, 2.4)],
-      narraton: { pool: 'elon_reactions', keys: ev.keys, repeatable: true, weight: 1 },
+      ...narratonFields({ pool: 'elon_reactions', keys: ev.keys, repeatable: true, weight: 1 }),
       script: lines(
         ...body,
         '[CHOICE]',
@@ -1649,7 +1650,8 @@ const expansionStart = scenes.length;
 // elon_reactions pool. Register: caricature for Elon and the Lieutenant
 // only; everyone else plays it straight. Sourced quotes stay verbatim.
 
-const rn = (exposure, prestige) => ({
+// Flat Narraton fields for a reaction scene (spread into the literal).
+const rn = (exposure, prestige) => narratonFields({
   pool: 'elon_reactions', keys: nkeys(exposure, prestige), repeatable: true, weight: 1,
 });
 
@@ -1714,7 +1716,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dp1_e', 'elon_musk', 30, 62), el('dp1_r', 'elon_reporter', 70, 62)],
-  narraton: rn(10, 95),
+  ...rn(10, 95),
   script: lines(
     'Narrator: "2022. The first interview. He grants it like a favor."',
     'Elon (Pointing/Smug): "Forty-five minutes. I\'m saving humanity on a schedule."',
@@ -1738,7 +1740,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dp2_e', 'elon_musk', 30, 62), el('dp2_r', 'elon_reporter', 70, 62)],
-  narraton: rn(40, 80),
+  ...rn(40, 80),
   script: lines(
     'Narrator: "2023. The second interview. This time she requested it."',
     'Reporter (Closeup/Determined): "I have injury records from your own filings. Brownsville: 4.8 per 100 workers. The industry average is 0.8."',
@@ -1763,7 +1765,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dp3_e', 'elon_musk', 30, 62), el('dp3_r', 'elon_reporter', 70, 62)],
-  narraton: rn(70, 55),
+  ...rn(70, 55),
   script: lines(
     'Narrator: "10 November 2023. The story is live: more than 600 documented injuries since 2014. One death. He called this meeting."',
     '[POSE elon_musk expression=Panicked]',
@@ -1788,7 +1790,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dp4_e', 'elon_musk', 30, 62), el('dp4_r', 'elon_reporter', 70, 62)],
-  narraton: rn(85, 40),
+  ...rn(85, 40),
   script: lines(
     'Narrator: "2024. The investigation wins the Pulitzer Prize for National Reporting. Now HE requests the interview."',
     'Elon: "I\'m offering you an exclusive. Me. Unfiltered. The mission, in my own words."',
@@ -1817,7 +1819,7 @@ scenes.push({
     el('dm1_l', 'elon_hypebro', 70, 63),
     balloon('metric_board', 'ALL-HANDS METRICS — LIVE', 45, 95),
   ],
-  narraton: rn(30, 90),
+  ...rn(30, 90),
   script: lines(
     '[SET mIdx = 0]',
     '[TICK 1500ms]',
@@ -1856,7 +1858,7 @@ scenes.push({
     el('dm2_e', 'elon_musk', 30, 62),
     el('dm2_l', 'elon_hypebro', 70, 63),
   ],
-  narraton: rn(40, 85),
+  ...rn(40, 85),
   script: lines(
     'Elon: "Where\'s the advertiser chart? There\'s usually an advertiser chart."',
     'Lieutenant: "That one\'s, um. In the appendix. The appendix is at the printer. The printer is on fire."',
@@ -1882,7 +1884,7 @@ scenes.push({
     el('dm3_e', 'elon_musk', 30, 62),
     el('dm3_l', 'elon_hypebro', 70, 63),
   ],
-  narraton: rn(45, 80),
+  ...rn(45, 80),
   script: lines(
     'Elon: "I want a metric for how much humanity appreciates me."',
     'Lieutenant: "On it. Working title: \'Impressions of Gratitude.\'"',
@@ -1907,7 +1909,7 @@ scenes.push({
   stage: [
     el('dm4_l', 'elon_hypebro', 50, 63, 2.6),
   ],
-  narraton: rn(50, 75),
+  ...rn(50, 75),
   script: lines(
     'Narrator: "The room empties. The Lieutenant stays behind with the real numbers."',
     'Lieutenant: "Okay. Real talk. Just me and the spreadsheet."',
@@ -1931,7 +1933,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [el('dn1_w', 'elon_worker', 30, 62), el('dn1_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(35, 75),
+  ...rn(35, 75),
   script: lines(
     'Narrator: "A conference room. A settlement offer. A worker who got hurt on the line, and the company\'s lawyer."',
     'Lawyer: "The offer is fair. Sign, and the check clears in thirty days."',
@@ -1954,7 +1956,7 @@ scenes.push({
   sceneType: 'AGENCY',
   dropId: dropId('elon_court_drop'),
   stage: [el('dn2_w', 'elon_worker', 30, 62), el('dn2_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(40, 70),
+  ...rn(40, 70),
   script: lines(
     'Worker: "If I sign, I can\'t talk to the reporter."',
     'Lawyer: "Correct."',
@@ -1977,7 +1979,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [el('dns_w', 'elon_worker', 30, 62), el('dns_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(45, 70),
+  ...rn(45, 70),
   script: lines(
     'Narrator: "The pen moves. The check clears. The bills get paid — that part is real, and it matters."',
     'Worker: "So that\'s it. My accident never happened."',
@@ -1999,7 +2001,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [el('dnr_w', 'elon_worker', 30, 62), el('dnr_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(55, 65),
+  ...rn(55, 65),
   script: lines(
     'Worker: "No. My name stays mine."',
     'Lawyer: "The offer expires when I leave this room."',
@@ -2022,7 +2024,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dr1_r', 'elon_reporter', 30, 62), el('dr1_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(50, 65),
+  ...rn(50, 65),
   script: lines(
     'Narrator: "A phone call before publication. The company\'s lawyer, and the reporter. Both professionals. Both counting words."',
     'Lawyer: "Before we begin: this call is off the record."',
@@ -2045,7 +2047,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dr2_r', 'elon_reporter', 30, 62), el('dr2_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(55, 60),
+  ...rn(55, 60),
   script: lines(
     'Lawyer: "Fine. A statement, on the record: \'Safety is our highest priority.\'"',
     'Reporter: "Reading it back: safety is your highest priority. Brownsville logged 4.8 injuries per 100 workers. The industry average is 0.8. Shall I print both sentences together?"',
@@ -2066,7 +2068,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dr3_r', 'elon_reporter', 30, 62), el('dr3_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(60, 55),
+  ...rn(60, 55),
   script: lines(
     'Lawyer: "May I ask what documents you are working from?"',
     'Reporter (Closeup/Determined): "Injury logs. OSHA files. Court records. Your own appeal contesting an $18,475 fine toward $475."',
@@ -2088,7 +2090,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('dr4_r', 'elon_reporter', 30, 62), el('dr4_l', 'elon_lawyer', 70, 62)],
-  narraton: rn(65, 50),
+  ...rn(65, 50),
   script: lines(
     'Lawyer: "My client\'s instruction is: no comment."',
     'Reporter: "Then the last sentence writes itself: \'did not respond to requests for comment.\'"',
@@ -2115,7 +2117,7 @@ scenes.push({
     el('df1_e', 'elon_musk', 34, 62, 2.6),
     balloon('feed_replies', 'THE REPLIES — LIVE', 45, 95),
   ],
-  narraton: rn(45, 75),
+  ...rn(45, 75),
   script: lines(
     'Narrator: "A duet for one man and two hundred million strangers. He posts. The feed answers."',
     'Elon (Pointing/Smug): "Posting: \'The legacy media hates progress. We are literally saving humanity.\'"',
@@ -2143,7 +2145,7 @@ scenes.push({
     el('df2_e', 'elon_musk', 34, 62, 2.6),
     balloon('ratio_board', 'REPLIES vs LIKES', 45, 95),
   ],
-  narraton: rn(55, 65),
+  ...rn(55, 65),
   script: lines(
     '[SET rratio = 2]',
     '[TICK 1200ms]',
@@ -2173,7 +2175,7 @@ scenes.push({
     el('df3_e', 'elon_musk', 50, 64, 2.8),
     balloon('draft_box', 'DRAFTS', 45, 95),
   ],
-  narraton: rn(60, 60),
+  ...rn(60, 60),
   script: lines(
     '[POSE elon_musk pose=Sit expression=Angry]',
     'Narrator: "3AM. The duet\'s quiet movement. He types to the feed, and deletes before the feed can answer."',
@@ -2201,7 +2203,7 @@ scenes.push({
     el('df4_e', 'elon_musk', 34, 62, 2.6),
     balloon('poll_board', 'POLL — LIVE', 45, 95),
   ],
-  narraton: rn(65, 55),
+  ...rn(65, 55),
   script: lines(
     'Narrator: "December 2022. Documented: he polls the feed on whether he should step down as its head, and promises to abide by the result."',
     'Elon (Pointing/Smug): "The people love a decisive leader. Watch this."',
@@ -2226,7 +2228,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('do1_w', 'elon_worker', 30, 62), el('do1_ws', 'elon_workers', 72, 63)],
-  narraton: rn(30, 80),
+  ...rn(30, 80),
   script: lines(
     'Narrator: "A break room. Fifteen minutes. The conversation that starts every union that has ever existed."',
     'Worker: "Got a second? Not about the game. About Tuesday. About Maria\'s wrist."',
@@ -2248,7 +2250,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('do2_w', 'elon_worker', 30, 62), el('do2_ws', 'elon_workers', 72, 63)],
-  narraton: rn(35, 78),
+  ...rn(35, 78),
   script: lines(
     'Workers: "You know what happens to people who organize here. Badge stops working. \'Performance.\'"',
     'Worker: "I know. Workers who spoke up alleged exactly that — retaliation. It\'s in the filings."',
@@ -2270,7 +2272,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('do3_w', 'elon_worker', 30, 62), el('do3_ws', 'elon_workers', 72, 63)],
-  narraton: rn(40, 75),
+  ...rn(40, 75),
   script: lines(
     'Worker: "Here\'s all Thursday is: a notebook. Every injury, every near-miss, every unlogged incident. Date, shift, witness."',
     'Workers: "The company has a log."',
@@ -2292,7 +2294,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('do4_w', 'elon_worker', 30, 62), el('do4_ws', 'elon_workers', 72, 63)],
-  narraton: rn(50, 70),
+  ...rn(50, 70),
   script: lines(
     'Workers: "Say we fill the notebook. Then what? He\'s worth more than the state budget."',
     'Worker: "Then it goes where paper goes. Reporters. The labor board. The civil-rights department took hundreds of complaints from one plant before it sued."',
@@ -2316,7 +2318,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('dg1_f', 'elon_fans', 30, 63), el('dg1_r', 'elon_reporter', 72, 62)],
-  narraton: rn(55, 60),
+  ...rn(55, 60),
   script: lines(
     'Narrator: "The exposé is out. The fans find the reporter\'s account within the hour."',
     'Fans: "FUD merchant. Legacy media hit piece. Who paid you?"',
@@ -2338,7 +2340,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('dg2_f', 'elon_fans', 30, 63), el('dg2_r', 'elon_reporter', 72, 62)],
-  narraton: rn(60, 55),
+  ...rn(60, 55),
   script: lines(
     'Reporter (Closeup/Determined): "One reply, pinned: the documents. OSHA files. Injury logs. Court records. No adjectives. Links only."',
     'Fans: "Links?? Nobody clicks links. Post a take like a normal person."',
@@ -2359,7 +2361,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('dg3_f', 'elon_fans', 50, 63, 2.6)],
-  narraton: rn(65, 50),
+  ...rn(65, 50),
   script: lines(
     'Narrator: "Somewhere in the pile-on, one account goes quiet for two hours. He clicked the link."',
     'Fans: "Okay. The Brownsville number is real. It\'s in the government table. I checked the table myself."',
@@ -2384,7 +2386,7 @@ scenes.push({
     el('dg4_r', 'elon_reporter', 72, 62),
     balloon('follow_count', 'THE COUNT', 45, 95),
   ],
-  narraton: rn(70, 45),
+  ...rn(70, 45),
   script: lines(
     '[SET_TEXT follow_count "UNFOLLOWED. NO ANNOUNCEMENT. NO THREAD."]',
     'Narrator: "Nobody ratios their way out of a fandom. They walk out the back, one at a time, without a word."',
@@ -2488,7 +2490,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [balloon('alf_card', 'McGREGOR, TEXAS — JUNE 2014', 50, 22, { zIndex: 2 })],
-  narraton: rn(20, 90),
+  ...rn(20, 90),
   script: lines(
     'Narrator: "June 2014. The family of Lonnie LeBlanc, thirty-eight, buries a Marine who survived his service and died moving insulation."',
     'Narrator: "They are told there was an accident. A gust of wind. That is true, and it is not the whole file."',
@@ -2508,7 +2510,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [balloon('alfy_card', 'JUNE 2015', 50, 22, { zIndex: 2 })],
-  narraton: rn(25, 88),
+  ...rn(25, 88),
   script: lines(
     'Narrator: "June 2015. One year. No call from the company\'s famous owner. No letter about an investigation. No finding to read."',
     'Narrator: "Grief without facts doesn\'t close. It circles. Was it preventable? Was anyone told anything? Did anything change?"',
@@ -2529,7 +2531,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('alcw_ws', 'elon_workers', 50, 64, 2.4)],
-  narraton: rn(22, 90),
+  ...rn(22, 90),
   script: lines(
     'Narrator: "The yard at McGregor, the week after. The test schedule holds."',
     'Workers: "There are straps on the trailers now. Boxes of them. Overnight."',
@@ -2550,7 +2552,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('alcy_ws', 'elon_workers', 50, 64, 2.4)],
-  narraton: rn(28, 87),
+  ...rn(28, 87),
   script: lines(
     'Narrator: "A year on. The fine — $7,000 — is settled and filed. The Mars timeline has not moved an inch to the left."',
     'Workers: "New guys don\'t know the name Lonnie. Nobody briefs it. It\'s not in the onboarding."',
@@ -2572,7 +2574,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('alc_r', 'elon_reporter', 50, 62, 2.6)],
-  narraton: rn(60, 60),
+  ...rn(60, 60),
   script: lines(
     'Narrator: "2023. A Reuters reporter, working the injury records, reaches the LeBlanc family. Nine years after the yard at McGregor."',
     'Reporter: "They didn\'t know. Nine years, and the family never knew OSHA had investigated. I had to be the one to tell them."',
@@ -2593,7 +2595,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [balloon('alp_card', 'PULITZER PRIZE FOR NATIONAL REPORTING — 2024', 50, 22, { zIndex: 2 })],
-  narraton: rn(85, 40),
+  ...rn(85, 40),
   script: lines(
     'Narrator: "2024. The Reuters investigation wins the Pulitzer Prize for National Reporting."',
     'Narrator: "Inside the prize-winning work is a name: Lonnie LeBlanc, thirty-eight, retired Marine. The death the mission never mentioned."',
@@ -2614,7 +2616,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('abs_ws', 'elon_workers', 50, 63, 2.4)],
-  narraton: rn(30, 90),
+  ...rn(30, 90),
   script: lines(
     'Narrator: "November 2022. The deal closes, and within about a week roughly half of 7,500 jobs are gone."',
     'Workers: "The email came at midnight. Subject line: \'Your role at the company.\' You knew from the subject line."',
@@ -2635,7 +2637,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('absy_ws', 'elon_workers', 50, 63, 2.4)],
-  narraton: rn(45, 75),
+  ...rn(45, 75),
   script: lines(
     'Narrator: "Late 2023. A year out from the midnight emails."',
     'Workers: "The severance suits became a genre. Some settled. Some are still in line."',
@@ -2657,7 +2659,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('abf_f', 'elon_fans', 50, 63, 2.4)],
-  narraton: rn(15, 98),
+  ...rn(15, 98),
   script: lines(
     'Narrator: "October 2022. Sink week. The fans\' finest hour."',
     'Fans: "HE BOUGHT THE BIRD APP. Best timeline. Free speech is BACK, baby."',
@@ -2678,7 +2680,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [el('abfy_f', 'elon_fans', 50, 63, 2.4)],
-  narraton: rn(45, 70),
+  ...rn(45, 70),
   script: lines(
     'Narrator: "A year on. The feed the fans defended is measurably not the feed they defended."',
     'Fans: "My replies got dark. Really dark. I muted forty accounts this week alone."',
@@ -2699,7 +2701,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_feedroom_drop'),
   stage: [balloon('abl_card', 'THE TOWN SQUARE — WITH A LANDLORD', 50, 22, { zIndex: 2 })],
-  narraton: rn(60, 60),
+  ...rn(60, 60),
   script: lines(
     'Narrator: "The long view. $44 billion bought the megaphone — and proved what a megaphone cannot do."',
     'Narrator: "It could not bury the Reuters investigation; his own attacks on it worked as free distribution."',
@@ -2720,7 +2722,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('arw_r', 'elon_reporter', 50, 62, 2.6)],
-  narraton: rn(65, 55),
+  ...rn(65, 55),
   script: lines(
     'Narrator: "10 November 2023. \'At SpaceX, worker injuries soar in Elon Musk\'s rush to Mars.\' Publication day, plus six."',
     'Reporter: "The inbox is two kinds of email now. Lawyers, and sources."',
@@ -2741,7 +2743,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('ary_r', 'elon_reporter', 50, 62, 2.6)],
-  narraton: rn(85, 40),
+  ...rn(85, 40),
   script: lines(
     'Narrator: "2024. The Pulitzer Prize for National Reporting."',
     'Reporter: "The prize week was strange. The work is about people who got hurt. You accept it on their behalf or not at all."',
@@ -2763,7 +2765,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_bedroom_drop'),
   stage: [el('aew_e', 'elon_musk', 50, 64, 2.8)],
-  narraton: rn(70, 55),
+  ...rn(70, 55),
   script: lines(
     '[POSE elon_musk pose=Sit expression=Angry]',
     'Narrator: "The same week, at the other end of the story."',
@@ -2786,7 +2788,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [el('aey_e', 'elon_musk', 50, 62, 2.6)],
-  narraton: rn(75, 50),
+  ...rn(75, 50),
   script: lines(
     'Elon (Pointing/Smug): "A year later and we\'re still standing. Rockets still fly. Told you it was nothing."',
     'Narrator: "A year later: the fine for Francisco Cabada\'s skull is still being contested toward $475. The test cadence is still the test cadence."',
@@ -2807,7 +2809,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_hq'),
   stage: [balloon('arl_card', '600+ DOCUMENTED. PERMANENT.', 50, 22, { zIndex: 2 })],
-  narraton: rn(85, 40),
+  ...rn(85, 40),
   script: lines(
     'Narrator: "The long view. An exposé does not fire an executive or fix a test stand. It does something slower."',
     'Narrator: "It moves facts from \'alleged\' to \'documented.\' Documented facts compound: every future filing cites them, every regulator starts from them."',
@@ -2828,7 +2830,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [balloon('adw_card', 'U.S. DISTRICT COURT — 4 OCTOBER 2021', 50, 22, { zIndex: 2 })],
-  narraton: rn(45, 70),
+  ...rn(45, 70),
   script: lines(
     'Narrator: "4 October 2021. A federal jury hears what Owen Diaz heard, daily, running an elevator at the Fremont plant in 2015 and 2016."',
     'Narrator: "The award: $137 million. $130 million of it punitive. Punitive means the jury wanted it to hurt."',
@@ -2848,7 +2850,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [balloon('ady_card', 'THE APPEALS', 50, 22, { zIndex: 2 })],
-  narraton: rn(50, 65),
+  ...rn(50, 65),
   script: lines(
     'Narrator: "A year on, the number shrinks: $15 million in 2022. About $3.2 million at retrial in 2023."',
     'Narrator: "Appeals courts trim awards. They did not trim the finding: a racially hostile workplace, proven to a federal jury."',
@@ -2869,7 +2871,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('adf_ws', 'elon_workers', 50, 64, 2.4)],
-  narraton: rn(45, 70),
+  ...rn(45, 70),
   script: lines(
     'Narrator: "The Fremont floor, the week the verdict lands."',
     'Workers: "Everybody on that floor knew what Owen was hearing. Now twelve jurors know too."',
@@ -2890,7 +2892,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_factory_drop'),
   stage: [el('adfy_ws', 'elon_workers', 50, 64, 2.4)],
-  narraton: rn(55, 62),
+  ...rn(55, 62),
   script: lines(
     'Narrator: "9 February 2022. Four months after the verdict, the state sues."',
     'Narrator: "Kevin Kish, California Civil Rights Department, after a nearly three-year investigation and hundreds of complaints: Tesla operates \'a racially segregated workplace.\'"',
@@ -2911,7 +2913,7 @@ scenes.push({
   sceneType: 'WITNESS',
   dropId: dropId('elon_court_drop'),
   stage: [balloon('adl_card', 'VERDICT → CRD SUIT → EEOC SUIT', 50, 22, { zIndex: 2 })],
-  narraton: rn(65, 55),
+  ...rn(65, 55),
   script: lines(
     'Narrator: "The long view. October 2021: the Diaz verdict. February 2022: the California CRD suit. September 2023: the federal EEOC files its own."',
     'Narrator: "One man\'s testimony, then a state agency, then the federal government — each filing standing on the one before."',
@@ -3032,7 +3034,7 @@ scenes.push({
     el('rws_w', 'elon_worker', 30, 62),
     balloon('rws_card', 'WORKSAFE — 2017', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(20, 88),
+  ...rn(20, 88),
   script: lines(
     'Narrator: "2017. Amid UAW organizing at Fremont, the nonprofit Worksafe examines Tesla\'s own injury data."',
     'Worker: "It wasn\'t a leak. It wasn\'t a raid. It was our numbers, read by someone who knew how to read them."',
@@ -3056,7 +3058,7 @@ scenes.push({
     el('rrv_r', 'elon_reporter', 50, 62, 2.6),
     balloon('rrv_card', 'REVEAL / CIR — APRIL 2018', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(30, 85),
+  ...rn(30, 85),
   script: lines(
     'Narrator: "April 2018. Reveal, from the Center for Investigative Reporting: Will Evans and Alyssa Jeong Perry publish the Tesla injury investigation."',
     'Reporter: "722 recorded injuries at Fremont in 2017. About two a day."',
@@ -3079,7 +3081,7 @@ scenes.push({
     el('rrd_e', 'elon_musk', 30, 62),
     el('rrd_l', 'elon_hypebro', 70, 63),
   ],
-  narraton: rn(32, 85),
+  ...rn(32, 85),
   script: lines(
     'Narrator: "Tesla\'s response, same week: dispute everything. The company attacked the reporting as ideologically motivated and the outlet as an extremist operation."',
     'Elon (Pointing/Smug): "It\'s not an injury problem. It\'s a narrative problem. Fix the narrative."',
@@ -3104,7 +3106,7 @@ scenes.push({
     el('rcr_l', 'elon_lawyer', 50, 62, 2.6),
     balloon('rcr_card', 'CALIFORNIA CIVIL RIGHTS DEPARTMENT — 9 FEB 2022', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(55, 62),
+  ...rn(55, 62),
   script: lines(
     'Narrator: "9 February 2022. After a nearly three-year investigation and hundreds of worker complaints, the State of California sues Tesla."',
     'Narrator: "Kevin Kish, the department\'s director, announcing the suit: Tesla operates \'a racially segregated workplace.\'"',
@@ -3128,7 +3130,7 @@ scenes.push({
     el('ree_l', 'elon_lawyer', 50, 62, 2.6),
     balloon('ree_card', 'U.S. EEOC v. TESLA — 28 SEP 2023', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(62, 55),
+  ...rn(62, 55),
   script: lines(
     'Narrator: "28 September 2023. The federal Equal Employment Opportunity Commission files its own suit over the Fremont plant."',
     'Narrator: "The allegation: severe or pervasive racial harassment — and retaliation against workers who reported it."',
@@ -3152,7 +3154,7 @@ scenes.push({
     balloon('rts_card', 'TRUST & SAFETY COUNCIL — DECEMBER 2022', 50, 22, { zIndex: 2 }),
     balloon('rts_screen', 'WAITING FOR HOST TO START THE MEETING…', 45, 95),
   ],
-  narraton: rn(40, 78),
+  ...rn(40, 78),
   script: lines(
     'Narrator: "December 2022. The Trust and Safety Council — outside experts on child safety, hate speech, self-harm — has a meeting on the calendar."',
     'Narrator: "The volunteers log on early. They always logged on early. The work was grim and they did it for free."',
@@ -3178,7 +3180,7 @@ scenes.push({
     balloon('rsk_prop', 'ONE (1) SINK', 62, 40, { zIndex: 4 }),
     balloon('rsk_caption', 'THE MEME — LIVE', 45, 95),
   ],
-  narraton: rn(20, 96),
+  ...rn(20, 96),
   script: lines(
     'Narrator: "26 October 2022. He enters the platform\'s headquarters carrying a sink, films it, and posts the clip himself."',
     'Elon (Pointing/Smug): "\'Let that sink in.\' Do you get it? The sink. Is IN. I wrote it in the car."',
@@ -3205,7 +3207,7 @@ scenes.push({
     el('rp1_l', 'elon_hypebro', 70, 63),
     balloon('rp1_card', 'SHAREHOLDER VOTE — MARCH 2018', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(25, 92),
+  ...rn(25, 92),
   script: lines(
     'Narrator: "March 2018. Tesla shareholders approve a CEO pay package unlike any in corporate history: all stock, tied to milestones, eventually valued around $56 billion — thirty-three times the next-largest executive package on record."',
     'Lieutenant: "Boss, if every target hits, it\'s the largest compensation deal ever constructed by mammals. Thirty-three times the silver medal."',
@@ -3230,7 +3232,7 @@ scenes.push({
     el('rp2_e', 'elon_musk', 30, 62),
     balloon('rp2_card', 'DELAWARE COURT OF CHANCERY — JAN 2024', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(60, 60),
+  ...rn(60, 60),
   script: lines(
     'Narrator: "30 January 2024. Tornetta v. Musk. Chancellor Kathaleen McCormick of the Delaware Court of Chancery voids the entire package — an estimated $55.8 billion — in a 201-page opinion that opens with a question: \'Was the richest person in the world overpaid?\'"',
     'Narrator: "Her answer, verbatim: it was \'the biggest compensation plan ever — an unfathomable sum.\' And the board that approved it? \'Swept up by the rhetoric of \'all upside,\' or perhaps starry eyed by Musk\'s superstar appeal.\'"',
@@ -3257,7 +3259,7 @@ scenes.push({
     el('rp3_l', 'elon_hypebro', 70, 63),
     balloon('rp3_card', 'SHAREHOLDER RE-VOTE — JUNE 2024', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(62, 62),
+  ...rn(62, 62),
   script: lines(
     'Narrator: "June 2024. Tesla asks shareholders to approve the same package again — a ratification vote staged as a rally."',
     'Lieutenant: "The vibes are IMMACULATE, boss. Retail loves you. The proxy fight is a fan convention."',
@@ -3297,7 +3299,7 @@ scenes.push({
     el('rsb_ws', 'elon_workers', 72, 63),
     balloon('rsb_card', 'STARBASE, BROWNSVILLE — SHIFT CHANGE', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(35, 80),
+  ...rn(35, 80),
   script: lines(
     'Narrator: "Starbase, Brownsville. The gate at shift change — day crew out, night crew in. Two minutes of overlap."',
     'Worker: "Heads up tonight. Stand three\'s running hot again. Torres caught a pinch on it Tuesday."',
@@ -3324,7 +3326,7 @@ scenes.push({
     el('rtm_r', 'elon_reporter', 50, 62, 2.6),
     balloon('rtm_card', 'ON THE RECORD — REUTERS, 2023', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(70, 50),
+  ...rn(70, 50),
   script: lines(
     'Narrator: "Two former SpaceX employees put their names on the record for the Reuters investigation. Names cost. Read what the names bought."',
     'Reporter: "Tom Moline, former SpaceX engineer: \'Elon\'s concept that SpaceX is on this mission to go to Mars as fast as possible and save humanity permeates every part of the company. The company justifies casting aside anything that could stand in the way… including worker safety.\'"',
@@ -3432,7 +3434,7 @@ scenes.push({
     el('rsec_l', 'elon_lawyer', 70, 62),
     balloon('rsec_card', 'SEC v. MUSK — 2018', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(35, 85),
+  ...rn(35, 85),
   script: lines(
     'Narrator: "7 August 2018. He posts, verbatim: \'Am considering taking Tesla private at $420. Funding secured.\' Tesla stock spikes about 14% on the tweet."',
     'Lawyer: "The funding was not secured, sir. The SEC noticed. They charge securities fraud."',
@@ -3460,7 +3462,7 @@ scenes.push({
     balloon('rta_card', 'RELEASED IN DELAWARE LITIGATION — SEPT 2022', 50, 20, { zIndex: 2 }),
     balloon('rta_phone', 'THE THREAD', 45, 95),
   ],
-  narraton: rn(30, 88),
+  ...rn(30, 88),
   script: lines(
     'Narrator: "April 2022. Parag Agrawal, Twitter\'s CEO, texts the man about to become his largest shareholder. The thread surfaces months later in the Delaware litigation — verbatim, timestamped."',
     '[SET_TEXT rta_phone "AGRAWAL: \'You are free to tweet \'is Twitter dying?\' or anything else about Twitter — but it\'s my responsibility to tell you that it\'s not helping me make Twitter better in the current context.\'"]',
@@ -3488,7 +3490,7 @@ scenes.push({
     balloon('rtb_card', 'THE TEXT TROVE — RELEASED SEPT 2022', 50, 20, { zIndex: 2 }),
     balloon('rtb_phone', 'INBOX', 45, 95),
   ],
-  narraton: rn(25, 92),
+  ...rn(25, 92),
   script: lines(
     'Narrator: "The same released trove shows Silicon Valley\'s most powerful jostling to get in on the deal. Read the inbox of a man nobody says no to."',
     '[SET_TEXT rtb_phone "ELLISON: COMMITS $2,000,000,000 — BY TEXT MESSAGE"]',
@@ -3516,7 +3518,7 @@ scenes.push({
     el('rdb_e', 'elon_musk', 40, 62, 2.6),
     balloon('rdb_card', 'DEALBOOK SUMMIT — ON VIDEO, VERBATIM', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(78, 42),
+  ...rn(78, 42),
   script: lines(
     'Narrator: "29 November 2023. Advertisers are fleeing X over his posts. On stage at the DealBook Summit, Andrew Ross Sorkin asks about the boycott. What follows is on video, verbatim."',
     '[POSE elon_musk pose=Sit expression=Angry]',
@@ -3544,7 +3546,7 @@ scenes.push({
     el('rtn_l', 'elon_lawyer', 50, 62, 2.6),
     balloon('rtn_card', 'TORNETTA v. MUSK', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(55, 60),
+  ...rn(55, 60),
   script: lines(
     'Narrator: "The case that voided the largest pay package in human history was brought by Richard Tornetta — a heavy-metal drummer from Pennsylvania who owned nine shares of Tesla."',
     'Lawyer: "Nine shares. Against fifty-six billion dollars. Delaware law does not weigh the plaintiff. It weighs the process."',
@@ -3569,7 +3571,7 @@ scenes.push({
     el('rde_l', 'elon_hypebro', 70, 63),
     balloon('rde_card', 'STATE OF INCORPORATION — DEPARTING', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(60, 58),
+  ...rn(60, 58),
   script: lines(
     '[GAUGE regulation at 87,20 min=0 max=100 label="REGULATION"]',
     '[TICK 400ms]',
@@ -3602,7 +3604,7 @@ scenes.push({
     balloon('rfm_card', 'THE MUSK FOUNDATION — NYT, 2024', 50, 20, { zIndex: 2 }),
     balloon('rfm_ticker', 'THE 5% RULE', 45, 95),
   ],
-  narraton: rn(55, 68),
+  ...rn(55, 68),
   script: lines(
     'Narrator: "US law asks one thing of a private foundation: disburse roughly 5% of assets a year. In 2024, the New York Times — David Fahrenthold, Ryan Mac, Teddy Schleifer — ran the Musk Foundation\'s numbers."',
     '[SET_TEXT rfm_ticker "2021: SHORT ~$41 MILLION"]',
@@ -3631,7 +3633,7 @@ scenes.push({
     el('rpm_f', 'elon_fans', 72, 63),
     balloon('rpm_card', 'PRESTIGE-AS-ARMOR — THE MECHANISM', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(45, 88),
+  ...rn(45, 88),
   script: lines(
     '[GAUGE prestige at 87,20 min=0 max=100 label="PRESTIGE"]',
     '[GAUGE education at 87,44 min=0 max=100 label="EDUCATION"]',
@@ -3661,7 +3663,7 @@ scenes.push({
     balloon('rsh_card', 'REUTERS, 10 NOV 2023 — THE COUNT, ITEMIZED', 50, 20, { zIndex: 2 }),
     balloon('rsh_ticker', 'AT LEAST 600 PREVIOUSLY UNREPORTED INJURIES SINCE 2014', 45, 95),
   ],
-  narraton: rn(62, 52),
+  ...rn(62, 52),
   script: lines(
     'Narrator: "Six hundred is a number. The record itemizes it. Read slowly — each line is people."',
     '[SET_TEXT rsh_ticker "MORE THAN 100 CUTS AND LACERATIONS"]',
@@ -3693,7 +3695,7 @@ scenes.push({
     el('ril_l', 'elon_hypebro', 70, 63),
     balloon('ril_card', 'THE OPERATIONAL LAYER', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(35, 82),
+  ...rn(35, 82),
   script: lines(
     'Narrator: "Between the feed and the floor sits a layer of executives the public rarely sees: Gwynne Shotwell running SpaceX day to day, Steve Davis, Omead Afshar. The researchers call it the insulating layer."',
     'Lieutenant: "Boss posts at 3am, Shotwell answers the customers at 9am. It\'s a system. It\'s LOAD-BEARING."',
@@ -3719,7 +3721,7 @@ scenes.push({
     el('rcs_w', 'elon_worker', 70, 62),
     balloon('rcs_card', 'FILED JANUARY 2024', 50, 22, { zIndex: 2 }),
   ],
-  narraton: rn(58, 55),
+  ...rn(58, 55),
   script: lines(
     'Narrator: "18 January 2022. Hawthorne. During a pressure test of a Raptor V2 engine, a part flies off and fractures the skull of Francisco Cabada, an integration technician. He does not wake up. Years pass. He still has not woken up."',
     'Worker: "Frank\'s wife, Ydy, kept visiting. Kept waiting for a call from the top that never came. Her words, to Reuters: \'It would have been nice to get a call from Elon Musk… But I guess workers are just disposable to them.\'"',
@@ -3744,7 +3746,7 @@ scenes.push({
     el('rdg_r', 'elon_reporter', 50, 62, 2.6),
     balloon('rdg_card', 'FLAG: RECENT AND EVOLVING — NOT SETTLED HISTORY', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(72, 48),
+  ...rn(72, 48),
   script: lines(
     'Narrator: "The last file in the drawer carries a flag, and the flag is the point: this one is still being written."',
     'Reporter: "2025. He is handed a government initiative — DOGE — and widely reported cuts sweep the federal workforce, including the agencies that regulate his own companies."',
@@ -3808,7 +3810,7 @@ scenes.push({
     el('poeb_l', 'elon_hypebro', 72, 63),
     balloon('poeb_card', 'THE CLAIM: TOP-TIER, GLOBALLY', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(20, 92),
+  ...rn(20, 92),
   script: lines(
     'Narrator: "December 2024. Path of Exile 2 goes into early access — a brutal, fiddly action-RPG with a skill tree like a wiring diagram and a Hardcore mode where death is permanent. It is a game that eats months. That is the entire appeal."',
     'Narrator: "January 2025. He starts posting about his character, and then streaming it, on the platform he owns. The claim, made publicly and repeated: that he is among the very best players in the world — reported as a claim of top-twenty Hardcore standing."',
@@ -3836,7 +3838,7 @@ scenes.push({
     el('poes_f', 'elon_fans', 74, 63, 2.6),
     balloon('poes_chat', 'CHAT', 45, 95),
   ],
-  narraton: rn(35, 80),
+  ...rn(35, 80),
   script: lines(
     'Narrator: "He streams it. Live, on his own platform, at a level of character that takes most people a month of evenings to reach."',
     '[SET_TEXT poes_chat "CHAT: what does that gem even do"]',
@@ -3866,7 +3868,7 @@ scenes.push({
     el('poel_r', 'elon_reporter', 72, 62),
     balloon('poel_card', 'ALLEGED: BOOSTING AND ACCOUNT-SHARING', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(55, 65),
+  ...rn(55, 65),
   script: lines(
     'Narrator: "What follows is an allegation made by players and reported by games press. Label it that way in your head and it stays useful."',
     'Fans: "The claim is boosting. Account-sharing. That the character was levelled and geared by other people, and he logged in on top of the finished work."',
@@ -3895,7 +3897,7 @@ scenes.push({
     el('poer_r', 'elon_reporter', 74, 62),
     balloon('poer_card', 'THREE HOURS. NO FOLLOW-UP.', 50, 20, { zIndex: 2 }),
   ],
-  narraton: rn(45, 75),
+  ...rn(45, 75),
   script: lines(
     'Narrator: "He is a repeat guest on the biggest podcast on Earth. Hours at a stretch, in a soft chair, in a room built for long answers — the format that could have got a real one."',
     'Elon: "I\'m a gamer. Genuinely one of the best in the world. People don\'t believe it."',
@@ -3923,7 +3925,7 @@ scenes.push({
     balloon('poep_card', 'X-RAY: WHY THIS ONE MATTERED TO HIM', 50, 18, { zIndex: 2 }),
     balloon('poep_screen', 'RANK: 20', 50, 92),
   ],
-  narraton: rn(60, 55),
+  ...rn(60, 55),
   script: lines(
     '[POSE poep_e pose=Sit expression=Angry]',
     'Narrator: "3am. Take the money out of the frame for a second and look at what is actually standing there."',

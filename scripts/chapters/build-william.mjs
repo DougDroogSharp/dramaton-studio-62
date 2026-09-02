@@ -22,6 +22,7 @@ import {
   SFX as CORE_SFX,
 } from '../machine-core.mjs';
 import { buildStamp } from '../stamp.mjs';
+import { narratonFields } from '../narraton-fields.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -1540,7 +1541,7 @@ const vignetteScene = (ev, resp, stance) => {
       ...balloon(`${id}_sign`, ev.sign, 76, 10, { scale: 0.8 }),
     ],
     script: lines(...voice, ...tail),
-    narraton: { pool: RPOOL, keys: ev.keys, repeatable: true },
+    ...narratonFields({ pool: RPOOL, keys: ev.keys, repeatable: true }),
     status: 'work',
   };
 };
@@ -1963,7 +1964,7 @@ const duetScene = (d) => {
       ...balloon(`${d.id}_sign`, d.sign, 50, 10, { scale: 0.8 }),
     ],
     script: lines(...d.lines, `[SCENE wm_duets_${d.pair}]`),
-    narraton: { pool: RPOOL, keys: d.keys, repeatable: true },
+    ...narratonFields({ pool: RPOOL, keys: d.keys, repeatable: true }),
     status: 'work',
   };
 };
@@ -2235,7 +2236,7 @@ for (const chain of CHAINS) {
           '- "Back to the aftermaths" -> wm_after_hub',
           '[/CHOICE]',
         ),
-        narraton: { pool: RPOOL, keys: p.keys, repeatable: true },
+        ...narratonFields({ pool: RPOOL, keys: p.keys, repeatable: true }),
         status: 'work',
       });
     });
@@ -2619,7 +2620,7 @@ for (const rx of RESEARCH) {
       ...balloon(`${rx.id}_sign`, rx.sign, 50, 10, { scale: 0.8 }),
     ],
     script: lines(...rx.lines),
-    narraton: { pool: RPOOL, keys: rx.keys, repeatable: true },
+    ...narratonFields({ pool: RPOOL, keys: rx.keys, repeatable: true }),
     status: 'work',
   });
 }
@@ -2817,7 +2818,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 70, scale: 45 }, repression: { target: 55, scale: 60 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 70, scale: 45 }, repression: { target: 55, scale: 60 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -2860,7 +2861,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 60, scale: 55 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 60, scale: 55 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -2893,7 +2894,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 65, scale: 50 }, flareUps: { target: 1, scale: 5 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 65, scale: 50 }, flareUps: { target: 1, scale: 5 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -2928,7 +2929,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, repression: { target: 50, scale: 60 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, repression: { target: 50, scale: 60 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -2967,7 +2968,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { marginHeight: { target: 45, scale: 40 }, greed: { target: 65, scale: 50 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { marginHeight: { target: 45, scale: 40 }, greed: { target: 65, scale: 50 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3002,7 +3003,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { repression: { target: 55, scale: 60 }, greed: { target: 55, scale: 55 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { repression: { target: 55, scale: 60 }, greed: { target: 55, scale: 55 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3036,7 +3037,7 @@ scenes.push({
     '- "Back to the cloth" -> wm_tapestry',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { repression: { target: 70, scale: 45 }, flareUps: { target: 3, scale: 5 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { repression: { target: 70, scale: 45 }, flareUps: { target: 3, scale: 5 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3081,7 +3082,7 @@ scenes.push({
     '- "Return to the court" -> wm_court',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 80, scale: 40 }, repression: { target: 45, scale: 70 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 80, scale: 40 }, repression: { target: 45, scale: 70 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3523,7 +3524,7 @@ scenes.push({
     'Narrator: "The board stands at {geld} shillings. One hide of it does not exist. That gap — the difference between what a place is and what a book says it is — is the only room a village ever gets, and it closes a little every survey."',
     '[SCENE wm_ep_assize]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 60, scale: 55 }, repression: { target: 50, scale: 60 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 60, scale: 55 }, repression: { target: 50, scale: 60 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3554,7 +3555,7 @@ scenes.push({
     'Narrator: "The board stands at {geld} shillings, and every one of them is true. This is the chapter\'s hardest sentence: a completely honest survey is still a machine for taking things."',
     '[SCENE wm_ep_assize]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3591,7 +3592,7 @@ scenes.push({
     '- "Back to the village episodes" -> wm_ep_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 85, scale: 30 }, repression: { target: 55, scale: 60 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 85, scale: 30 }, repression: { target: 55, scale: 60 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3633,7 +3634,7 @@ scenes.push({
     '- "Back to the village episodes" -> wm_ep_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { flareUps: { target: 3, scale: 5 }, repression: { target: 70, scale: 45 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { flareUps: { target: 3, scale: 5 }, repression: { target: 70, scale: 45 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3730,7 +3731,7 @@ scenes.push({
     '- "On, past the new castle" -> wm_road_castle',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { repression: { target: 90, scale: 30 }, flareUps: { target: 4, scale: 5 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { repression: { target: 90, scale: 30 }, flareUps: { target: 4, scale: 5 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3779,7 +3780,7 @@ scenes.push({
     '- "On, to the fen edge" -> wm_road_fen',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { repression: { target: 75, scale: 40 }, greed: { target: 65, scale: 50 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { repression: { target: 75, scale: 40 }, greed: { target: 65, scale: 50 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3828,7 +3829,7 @@ scenes.push({
     '- "The end of the road" -> wm_road_end',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { repression: { target: 85, scale: 35 }, flareUps: { target: 5, scale: 5 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { repression: { target: 85, scale: 35 }, flareUps: { target: 5, scale: 5 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3871,7 +3872,7 @@ scenes.push({
     '- "Back to the voices" -> wm_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { marginHeight: { target: 45, scale: 40 }, repression: { target: 80, scale: 40 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { marginHeight: { target: 45, scale: 40 }, repression: { target: 80, scale: 40 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3926,7 +3927,7 @@ scenes.push({
     '- "Back to the village episodes" -> wm_ep_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 80, scale: 35 }, flareUps: { target: 3, scale: 5 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 80, scale: 35 }, flareUps: { target: 3, scale: 5 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -3973,7 +3974,7 @@ scenes.push({
     '- "Back to the village episodes" -> wm_ep_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { flareUps: { target: 4, scale: 5 }, greed: { target: 70, scale: 45 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { flareUps: { target: 4, scale: 5 }, greed: { target: 70, scale: 45 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -4023,7 +4024,7 @@ scenes.push({
     '- "Back to the voices" -> wm_hub',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 85, scale: 30 }, repression: { target: 60, scale: 55 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 85, scale: 30 }, repression: { target: 60, scale: 55 } }, repeatable: true }),
   status: 'work',
 });
 
@@ -4078,7 +4079,7 @@ scenes.push({
     '- "Enter the Machine" -> wm_machine',
     '[/CHOICE]',
   ),
-  narraton: { pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true },
+  ...narratonFields({ pool: RPOOL, keys: { greed: { target: 75, scale: 40 }, marginHeight: { target: 50, scale: 45 } }, repeatable: true }),
   status: 'work',
 });
 

@@ -18,6 +18,7 @@ import {
   WORLD_BASE, ACTORS as CORE_ACTORS, SFX as CORE_SFX, machineHubScene,
 } from '../machine-core.mjs';
 import { buildStamp } from '../stamp.mjs';
+import { narratonFields } from '../narraton-fields.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -1352,7 +1353,7 @@ const vignetteScene = (ev, resp, stance) => {
       balloon(`${id}_sign`, ev.sign, 76, 10, { zIndex: 4 }),
     ],
     script: lines(...voice, ...tail),
-    narraton: { pool: RPOOL, keys: ev.keys, repeatable: true },
+    ...narratonFields({ pool: RPOOL, keys: ev.keys, repeatable: true }),
     status: 'work',
   };
 };
@@ -1664,7 +1665,7 @@ const xone = (id, a, s = 2.4) => [spr(`${id}_a`, a, 42, 62, s)];
 // WITNESS-scene shell. narr (optional): narraton keys for the pool.
 const xw = (id, name, dropId, stage, script, narr = null) => ({
   id, name, sceneType: 'WITNESS', dropId, stage, script: lines(...script),
-  ...(narr ? { narraton: { pool: RPOOL, keys: narr, repeatable: true } } : {}),
+  ...(narr ? narratonFields({ pool: RPOOL, keys: narr, repeatable: true }) : {}),
   status: 'work',
 });
 

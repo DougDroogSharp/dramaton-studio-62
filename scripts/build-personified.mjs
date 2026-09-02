@@ -15,6 +15,7 @@ import {
   tickLedger, tickChain, tickEmigration, tickWalk, truthLines, tickNews,
 } from './personified-core.mjs';
 import { buildStamp } from './stamp.mjs';
+import { narratonFields } from './narraton-fields.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -362,7 +363,7 @@ const machineScene = () => ({
 const witness = (id, name, narraton, stage, ...body) => ({
   id, name, sceneType: 'WITNESS', dropId: null, stage,
   script: lines(...body, '[SCENE machine_main]'),
-  narraton, status: 'work',
+  ...narratonFields(narraton), status: 'work',
 });
 
 const witnessScenes = () => [

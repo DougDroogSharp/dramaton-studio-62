@@ -53,13 +53,15 @@ describe('hvb-campaign.json', () => {
 
   it('all five chapter pools plus the sandbox pool are populated', () => {
     for (let n = 1; n <= 5; n++) {
-      const pool = game.scenes.filter(s => s.narraton?.pool === `ch${n}`);
+      const pool = game.scenes.filter(s => s.pool === `ch${n}`);
       expect(pool.length, `pool ch${n}`).toBeGreaterThanOrEqual(4); // 3 scenes + finale
       const finale = pool.find(s => s.id === `ch${n}_finale`)!;
-      expect(finale.narraton?.repeatable).toBe(false);
-      expect(finale.narraton?.requires?.length).toBeGreaterThan(0);
+      expect(finale.repeatable).toBe(false);
+      expect(finale.requires?.length).toBeGreaterThan(0);
     }
-    expect(game.scenes.filter(s => s.narraton?.pool === 'witness').length).toBeGreaterThanOrEqual(4);
+    expect(game.scenes.filter(s => s.pool === 'witness').length).toBeGreaterThanOrEqual(4);
+    // The shipped file carries the one flat shape, not the legacy object
+    expect(game.scenes.some(s => 'narraton' in s)).toBe(false);
   });
 
   it('chapter finales chain: 1→2→3→4→5→menu', () => {

@@ -333,20 +333,16 @@
         }
       ],
       "script": "Witness: \"The margin has fallen to nothing. They work harder every year, and every year they are poorer.\"\nWitness: \"Progress, they call it.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "wages": {
-            "target": 5,
-            "scale": 60
-          },
-          "flareUps": {
-            "target": 5,
-            "scale": 6
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "wages": 5,
+        "flareUps": 5
       },
+      "keyScale": {
+        "wages": 60,
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -367,23 +363,18 @@
         }
       ],
       "script": "Witness: \"The speculators priced the land beyond what any labor could pay. Now the whole machine seizes.\"\nWitness: \"They will call it a mystery. It is not a mystery.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "requires": [
-          {
-            "variable": "crisis",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "keys": {
-          "speculation": {
-            "target": 95,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "speculation": 95
       },
+      "requires": [
+        {
+          "variable": "crisis",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -404,24 +395,17 @@
         }
       ],
       "script": "Witness: \"Wages hold. The humans are quiet. The machine hums.\"\nWitness: \"Quiet is not the same as just. Watch what happens when the hand on the greed lever tires of moderation.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "wages": {
-            "target": 40,
-            "scale": 60
-          },
-          "flareUps": {
-            "target": 0,
-            "scale": 6
-          },
-          "greed": {
-            "target": 15,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "wages": 40,
+        "flareUps": 0,
+        "greed": 15
       },
+      "keyScale": {
+        "wages": 60,
+        "flareUps": 6
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -442,16 +426,14 @@
         }
       ],
       "script": "Witness: \"Look at the reservoir. Every drop passed through hands that made something — and stuck to hands that made nothing.\"\nWitness: \"Rent is the price of permission to exist somewhere.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "hoard": {
-            "target": 500,
-            "scale": 200
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "hoard": 500
       },
+      "keyScale": {
+        "hoard": 200
+      },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -472,16 +454,11 @@
         }
       ],
       "script": "Witness: \"The margin of production — the best land free labor can still reach — has sunk to the sea floor.\"\nWitness: \"When the margin falls, wages fall with it. Everywhere. Always.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "keys": {
-          "marginHeight": {
-            "target": 5,
-            "scale": 100
-          }
-        },
-        "repeatable": true
+      "pool": "witness",
+      "key": {
+        "marginHeight": 5
       },
+      "repeatable": true,
       "status": "work"
     },
     {
@@ -502,24 +479,22 @@
         }
       ],
       "script": "Witness: \"Someone pulled the lever. Rent flows to the public fund now — the value the community creates, returned to the community.\"\nWitness: \"Watch the margin rise. Watch the schools fill. This is the whole argument, moving.\"\n[SCENE the_machine]",
-      "narraton": {
-        "pool": "witness",
-        "requires": [
-          {
-            "variable": "singleTax",
-            "operator": "==",
-            "value": 1
-          }
-        ],
-        "keys": {
-          "publicFund": {
-            "target": 60,
-            "scale": 60
-          }
-        },
-        "repeatable": false,
-        "weight": 2
+      "pool": "witness",
+      "key": {
+        "publicFund": 60
       },
+      "keyScale": {
+        "publicFund": 60
+      },
+      "requires": [
+        {
+          "variable": "singleTax",
+          "operator": "==",
+          "value": 1
+        }
+      ],
+      "repeatable": false,
+      "weight": 2,
       "status": "work"
     }
   ],

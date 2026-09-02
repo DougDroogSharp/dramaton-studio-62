@@ -94,10 +94,15 @@ describe('machine-toy.json', () => {
   });
 
   it('the witness pool has candidates and the lever scene is gated', () => {
-    const pool = game.scenes.filter(s => s.narraton?.pool === 'witness');
+    const pool = game.scenes.filter(s => s.pool === 'witness');
     expect(pool.length).toBeGreaterThanOrEqual(4);
     const lever = game.scenes.find(s => s.id === 'witness_singletax')!;
-    expect(lever.narraton?.requires).toEqual([{ variable: 'singleTax', operator: '==', value: 1 }]);
+    expect(lever.requires).toEqual([{ variable: 'singleTax', operator: '==', value: 1 }]);
+    // Keys with a range carry it as keyScale (wages over 60, not 100)
+    const poverty = game.scenes.find(s => s.id === 'witness_poverty')!;
+    expect(poverty.key?.wages).toBe(5);
+    expect(poverty.keyScale?.wages).toBe(60);
+    expect(game.scenes.some(s => 'narraton' in s)).toBe(false);
   });
 
   describe('the economy runs', () => {
