@@ -17,15 +17,22 @@
      so a Claude can co-edit it while Doug watches.
 
      Contract: georgeland_format.js (the shape) · georgeland_terrains.js (the
-     ground). Three r160 via the game's vendored importmap; STYLE.md rig
-     (Lambert + flatShading, ACES, the Vita meter-stick).
+     ground) · georgeland_styles.js (the look). Three r160 via the game's
+     vendored importmap; the Vita (1.5 units) is still the meter-stick.
+
+     AESTHETIC-AGNOSTIC (Doug, 2026-09-02, design §7): the flat-shaded /
+     no-texture contract is no longer a mandate. Each Georgeland carries its
+     own style block (preset + per-type mesh assets + a light budget); the
+     editor renders whatever the style says — flat stand-ins, painted-canvas
+     PBR stand-ins, or external GLB/glTF/FBX meshes with their own materials —
+     and never assumes flatShading. v0.2.
      ====================================================================== -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Georgeland Editor v0.1</title>
+<title>Georgeland Editor v0.2</title>
 <style>
   :root { --ink:#eaf4f8; --panel:rgba(14,22,30,0.84); --line:rgba(255,255,255,0.14);
           --hi:#ffd94a; --ok:#8de3a8; --bad:#ff9c9c; --btn:rgba(255,255,255,0.10); }
@@ -120,6 +127,15 @@
     </select>
   </div>
 
+  <h4>This Georgeland's look</h4>
+  <div class="grid one">
+    <select id="stylesel" class="nb" style="padding-left:34px;height:46px"></select>
+  </div>
+  <div class="grid" style="margin-top:6px">
+    <button class="nb" data-act="asset">mesh for this type…</button>
+    <button class="nb" data-act="budget">budget…</button>
+  </div>
+
   <h4>Resource to place</h4>
   <div class="grid" id="types"></div>
 
@@ -197,6 +213,7 @@
     <li><code>berries</code> / <code>fir</code> / <code>gold</code>… picks the type · <code>cluster</code> / <code>single</code> · <code>size 12</code> · <code>radius 10</code></li>
     <li><code>look at the volcano</code> · <code>overview</code> · <code>top</code> · <code>zoom in</code> · <code>turn left</code> · <code>place names</code></li>
     <li><code>save</code> · <code>save as berry tutorial</code> · <code>load berry-tutorial</code> · <code>new</code> · <code>play</code> · <code>undo</code> · <code>button 14</code></li>
+    <li><code>style flat</code> · <code>style textured</code> · <code>style meshes</code> · <code>use vendor/models/nugget.glb for gold height 1.2</code> · <code>no mesh for gold</code> · <code>budget triangles 200000</code> · <code>name the style house flat</code></li>
   </ul>
   <p>Places on this terrain: <span id="helpPlaces"></span></p>
   <p>Over the bridge (any Claude): <code>GET/PUT http://localhost:8218/bridge/georgeland</code> for the whole document, or <code>POST /bridge/command {"cmd":"scatter 12 berries near the beach"}</code> to say a sentence to this page.</p>
@@ -212,11 +229,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FORMAT, RESOURCE_TYPES, TYPE_ORDER, typeFromWord, newGeorgeland, nextId, snapResources,
-         validateGeorgeland, summarize, clampAmount, safeId, nowStamp } from './georgeland_format.js';
+         validateGeorgeland, normalizeGeorgeland, summarize, clampAmount, safeId, nowStamp, STYLE_PRESETS, DEFAULT_BUDGET } from './georgeland_format.js';
 import { loadTerrain, TERRAINS } from './georgeland_terrains.js';
+import { makeStandIn, attachAsset, preloadAssets, buildEnvironment, terrainMaterial, assetStats } from './georgeland_styles.js';
 
-const VERSION = 'v0.1';
-const BUILT = '2026-09-02 12:40';
+const VERSION = 'v0.2';
+const BUILT = '2026-09-02 13:36';
 document.getElementById('ver').textContent = VERSION + ' · built ' + BUILT;
 
 // ---------------------------------------------------------------- helpers
@@ -301,8 +319,9 @@ function buildTerrain(){
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  terrainMesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  terrainMesh = new THREE.Mesh(geo, terrainMaterial(doc && doc.style ? doc.style.preset : 'standin-flat'));
   terrainMesh.receiveShadow = true; world.add(terrainMesh);
+  buildEnvironment(renderer, scene, T.palette.sky);   // PBR assets need something to reflect, whatever the preset
   const water = new THREE.Mesh(new THREE.PlaneGeometry(S * 1.8, S * 1.8), new THREE.MeshLambertMaterial({ color: 0x4fa8c4, transparent: true, opacity: 0.72 }));
   water.rotation.x = -Math.PI / 2; water.position.y = T.seaLevel; world.add(water);
   const deep = new THREE.Mesh(new THREE.PlaneGeometry(S * 1.8, S * 1.8), new THREE.MeshBasicMaterial({ color: 0x2a6f9e }));
@@ -314,75 +333,19 @@ function buildTerrain(){
   camera.far = S * 6; camera.updateProjectionMatrix();
 }
 
-// ---------------------------------------------------------------- resource art (Lambert + flatShading, Vita = 1.5 units)
-const M = {
-  bush: new THREE.MeshLambertMaterial({ color: 0x5c7a34, flatShading: true }),
-  bushDk: new THREE.MeshLambertMaterial({ color: 0x46602a, flatShading: true }),
-  berry: new THREE.MeshLambertMaterial({ color: 0xe0432f, flatShading: true }),
-  trunk: new THREE.MeshLambertMaterial({ color: 0x8a6239, flatShading: true }),
-  conifer: new THREE.MeshLambertMaterial({ color: 0x2f5d3a, flatShading: true }),
-  frond: new THREE.MeshLambertMaterial({ color: 0x3f9e4d, flatShading: true, side: THREE.DoubleSide }),
-  rock: new THREE.MeshLambertMaterial({ color: 0x8e8577, flatShading: true }),
-  rockDk: new THREE.MeshLambertMaterial({ color: 0x5f5850, flatShading: true }),
-  gold: new THREE.MeshLambertMaterial({ color: 0xf3c53d, emissive: 0x6d5210, flatShading: true }),
-  pick: new THREE.MeshBasicMaterial({ color: 0xffffff }),
-};
+// ---------------------------------------------------------------- resource art: whatever THIS Georgeland's style says (georgeland_styles.js)
+const M = { pick: new THREE.MeshBasicMaterial({ color: 0xffffff }) };
 function art(r){
-  const g = new THREE.Group();
-  const a = clampAmount(r.type, r.amount), rich = clamp(r.richness, 0, 1);
-  const sc = 0.85 + 0.35 * rich;
-  if(r.type === 'berry'){
-    for(let i = 0; i < 4; i++){
-      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(0.42, 0.6), 0), i % 2 ? M.bush : M.bushDk);
-      b.position.set(rand(-0.35, 0.35), rand(0.35, 0.6), rand(-0.35, 0.35)); b.castShadow = true; g.add(b);
-    }
-    for(let i = 0; i < a; i++){
-      const b = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 5), M.berry);
-      const an = i / a * Math.PI * 2; b.position.set(Math.cos(an) * 0.45, 0.85 + rand(0, 0.2), Math.sin(an) * 0.45); g.add(b);
-    }
-    g.scale.setScalar(sc);
-  } else if(r.type === 'fir'){
-    const s = 0.65 + a * 0.3;
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * s, 0.2 * s, 2.2 * s, 5), M.trunk); t.position.y = 1.1 * s; g.add(t);
-    for(let i = 0; i < 3; i++){
-      const cone = new THREE.Mesh(new THREE.ConeGeometry((1.55 - i * 0.38) * s, 2.1 * s, 7), M.conifer);
-      cone.position.y = (2.1 + i * 1.25) * s; cone.castShadow = i < 2; g.add(cone);
-    }
-  } else if(r.type === 'palm'){
-    const s = 0.75 + a * 0.3, h = 5 * s;
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, h, 6), M.trunk);
-    t.position.y = h / 2; t.rotation.z = 0.12; t.castShadow = true; g.add(t);
-    const top = new THREE.Vector3(-Math.sin(0.12) * h, Math.cos(0.12) * h, 0);
-    for(let i = 0; i < 7; i++){
-      const f = new THREE.Mesh(new THREE.BoxGeometry(3.2 * s, 0.08, 0.7), M.frond);
-      f.position.copy(top); f.rotation.y = i / 7 * Math.PI * 2; f.rotation.z = -0.55;
-      f.translateX(1.4 * s); f.castShadow = true; g.add(f);
-    }
-    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 5), M.rockDk); nut.position.copy(top); g.add(nut);
-  } else if(r.type === 'stone'){
-    for(let i = 0; i < a + 1; i++){
-      const rr = rand(0.45, 0.85) * (0.8 + 0.1 * a);
-      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rr, 0), i % 2 ? M.rock : M.rockDk);
-      s.position.set(rand(-0.9, 0.9), rr * 0.55, rand(-0.9, 0.9)); s.rotation.set(rand(3), rand(3), rand(3)); s.castShadow = true; g.add(s);
-    }
-  } else if(r.type === 'gold'){
-    for(let i = 0; i < 2; i++){
-      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.6, 0.9), 0), M.rockDk);
-      s.position.set(rand(-0.7, 0.7), 0.4, rand(-0.7, 0.7)); s.rotation.set(rand(3), rand(3), rand(3)); s.castShadow = true; g.add(s);
-    }
-    for(let i = 0; i < a + 1; i++){
-      const n = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.22, 0.38) * (0.8 + 0.1 * a), 0), M.gold);
-      n.position.set(rand(-1, 1), 0.28, rand(-1, 1)); n.rotation.set(rand(3), rand(3), rand(3)); g.add(n);
-    }
-    const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), M.gold); beacon.position.y = 2.6 + 0.3 * a; g.add(beacon);
-  }
+  const g = makeStandIn(doc.style.preset, r.type, r, rand);          // instant body (the preset's stand-in)
+  attachAsset(g, doc.style, r.type, r, ok => { if(ok) refreshPanel(); });   // the style's mesh swaps in when loaded
   return g;
 }
+function assetKey(type){ const a = doc.style.assets[type]; return a ? `${a.url}|${a.height ?? ''}|${a.scale ?? ''}|${a.yOffset ?? ''}` : ''; }
 const PICK_R = { berry: 1.6, fir: 2.0, palm: 2.4, stone: 1.9, gold: 2.0 };
 const LABEL_H = { berry: 1.4, fir: 5.5, palm: 5.6, stone: 1.6, gold: 3.4 };
 const SPACING = { berry: 1.5, fir: 2.4, palm: 3.0, stone: 1.9, gold: 2.0 };
 
-function keyOf(r){ return [r.type, r.x.toFixed(2), r.z.toFixed(2), r.amount, (+r.richness).toFixed(2)].join('|'); }
+function keyOf(r){ return [r.type, r.x.toFixed(2), r.z.toFixed(2), r.amount, (+r.richness).toFixed(2), doc.style.preset, assetKey(r.type)].join('|'); }
 function syncScene(){
   const seen = new Set();
   doc.resources.forEach((r, i) => {
@@ -537,7 +500,34 @@ function refreshPanel(){
   const s = summarize(doc);
   $('counts').textContent = TYPE_ORDER.map(k => `${RESOURCE_TYPES[k].emoji} ${RESOURCE_TYPES[k].label.padEnd(12)} ${s[k]}`).join('\n')
     + `\nclusters ${doc.clusters.length} · total ${doc.resources.length}`;
-  $('status').innerHTML = `<b>${doc.displayName}</b> <span style="opacity:.7">(${doc.id}.json)</span><br>terrain: ${T.label}<br>bridge :${location.port || 80} — ${bridgeOK ? `<span style="color:var(--ok)">live, rev ${rev}</span>` : '<span style="color:var(--bad)">offline (static page: download works, save does not)</span>'}`;
+  $('stylesel').value = doc.style.preset;
+  const b = doc.style.budget || DEFAULT_BUDGET, ri = renderer.info.render, as = assetStats();
+  const over = ri.triangles > b.triangles || ri.calls > b.drawCalls || as.mb > b.assetMB;
+  const meshList = TYPE_ORDER.filter(k => doc.style.assets[k]).map(k => `${RESOURCE_TYPES[k].emoji} ${doc.style.assets[k].url.split('/').pop()}`).join(' ');
+  $('status').innerHTML = `<b>${doc.displayName}</b> <span style="opacity:.7">(${doc.id}.json)</span><br>terrain: ${T.label}<br>look: ${STYLE_PRESETS[doc.style.preset].label.split(':')[0].toLowerCase()} — ${doc.style.preset}${doc.style.name ? ` “${doc.style.name}”` : ''}${meshList ? `<br>meshes: ${meshList}` : ''}`
+    + `<br><span style="color:${over ? 'var(--bad)' : 'var(--ok)'}">budget: ${(ri.triangles / 1000).toFixed(0)}k/${(b.triangles / 1000).toFixed(0)}k tris · ${ri.calls}/${b.drawCalls} calls · ${as.mb.toFixed(1)}/${b.assetMB} MB assets${as.failed ? ` · ${as.failed} failed` : ''}</span>`
+    + `<br>bridge :${location.port || 80} — ${bridgeOK ? `<span style="color:var(--ok)">live, rev ${rev}</span>` : '<span style="color:var(--bad)">offline (static page: download works, save does not)</span>'}`;
+}
+// ---- the look: style preset, per-type mesh assets, the budget (all in doc.style; the file carries them)
+function setStyle(preset){
+  if(!STYLE_PRESETS[preset]) return say(`unknown style “${preset}” — ${Object.keys(STYLE_PRESETS).join(', ')}`, 'bad');
+  snapshot(); doc.style.preset = preset;
+  if(terrainMesh){ terrainMesh.material.dispose(); terrainMesh.material = terrainMaterial(preset); }
+  return commit(`look: ${STYLE_PRESETS[preset].label}`);
+}
+function setAsset(type, url, opts = {}){
+  if(!RESOURCE_TYPES[type]) return say('which type? berries, fir, palm, stone or gold', 'bad');
+  snapshot();
+  if(!url){ delete doc.style.assets[type]; return commit(`${RESOURCE_TYPES[type].label.toLowerCase()}: back to the stand-in`); }
+  if(!/\.(glb|gltf|fbx)(\?.*)?$/i.test(url)) return say('a mesh asset must be a .glb, .gltf or .fbx URL', 'bad');
+  doc.style.assets[type] = Object.assign({ url }, opts.height != null ? { height: +opts.height } : {}, opts.scale != null ? { scale: +opts.scale } : {}, opts.yOffset != null ? { yOffset: +opts.yOffset } : {});
+  preloadAssets(doc.style).then(() => { syncScene(); const st = assetStats(); const bad = st.urls.find(([u, s]) => u === url && !s.ok); if(bad) say(`mesh failed: ${url} (${bad[1].error})`, 'bad'); });
+  return commit(`${RESOURCE_TYPES[type].label.toLowerCase()} now uses ${url}${opts.height ? ` at height ${opts.height}` : ''}${opts.scale ? ` scale ${opts.scale}` : ''}`);
+}
+function setBudget(key, v){
+  const k = { triangles:'triangles', tris:'triangles', triangle:'triangles', calls:'drawCalls', drawcalls:'drawCalls', mb:'assetMB', assets:'assetMB', assetmb:'assetMB' }[key];
+  if(!k || !(v > 0)) return say('budget what? “budget triangles 200000”, “budget calls 300”, “budget mb 25”', 'bad');
+  snapshot(); doc.style.budget[k] = +v; return commit(`budget ${k} = ${v}`);
 }
 // the numbered buttons: every .nb gets a number badge, in reading order
 function numberButtons(){
@@ -626,6 +616,10 @@ function act(a){
     case 'download': return download();
     case 'clearall': return clearAll();
     case 'shot': return capture();
+    case 'asset': { const cur = doc.style.assets[curType]; const u = prompt(`Mesh asset for ${RESOURCE_TYPES[curType].label} (.glb / .gltf / .fbx URL; empty = stand-in):`, cur ? cur.url : 'vendor/models/'); if(u === null) return 'cancelled';
+      const h = u.trim() ? prompt('Height in world units (the Vita is 1.5):', cur && cur.height || '') : null; return setAsset(curType, u.trim(), { height: h ? +h : undefined }); }
+    case 'budget': { const b = doc.style.budget; const s = prompt('Budget: triangles, draw calls, asset MB', `${b.triangles} ${b.drawCalls} ${b.assetMB}`); if(!s) return 'cancelled';
+      const [t, c, m] = s.split(/[\s,]+/).map(Number); snapshot(); if(t > 0) b.triangles = t; if(c > 0) b.drawCalls = c; if(m > 0) b.assetMB = m; return commit(`budget: ${b.triangles} tris · ${b.drawCalls} calls · ${b.assetMB} MB`); }
     case 'help': { const h = $('help'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; return 'help'; }
     case 'mic': return toggleMic();
     case 'run': return runCommand($('cmd').value);
@@ -636,6 +630,7 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-type]'); if(t){ curType = t.dataset.type; moveArmed = false; refreshPanel(); say(`placing ${RESOURCE_TYPES[curType].label.toLowerCase()} — tap the ground`); }
 });
 $('terrainsel').addEventListener('change', e => switchTerrain(e.target.value));
+$('stylesel').addEventListener('change', e => { if(e.target.value !== doc.style.preset) setStyle(e.target.value); });
 $('placesel').addEventListener('change', e => { if(e.target.value){ say(view(e.target.value)); e.target.value = ''; } });
 $('cmd').addEventListener('keydown', e => { if(e.key === 'Enter'){ runCommand($('cmd').value); } if(e.key === 'Escape') $('cmd').blur(); });
 document.addEventListener('keydown', e => {
@@ -651,7 +646,7 @@ document.addEventListener('keydown', e => {
 
 // ---------------------------------------------------------------- files
 async function saveDoc(){
-  snapResources(doc, T.terrainH);
+  snapResources(doc, T.terrainH); doc.meta.editor = `Georgeland Editor ${VERSION}`;
   const v = validateGeorgeland(doc, T.terrainH);
   if(!v.ok) return say('cannot save: ' + v.errors.join('; '), 'bad');
   try{
@@ -679,11 +674,15 @@ async function loadFile(name){
   }catch(e){ return say(`could not load georgelands/${id}.json (${e.message})`, 'bad'); }
 }
 async function adoptDoc(d, msg){
+  normalizeGeorgeland(d);
   const v = validateGeorgeland(d);
   if(!v.ok) return say(`refused: ${v.errors.slice(0, 3).join('; ')}`, 'bad');
   if(d.terrain.module !== T.id){ if(!TERRAINS[d.terrain.module]) return say(`unknown terrain module “${d.terrain.module}”`, 'bad'); await switchTerrain(d.terrain.module, d); }
-  snapshot(); doc = d; selectedId = null; snapResources(doc, T.terrainH); syncScene(); pushDoc();
-  return say(`${msg} — ${doc.resources.length} resources on ${T.id}` + (v.warnings.length ? ` (${v.warnings.length} warnings)` : ''), 'ok');
+  snapshot(); doc = d; selectedId = null; snapResources(doc, T.terrainH);
+  if(terrainMesh){ terrainMesh.material.dispose(); terrainMesh.material = terrainMaterial(doc.style.preset); }
+  preloadAssets(doc.style).then(() => syncScene());
+  syncScene(); pushDoc();
+  return say(`${msg} — ${doc.resources.length} resources on ${T.id}, look ${doc.style.preset}` + (v.warnings.length ? ` (${v.warnings.length} warnings)` : ''), 'ok');
 }
 function newDoc(){
   snapshot(); doc = newGeorgeland(T, { id: `${T.id}-new`, displayName: `${T.id} — new Georgeland`, editor: `Georgeland Editor ${VERSION}` });
@@ -753,10 +752,11 @@ async function pollBridge(){
     if(r.status === 200){
       const j = await r.json();
       if(j.doc && j.rev > rev && j.by !== 'editor'){
+        normalizeGeorgeland(j.doc);
         const v = validateGeorgeland(j.doc);
         if(v.ok){ rev = j.rev; snapshot();
           if(j.doc.terrain.module !== T.id && TERRAINS[j.doc.terrain.module]){ await switchTerrain(j.doc.terrain.module, j.doc); }
-          else { doc = j.doc; snapResources(doc, T.terrainH); syncScene(); }
+          else { doc = j.doc; snapResources(doc, T.terrainH); if(terrainMesh) terrainMesh.material = terrainMaterial(doc.style.preset); preloadAssets(doc.style).then(() => syncScene()); syncScene(); }
           say(`bridge: document updated by ${j.by || 'a co-editor'} (rev ${rev}, ${doc.resources.length} resources)`, 'ok'); }
         else { rev = j.rev; say(`bridge: rejected a document from ${j.by}: ${v.errors[0]}`, 'bad'); pushDoc(); }
       } else if(j.rev > rev) rev = j.rev;
@@ -775,8 +775,8 @@ async function bridgeHello(){
   try{
     const j = await (await fetch('/bridge/georgeland', { cache: 'no-store' })).json();
     bridgeOK = true; rev = j.rev || 0;
-    if(j.doc && validateGeorgeland(j.doc).ok){
-      if(j.doc.terrain.module === T.id){ doc = j.doc; snapResources(doc, T.terrainH); say(`bridge: resumed the live document (rev ${rev}, ${doc.resources.length} resources)`); return; }
+    if(j.doc && validateGeorgeland(normalizeGeorgeland(j.doc)).ok){
+      if(j.doc.terrain.module === T.id){ doc = j.doc; snapResources(doc, T.terrainH); if(terrainMesh) terrainMesh.material = terrainMaterial(doc.style.preset); preloadAssets(doc.style).then(() => syncScene()); say(`bridge: resumed the live document (rev ${rev}, ${doc.resources.length} resources)`); return; }
     }
   }catch(e){ bridgeOK = false; }
   pushDoc();
@@ -842,6 +842,16 @@ function runCommand(text, source = 'you'){
     if(/^(play|play it|run the game|test in game)$/.test(low)) return play();
     if(/^download/.test(low)) return download();
     if(/^(capture|screenshot|snap|save image|take a picture)/.test(low)) return capture();
+    // ---- the look
+    { const m = /^(?:style|aesthetic|look)\s+(?!at\b|towards?\b)(.+)/.exec(low); if(m && !/^(style|aesthetic)/.test(low) && !/^look\s+(flat|textur|mesh|pbr|painted|smooth|low|lambert)/.test(low)) { /* "look ..." that is not a style word falls through to the view verbs */ } else if(m){ const w = m[1];
+        if(/flat|lambert|low ?poly/.test(w)) return setStyle('standin-flat'); if(/textur|pbr|painted|smooth/.test(w)) return setStyle('standin-textured');
+        if(/mesh|asset|glb|model/.test(w)) return setStyle('meshes'); if(STYLE_PRESETS[w.trim()]) return setStyle(w.trim());
+        return say(`styles: flat · textured · meshes (or a preset id: ${Object.keys(STYLE_PRESETS).join(', ')})`, 'bad'); } }
+    { const m = /^name the (style|look|aesthetic)\s+(.+)/i.exec(text); if(m){ snapshot(); doc.style.name = m[2].trim(); return commit(`the look is called “${doc.style.name}”`); } }
+    { const m = /^(use|load|mesh)\s+(\S+\.(?:glb|gltf|fbx)\S*)\s+(?:for|as)\s+(\w+)(?:.*?\bheight\s+([\d.]+))?(?:.*?\bscale\s+([\d.]+))?/i.exec(text);
+      if(m){ const ty = typeFromWord(m[3]); return ty ? setAsset(ty, m[2], { height: m[4], scale: m[5] }) : say(`“${m[3]}” is not a resource type`, 'bad'); } }
+    { const m = /^(no mesh|stand ?in|standin|drop the mesh)\s+(?:for\s+)?(\w+)/.exec(low); if(m){ const ty = typeFromWord(m[2]); return ty ? setAsset(ty, '') : say('for which type?', 'bad'); } }
+    { const m = /^budget\s+(\w+)\s+([\d.]+)/.exec(low); if(m) return setBudget(m[1], +m[2]); }
     if(/^clear all|^clear everything|^delete everything/.test(low)) return clearAll();
     if(/^(button|press)\s+(\d+)/.test(low)) return pressButton(+/(\d+)/.exec(low)[1]);
     if(/^(terrain|island)\s+(\w+)/.test(low)){ const m = /^(terrain|island)\s+(\w+)/.exec(low); if(TERRAINS[m[2]]) return switchTerrain(m[2]).then(() => `terrain: ${m[2]}`); return say('terrains: ' + Object.keys(TERRAINS).join(', '), 'bad'); }
@@ -969,6 +979,8 @@ async function switchTerrain(id, adopt = null){
   $('busy').style.display = 'none';
   return `terrain: ${id}`;
 }
+// the style presets
+for(const [k, p] of Object.entries(STYLE_PRESETS)){ const o = document.createElement('option'); o.value = k; o.textContent = p.label; $('stylesel').appendChild(o); }
 // the type palette
 for(const k of TYPE_ORDER){
   const b = document.createElement('button'); b.className = 'nb'; b.dataset.type = k;
@@ -994,14 +1006,17 @@ function frame(){
   ring.rotation.z += dt * 1.2;
   renderer.render(scene, camera);
   updateLabels();
+  if((panelT += dt) > 1.5){ panelT = 0; refreshPanel(); }   // the budget line reads live render stats
 }
+let panelT = 0;
 frame();
 // clamp to ≥1: a background tab can report 0×0, which would freeze the canvas at zero (and break captures)
 function fit(){ const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); }
 addEventListener('resize', fit); fit();
 
 // debug / scripting hook (headless verification drives this)
-window.GLE = { get doc(){ return doc; }, get terrain(){ return T; }, run: runCommand, select, view, capture, get rev(){ return rev; }, VERSION,
+window.GLE = { get doc(){ return doc; }, get terrain(){ return T; }, run: runCommand, select, view, capture, setStyle, setAsset, assetStats, get rev(){ return rev; }, VERSION,
+  get info(){ return { triangles: renderer.info.render.triangles, calls: renderer.info.render.calls }; },
   step(n = 1){ for(let i = 0; i < n; i++){ controls.update(); renderer.render(scene, camera); updateLabels(); } } };
 
 // stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>

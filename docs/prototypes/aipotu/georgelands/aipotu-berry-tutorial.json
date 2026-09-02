@@ -615,9 +615,20 @@
  "meta": {
   "author": "Doug",
   "created": "2026-09-02T12:37:45-07:00",
-  "modified": "2026-09-02T12:38:37-07:00",
+  "modified": "2026-09-02T13:42:17-07:00",
   "editor": "Georgeland Editor v0.1",
   "tutorialStage": null,
   "notes": ""
+ },
+ "style": {
+  "preset": "standin-flat",
+  "name": "house flat (placeholder until the bake-off)",
+  "notes": "",
+  "assets": {},
+  "budget": {
+   "triangles": 300000,
+   "drawCalls": 400,
+   "assetMB": 40
+  }
  }
 }

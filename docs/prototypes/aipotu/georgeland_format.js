@@ -41,6 +41,16 @@
 //     { "id":"c1", "label":"beach berries",  //   "make the beach berries richer"
 //       "type":"berry", "x":-14, "z":60, "r":8 }
 //   ],
+//   "style": {                               // THE GEORGELAND'S OWN AESTHETIC (Doug, 2026-09-02:
+//     "preset": "standin-flat",              //   the flat/no-texture contract is no longer a mandate;
+//                                            //   the look is the creator's choice, per Georgeland).
+//                                            //   standin-flat | standin-textured | meshes
+//     "name": "house flat", "notes": "",     //   a label for the picker / the bake-off winner
+//     "assets": {                            //   per-type mesh assets, ANY style (textured PBR included):
+//       "gold": { "url": "vendor/models/nugget.glb", "height": 1.2, "scale": null, "yOffset": 0 }
+//     },                                     //   a type without an asset uses the preset's stand-in
+//     "budget": { "triangles": 300000, "drawCalls": 400, "assetMB": 40 }   // light per-Georgeland budget
+//   },
 //   "resourceMode": "replace",               // replace: a type present in the file
 //                                            //   REPLACES the game's built-in scatter of
 //                                            //   that type; add: file resources are added
@@ -72,6 +82,33 @@ export const RESOURCE_TYPES = {
            amountMin:1, amountMax:5, amountDefault:2, aliases:['gold','nugget','nuggets','vein','treasure'] },
 };
 export const TYPE_ORDER = ['berry', 'fir', 'palm', 'stone', 'gold'];
+
+// STYLE PRESETS — how the editor (and any renderer without its own makers) draws a type
+// that has no mesh asset. A Georgeland may name any preset; the game's loader may map a
+// preset onto its own makers or honour style.assets directly.
+export const STYLE_PRESETS = {
+  'standin-flat':     { label:'Stand-in: flat-shaded (Lambert, no textures)' },
+  'standin-textured': { label:'Stand-in: textured PBR (painted canvases, smooth)' },
+  'meshes':           { label:'Mesh assets per type (GLB/glTF/FBX from style.assets)' },
+};
+export const DEFAULT_BUDGET = { triangles: 300000, drawCalls: 400, assetMB: 40 };
+export function defaultStyle(){
+  return { preset:'standin-flat', name:'', notes:'', assets:{}, budget: Object.assign({}, DEFAULT_BUDGET) };
+}
+// fill in what an older/partial document lacks (never removes anything)
+export function normalizeGeorgeland(doc){
+  if(!doc || typeof doc !== 'object') return doc;
+  if(!doc.style || typeof doc.style !== 'object') doc.style = defaultStyle();
+  const s = doc.style;
+  if(!STYLE_PRESETS[s.preset]) s.preset = 'standin-flat';
+  if(typeof s.name !== 'string') s.name = ''; if(typeof s.notes !== 'string') s.notes = '';
+  if(!s.assets || typeof s.assets !== 'object') s.assets = {};
+  s.budget = Object.assign({}, DEFAULT_BUDGET, s.budget || {});
+  if(!doc.resourceMode) doc.resourceMode = 'replace';
+  for(const k of ['resources', 'clusters', 'placements', 'cast']) if(!Array.isArray(doc[k])) doc[k] = [];
+  if(!doc.conditions || typeof doc.conditions !== 'object') doc.conditions = {};
+  return doc;
+}
 
 export function typeFromWord(w){
   w = (w || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -105,6 +142,7 @@ export function newGeorgeland(terrain, opts = {}){
       spawn: Object.assign({}, terrain.spawn),
       camera: { pos: terrain.camera.pos.slice(), target: terrain.camera.target.slice() },
     },
+    style: Object.assign(defaultStyle(), opts.style || {}),
     resources: [], clusters: [], resourceMode: 'replace',
     placements: [], cast: [], conditions: {},
     meta: { author: opts.author || 'Doug', created: nowStamp(), modified: nowStamp(),
@@ -173,6 +211,23 @@ export function validateGeorgeland(doc, terrainH){
     });
   }
   if(doc.clusters != null && !Array.isArray(doc.clusters)) errors.push('clusters must be an array');
+  if(doc.style == null) warnings.push('style block missing (defaults to standin-flat)');
+  else if(typeof doc.style !== 'object') errors.push('style must be an object');
+  else {
+    const s = doc.style;
+    if(s.preset != null && !STYLE_PRESETS[s.preset]) warnings.push(`style.preset "${s.preset}" unknown (${Object.keys(STYLE_PRESETS).join('|')}); renderers fall back to standin-flat`);
+    if(s.assets != null){
+      if(typeof s.assets !== 'object') errors.push('style.assets must be an object keyed by resource type');
+      else for(const [k, a] of Object.entries(s.assets)){
+        if(!RESOURCE_TYPES[k]) warnings.push(`style.assets.${k}: not a resource type`);
+        if(!a || typeof a.url !== 'string' || !/\.(glb|gltf|fbx)(\?.*)?$/i.test(a.url)) errors.push(`style.assets.${k}.url must be a .glb/.gltf/.fbx URL`);
+      }
+    }
+    if(s.budget != null){
+      if(typeof s.budget !== 'object') errors.push('style.budget must be an object');
+      else for(const k of ['triangles', 'drawCalls', 'assetMB']) if(s.budget[k] != null && !(num(s.budget[k]) && s.budget[k] > 0)) errors.push(`style.budget.${k} must be a positive number`);
+    }
+  }
   if(doc.resourceMode != null && !['replace', 'add'].includes(doc.resourceMode)) errors.push('resourceMode must be replace|add');
   for(const k of ['placements', 'cast']) if(doc[k] != null && !Array.isArray(doc[k])) errors.push(`${k} must be an array`);
   if(doc.conditions != null && typeof doc.conditions !== 'object') errors.push('conditions must be an object');
