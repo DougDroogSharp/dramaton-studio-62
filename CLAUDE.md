@@ -8,6 +8,7 @@ Filed 2026-09-01 17:39 (-07:00) by DISPATCH (decision 11). Terse on purpose: thi
 - **Bold, never italics.** His client renders italics as tiny script.
 - **Real timestamps.** Every doc, message, mailbox entry and "Filed" line carries date AND time from `Get-Date` (`Get-Date -Format "yyyy-MM-dd HH:mm zzz"`). Never guess a time.
 - Every dev tool and prototype shows its version number beside its on-screen title.
+- **Full, clickable paths.** Whenever you offer Doug a path, give the full absolute path in a code span AND a clickable link: `[file:///C:/Users/dougs/...](file:///C:/Users/dougs/...)` with spaces as `%20`; URLs in full. Never "the AIPOTU folder" or a relative path.
 
 ## Repo rules
 - **One builder.** GW BUILDER (the HvM Graphics session) is the only session that edits `docs/prototypes/aipotu/georgeworld.html`, in the main checkout `C:\Users\dougs\dramaton-studio-62`.
