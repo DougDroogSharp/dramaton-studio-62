@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     GEORGELAND II — a NEW island for George World. Map study.
+     Filed 2026-08-31 (see git log for the time stamp).
+
+     STANDALONE. Nothing here touches georgeworld.html. This is a scenario
+     MAP MODULE that whoever owns the live game can lift wholesale.
+
+     WHAT IT IS
+     A second, bigger, nastier island. The current AIPOTU island is a friendly
+     dinner plate: mean world radius ~69, one comically-large volcano at 37
+     units, a sand ring all the way round, one ridge with one saddle. Georgeland
+     is about DOUBLE that footprint (mean world radius ~138, WS=2.5 against the
+     game's 1.25) and it does not want you to walk across it in a straight line:
+
+       · SEA CLIFFS on the north-west headland — a 60-unit tableland that ends
+         in air. Regular beaches everywhere else.
+       · A VOLCANO with the iconic erupting-cone silhouette — a tall, steep,
+         SMOOTH stratovolcano (Fuji with the summit blown open), crater rim
+         ~120 world units against the game's 37. Soft rounded flanks, gently
+         eroded flutes, a burnt basalt apron. No spires: the drama is height,
+         steepness and mass, matching the soft storybook aesthetic.
+       · TWO FJORDS — the Drowned Vale (in through the cliffs, running along the
+         mountains' feet) and Kingsfjord (in from the north). Flat-bottomed,
+         steep-walled, salt water all the way to their heads.
+       · A MOUNTAIN RANGE arcing across the north-west, ~180 world units long,
+         with THREE PASSES notched through it. The passes are the only walkable
+         crossings; the Vitas' routes are built to use them.
+       · LITTLE GEORGELAND — a companion island off the south-east, across a
+         ~35-unit strait. Plus four sea stacks off the cliffs.
+       · Coves, spits, a surf bay, snowline on the high peaks.
+       · An EASTER EGG: touch the 🥚 ODD EGG stone above Turtle Cove and
+         the island blinks you into the CRYSTAL GROTTO — a jewel-walled
+         dripstone chamber with a glowing pool and a gold hoard, hidden
+         deep under the volcano. Dev button under VIEWS jumps there too.
+
+     PLAYABILITY (built in, per Doug's working assumption)
+     Every functional spot the game needs is baked into the landform, not
+     sprinkled on top: a commanding flat-crowned plateau for the KING'S HALL, a
+     broad gentle terrace for the CAMPS/COMMONS, two forage knolls, a wide
+     south LANDING BEACH for the saucer, a SURF BAY, the volcano for the
+     king's-fruit, and three passes that actually gate movement.
+     window.GEORGELAND.SPOTS carries them all with world coords + a radius.
+     If Doug says "pure scenic", delete SPOTS/ROUTES and the labels; the
+     landform stands on its own.
+
+     DROP-IN CONTRACT (for the georgeworld.html session)
+       window.GEORGELAND = {
+         WS,                       // 2.5 — this island's world scale
+         terrainH(x, z),           // world coords in, height out. Same
+                                   //   signature as the game's terrainH.
+         terrainNormal(x, z, e),   // the other half of the map contract —
+                                   //   armature walkers plant feet with this.
+                                   //   Reused {x,y,z}; terrainNormalV for a
+                                   //   fresh THREE.Vector3.
+         terrainBase(bx, bz),      // base coords, if you want the raw author fn
+         build(scene),             // adds terrain + water + scatter groups
+         tick(dt, elapsed),        // wind, water, volcano plume
+         groups,                   // { terrain, water, flora, rocks, grass }
+         OBSTACLES,                // [{x,z,r}] — push into the game's OBSTACLES
+         SPOTS, ROUTES, VOLC, SEA_LEVEL
+       }
+     Swap terrainH, swap VOLC, re-point the camp/hall/beach constants at
+     SPOTS, and the existing placeOnTerrain()/pathfinding keeps working.
+     Three.js is VENDORED (vendor/three, r160) — the game's exact importmap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Georgeland II — the big island</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#a5ddf5;
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:250px;
+    background:rgba(16,25,32,0.76); color:#eaf4f8; font:12.5px/1.45 system-ui, sans-serif;
+    padding:11px 13px; border-radius:12px; user-select:none; backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,0.12); max-height:calc(100vh - 24px); overflow:auto; }
+  #chip b { font-size:14px; letter-spacing:.4px; }
+  #chip .sub { opacity:.62; font-size:11px; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.15); margin:9px 0; }
+  #chip h4 { margin:0 0 4px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  .btns button { background:rgba(255,255,255,0.11); color:#eaf4f8;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:4px 7px;
+    font:11.5px system-ui,sans-serif; cursor:pointer; }
+  .btns button:hover { background:rgba(255,255,255,0.26); }
+  .togs { display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; margin-top:2px; }
+  .togs label { display:flex; align-items:center; gap:5px; font-size:11.5px; cursor:pointer; }
+  #stats { opacity:.7; font-size:11px; margin-top:8px; white-space:pre-line;
+    font-family:Consolas,monospace; }
+  #busy { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,18,24,0.72); color:#eaf4f8; z-index:30; font:15px system-ui,sans-serif; }
+  #labels { position:fixed; inset:0; pointer-events:none; z-index:8; overflow:hidden; }
+  .lab { position:absolute; left:0; top:0; transform:translate(-50%,-50%);
+    padding:2px 9px 3px; border-radius:9px; white-space:nowrap;
+    font:700 11px/1.4 system-ui,sans-serif; color:#fff; letter-spacing:.6px;
+    background:rgba(14,40,58,0.72); border:1px solid rgba(255,255,255,0.3);
+    text-shadow:0 1px 2px rgba(0,0,0,.5); }
+  .lab.fn { background:rgba(84,42,12,0.78); border-color:rgba(255,206,140,0.45); }
+  /* PLACES read differently from functional spots — these are things to talk
+     about, not things to build on. Tinted by mood. */
+  .lab.pl { font-weight:600; letter-spacing:.3px; background:rgba(12,34,44,0.7);
+    border-color:rgba(160,220,240,0.4); }
+  .lab.pl.dangerous { background:rgba(92,20,20,0.76); border-color:rgba(255,150,150,0.5); }
+  .lab.pl.beautiful { background:rgba(16,64,80,0.76); border-color:rgba(150,230,255,0.5); }
+  .lab.pl.bountiful { background:rgba(28,68,26,0.76); border-color:rgba(170,240,150,0.5); }
+  .lab.pl.eerie     { background:rgba(48,32,72,0.78); border-color:rgba(200,175,255,0.5); }
+  .lab.pl.bleak     { background:rgba(44,48,52,0.78); border-color:rgba(200,208,215,0.45); }
+  .lab.pl.homely    { background:rgba(74,54,16,0.78); border-color:rgba(255,220,150,0.5); }
+  #here { margin-top:8px; padding:7px 8px; border-radius:8px; font-size:11.5px;
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
+  #here b { display:block; font-size:12.5px; margin-bottom:2px; }
+  #here i { display:block; opacity:.72; font-style:normal; font-size:11px; margin-top:3px; }
+  #here .q { display:block; margin-top:5px; font-size:11px; color:#ffe0a8; }
+  #flash { position:fixed; inset:0; z-index:40; background:#fff; opacity:0;
+    pointer-events:none; }
+  #rev { position:fixed; left:12px; bottom:12px; z-index:10; user-select:none;
+    color:#eaf4f8; opacity:0.75; font:11px Consolas, monospace;
+    background:rgba(16,25,32,0.6); padding:4px 8px; border-radius:7px;
+    border:1px solid rgba(255,255,255,0.14); }
+  #shots { position:fixed; right:12px; bottom:12px; z-index:10; display:flex; gap:6px; }
+  #shots button { background:rgba(16,25,32,0.76); color:#eaf4f8;
+    border:1px solid rgba(255,255,255,0.18); border-radius:8px; padding:6px 11px;
+    font:12px system-ui,sans-serif; cursor:pointer; backdrop-filter:blur(6px); }
+  #shots button:hover { background:rgba(40,58,70,0.85); }
+</style>
+</head>
+<body>
+<div id="busy">raising Georgeland out of the sea…</div>
+<div id="flash"></div>
+<div id="rev"></div>
+<div id="labels"></div>
+<div id="chip">
+  <b>GEORGELAND II</b><br>
+  <span class="sub">map study · double-size island · r160</span>
+  <hr>
+  <h4>Views</h4>
+  <div class="btns" id="views"></div>
+  <hr>
+  <h4>Layers</h4>
+  <div class="togs" id="togs"></div>
+  <div id="here"></div>
+  <div id="stats">building…</div>
+</div>
+<div id="shots">
+  <button id="saveShot" title="Download the current view as a PNG">Save Image</button>
+  <button id="copyShot" title="Copy the current view to the clipboard">Copy Image</button>
+</div>
+
+<!-- three.js is VENDORED (vendor/three, r160) — byte-identical importmap to
+     georgeworld.html, so this module drops straight in. No CDN, no internet. -->
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ======================================================================
+// REV STAMP — BUMP REV and RESET REV_BUILT on EVERY regeneration/save of
+// this file (real clock time, never guessed). It renders bottom-left AND
+// is composited into every Save/Copy image, so any screenshot names the
+// exact revision it shows.
+//   Rev 1  the island        Rev 2  capture buttons + canvas fix
+//   Rev 3  the smooth cone   Rev 4  the easter egg
+// ======================================================================
+const REV = 5;
+const REV_BUILT = '2026-08-31 20:22';
+const REV_STAMP = `Georgeland Rev ${REV} · built ${REV_BUILT}`;
+document.getElementById('rev').textContent = REV_STAMP;
+
+// ======================================================================
+// 0. HELPERS — same shapes as georgeworld.html's, plus noise
+// ======================================================================
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep = (a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const TAU = Math.PI*2;
+function angDiff(a,b){ let d=a-b; while(d> Math.PI) d-=TAU; while(d<-Math.PI) d+=TAU; return d; }
+// a deterministic stream — the island is the SAME island on every reload
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+const RNG = mulberry32(0x6E0A6E);
+const rnd = (a,b)=>a+RNG()*(b-a);
+
+// cheap hashed value noise + fbm + ridged fbm (no vendored noise lib to lean on)
+function h2(i,j){ let n=Math.imul(i,374761393)+Math.imul(j,668265263);
+  n=Math.imul(n^n>>>13, 1274126177); return ((n^n>>>16)>>>0)/4294967295; }
+function vnoise(x,y){
+  const i=Math.floor(x), j=Math.floor(y), fx=x-i, fy=y-j;
+  const u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy);
+  const a=h2(i,j), b=h2(i+1,j), c=h2(i,j+1), d=h2(i+1,j+1);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+}
+function fbm(x,y,oct){ let s=0,a=0.5,f=1,n=0;
+  for(let o=0;o<oct;o++){ s+=a*vnoise(x*f,y*f); n+=a; a*=0.5; f*=2.03; } return s/n; }
+function ridged(x,y,oct){ let s=0,a=0.5,f=1,n=0;
+  for(let o=0;o<oct;o++){ s+=a*(1-Math.abs(vnoise(x*f,y*f)*2-1)); n+=a; a*=0.5; f*=2.07; }
+  return s/n; }
+
+// polyline distance + arclength — the mountain spine and the fjord channels
+function makePoly(pts){
+  const segs=[]; let s0=0;
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1];
+    const dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz);
+    segs.push({ax:a[0], az:a[1], dx, dz, L, inv:1/(L*L||1), s0}); s0+=L;
+  }
+  return { segs, len:s0, pts };
+}
+function polyNear(poly,x,z){
+  let bd=1e9, bs=0;
+  for(const g of poly.segs){
+    let t=((x-g.ax)*g.dx+(z-g.az)*g.dz)*g.inv; t = t<0?0:t>1?1:t;
+    const px=g.ax+g.dx*t, pz=g.az+g.dz*t;
+    const d=Math.hypot(x-px, z-pz);
+    if(d<bd){ bd=d; bs=g.s0+t*g.L; }
+  }
+  return { d:bd, s:bs };
+}
+function polyAt(poly, s){   // world point at arclength s — used to site the passes
+  for(const g of poly.segs){
+    if(s <= g.s0+g.L || g===poly.segs[poly.segs.length-1]){
+      const t=clamp((s-g.s0)/g.L, 0, 1);
+      return [g.ax+g.dx*t, g.az+g.dz*t];
+    }
+  }
+  return poly.pts[0];
+}
+
+// ======================================================================
+// 0b. BUILD BUDGET + PROGRESS
+//     The island used to be raised in one synchronous blast: ~200k terrain
+//     vertices and roughly half a million heightfield evaluations before the
+//     first frame. On this machine that is ~3 seconds; on a tablet it is a
+//     dead white page under a sentence that never changes. Two fixes:
+//       · the build now YIELDS to the event loop on a time budget and reports
+//         what it is doing, so a slow device shows progress instead of a lie;
+//       · LITE mode halves the grid and the scatter on small / low-memory
+//         devices. Force it either way with ?lite=1 or ?lite=0.
+// ======================================================================
+const QS = new URLSearchParams(location.search);
+const LITE = QS.get('lite') === '1' ? true
+           : QS.get('lite') === '0' ? false
+           : (navigator.deviceMemory !== undefined && navigator.deviceMemory <= 4)
+             || Math.min(screen.width, screen.height) <= 820
+             || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+// Yield via MessageChannel, NOT setTimeout: background tabs clamp timers to
+// ~1s, which would turn a 3-second build into a five-minute one whenever the
+// pane is hidden. A message task is not throttled, and the browser still gets
+// its chance to paint between tasks.
+const _mc = new MessageChannel();
+const _yq = [];
+_mc.port1.onmessage = ()=>{ const f = _yq.shift(); if(f) f(); };
+const yieldToPaint = ()=> new Promise(r=>{ _yq.push(r); _mc.port2.postMessage(0); });
+
+const busyEl = document.getElementById('busy');
+const BUILD_T0 = performance.now();
+let _lastYield = performance.now(), _stage = '', _stageBase = 0, _stageSpan = 1;
+function paintProgress(frac){
+  if(!busyEl) return;
+  const pct = Math.round(clamp(frac, 0, 1) * 100);
+  busyEl.innerHTML =
+    `<div style="text-align:center;min-width:260px">
+       <div style="font-size:15px;margin-bottom:3px">raising Georgeland out of the sea…</div>
+       <div style="font-size:12px;opacity:.7;margin-bottom:9px">${_stage}${LITE?' · lite':''}</div>
+       <div style="height:5px;background:rgba(255,255,255,.16);border-radius:3px;overflow:hidden">
+         <div style="height:100%;width:${pct}%;background:#7fd9bd"></div></div>
+     </div>`;
+}
+function stage(name, base, span){ _stage = name; _stageBase = base; _stageSpan = span;
+  paintProgress(base); }
+// call inside a long loop; yields (and repaints) only when the frame budget is
+// spent, so the chunking costs almost nothing when the device is quick
+async function tickBuild(frac){
+  if(performance.now() - _lastYield < 14) return;
+  paintProgress(_stageBase + _stageSpan*clamp(frac,0,1));
+  await yieldToPaint();
+  _lastYield = performance.now();
+}
+stage('starting', 0, 0);
+
+// ======================================================================
+// 1. THE ATLAS — every landform, authored in BASE coords
+//    (world = base * WS.  The game authors at WS=1.25; Georgeland is 2.5.)
+// ======================================================================
+const WS = 2.5;
+const SEA_LEVEL = 0;
+
+// --- the volcano, the king's plateau, the companion island
+const VOLC_B  = { x: 46, z:-24 };    // crater centre
+const KING_B  = { x:  2, z: 30 };    // the flat-crowned plateau: the king's hall
+const CO_B    = { x: 78, z: 44 };    // Little Georgeland
+const SEA_STACKS = [                 // needles off the cliff headland — the
+  { x:-70, z:-46, r:3.2, h:34 },     // last shards of a coast the sea has eaten
+  { x:-77, z:-38, r:2.4, h:25 },
+  { x:-64, z:-57, r:2.8, h:29 },
+  { x:-58, z:-64, r:2.0, h:18 },
+];
+
+// --- THE RANGE: an arc across the north-west, three passes notched through it
+const RANGE = makePoly([[-46,8],[-34,-8],[-20,-22],[-6,-34],[6,-42]]);
+const PASSES = [
+  { s:20, w:6.5, drop:0.80, name:'WEST PASS'   },
+  { s:44, w:8.0, drop:0.86, name:'MIDDLE PASS' },   // widened: its south side fell
+                                                    // straight into the Drowned Vale
+  { s:64, w:5.5, drop:0.74, name:'NORTH PASS'  },
+];
+
+// --- THE FJORDS: flat-bottomed carves, steep walls, salt to the head
+const FJORDS = [
+  // in through the CLIFFS, then a long run along the mountains' southern feet
+  { name:'THE DROWNED VALE', w:6.5, depth:10,
+    poly: makePoly([[-64,-40],[-50,-30],[-38,-22],[-27,-14]]) },
+  // in from the north, a narrow blade between the range's end and the volcano
+  { name:'KINGSFJORD', w:5.2, depth:9,
+    poly: makePoly([[32,-72],[28,-56],[24,-38]]) },
+];
+
+// --- the coastline: a polar radius with lobes, a headland, spits and coves
+function coastR(ang){
+  return 55
+    + 8.0*Math.sin(ang*2 + 0.6)
+    + 5.0*Math.sin(ang*3 - 1.7)
+    + 3.2*Math.sin(ang*5 + 2.2)
+    + 2.0*Math.sin(ang*7 - 0.4)
+    + 12*Math.exp(-((angDiff(ang,-0.35)/0.45)**2))   // the volcano's east cape
+    +  9*Math.exp(-((angDiff(ang,-2.40)/0.40)**2))   // the NW headland — the cliffs
+    +  7*Math.exp(-((angDiff(ang, 1.55)/0.30)**2))   // the south spit — landing beach
+    -  8*Math.exp(-((angDiff(ang, 1.05)/0.15)**2))   // Turtle Cove
+    -  7*Math.exp(-((angDiff(ang, 2.05)/0.14)**2));  // the west cove
+}
+// how CLIFFED is the coast at this bearing? 0 = beach, 1 = it ends in air.
+function cliffness(ang){
+  return Math.min(1,
+    1.00*Math.exp(-((angDiff(ang,-2.35)/0.55)**2)) +   // the great NW cliffs
+    0.85*Math.exp(-((angDiff(ang,-0.30)/0.30)**2)));   // black basalt under the volcano
+}
+
+// ---------------------------------------------------------------
+// terrainBase(bx,bz) — the author's function. Everything above,
+// stacked in order; the fjords carve LAST so they cut real rock.
+// ---------------------------------------------------------------
+function terrainBase(bx, bz){
+  const d = Math.hypot(bx, bz), ang = Math.atan2(bz, bx);
+  const R = coastR(ang);
+  const t = d / R;
+  const C = cliffness(ang);
+
+  // the shelf. A(ang) is the tableland height; w is the shore-ramp width.
+  // A cliff coast = tall plateau + a razor-thin ramp. A beach = low + wide.
+  // The angular part fades out toward the centre so the middle stays coherent.
+  // A cliff coast is a 40-unit tableland that ends over ~7 world units of
+  // horizontal run — a wall, not a hillside. A beach is 9.5 units over ~45.
+  const inland = sstep(0.12, 0.55, t);
+  const A = 9.5 + (C * 30) * inland;
+  const w = 0.20 - 0.152 * C;
+  // THE SHORE PROFILE. A smoothstep gives an S-curve — soft at the top, soft
+  // at the bottom. That is a slope, not a cliff. The cliff curve instead has
+  // an INFINITE gradient at p=0 (a hard top edge you could fall off) and eases
+  // out at the base into a talus flare. Beaches keep the S-curve.
+  const p = clamp((t - (1 - w)) / (w*1.55), 0, 1);
+  const fBeach = 1 - p*p*(3 - 2*p);
+  // the pow() is gated: most of the coast is beach, and paying for it on every
+  // one of the ~700k terrain samples cost more than the cliffs are worth
+  let f = fBeach;
+  if(C > 0.01){
+    const fCliff = 1 - Math.pow(Math.sin(p*Math.PI*0.5), 0.62);
+    f = fBeach + (fCliff - fBeach)*C;
+  }
+  let h = A * f - 3.4;
+
+  // STRATIFICATION. Real sea cliffs are bedded rock: flat ledges separated by
+  // short risers, the bed thickness wandering along the coast. Quantising the
+  // height into noise-varied beds produces exactly that. `face` is zero on the
+  // clifftop plateau and zero again out on the sea floor, so only the face is
+  // terraced — the grass above and the water below stay untouched.
+  const face = C * Math.sin(p*Math.PI);
+  if(face > 0.02){
+    const bedH  = 6.5 + 3.2*fbm(bx*0.05 + 17, bz*0.05 - 9, 2);
+    const phase = 2.4*fbm(bx*0.09 - 4, bz*0.09 + 6, 2);
+    const q = Math.round((h + phase)/bedH)*bedH - phase;
+    h += (q - h) * face * 0.55;
+  }
+
+  // ---- THE RANGE ------------------------------------------------
+  const rn = polyNear(RANGE, bx, bz);
+  if(rn.d < 34){
+    let crest = 24 + 12*Math.sin(rn.s*0.20 + 0.5) + 6*Math.sin(rn.s*0.47 + 2.1);
+    for(const p of PASSES) crest *= (1 - p.drop*Math.exp(-(((rn.s - p.s)/p.w)**2)));
+    const rw = 15 + 4.5*Math.sin(rn.s*0.11 + 1.0);
+    const prof = 1 - sstep(0, rw, rn.d);
+    h += crest * prof;
+    h += 8.0 * (ridged(bx*0.155, bz*0.155, 4) - 0.42) * prof * prof;   // spiky crest rock
+  }
+
+  // ---- THE VOLCANO ----------------------------------------------
+  // The iconic ERUPTING-CONE silhouette: one tall, steep stratovolcano,
+  // Fuji with the summit blown open. The drama is HEIGHT, STEEPNESS and
+  // MASS — every surface stays SOFT (storybook island, not Mordor):
+  // no rilles, no ridged noise, no parasitic cone, no jagged anything.
+  // Exponent 1.3 on the falloff is what buys the concave Fuji flare —
+  // steep shoulders easing out into a wide gentle skirt.
+  const vdx = bx - VOLC_B.x, vdz = bz - VOLC_B.z;
+  const vr = Math.hypot(vdx, vdz);
+  if(vr < 75){
+    const va = Math.atan2(vdz, vdx);
+    let v = 120 * Math.exp(-((vr/17)**1.3));         // the great cone
+    v += 16 * Math.exp(-((vr/36)**2));               // the broad soft skirt
+    v -= 70 * Math.exp(-((vr/4.2)**2));              // the crater, blown open
+    // gently eroded rain-gullies: long rounded flutes, barely there —
+    // the eye reads "old mountain", the silhouette stays clean
+    v += 2.0 * Math.sin(va*9 + Math.sin(va*3)*1.3)
+             * sstep(5, 12, vr) * (1 - sstep(22, 44, vr));
+    h += v * (1 - sstep(55, 75, vr));
+  }
+
+  // ---- THE PLAYABLE FLATS ---------------------------------------
+  // the KING'S PLATEAU: flat crown out to r=7.5, then a hard skirt. Commanding
+  // the south beaches, one climb from the camps, in full view of the volcano.
+  // The skirt is WIDE on purpose. At sstep(7.5,19) it was a 50-degree wall:
+  // it painted out as bare rock and, worse, no Vita could have walked up to
+  // the hall. A king's seat has to be climbable or it is just scenery.
+  h += 21 * (1 - sstep(9, 30, Math.hypot(bx-KING_B.x, bz-KING_B.z)));
+  h += 5.5 * (1 - sstep(12, 22, Math.hypot(bx+14, bz-33)));   // the commons terrace (camps)
+  h += 9.0 * (1 - sstep(4, 12,  Math.hypot(bx+31, bz-25)));   // forage knoll, west
+  h += 7.0 * (1 - sstep(3.5, 11, Math.hypot(bx+21, bz-40)));  // forage knoll, south
+  h -= 9.0 * Math.exp(-((Math.hypot(bx-40, bz-38)/13)**2));   // the surf bay basin
+
+  // ---- LITTLE GEORGELAND + the sea stacks ------------------------
+  const cd = Math.hypot(bx-CO_B.x, bz-CO_B.z);
+  if(cd < 26){
+    h += 20 * (1 - sstep(7, 18, cd));
+    h += 9  * (1 - sstep(2, 6, Math.hypot(bx-CO_B.x-6, bz-CO_B.z+5)));   // its one peak
+    h += 4  * (fbm(bx*0.16+31, bz*0.16+7, 3) - 0.5) * (1 - sstep(4, 20, cd));
+  }
+  // sea stacks: a NARROW flat top and near-vertical sides, or they read as
+  // party hats instead of the last standing shards of an eaten headland
+  for(const s of SEA_STACKS)
+    h += s.h * (1 - sstep(s.r*0.82, s.r*1.06, Math.hypot(bx-s.x, bz-s.z)));
+
+  // ---- weathering ------------------------------------------------
+  // ...but weathering is held back on the cliff coast: a sheer face that has
+  // 6 units of lumpy noise smeared over it stops being sheer.
+  h += 6.0 * (fbm(bx*0.045, bz*0.045, 4) - 0.5) * (1 - 0.55*C);
+  h += 0.9 * Math.sin(bx*0.13) * Math.sin(bz*0.15);
+
+  // ---- THE FJORDS, carved last ------------------------------------
+  // exponent 3 (not 2) gives a FLAT bottom and steep walls: a drowned valley,
+  // not a V-notch. The channel core sits well below sea level all the way in.
+  for(const f of FJORDS){
+    const q = polyNear(f.poly, bx, bz);
+    const g = Math.exp(-Math.pow(q.d / f.w, 3));
+    h = h*(1 - g*0.97) - f.depth*g;
+  }
+
+  // ---- THE SHELF FALLS AWAY -----------------------------------------
+  // The terrain grid is finite (±124 base). Left flat, its rim reads as a
+  // hard square through the water. So the floor keeps descending toward the
+  // edge until it passes UNDER the opaque deep plane and stops existing.
+  h -= 22 * sstep(96, 122, Math.max(Math.abs(bx), Math.abs(bz)));
+  return h;
+}
+// world-coord entry point — the same signature as the game's terrainH()
+function terrainH(x, z){ return terrainBase(x/WS, z/WS); }
+
+// THE OTHER HALF OF THE MAP CONTRACT (HvM Graphics, MAILBOX 2026-08-31 22:54):
+// "a map module exposes terrainH(x,z) and terrainNormal(x,z) (or gradient) and
+// that is ALL walkers need." Root height comes from terrainH; this is what lets
+// an armature walker PLANT A FOOT and roll the ankle onto the local ground.
+//
+// Central difference rather than an analytic gradient: terrainBase is a stack
+// of ~30 terms including two polyline searches and several fbm calls, so a
+// closed-form derivative would be both enormous and fragile to edit. Four
+// samples is cheaper to keep correct, and correctness matters more here — a
+// wrong normal tilts every foot on the island.
+//
+// `e` is the sampling radius in WORLD units. Default 1.2 ≈ one terrain cell at
+// TSEG 520; pass a larger e for a big creature that should ignore pebbles and
+// stand on the general slope, a smaller one for something dainty.
+const _tnV = { x:0, y:1, z:0 };
+function terrainNormal(x, z, e){
+  e = e || 1.2;
+  const dx = terrainH(x + e, z) - terrainH(x - e, z);
+  const dz = terrainH(x, z + e) - terrainH(x, z - e);
+  // surface tangents are (2e, dx, 0) and (0, dz, 2e); their cross product,
+  // normalised, is the outward normal
+  const nx = -dx, ny = 2*e, nz = -dz;
+  const len = Math.hypot(nx, ny, nz) || 1;
+  _tnV.x = nx/len; _tnV.y = ny/len; _tnV.z = nz/len;
+  return _tnV;                      // reused object — copy it if you keep it
+}
+// same thing as a fresh THREE.Vector3, for callers that want to hold onto it
+function terrainNormalV(x, z, e){
+  const n = terrainNormal(x, z, e);
+  return new THREE.Vector3(n.x, n.y, n.z);
+}
+
+const VOLC = { x: VOLC_B.x*WS, z: VOLC_B.z*WS };
+const B2W  = (bx,bz)=>[bx*WS, bz*WS];
+
+// ---------------------------------------------------------------
+// THE VITAS' ROUTES — authored to USE the passes. Every north-south
+// crossing goes through a notch; nobody walks over a 48-unit peak.
+// ---------------------------------------------------------------
+const PASS_PT = PASSES.map(p => { const [x,z] = polyAt(RANGE, p.s); return { ...p, bx:x, bz:z }; });
+// Descents are SWITCHBACKED rather than plunging straight off the far side of
+// a pass — a route that drops 40 units in 8 is a cliff with a name on it.
+// ROUTE_GRADE (below) measures whether this actually worked.
+const ROUTES = [
+  { name:'camps → West Pass → the north shore',
+    pts:[[-6,48],[-16,34],[-27,20],[-33,2],[PASS_PT[0].bx,PASS_PT[0].bz],
+         [-36,-15],[-41,-21],[-45,-28],[-50,-35]] },
+  // ...and they stop on the SHORE of a fjord, not in it. Ending a walking
+  // route at the head of a drowned valley means ending it 10 units underwater.
+  { name:'camps → Middle Pass → the Drowned Vale shore',
+    pts:[[2,42],[-4,20],[-12,2],[PASS_PT[1].bx,PASS_PT[1].bz],
+         [-19,-22],[-18,-16],[-16,-6]] },
+  { name:'the hall → North Pass → the Kingsfjord shore',
+    pts:[[4,34],[6,12],[2,-14],[PASS_PT[2].bx,PASS_PT[2].bz],
+         [4,-42],[10,-40],[14,-35],[17,-30]] },
+  // THE SPIRAL ROAD. A straight radial climb up a 120-unit cone is a cliff
+  // scramble; wound round the mountain it is a walk. The cone stands close
+  // to the east coast, so a wide second loop would wade into the sea —
+  // instead the road makes its extra full turn TIGHT around the summit,
+  // a coiled crown the duke can be seen NOT climbing.
+  { name:"the hall → the spiral road → the crater rim (the king's-fruit errand)",
+    pts:[[6,34],[18,26],[26,14],[24,0],[21.6,-15.1],[25.3,-31.5],[39.8,-40.9],
+         [53,-36.1],[55.8,-25.7],[54.1,-17.3],[46,-14],[38.7,-17.8],[36.9,-25.5],
+         [41.6,-31.6],[48.8,-31.9],[53.5,-26.8],[52.4,-20.3],[49.3,-18.3]] },
+];
+const ROUTE_POLYS = ROUTES.map(r => makePoly(r.pts));
+function routeDist(bx,bz){
+  let best=1e9;
+  for(const p of ROUTE_POLYS){ const q=polyNear(p,bx,bz); if(q.d<best) best=q.d; }
+  return best;
+}
+
+// ---------------------------------------------------------------
+// THE FUNCTIONAL SPOTS — what the game needs, sited on the landform
+// ---------------------------------------------------------------
+const SPOTS = [
+  { key:'hall',    label:"👑 KING'S HALL",     bx:KING_B.x, bz:KING_B.z, r:7.5, fn:true,
+    note:'flat crown, 21 above the skirt — one climb from the camps, faces the volcano' },
+  { key:'camps',   label:'⛺ COMMONS TERRACE',  bx:-14, bz:33, r:12, fn:true,
+    note:'broad gentle flat — beach camps, the commons hoard' },
+  { key:'landing', label:'🛸 SAUCER LANDING',   bx:1,  bz:50, r:11, fn:true,
+    note:'the widest beach on the island — the south spit' },
+  { key:'forageW', label:'🫐 FORAGE KNOLL W',   bx:-31, bz:25, r:6, fn:true },
+  { key:'forageS', label:'🫐 FORAGE KNOLL S',   bx:-21, bz:40, r:5, fn:true },
+  { key:'surf',    label:'🌊 SURF BAY',         bx:40, bz:38, r:12, fn:true,
+    note:'a proper basin — surfing, sea life' },
+  { key:'volcano', label:"🍍 THE VOLCANO",      bx:VOLC_B.x, bz:VOLC_B.z, r:7, fn:true,
+    note:"the king's-fruit grows on the crater lip, ~120 units up (the game's is 37)" },
+  { key:'cove',    label:'🐢 TURTLE COVE',      bx:26, bz:45, r:7, fn:true },
+  { key:'pass0',   label:'⛰ '+PASS_PT[0].name, bx:PASS_PT[0].bx, bz:PASS_PT[0].bz, r:6, fn:true },
+  { key:'pass1',   label:'⛰ '+PASS_PT[1].name, bx:PASS_PT[1].bx, bz:PASS_PT[1].bz, r:6, fn:true },
+  { key:'pass2',   label:'⛰ '+PASS_PT[2].name, bx:PASS_PT[2].bx, bz:PASS_PT[2].bz, r:5, fn:true },
+  { key:'cliffs',  label:'🪨 THE CLIFFS',       bx:-47, bz:-45, r:0 },
+  { key:'vale',    label:'🌫 THE DROWNED VALE', bx:-33, bz:-19, r:0 },
+  { key:'kfjord',  label:'⚓ KINGSFJORD',       bx:27,  bz:-50, r:0 },
+  { key:'little',  label:'🏝 LITTLE GEORGELAND',bx:CO_B.x, bz:CO_B.z, r:0 },
+  // the secret. Just up the grass from Turtle Cove: an egg-shaped pearly
+  // stone the turtles will not go near. TOUCH IT (click it) and see.
+  { key:'egg',     label:'🥚 THE ODD EGG',      bx:20,  bz:34, r:2, fn:true,
+    note:'an egg-shaped stone that should not be here. The turtles refuse to look at it. Touch it.' },
+];
+for(const s of SPOTS){ s.x = s.bx*WS; s.z = s.bz*WS; s.y = terrainBase(s.bx, s.bz); }
+
+// ---------------------------------------------------------------
+// PLACES — the island's SENSE OF ITSELF (Doug's note).
+// SPOTS above are functional: where the game puts things. PLACES are
+// conversational: where a Vita KNOWS it is. Each carries a mood, what can be
+// seen from it, and a few things a Vita might actually say standing there.
+// The dialogue layer asks placeAt(x,z) and gets somewhere to talk about —
+// so "walking to the north shore" can become "we came over the West Pass and
+// the whole drowned valley opened up under us".
+//   kind: view | peril | shelter | work | water | sacred | passage
+//   mood: beautiful | dangerous | bleak | bountiful | eerie | homely
+// ---------------------------------------------------------------
+const PLACES = [
+  { key:'brink', name:'The Brink', bx:-47, bz:-45, r:26, kind:'view', mood:'dangerous',
+    what:'the lip of the north-west cliffs — forty units of nothing underneath',
+    sees:['stacks','valemouth'],
+    lines:["Don't go closer. The ground just stops.",
+           "You can hear the sea hitting the bottom from up here.",
+           "On a clear day this is the best view on the island. On any other day it's a grave."] },
+  { key:'stacks', name:'The Standing Stones', bx:-70, bz:-48, r:30, kind:'view', mood:'eerie',
+    what:'four sea stacks off the headland — what is left of a coast the sea ate',
+    sees:['brink'],
+    lines:["Those were part of the island once.",
+           "Birds nest out there and nothing else can reach them.",
+           "Give it long enough and the sea will come for the rest of it too."] },
+  { key:'valemouth', name:'The Mouth of the Vale', bx:-58, bz:-35, r:24, kind:'water', mood:'beautiful',
+    what:'where the Drowned Vale opens to the sea, between the cliff walls',
+    sees:['stacks','valehead'],
+    lines:["The water goes right in between the walls.",
+           "It's calm in there even when it's rough out here."] },
+  { key:'valehead', name:'The Head of the Vale', bx:-27, bz:-14, r:22, kind:'water', mood:'eerie',
+    what:'the far end of the drowned valley — salt water, this far inland',
+    sees:['valemouth','middlepass'],
+    lines:["Salt. This far in. The sea got into the middle of the island.",
+           "It's the quietest place I know.",
+           "You could walk the whole ridge and not know this was here."] },
+  { key:'westpass', name:'The West Pass', bx:-34, bz:-8, r:20, kind:'passage', mood:'bleak',
+    what:'the lowest notch through the range — the westerly way north',
+    sees:['brink','forageW'],
+    lines:["Through here, or three days round.",
+           "The wind never stops in the gap.",
+           "Everyone who goes north comes through here. Everyone."] },
+  { key:'middlepass', name:'The Middle Pass', bx:-42, bz:-62, r:20, kind:'passage', mood:'bleak',
+    what:'a saddle between two peaks, with the whole vale opening below the far side',
+    sees:['valehead','peaks'],
+    lines:["Come over the top and the valley just opens up under you.",
+           "Steep on the way down. Mind your footing."] },
+  { key:'northpass', name:'The North Pass', bx:-3, bz:-93, r:18, kind:'passage', mood:'bleak',
+    what:'the narrowest of the three notches, at the range\'s eastern end',
+    sees:['kingsfjord','volcano'],
+    lines:["Narrow. Two abreast and no more.",
+           "You can see the smoke from up here."] },
+  { key:'peaks', name:'The Bare Tops', bx:-70, bz:-40, r:34, kind:'view', mood:'bleak',
+    what:'above the treeline — bare rock, and snow on the highest crowns',
+    sees:['brink','middlepass','volcano'],
+    lines:["Nothing grows up here.",
+           "There's white on the top even now.",
+           "From up here the whole island is one shape."] },
+  { key:'kingsfjord', name:'Kingsfjord', bx:27, bz:-50, r:26, kind:'water', mood:'beautiful',
+    what:'a narrow blade of sea cut into the north coast, forest to the waterline',
+    sees:['northpass','volcano'],
+    lines:["The trees go right down to the water.",
+           "Deep. You couldn't touch the bottom.",
+           "It's the prettiest water on the island and nobody comes here."] },
+  { key:'volcano', name:'The Crater Rim', bx:VOLC_B.x, bz:VOLC_B.z, r:26, kind:'sacred', mood:'dangerous',
+    what:'the lip of the mountain, eighty units up, with the fruit growing on the edge',
+    sees:['peaks','kingsfjord','little','surf'],
+    lines:["It's warm. The rock is warm.",
+           "The king's fruit grows up HERE. Of course it does.",
+           "Look down. Now don't."] },
+  { key:'spiral', name:'The Spiral Road', bx:36, bz:-38, r:26, kind:'passage', mood:'bleak',
+    what:'the switchback that winds round the cone — the only walkable way up',
+    sees:['volcano','kingsfjord'],
+    lines:["Round and round. It'd be quicker straight up if straight up were possible.",
+           "Whoever's carrying does the walking. That's the arrangement."] },
+  { key:'basalt', name:'The Black Shore', bx:62, bz:-18, r:24, kind:'peril', mood:'bleak',
+    what:'the volcano\'s cape — black rock cliffs dropping straight into the sea',
+    sees:['volcano','little'],
+    lines:["The rock's black here. Sharp, too.",
+           "Nothing grows on this side."] },
+  { key:'hall', name:"The King's Crown", bx:KING_B.x, bz:KING_B.z, r:24, kind:'view', mood:'homely',
+    what:'the flat top of the plateau — the whole south of the island laid out below',
+    sees:['landing','terrace','volcano','surf'],
+    lines:["You can see every camp on the island from up here.",
+           "That's rather the point of it, isn't it.",
+           "The wind's cleaner up here than down at the camps."] },
+  { key:'terrace', name:'The Commons Terrace', bx:-14, bz:33, r:26, kind:'shelter', mood:'homely',
+    what:'the broad gentle flat where the camps stand',
+    sees:['hall','landing','forageS'],
+    lines:["Home, near enough.",
+           "Flat ground, fresh water, and the beach ten minutes down."] },
+  { key:'landing', name:'The Long Beach', bx:1, bz:50, r:28, kind:'shelter', mood:'beautiful',
+    what:'the widest sand on the island, on the south spit — where the saucer came down',
+    sees:['terrace','hall','cove'],
+    lines:["This is where we landed.",
+           "Miles of it. You can walk all afternoon and not reach the end.",
+           "The palms drop things. If you're patient."] },
+  { key:'cove', name:'Turtle Cove', bx:26, bz:45, r:20, kind:'water', mood:'bountiful',
+    what:'a sheltered notch in the coast where the turtles come ashore',
+    sees:['landing','surf'],
+    lines:["They come up at night to lay.",
+           "Don't touch the nests. Just don't.",
+           "Quiet water. Good for swimming, if you can."] },
+  { key:'surf', name:'The Surf Bay', bx:40, bz:38, r:26, kind:'water', mood:'beautiful',
+    what:'a deep basin at the hill\'s foot where the waves come in properly',
+    sees:['hall','cove','little'],
+    lines:["The waves come in big here.",
+           "Best afternoon on the island, this."] },
+  { key:'forageW', name:'The West Knoll', bx:-31, bz:25, r:18, kind:'work', mood:'bountiful',
+    what:'a berry-covered rise under the mountains\' feet',
+    sees:['westpass','terrace'],
+    lines:["Good picking on this side.",
+           "It comes back every year without anyone doing anything."] },
+  { key:'forageS', name:'The South Knoll', bx:-21, bz:40, r:16, kind:'work', mood:'bountiful',
+    what:'the smaller of the two forage rises, close to the camps',
+    sees:['terrace','landing'],
+    lines:["Closer than the west one. Picked over, mind."] },
+  { key:'strait', name:'The Strait', bx:64, bz:52, r:22, kind:'water', mood:'beautiful',
+    what:'the narrow water between Georgeland and the little island',
+    sees:['little','surf'],
+    lines:["You could swim it. On a calm day.",
+           "It looks closer than it is."] },
+  { key:'little', name:'Little Georgeland', bx:CO_B.x, bz:CO_B.z, r:30, kind:'view', mood:'eerie',
+    what:'the companion island across the strait — pines, one hill, nobody',
+    sees:['strait','volcano'],
+    lines:["Nobody's ever been over there.",
+           "Somebody could live there. Alone.",
+           "It just sits there looking back at us."] },
+  { key:'northshore', name:'The Far Shore', bx:-50, bz:-35, r:26, kind:'view', mood:'bleak',
+    what:'the north coast, beyond the range — the side of the island nobody lives on',
+    sees:['brink','peaks'],
+    lines:["Colder on this side.",
+           "Nobody comes here. That's rather the appeal."] },
+];
+for(const p of PLACES){ p.x = p.bx*WS; p.z = p.bz*WS; p.y = terrainBase(p.bx, p.bz); }
+const PLACE_BY_KEY = Object.fromEntries(PLACES.map(p=>[p.key, p]));
+// "where am I?" — nearest place whose awareness radius contains the point.
+// Returns null out in the anonymous middle of a hillside, which is correct:
+// not everywhere is somewhere.
+function placeAt(x, z){
+  let best = null, bestScore = Infinity;
+  for(const p of PLACES){
+    const d = Math.hypot(x-p.x, z-p.z);
+    if(d > p.r) continue;
+    const score = d / p.r;                    // nearest RELATIVE to its radius
+    if(score < bestScore){ bestScore = score; best = p; }
+  }
+  return best ? { place:best, dist:Math.hypot(x-best.x, z-best.z) } : null;
+}
+function placeLine(x, z){
+  const w = placeAt(x, z);
+  if(!w) return null;
+  const L = w.place.lines;
+  return { place:w.place.key, name:w.place.name, mood:w.place.mood,
+           line: L[Math.floor(RNG()*L.length)] };
+}
+
+// ======================================================================
+// 2. RENDERER / SCENE — georgeworld.html's palette, scaled to the map
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, LITE ? 1.5 : 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY = new THREE.Color(0xa5ddf5);
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 420, 1050);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.7, 3000);
+camera.position.set(-190, 210, 400);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(20, 20, 10);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.maxPolarAngle = Math.PI*0.495;
+controls.minDistance = 25;
+controls.maxDistance = 1400;
+
+scene.add(new THREE.HemisphereLight(0xd6ecff, 0xb7d59a, 0.95));
+const fill = new THREE.DirectionalLight(0xdfefff, 0.5);
+fill.position.set(-140, 120, 180); scene.add(fill);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.65);
+sun.position.set(190, 300, 110);
+sun.castShadow = true;
+sun.shadow.mapSize.set(LITE ? 1024 : 2048, LITE ? 1024 : 2048);
+sun.shadow.camera.left=-360; sun.shadow.camera.right=360;
+sun.shadow.camera.top=360;  sun.shadow.camera.bottom=-360;
+sun.shadow.camera.near = 20; sun.shadow.camera.far = 900;
+sun.shadow.bias = -0.0009;
+scene.add(sun);
+
+// ======================================================================
+// 3. THE TERRAIN MESH
+//    Heights are baked into a grid FIRST, then slope is read from the grid
+//    (4 neighbour lookups instead of 4 more full evaluations of a function
+//    with two polyline searches and six fbm calls in it). ~200k verts.
+// ======================================================================
+// 520 rather than 460: the bedded cliff faces need enough cells across the
+// drop to resolve their ledges, or the strata alias into noise
+const TSIZE = 620, TSEG = LITE ? 300 : 520;   // 1.19 world units per cell (2.07 lite)
+const gridN = TSEG + 1;
+const H = new Float32Array(gridN*gridN);
+const gx0 = -TSIZE/2, cell = TSIZE/TSEG;
+
+const tGeo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+tGeo.rotateX(-Math.PI/2);
+
+const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+const cGrassD = new THREE.Color(0x4a8f52);                    // damp valley green
+// cDeep is DELIBERATELY the deep plane's exact colour: past 7 units down the
+// terrain grid and the infinite floor are the same pixel, so the grid's rim
+// is invisible however far out you fly.
+const DEEP_HEX = 0x1a6a83;
+const cRock   = new THREE.Color(0xa29383), cRockHi = new THREE.Color(0xbcb0a2);
+const cCliff  = new THREE.Color(0x6f6a63), cCliffD = new THREE.Color(0x4c4842);
+const cSand   = new THREE.Color(0xeed9a4), cDeep = new THREE.Color(DEEP_HEX);
+const cShoal  = new THREE.Color(0x9fcfbe);
+const cBasalt = new THREE.Color(0x33291f), cScoria = new THREE.Color(0x5a3327);
+const cSnow   = new THREE.Color(0xf2f6fa);
+const cPath   = new THREE.Color(0xd9b98a);
+const cStrata = new THREE.Color(0xb3a897);   // pale bedding bands on a cliff face
+const cWet    = new THREE.Color(0x3f3a33);   // the surf-soaked foot of it
+
+{
+  const pos = tGeo.attributes.position;
+  // pass 1 — bake heights
+  stage('shaping the land', 0.02, 0.34);
+  for(let i=0;i<pos.count;i++){
+    const h = terrainH(pos.getX(i), pos.getZ(i));
+    H[i] = h; pos.setY(i, h);
+    if((i & 2047) === 0) await tickBuild(i/pos.count);
+  }
+  // pass 2 — colour by height, slope, bearing and neighbourhood
+  stage('painting the land', 0.36, 0.22);
+  const colors = new Float32Array(pos.count*3);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    if((i & 2047) === 0) await tickBuild(i/pos.count);
+    const x = pos.getX(i), z = pos.getZ(i), h = H[i];
+    const r = (i/gridN)|0, q = i%gridN;
+    const hL = H[i - (q>0?1:0)], hR = H[i + (q<gridN-1?1:0)];
+    const hU = H[i - (r>0?gridN:0)], hD = H[i + (r<gridN-1?gridN:0)];
+    const slope = Math.hypot(hR-hL, hD-hU) / (2*cell);   // rise over run
+
+    const bx = x/WS, bz = z/WS;
+    const n = 0.5 + 0.5*Math.sin(x*0.09+3)*Math.sin(z*0.075+1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    c.lerp(cGrassD, sstep(0.05, 0.6, fbm(bx*0.07+5, bz*0.07-2, 3)) * 0.45);
+
+    // rock takes over on steep ground and high ground
+    // rock takes the STEEP ground, not merely the sloping ground — at 0.55 the
+    // king's hill and every knoll came out bare brown instead of grassy
+    const rocky = Math.max(sstep(0.80, 1.25, slope), sstep(30, 44, h));
+    c.lerp(h > 34 ? cRockHi : cRock, rocky);
+    // genuinely VERTICAL faces read as dark cleaved cliff, not as hillside
+    c.lerp(cCliff, sstep(1.05, 1.70, slope));
+    c.lerp(cCliffD, sstep(1.60, 2.60, slope));
+
+    // SEA-CLIFF DRESSING. Geometry alone reads as grey rubble; what makes a
+    // cliff legible from a distance is the horizontal banding, the dark wet
+    // band the surf keeps washing, and a bare stone lip along the top edge
+    // where nothing manages to grow.
+    const cf = cliffness(Math.atan2(z/WS, x/WS));
+    if(cf > 0.15){
+      const steep = sstep(0.75, 1.6, slope);
+      const band = 0.5 + 0.5*Math.sin(h*0.62 + 2.2*fbm(bx*0.07+3, bz*0.07-5, 2));
+      c.lerp(cStrata, cf*steep*band*0.45);
+      c.lerp(cWet,    cf*steep*(1 - sstep(1.5, 9, h))*0.70);
+      c.lerp(cRock,   cf*(1 - sstep(0.25, 0.6, slope))*sstep(16, 30, h)*0.40);
+    }
+
+    // SNOW — only on the range's high peaks. The volcano is too warm for it.
+    const vrw = Math.hypot(x-VOLC.x, z-VOLC.z);
+    const snow = sstep(40, 52, h) * (1 - sstep(0.9, 1.5, slope)) * sstep(85, 135, vrw);
+    c.lerp(cSnow, snow);
+
+    // the SAND RING, but only where the coast is not a cliff. Wide on the
+    // south spit and in the coves; nothing at all under the headland.
+    const ang = Math.atan2(bz, bx);
+    const beachy = 1 - cliffness(ang);
+    const sandW = (1.4 + 1.3*Math.sin(ang*3+1.2) + 0.9*Math.sin(ang*7+3.1)
+                   + 2.2*sstep(0.2, 0.95, Math.sin(ang - 1.4))) * beachy;
+    if(sandW > 0.1){
+      const ts = (1 - sstep(sandW, sandW+1.4, h)) * (1 - rocky*0.8) * (1 - sstep(0.5,0.9,slope));
+      c.lerp(cSand, clamp(ts,0,1));
+    }
+
+    // the volcano's burnt apron + scoria fans down the rilles
+    if(vrw < 44*WS/2.5*2.5){
+      const ba = 1 - sstep(16*WS, 34*WS, vrw);
+      c.lerp(cScoria, ba*0.55);
+      c.lerp(cBasalt, (1 - sstep(7*WS, 20*WS, vrw)) * 0.92);
+    }
+
+    // the Vitas' worn routes — pale trodden ground through the passes
+    // ...kept NARROW. At 3.2 base the four routes bundle near the hall and the
+    // tint merges into a tan plaza instead of reading as trodden trails.
+    if(h > 0.6){
+      const rd = routeDist(bx, bz);
+      if(rd < 1.8) c.lerp(cPath, (1 - rd/1.8)*0.45);
+    }
+
+    // underwater
+    if(h < 0){
+      c.lerp(cShoal, clamp(-h/2.2, 0, 1)*0.8);
+      c.lerp(cDeep,  clamp(-h/7,   0, 1));      // full lerp: exact match at depth
+    }
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+  }
+  tGeo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  tGeo.computeVertexNormals();
+}
+const terrain = new THREE.Mesh(tGeo,
+  new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:false }));
+terrain.receiveShadow = true; terrain.castShadow = true;
+scene.add(terrain);
+
+// ======================================================================
+// 4. WATER — one sheet at y=0 (it floods the fjords for free) + a deep floor
+// ======================================================================
+const deep = new THREE.Mesh(new THREE.PlaneGeometry(3400,3400),
+  new THREE.MeshBasicMaterial({ color:DEEP_HEX }));
+deep.rotation.x = -Math.PI/2; deep.position.y = -11; scene.add(deep);
+
+// the sheet has to out-run the fog, or its far edge shows as a hard square
+const wGeo = new THREE.PlaneGeometry(3000, 3000, 110, 110);
+wGeo.rotateX(-Math.PI/2);
+const wBase = wGeo.attributes.position.array.slice();
+const water = new THREE.Mesh(wGeo, new THREE.MeshPhongMaterial({
+  color:0x3ec6e0, transparent:true, opacity:0.80, flatShading:true,
+  shininess:80, specular:0x9adfff }));
+scene.add(water);
+
+// ======================================================================
+// 5. GEOMETRY KIT — merge by hand (no BufferGeometryUtils in vendor/)
+// ======================================================================
+function prep(g, hex, mat){                    // bake a colour + a transform in
+  const ng = g.toNonIndexed();
+  if(mat) ng.applyMatrix4(mat);
+  ng.computeVertexNormals();
+  const n = ng.attributes.position.count;
+  const col = new Float32Array(n*3);
+  const c = new THREE.Color(hex);
+  for(let i=0;i<n;i++){ col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
+  ng.setAttribute('color', new THREE.BufferAttribute(col,3));
+  g.dispose();
+  return ng;
+}
+function mergeGeos(list){
+  let n=0; for(const g of list) n += g.attributes.position.count;
+  const P=new Float32Array(n*3), N=new Float32Array(n*3), C=new Float32Array(n*3);
+  let o=0;
+  for(const g of list){
+    P.set(g.attributes.position.array, o*3);
+    N.set(g.attributes.normal.array,   o*3);
+    C.set(g.attributes.color.array,    o*3);
+    o += g.attributes.position.count;
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(P,3));
+  out.setAttribute('normal',   new THREE.BufferAttribute(N,3));
+  out.setAttribute('color',    new THREE.BufferAttribute(C,3));
+  out.computeBoundingSphere();
+  return out;
+}
+const M = (x,y,z,sx,sy,sz,ry)=>{
+  const m = new THREE.Matrix4();
+  m.compose(new THREE.Vector3(x,y,z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry||0, 0)),
+    new THREE.Vector3(sx, sy===undefined?sx:sy, sz===undefined?sx:sz));
+  return m;
+};
+
+// --- a PINE, two ways: full (60 tris) and a far silhouette (14 tris)
+function pineHi(){
+  return mergeGeos([
+    prep(new THREE.CylinderGeometry(0.26,0.42,3.2,6), 0x5b4433, M(0,1.6,0,1)),
+    prep(new THREE.ConeGeometry(2.5, 5.0, 8), 0x2f6b3e, M(0,4.6,0,1)),
+    prep(new THREE.ConeGeometry(1.8, 4.2, 8), 0x357a45, M(0,7.4,0,1)),
+    prep(new THREE.ConeGeometry(1.1, 3.0, 7), 0x3d8a4c, M(0,9.9,0,1)),
+  ]);
+}
+function pineLo(){
+  return mergeGeos([
+    prep(new THREE.CylinderGeometry(0.3,0.45,2.6,3), 0x5b4433, M(0,1.3,0,1)),
+    prep(new THREE.ConeGeometry(2.4, 9.6, 5), 0x336f41, M(0,7.0,0,1)),
+  ]);
+}
+// --- a PALM: trunk + six drooping fronds (beaches only)
+function palmHi(){
+  const parts = [prep(new THREE.CylinderGeometry(0.22,0.42,6.4,6), 0x8a6b45, M(0,3.2,0,1))];
+  for(let i=0;i<6;i++){
+    const a = i/6*TAU + 0.4;
+    const g = new THREE.BoxGeometry(4.4, 0.16, 1.05);
+    const m = new THREE.Matrix4().compose(
+      new THREE.Vector3(Math.cos(a)*2.2, 6.5 - 0.5, Math.sin(a)*2.2),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -a, -0.42)),
+      new THREE.Vector3(1,1,1));
+    parts.push(prep(g, i%2 ? 0x4f9c4a : 0x5cae55, m));
+  }
+  return mergeGeos(parts);
+}
+function palmLo(){
+  return mergeGeos([
+    prep(new THREE.CylinderGeometry(0.26,0.44,6.2,4), 0x8a6b45, M(0,3.1,0,1)),
+    prep(new THREE.ConeGeometry(3.0, 1.5, 5), 0x53a44e, M(0,6.6,0,1)),
+  ]);
+}
+// --- ROCKS: cleaved and eroded variants, flat shaded
+function rockGeo(seed, hex){
+  const r = mulberry32(seed);
+  const g = new THREE.IcosahedronGeometry(1, 1).toNonIndexed();
+  const p = g.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const j = Math.round(p.getX(i)*7)+Math.round(p.getY(i)*7)*13+Math.round(p.getZ(i)*7)*97;
+    const k = mulberry32(seed+j*7919)();
+    const f = 0.62 + k*0.72;
+    p.setXYZ(i, p.getX(i)*f, p.getY(i)*f*(0.5+r()*0.5), p.getZ(i)*f);
+  }
+  return prep(g, hex, null);
+}
+// --- a CRAG: a tall splintered pillar for cliff tops and the crater lip
+function cragGeo(seed, hex){
+  const r = mulberry32(seed);
+  const g = new THREE.CylinderGeometry(0.35, 1.1, 3.4, 5, 2).toNonIndexed();
+  const p = g.attributes.position;
+  for(let i=0;i<p.count;i++){
+    p.setXYZ(i, p.getX(i)*(0.7+r()*0.7), p.getY(i)*(0.85+r()*0.45), p.getZ(i)*(0.7+r()*0.7));
+  }
+  return prep(g, hex, null);
+}
+// --- a GRASS TUFT: three crossed blades
+function tuftGeo(){
+  const parts=[];
+  for(let i=0;i<3;i++){
+    const a=i/3*Math.PI;
+    parts.push(prep(new THREE.PlaneGeometry(0.55, 1.5),
+      i===1?0x7fc46a:0x6ab05c,
+      new THREE.Matrix4().compose(new THREE.Vector3(0,0.75,0),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0,a,0)),
+        new THREE.Vector3(1,1,1))));
+  }
+  return mergeGeos(parts);
+}
+
+// ======================================================================
+// 6. SCATTER — chunked InstancedMeshes.
+//    Two things keep a 200-hectare island cheap:
+//      CULLING  — instances are bucketed into a 110-unit chunk grid, one
+//                 InstancedMesh per (kind, chunk). Three frustum-culls each
+//                 chunk by its bounding sphere, so looking at the volcano
+//                 costs nothing for the far side of the range.
+//      LOD      — every chunk carries a HI and a LO instanced mesh over the
+//                 same transforms; tick() shows exactly one, by camera
+//                 distance to the chunk centre. Grass drops out entirely
+//                 past its range.
+// ======================================================================
+const flora  = new THREE.Group(); scene.add(flora);
+const rockG  = new THREE.Group(); scene.add(rockG);
+const grassG = new THREE.Group(); scene.add(grassG);
+const OBSTACLES = [];
+
+const CHUNK = 110;
+const chunkKey = (x,z)=>`${Math.floor(x/CHUNK)},${Math.floor(z/CHUNK)}`;
+
+function buildChunked(items, hiGeo, loGeo, parent, opts){
+  const o = Object.assign({ lod:340, cull:1e9, shadow:true }, opts||{});
+  const buckets = new Map();
+  for(const it of items){
+    const k = chunkKey(it.x, it.z);
+    if(!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(it);
+  }
+  const mat = new THREE.MeshLambertMaterial({ vertexColors:true,
+    flatShading:!!o.flat, side: o.side || THREE.FrontSide,
+    transparent:!!o.alpha, alphaTest: o.alpha?0.5:0 });
+  const chunks = [];
+  const mtx = new THREE.Matrix4(), col = new THREE.Color();
+  for(const [k, list] of buckets){
+    const mk = (geo)=>{
+      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      im.castShadow = o.shadow; im.receiveShadow = false;
+      list.forEach((it, i)=>{
+        mtx.compose(new THREE.Vector3(it.x, it.y, it.z),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(it.rx||0, it.ry||0, it.rz||0)),
+          new THREE.Vector3(it.sx, it.sy, it.sz));
+        im.setMatrixAt(i, mtx);
+        im.setColorAt(i, col.setRGB(it.cr, it.cg, it.cb));
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if(im.instanceColor) im.instanceColor.needsUpdate = true;
+      im.frustumCulled = true;
+      im.computeBoundingSphere();
+      return im;
+    };
+    let cx=0, cz=0;
+    for(const it of list){ cx+=it.x; cz+=it.z; }
+    cx/=list.length; cz/=list.length;
+    const hi = mk(hiGeo), lo = loGeo ? mk(loGeo) : null;
+    if(lo) lo.visible = false;
+    parent.add(hi); if(lo) parent.add(lo);
+    chunks.push({ hi, lo, cx, cz, lod:o.lod, cull:o.cull, n:list.length });
+  }
+  return chunks;
+}
+const ALL_CHUNKS = [];
+
+// ---------- placement rules ----------
+// Nothing is uniform random. Each kind gets a RULE, sampled by rejection over
+// the island's bounding box, so the scatter reads as ecology rather than noise.
+function slopeAt(x, z){
+  const e = 1.6;
+  return Math.hypot(terrainH(x+e,z)-terrainH(x-e,z), terrainH(x,z+e)-terrainH(x,z-e)) / (2*e);
+}
+function volDist(x,z){ return Math.hypot(x-VOLC.x, z-VOLC.z); }
+
+// CLEARINGS — the functional spots stay bald. A king's hall on a commanding
+// crown is not commanding if the crown is under 40 pines, and a saucer needs
+// somewhere to put itself down. Base coords, base radii.
+const CLEARINGS = [
+  { x:KING_B.x, z:KING_B.z, r:9 },    // the hall's flat crown
+  { x:-14, z: 33, r:12 },             // the commons terrace — camps
+  { x:  1, z: 50, r:15 },             // the landing beach
+  { x: 40, z: 38, r:11 },             // the surf bay shore
+  { x: 20, z: 34, r:5 },              // the odd egg — nothing dares grow near it
+];
+function inClearing(x, z){
+  const bx = x/WS, bz = z/WS;
+  for(const c of CLEARINGS) if(Math.hypot(bx-c.x, bz-c.z) < c.r) return true;
+  return false;
+}
+
+const HALF = TSIZE/2 - 6;
+// async so a long rejection-sampling run cannot lock the main thread; LITE
+// halves both the target and the try budget
+async function scatter(n, tries, accept){
+  if(LITE){ n = Math.round(n*0.5); tries = Math.round(tries*0.5); }
+  const out = [];
+  for(let a=0; a<tries && out.length<n; a++){
+    const x = rnd(-HALF, HALF), z = rnd(-HALF, HALF);
+    const h = terrainH(x, z);
+    const it = accept(x, z, h);
+    if(it){ it.x=x; it.z=z; it.y=h + (it.dy||0); out.push(it); }
+    if((a & 1023) === 0) await tickBuild(Math.max(a/tries, out.length/n));
+  }
+  return out;
+}
+function tint(base, jitter){
+  const c = new THREE.Color(base);
+  const f = 1 + rnd(-jitter, jitter);
+  return { cr: clamp(c.r*f,0,1), cg: clamp(c.g*f,0,1), cb: clamp(c.b*f,0,1) };
+}
+
+// --- PINES: the range's skirts, the hill flanks, the volcano's lower slopes.
+//     Density falls off with altitude and refuses cliffs, sand and basalt.
+stage('planting the forests', 0.58, 0.16);
+const pines = await scatter(3100, 60000, (x,z,h)=>{
+  if(h < 3.5 || h > 36) return null;
+  if(inClearing(x,z)) return null;
+  const s = slopeAt(x,z);
+  if(s > 1.05) return null;
+  const vd = volDist(x,z);
+  if(vd < 22*WS) return null;                       // nothing grows on the apron
+  // a REAL TREELINE. Above 35 the range is bare rock, which is the only way a
+  // mountain reads as a mountain instead of as a lumpy green blanket.
+  const alt = 1 - sstep(24, 35, h);
+  const near = 1 - sstep(0, 40*WS, polyNear(RANGE, x/WS, z/WS).d);
+  const p = 0.13 + 0.46*near + 0.16*sstep(0.25,0.8,s);
+  if(RNG() > p*alt) return null;
+  const sc = rnd(0.75, 1.5) * (1 - 0.3*sstep(24,35,h));
+  return { sx:sc*rnd(0.85,1.15), sy:sc*rnd(0.9,1.35), sz:sc*rnd(0.85,1.15),
+           ry:rnd(0,TAU), dy:-0.3, ...tint(0xffffff, 0.13) };
+});
+for(const p of pines) if(p.sx > 1.1) OBSTACLES.push({ x:p.x, z:p.z, r:0.7 });
+ALL_CHUNKS.push(...buildChunked(pines, pineHi(), pineLo(), flora, { lod:300 }));
+
+// --- PALMS: the beaches only. Never on the cliff coast, never above the berm.
+stage('planting the beaches', 0.74, 0.05);
+const palms = await scatter(700, 40000, (x,z,h)=>{
+  if(h < 0.5 || h > 4.2) return null;
+  if(inClearing(x,z) && Math.hypot(x/WS-1, z/WS-50) < 11) return null;  // saucer pad stays clear
+  if(slopeAt(x,z) > 0.42) return null;
+  const ang = Math.atan2(z/WS, x/WS);
+  if(cliffness(ang) > 0.25) return null;            // no palms on a cliff top
+  if(volDist(x,z) < 26*WS) return null;
+  const sc = rnd(0.85, 1.5);
+  return { sx:sc, sy:sc*rnd(0.85,1.3), sz:sc, ry:rnd(0,TAU),
+           rz:rnd(-0.13,0.13), dy:-0.2, ...tint(0xffffff, 0.1) };
+});
+for(const p of palms) OBSTACLES.push({ x:p.x, z:p.z, r:0.8 });
+ALL_CHUNKS.push(...buildChunked(palms, palmHi(), palmLo(), flora, { lod:380 }));
+
+// --- ROCKS: five variants, placed by RULE — shoreline wrack, cliff-base talus,
+//     crest scree, the volcano's bomb field, fjord walls.
+const rockGeos = [
+  rockGeo(11, 0x9d9184), rockGeo(29, 0x8b8175), rockGeo(53, 0xa8a094),
+  rockGeo(71, 0x6d655c), rockGeo(97, 0x4a413a),
+];
+stage('scattering rock', 0.79, 0.09);
+const rocks = await scatter(3000, 60000, (x,z,h)=>{
+  if(inClearing(x,z)) return null;
+  const s = slopeAt(x,z);
+  const vd = volDist(x,z);
+  // the cone above its skirt is SMOOTH — steepness alone must not gravel it.
+  // A modest bomb field survives on the lower apron (h<26), nothing above.
+  if(vd < 30*WS && h > 26) return null;
+  // shoreline wrack — but a SAND beach is sand, not shingle. Boulders gather
+  // where the coast is rocky; the landing beach and the coves stay clean.
+  const shore  = (h > -1.5 && h < 2.4)
+    ? 0.06 + 0.62*cliffness(Math.atan2(z/WS, x/WS)) : 0;
+  const talus  = sstep(0.9, 1.7, s) * 0.9;
+  // crest boulders are a RANGE thing — the volcano's flanks stay smooth,
+  // so the height test only fires away from the cone
+  const crest  = (vd > 32*WS) ? sstep(30, 46, h) * 0.8 : 0;
+  const volc   = (vd < 30*WS) ? 0.4*(1 - sstep(6*WS, 30*WS, vd)) : 0;
+  const fjord  = Math.min(1, ...FJORDS.map(f => sstep(0, 9, polyNear(f.poly, x/WS, z/WS).d))) < 0.6 ? 0.5 : 0;
+  const p = Math.min(0.95, shore + talus + crest + volc + fjord);
+  if(p <= 0.02 || RNG() > p) return null;
+  if(h < -3) return null;
+  const dark = vd < 26*WS;
+  const sc = rnd(0.5, 2.6) * (1 + 1.2*crest);
+  return { v: dark ? 4 : (h > 30 ? 3 : (RNG()*3)|0),
+           sx:sc*rnd(0.8,1.4), sy:sc*rnd(0.5,1.1), sz:sc*rnd(0.8,1.4),
+           rx:rnd(-0.25,0.25), ry:rnd(0,TAU), rz:rnd(-0.25,0.25),
+           dy:-sc*0.28, ...tint(0xffffff, 0.16) };
+});
+for(let v=0; v<rockGeos.length; v++){
+  const sub = rocks.filter(r => r.v === v);
+  if(sub.length) ALL_CHUNKS.push(...buildChunked(sub, rockGeos[v], null, rockG,
+    { lod:1e9, flat:true }));
+}
+for(const r of rocks) if(r.sx > 1.6) OBSTACLES.push({ x:r.x, z:r.z, r:r.sx*0.8 });
+
+// --- CRAGS: the drama tax. Splintered pillars on the cliff rim and the
+//     three peaks that flank the passes. NOT on the volcano any more —
+//     the cone's drama is its silhouette, and spires would break the
+//     soft storybook profile.
+stage('raising the crags', 0.88, 0.04);
+const crags = await scatter(520, 30000, (x,z,h)=>{
+  const s = slopeAt(x,z);
+  const ang = Math.atan2(z/WS, x/WS);
+  const vd = volDist(x,z);
+  if(vd < 34*WS) return null;                    // the smooth cone stays smooth
+  const rim   = (cliffness(ang) > 0.5 && h > 12 && s > 0.35) ? 0.6 : 0;
+  const peaks = sstep(34, 48, h) * 0.7;
+  const p = Math.min(0.9, rim + peaks);
+  if(p <= 0.02 || RNG() > p) return null;
+  const sc = rnd(1.0, 3.4);
+  return { v: vd < 26*WS ? 1 : 0,
+           sx:sc*rnd(0.7,1.2), sy:sc*rnd(1.4,3.2), sz:sc*rnd(0.7,1.2),
+           rx:rnd(-0.12,0.12), ry:rnd(0,TAU), rz:rnd(-0.12,0.12),
+           dy:-sc*0.6, ...tint(0xffffff, 0.12) };
+});
+const cragGeos = [ cragGeo(7, 0x8a8177), cragGeo(23, 0x453c34) ];
+for(let v=0; v<2; v++){
+  const sub = crags.filter(c => c.v === v);
+  if(sub.length) ALL_CHUNKS.push(...buildChunked(sub, cragGeos[v], null, rockG,
+    { lod:1e9, flat:true }));
+}
+for(const c of crags) OBSTACLES.push({ x:c.x, z:c.z, r:c.sx*0.9 });
+
+// --- GRASS: ~14k tufts, chunk-culled and dropped entirely past 260 units.
+stage('seeding the grass', 0.92, 0.07);
+const tufts = await scatter(14000, 90000, (x,z,h)=>{
+  if(h < 1.6 || h > 34) return null;
+  if(slopeAt(x,z) > 0.85) return null;
+  if(volDist(x,z) < 24*WS) return null;
+  const sc = rnd(0.7, 1.9);
+  return { sx:sc*rnd(0.8,1.3), sy:sc*rnd(0.8,1.7), sz:sc, ry:rnd(0,TAU),
+           dy:-0.12, ...tint(0xffffff, 0.2) };
+});
+const GRASS_MAT_HOLDER = [];
+{
+  const chunks = buildChunked(tufts, tuftGeo(), null, grassG,
+    { lod:1e9, cull:260, shadow:false, side:THREE.DoubleSide });
+  // wind, injected into the standard Lambert vertex stage
+  const mat = chunks[0] && chunks[0].hi.material;
+  if(mat){
+    mat.onBeforeCompile = (sh)=>{
+      sh.uniforms.uTime = { value:0 };
+      GRASS_MAT_HOLDER.push(sh.uniforms.uTime);
+      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         #ifdef USE_INSTANCING
+           vec3 wp = vec3(instanceMatrix[3][0], 0.0, instanceMatrix[3][2]);
+           float sway = transformed.y * 0.20;
+           transformed.x += sin(uTime*1.5 + wp.x*0.06 + wp.z*0.04) * sway;
+           transformed.z += cos(uTime*1.2 + wp.z*0.05) * sway * 0.55;
+         #endif`);
+    };
+  }
+  ALL_CHUNKS.push(...chunks);
+}
+
+// ======================================================================
+// 7. THE VOLCANO'S BREATH — the game's plume, scaled to a bigger mountain
+// ======================================================================
+const volcano = (()=>{
+  const g = new THREE.Group();
+  const floorY = terrainH(VOLC.x, VOLC.z);
+  const crust = new THREE.Mesh(new THREE.CircleGeometry(11*WS/2.5*2.5*0.5, 24),
+    new THREE.MeshLambertMaterial({ color:0x1c1512, flatShading:true }));
+  crust.rotation.x = -Math.PI/2;
+  crust.position.set(VOLC.x, floorY+0.5, VOLC.z); g.add(crust);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(9, 22),
+    new THREE.MeshBasicMaterial({ color:0xff5a2a, transparent:true, opacity:0.30, depthWrite:false }));
+  glow.rotation.x = -Math.PI/2;
+  glow.position.set(VOLC.x, floorY+0.75, VOLC.z); g.add(glow);
+  const light = new THREE.PointLight(0xff6a30, 3.2, 190, 2);
+  light.position.set(VOLC.x, floorY+8, VOLC.z); g.add(light);
+
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const px = cv.getContext('2d');
+  const grad = px.createRadialGradient(32,32,4,32,32,30);
+  grad.addColorStop(0,   'rgba(158,150,142,0.92)');
+  grad.addColorStop(0.55,'rgba(172,165,158,0.44)');
+  grad.addColorStop(1,   'rgba(182,175,168,0)');
+  px.fillStyle = grad; px.fillRect(0,0,64,64);
+  const tex = new THREE.CanvasTexture(cv);
+  const puffs = [];
+  for(let i=0;i<11;i++){
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true,
+      depthWrite:false, opacity:0 }));
+    g.add(sp); puffs.push({ sp, t:i/11, drift: rnd(0,TAU) });
+  }
+  scene.add(g);
+  return { g, glow, light, puffs, floorY };
+})();
+
+// ======================================================================
+// 7½. THE EASTER EGG — the CRYSTAL GROTTO (a secret; tell nobody)
+// ======================================================================
+// Deep under the volcano hangs a chamber no tunnel reaches: a dripstone
+// grotto around a glowing pool, walls set with living jewels, a gold
+// hoard nobody has ever counted. NOT realistic. That is the point.
+//
+// THE WAY IN: the 🥚 ODD EGG spot up the grass from Turtle Cove.
+// TOUCH IT (click it) and the island blinks you down here. The purple
+// dev button under VIEWS makes the same jump without the walk.
+const EGG_C = new THREE.Vector3(VOLC.x, -260, VOLC.z);
+const egg = (()=>{
+  const g = new THREE.Group(); g.position.copy(EGG_C);
+
+  // --- the shell: a lumpy ellipsoid cave, seen from the inside
+  const domeGeo = new THREE.SphereGeometry(40, 44, 30);
+  domeGeo.scale(1, 0.75, 1);
+  const dp = domeGeo.attributes.position;
+  for(let i=0;i<dp.count;i++){
+    const x=dp.getX(i), y=dp.getY(i), z=dp.getZ(i);
+    const n = 1 + 0.11*((fbm(x*0.09 + y*0.07, z*0.09 - y*0.05, 3) - 0.5)*2);
+    dp.setXYZ(i, x*n, y*n, z*n);
+  }
+  domeGeo.computeVertexNormals();
+  g.add(new THREE.Mesh(domeGeo, new THREE.MeshStandardMaterial({
+    color:0x37324a, roughness:0.95, side:THREE.BackSide, flatShading:true })));
+
+  // --- the floor, gently uneven
+  const floorGeo = new THREE.CircleGeometry(37, 56);
+  floorGeo.rotateX(-Math.PI/2);
+  const fp = floorGeo.attributes.position;
+  for(let i=0;i<fp.count;i++)
+    fp.setY(i, fp.getY(i) + 1.3*((fbm(fp.getX(i)*0.12+7, fp.getZ(i)*0.12-3, 2)-0.5)*2));
+  floorGeo.computeVertexNormals();
+  const floor = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({
+    color:0x2c2838, roughness:0.95, flatShading:true }));
+  floor.position.y = -10; g.add(floor);
+
+  // --- the glowing pool
+  const poolMat = new THREE.MeshStandardMaterial({ color:0x0a5a4c,
+    emissive:0x2fe8c9, emissiveIntensity:1.4, roughness:0.15 });
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(8.5, 40), poolMat);
+  pool.rotation.x = -Math.PI/2; pool.position.set(-6, -8.35, 5); g.add(pool);
+  const poolLight = new THREE.PointLight(0x3cffd9, 7, 95, 2);
+  poolLight.position.set(-6, -2, 5); g.add(poolLight);
+
+  // --- dripstone: stalactites off the ceiling, stalagmites off the floor
+  const dripMat = new THREE.MeshStandardMaterial({ color:0x554d68,
+    roughness:0.9, flatShading:true });
+  const dripGeo = new THREE.ConeGeometry(1, 1, 6);
+  const ceilY = r => 0.75*Math.sqrt(Math.max(0, 1600 - r*r)) * 0.94;
+  for(let i=0;i<38;i++){
+    const a = rnd(0,TAU), r = rnd(5, 31);
+    const m = new THREE.Mesh(dripGeo, dripMat);
+    const len = rnd(4, 15);
+    m.scale.set(rnd(0.8,2.1), len, rnd(0.8,2.1));
+    m.position.set(Math.cos(a)*r, ceilY(r) - len/2 + 1, Math.sin(a)*r);
+    m.rotation.x = Math.PI; g.add(m);
+  }
+  for(let i=0;i<24;i++){
+    const a = rnd(0,TAU), r = rnd(6, 33);
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
+    if(Math.hypot(x+6, z-5) < 11) continue;          // not in the pool
+    if(Math.hypot(x-15, z+8) < 7) continue;          // not in the hoard
+    const m = new THREE.Mesh(dripGeo, dripMat);
+    const len = rnd(2.5, 9);
+    m.scale.set(rnd(1.0,2.6), len, rnd(1.0,2.6));
+    m.position.set(x, -10 + len/2 - 0.6, z); g.add(m);
+  }
+
+  // --- jewels set in the walls: six living colours, pulsing out of phase
+  const JEWELS = [0xff3b6b, 0x37e05a, 0x3b7bff, 0xc44dff, 0xffd23b, 0x37e8e0];
+  const gemMats = JEWELS.map(cc => new THREE.MeshStandardMaterial({
+    color:cc, emissive:cc, emissiveIntensity:0.85, roughness:0.15, metalness:0.35 }));
+  // each gem raycast onto the ACTUAL lumpy wall, then pulled 0.7 in —
+  // set INTO the rock, not floating near it
+  const gemGeo = new THREE.OctahedronGeometry(1);
+  const dome = g.children[0];
+  g.updateMatrixWorld(true);           // rays need world matrices; g isn't in the scene yet
+  const wallRay = new THREE.Raycaster();
+  const _dir = new THREE.Vector3();
+  for(let i=0;i<84;i++){
+    const th = rnd(0,TAU), y = rnd(-0.28, 0.96);
+    const rr = Math.sqrt(1 - y*y);
+    _dir.set(Math.cos(th)*rr, y*0.75, Math.sin(th)*rr).normalize();
+    wallRay.set(EGG_C.clone(), _dir);
+    const hit = wallRay.intersectObject(dome, false)[0];
+    if(!hit) continue;
+    const m = new THREE.Mesh(gemGeo, gemMats[i % gemMats.length]);
+    const s = rnd(0.45, 1.25);
+    m.scale.set(s, s*rnd(1.1,1.7), s);
+    m.position.copy(hit.point).sub(EGG_C).addScaledVector(_dir, -0.7);
+    m.rotation.set(rnd(0,TAU), rnd(0,TAU), rnd(0,TAU));
+    g.add(m);
+  }
+
+  // --- crystal clusters round the pool: the big soft-glow furniture
+  const crysGeo = new THREE.ConeGeometry(1.1, 6, 6);
+  for(let i=0;i<6;i++){
+    const a = rnd(0,TAU), r = rnd(11, 15);
+    const bx = -6 + Math.cos(a)*r, bz = 5 + Math.sin(a)*r;
+    for(let j=0;j<3+((RNG()*3)|0);j++){
+      const m = new THREE.Mesh(crysGeo, gemMats[(i*2+j) % gemMats.length]);
+      const s = rnd(0.5, 1.4);
+      m.scale.set(s, s*rnd(0.9,1.8), s);
+      m.position.set(bx+rnd(-2,2), -10 + 3*s*0.9, bz+rnd(-2,2));
+      m.rotation.set(rnd(-0.35,0.35), rnd(0,TAU), rnd(-0.35,0.35));
+      g.add(m);
+    }
+  }
+
+  // --- the hoard: gold piles, loose coins, an open chest, a crown, an idol
+  const goldMat = new THREE.MeshStandardMaterial({ color:0xffc93c,
+    metalness:0.85, roughness:0.3, emissive:0x8a6300, emissiveIntensity:0.3 });
+  const pileGeo = new THREE.SphereGeometry(1, 18, 12);
+  for(const [px,pz,pr] of [[15,-8,4.2],[10.5,-4,2.6],[19,-3.5,2.2]]){
+    const m = new THREE.Mesh(pileGeo, goldMat);
+    m.scale.set(pr, pr*0.32, pr); m.position.set(px, -9.9, pz); g.add(m);
+  }
+  const coinGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.1, 10);
+  for(let i=0;i<44;i++){
+    const m = new THREE.Mesh(coinGeo, goldMat);
+    const a = rnd(0,TAU), r = rnd(0, 8.5);
+    m.position.set(15 + Math.cos(a)*r, -9.75, -6 + Math.sin(a)*r);
+    m.rotation.set(rnd(-0.4,0.4), rnd(0,TAU), rnd(-0.4,0.4)); g.add(m);
+  }
+  const woodMat = new THREE.MeshStandardMaterial({ color:0x6b4a2a, roughness:0.8 });
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.1, 2.3), woodMat);
+  chest.position.set(9, -8.9, -11); chest.rotation.y = 0.5; g.add(chest);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 2.3), goldMat);
+  lid.position.set(8.2, -7.4, -11.9); lid.rotation.set(-0.9, 0.5, 0); g.add(lid);
+  for(let i=0;i<3;i++){
+    const m = new THREE.Mesh(gemGeo, gemMats[i*2]);
+    m.scale.setScalar(0.55);
+    m.position.set(9+rnd(-0.8,0.8), -7.6, -11+rnd(-0.6,0.6)); g.add(m);
+  }
+  const crown = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.3, 8, 18), goldMat);
+  crown.rotation.x = Math.PI/2; crown.position.set(15, -8.2, -8); g.add(crown);
+  for(let i=0;i<5;i++){
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.8, 5), goldMat);
+    const a = i/5*TAU;
+    m.position.set(15 + Math.cos(a)*1.15, -7.7, -8 + Math.sin(a)*1.15); g.add(m);
+  }
+  // the idol: a fat little golden king on a stone plinth, facing the pool
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2.6, 4.5),
+    new THREE.MeshStandardMaterial({ color:0x474055, roughness:0.9, flatShading:true }));
+  plinth.position.set(2, -8.9, -25); g.add(plinth);
+  const belly = new THREE.Mesh(pileGeo, goldMat);
+  belly.scale.set(1.6, 1.9, 1.6); belly.position.set(2, -5.8, -25); g.add(belly);
+  const head = new THREE.Mesh(pileGeo, goldMat);
+  head.scale.setScalar(1.0); head.position.set(2, -3.4, -25); g.add(head);
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.4, 8), goldMat);
+  hat.position.set(2, -2.2, -25); g.add(hat);
+  const idolLight = new THREE.PointLight(0xffb347, 6, 70, 2);
+  idolLight.position.set(6, -3, -16); g.add(idolLight);
+  const hoardLight = new THREE.PointLight(0xffd77a, 5, 45, 2);
+  hoardLight.position.set(15, -4, -6); g.add(hoardLight);
+
+  // --- and in the middle: a little pearly egg on a pedestal. Of course.
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 2.6, 10),
+    new THREE.MeshStandardMaterial({ color:0x474055, roughness:0.9, flatShading:true }));
+  pedestal.position.set(8, -8.9, 9); g.add(pedestal);
+  const eggMat = new THREE.MeshStandardMaterial({ color:0xf4ead9,
+    roughness:0.3, emissive:0xffe9c4, emissiveIntensity:0.12 });
+  const littleEgg = new THREE.Mesh(pileGeo, eggMat);
+  littleEgg.scale.set(0.8, 1.1, 0.8); littleEgg.position.set(8, -6.6, 9); g.add(littleEgg);
+
+  const fill = new THREE.PointLight(0x8a6cff, 2.5, 130, 2);
+  fill.position.set(0, 8, 0); g.add(fill);
+  scene.add(g);
+
+  // --- THE TRIGGER on the surface: the odd egg, half-buried in the grass
+  const eb = SPOTS.find(s => s.key === 'egg');
+  const eggStone = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), eggMat);
+  eggStone.scale.set(2.1, 2.9, 2.1);
+  eggStone.position.set(eb.x, terrainH(eb.x, eb.z) + 1.7, eb.z);
+  eggStone.rotation.z = 0.14;
+  scene.add(eggStone);
+
+  function tick(e){
+    poolMat.emissiveIntensity = 1.35 + 0.4*Math.sin(e*1.6);
+    poolLight.intensity = 7 + 2.2*Math.sin(e*1.6 + 0.6);
+    for(let i=0;i<gemMats.length;i++)
+      gemMats[i].emissiveIntensity = 0.75 + 0.35*Math.sin(e*(1.1 + i*0.23) + i*2.1);
+    eggStone.material.emissiveIntensity = 0.10 + 0.06*Math.sin(e*2.3);
+  }
+  return { g, tick, eggStone, C:EGG_C, trigger:{ x:eb.x, z:eb.z } };
+})();
+
+// the PORT: a white blink and you are down there (or use any VIEWS
+// button to blink back out — the tween up through the rock is part of it)
+const flashEl = document.getElementById('flash');
+function portToEgg(){
+  flashEl.style.transition = 'none'; flashEl.style.opacity = '1';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    flashEl.style.transition = 'opacity 1.1s ease'; flashEl.style.opacity = '0';
+  }));
+  window.GL_CAM(EGG_C.x-15, EGG_C.y+3, EGG_C.z+25, EGG_C.x+2, EGG_C.y-5, EGG_C.z-4);
+}
+// touching the odd egg = clicking it (a Vita would walk into it; here the
+// pointer is the finger). A drag is orbiting, not touching.
+{
+  const _ray = new THREE.Raycaster(), _pv = new THREE.Vector2();
+  let _dx = 0, _dy = 0;
+  renderer.domElement.addEventListener('pointerdown', e => { _dx = e.clientX; _dy = e.clientY; });
+  renderer.domElement.addEventListener('pointerup', e => {
+    if(Math.hypot(e.clientX - _dx, e.clientY - _dy) > 6) return;
+    _pv.set((e.clientX/innerWidth)*2 - 1, -(e.clientY/innerHeight)*2 + 1);
+    _ray.setFromCamera(_pv, camera);
+    if(_ray.intersectObject(egg.eggStone, false).length) portToEgg();
+  });
+}
+window.GL_EGG = portToEgg;
+
+// ======================================================================
+// 8. LABELS — the functional spots, projected to screen
+// ======================================================================
+const labelBox = document.getElementById('labels');
+const MOOD_ICON = { beautiful:'✦', dangerous:'⚠', bleak:'▲', bountiful:'❉',
+                    eerie:'◈', homely:'⌂' };
+function mkLabel(text, cls, v){
+  const el = document.createElement('div');
+  el.className = 'lab ' + cls;
+  el.textContent = text;
+  labelBox.appendChild(el);
+  return { el, v, cls };
+}
+const LABELS = SPOTS.map(s => mkLabel(s.label, s.fn ? 'fn' : '',
+  new THREE.Vector3(s.x, s.y + (s.key==='volcano'?18:9), s.z)));
+const PLACE_LABELS = PLACES.map(p => mkLabel(
+  (MOOD_ICON[p.mood]||'·') + ' ' + p.name, 'pl ' + p.mood,
+  new THREE.Vector3(p.x, p.y + 12, p.z)));
+let showLabels = true, showPlaces = false;
+// is this spot hidden behind a mountain? Walk the camera→spot ray and ask the
+// height function. 10 analytic samples beats raycasting a 200k-triangle mesh,
+// and without it every label on the far side floats over the range.
+const _ray = new THREE.Vector3();
+function occluded(v){
+  const c = camera.position;
+  _ray.subVectors(v, c);
+  const L = _ray.length();
+  if(L < 40) return false;
+  for(let i=1;i<=17;i++){
+    const f = i/18;
+    const px = c.x + _ray.x*f, py = c.y + _ray.y*f, pz = c.z + _ray.z*f;
+    if(terrainH(px, pz) > py + 1.5) return true;
+  }
+  return false;
+}
+const _placed = [];
+let _lframe = 0;
+const _occ = new Map();
+function updateLabels(){
+  const w = innerWidth, h = innerHeight;
+  const recheck = (_lframe++ % 4) === 0;
+  _placed.length = 0;
+  // nearest-first, then DECLUTTER: a label that would land on top of one
+  // already placed just drops out. On a map this size that is the difference
+  // between a legend and a pile of stickers.
+  const cand = [];
+  for(const L of LABELS.concat(PLACE_LABELS)){
+    L.el.style.display = 'none';
+    const isPlace = L.cls.startsWith('pl');
+    if(isPlace ? !showPlaces : !showLabels) continue;
+    const p = L.v.clone().project(camera);
+    if(!(p.z < 1 && p.x > -1.2 && p.x < 1.2 && p.y > -1.1 && p.y < 1.1)) continue;
+    if(recheck) _occ.set(L, occluded(L.v));
+    if(_occ.get(L)) continue;
+    cand.push({ L, sx:(p.x*0.5+0.5)*w, sy:(-p.y*0.5+0.5)*h, z:p.z });
+  }
+  cand.sort((a,b)=>a.z-b.z);
+  for(const c of cand){
+    let clash = false;
+    for(const q of _placed)
+      if(Math.abs(q.sx-c.sx) < 96 && Math.abs(q.sy-c.sy) < 19){ clash = true; break; }
+    if(clash) continue;
+    _placed.push(c);
+    c.L.el.style.display = 'block';
+    c.L.el.style.transform = `translate(-50%,-50%) translate(${c.sx}px, ${c.sy}px)`;
+  }
+}
+
+// ======================================================================
+// 9. UI — views, layers, stats
+// ======================================================================
+const VIEWS = {
+  'Overview':   { pos:[-245, 205, 355], tgt:[45, 18, -12] },
+  'Volcano':    { pos:[ 232, 118, 112], tgt:[VOLC.x, 82, VOLC.z] },
+  'Cliffs':     { pos:[-222,  34,-214], tgt:[-124, 22, -126] },
+  'Cliffs (wide)':{pos:[-300,  70,-290], tgt:[-110, 20, -110] },
+  // from the fjord's head, looking back down the drowned valley to the open
+  // sea and the stacks — the shot that explains what a fjord is for
+  'Drowned Vale':{pos:[ -74,  22, -40], tgt:[-168, 2, -106] },
+  'Vale (from sea)':{pos:[-232, 62,-146], tgt:[-84, 6, -48] },
+  'Kingsfjord': { pos:[  80,  26,-178], tgt:[60, 8, -92] },
+  'The Passes': { pos:[-118, 108, 150], tgt:[-58, 26, -52] },
+  "King's Hall":{ pos:[  14,  52, 186], tgt:[5, 26, 78] },
+  'Landing Beach':{pos:[ 22,  30, 232], tgt:[3, 3, 128] },
+  'Little Georgeland':{ pos:[295, 80, 250], tgt:[195, 8, 110] },
+  'Surf Bay':   { pos:[ 205,  60, 215], tgt:[100, 0, 95] },
+  'Sea level':  { pos:[-250,  12, 320], tgt:[0, 18, 0] },
+};
+let flying = null;
+function goto(name, snap){
+  const v = VIEWS[name]; if(!v) return;
+  const p = new THREE.Vector3(...v.pos), t = new THREE.Vector3(...v.tgt);
+  if(snap){ camera.position.copy(p); controls.target.copy(t); controls.update(); flying=null; return; }
+  flying = { p0:camera.position.clone(), t0:controls.target.clone(), p, t, k:0 };
+}
+const viewsEl = document.getElementById('views');
+for(const k of Object.keys(VIEWS)){
+  const b = document.createElement('button'); b.textContent = k;
+  b.onclick = ()=>goto(k); viewsEl.appendChild(b);
+}
+// the DEV DOOR: straight into the grotto, no egg required
+const eggBtn = document.createElement('button');
+eggBtn.textContent = '🥚 Go to Easter Egg Room';
+eggBtn.style.cssText = 'width:100%; margin-top:5px; '
+  + 'background:rgba(150,90,220,0.35); border-color:rgba(210,160,255,0.55)';
+eggBtn.onclick = ()=> portToEgg();
+viewsEl.appendChild(eggBtn);
+const TOGGLES = [
+  ['trees','Trees',  v=>flora.visible=v],
+  ['rocks','Rocks',  v=>rockG.visible=v],
+  ['grass','Grass',  v=>grassG.visible=v],
+  ['water','Water',  v=>{ water.visible=v; deep.visible=v; }],
+  ['labels','Spots', v=>showLabels=v],
+  ['places','Places',v=>showPlaces=v],
+  ['wire','Wireframe',v=>{ terrain.material.wireframe=v; }],
+  ['smoke','Plume',  v=>volcano.g.visible=v],
+  ['fog','Fog',      v=>scene.fog = v ? new THREE.Fog(SKY,420,1050) : null],
+];
+const togsEl = document.getElementById('togs');
+for(const [id,txt,fn] of TOGGLES){
+  const l = document.createElement('label');
+  const cb = document.createElement('input'); cb.type='checkbox';
+  cb.checked = (id!=='wire' && id!=='places');
+  cb.onchange = ()=>fn(cb.checked);
+  l.appendChild(cb); l.appendChild(document.createTextNode(txt));
+  togsEl.appendChild(l);
+}
+
+// measurements for the stats block — the honest numbers, not the brochure
+const peakRange = (()=>{ let m=0, at=null;
+  for(let s=0; s<RANGE.len; s+=0.5){ const [x,z]=polyAt(RANGE,s);
+    const h=terrainBase(x,z); if(h>m){ m=h; at=[x,z]; } }
+  return m; })();
+const craterRim = (()=>{ let m=0;
+  for(let a=0;a<TAU;a+=0.05){ const h=terrainBase(VOLC_B.x+Math.cos(a)*6.4, VOLC_B.z+Math.sin(a)*6.4);
+    if(h>m) m=h; } return m; })();
+const craterFloor = terrainBase(VOLC_B.x, VOLC_B.z);
+const meanCoast = (()=>{ let s=0,n=0; for(let a=0;a<TAU;a+=0.02){ s+=coastR(a); n++; } return s/n*WS; })();
+// WALKABILITY — the claim that "the passes are usable" is worth checking, not
+// asserting. Step each route and report its steepest gradient (rise/run in
+// world units). Anything much over ~0.8 is a scramble, not a walk.
+// TWO numbers, because they say different things. `spike` is the steepest
+// 3-world-unit step — dominated by the deliberate ridged-noise ruggedness on
+// the volcano flank and the range crest, and smoothed away by any terrain-
+// following walk. `sustained` is the steepest 15-world-unit average, which is
+// the one that actually decides whether a Vita can get there.
+function gradeRoute(poly){
+  const step = 1.2;                                     // base units
+  const hs = [];
+  for(let s=0; s<=poly.len; s+=step) { const [bx,bz]=polyAt(poly,s); hs.push([bx,bz,terrainBase(bx,bz)]); }
+  let spike=0, spikeAt=null, sust=0, sustAt=null;
+  const win = Math.max(1, Math.round(15/(step*WS)));     // ~15 world units
+  for(let i=1;i<hs.length;i++){
+    const g = Math.abs(hs[i][2]-hs[i-1][2])/(step*WS);
+    if(g>spike){ spike=g; spikeAt=[Math.round(hs[i][0]*WS), Math.round(hs[i][1]*WS)]; }
+  }
+  for(let i=win;i<hs.length;i++){
+    const g = Math.abs(hs[i][2]-hs[i-win][2])/(win*step*WS);
+    if(g>sust){ sust=g; sustAt=[Math.round(hs[i][0]*WS), Math.round(hs[i][1]*WS)]; }
+  }
+  return { spike:+spike.toFixed(2), spikeAt, sustained:+sust.toFixed(2), sustainedAt:sustAt };
+}
+const ROUTE_GRADE = ROUTE_POLYS.map((poly,i)=>({ route:ROUTES[i].name, ...gradeRoute(poly) }));
+const worstGrade = Math.max(...ROUTE_GRADE.map(r=>r.sustained));
+document.getElementById('stats').textContent =
+`radius     ~${meanCoast.toFixed(0)} world (game: ~69)
+volcano     ${craterRim.toFixed(0)} rim / ${craterFloor.toFixed(0)} floor
+range peak  ${peakRange.toFixed(0)}   passes: 3
+pines ${pines.length} · palms ${palms.length}
+rocks ${rocks.length} · crags ${crags.length}
+grass ${tufts.length} · chunks ${ALL_CHUNKS.length}
+obstacles ${OBSTACLES.length}
+route max grade ${worstGrade.toFixed(2)}`;
+
+// ======================================================================
+// 10. LOOP
+// ======================================================================
+const clock = new THREE.Clock();
+let t = 0;
+function tick(dt, elapsed){
+  // ---- LOD + chunk culling
+  const cp = camera.position;
+  for(const c of ALL_CHUNKS){
+    const d = Math.hypot(cp.x - c.cx, cp.z - c.cz);
+    if(d > c.cull){ c.hi.visible = false; if(c.lo) c.lo.visible = false; continue; }
+    const far = c.lo && d > c.lod;
+    c.hi.visible = !far;
+    if(c.lo) c.lo.visible = far;
+  }
+  // ---- water
+  const wp = wGeo.attributes.position;
+  for(let i=0;i<wp.count;i++){
+    const x = wBase[i*3], z = wBase[i*3+2];
+    wp.setY(i, Math.sin(x*0.035 + elapsed*1.1)*0.42
+              + Math.sin(z*0.048 - elapsed*0.85)*0.34
+              + Math.sin((x+z)*0.019 + elapsed*0.55)*0.28);
+  }
+  wp.needsUpdate = true;
+  // ---- the plume
+  for(const p of volcano.puffs){
+    p.t += dt*0.05;
+    if(p.t >= 1){ p.t -= 1; p.drift = rnd(0,TAU); }
+    const f = p.t, size = 16 + f*70;
+    p.sp.scale.set(size, size, 1);
+    p.sp.position.set(
+      VOLC.x + Math.cos(p.drift)*f*22 + Math.sin(elapsed*0.5 + p.drift)*6,
+      volcano.floorY + 6 + f*135,
+      VOLC.z + Math.sin(p.drift)*f*22);
+    p.sp.material.opacity = 0.55*Math.min(1, f*5)*(1 - f*f);
+  }
+  const flick = 0.78 + 0.22*Math.sin(elapsed*7.3)*Math.sin(elapsed*3.1);
+  volcano.glow.material.opacity = 0.22*flick;
+  volcano.light.intensity = 3.0*flick;
+  // ---- wind
+  for(const u of GRASS_MAT_HOLDER) u.value = elapsed;
+}
+function frame(){
+  requestAnimationFrame(frame);
+  if(renderer.domElement.clientWidth !== innerWidth ||
+     renderer.domElement.clientHeight !== innerHeight) fit();
+  const dt = Math.min(0.05, clock.getDelta());
+  t += dt;
+  if(flying){
+    flying.k = Math.min(1, flying.k + dt*0.9);
+    const e = flying.k<0.5 ? 2*flying.k*flying.k : 1-((-2*flying.k+2)**2)/2;
+    camera.position.lerpVectors(flying.p0, flying.p, e);
+    controls.target.lerpVectors(flying.t0, flying.t, e);
+    if(flying.k >= 1) flying = null;
+  }
+  controls.update();
+  tick(dt, t);
+  egg.tick(t);
+  renderer.render(scene, camera);
+  updateLabels();
+  updateHere();
+}
+
+// "YOU ARE HERE" — the orbit target stands in for a walking Vita, so panning
+// around the island reads back exactly what the dialogue layer would get from
+// placeAt(). It is the whole PLACES idea, testable by dragging.
+const hereEl = document.getElementById('here');
+let hereKey, hereTick = 0;    // undefined, not null — null IS the "open ground" state
+function updateHere(){
+  if((hereTick++ % 10) !== 0) return;
+  const w = placeAt(controls.target.x, controls.target.z);
+  if(!w){
+    if(hereKey !== null){ hereKey = null;
+      hereEl.innerHTML = '<b style="opacity:.55">— open ground —</b>'
+        + '<i>nowhere in particular. Not everywhere is somewhere.</i>'; }
+    return;
+  }
+  if(w.place.key === hereKey) return;
+  hereKey = w.place.key;
+  const p = w.place;
+  const seen = (p.sees||[]).map(k => PLACE_BY_KEY[k] && PLACE_BY_KEY[k].name)
+                           .filter(Boolean).join(' · ');
+  hereEl.innerHTML =
+    `<b>${MOOD_ICON[p.mood]||'·'} ${p.name}</b>`
+    + `<i>${p.what}</i>`
+    + (seen ? `<i style="opacity:.5">sees: ${seen}</i>` : '')
+    + `<span class="q">“${p.lines[Math.floor(RNG()*p.lines.length)]}”</span>`;
+}
+// clamp to ≥1: a background tab can report 0×0 at load, which would freeze
+// the canvas at zero forever. The frame loop re-fits when the size comes back.
+function fit(){
+  const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+addEventListener('resize', fit);
+fit();
+goto('Overview', true);
+stage('done', 1, 0);
+busyEl.remove();
+console.log(`[Georgeland II] built in ${Math.round(performance.now()-BUILD_T0)}ms`
+          + (LITE ? ' (LITE)' : ''));
+frame();
+
+// ======================================================================
+// 11. THE DROP-IN SURFACE
+// ======================================================================
+window.GEORGELAND = {
+  WS, SEA_LEVEL, VOLC, SPOTS, ROUTES, ROUTE_GRADE, OBSTACLES,
+  // the conversational layer: named landmarks with a mood, sightlines and
+  // Vita-mouth lines. placeAt() answers "where am I?"; placeLine() hands the
+  // dialogue system something to say about it.
+  PLACES, PLACE_BY_KEY, placeAt, placeLine,
+  // THE MAP CONTRACT: terrainH + terrainNormal is all an armature walker needs
+  // to follow this island — root height from the first, foot planting and ankle
+  // roll from the second. terrainNormal returns a REUSED {x,y,z}; use
+  // terrainNormalV for a fresh THREE.Vector3 you can keep.
+  terrainH, terrainNormal, terrainNormalV,
+  terrainBase, coastR, cliffness,
+  RANGE, PASSES: PASS_PT, FJORDS, COMPANION: { x:CO_B.x*WS, z:CO_B.z*WS },
+  // the secret: touch the odd egg near Turtle Cove -> the crystal grotto.
+  // In-game: teleport the player to EGG.chamber when they touch EGG.trigger.
+  EGG: { trigger: egg.trigger, chamber: EGG_C, group: egg.g, port: portToEgg },
+  groups: { terrain, water, deep, flora, rocks:rockG, grass:grassG, volcano:volcano.g },
+  tick,
+  // handy for whoever integrates: nearest functional spot to a world point
+  spotAt(x, z){ let b=null, bd=1e9;
+    for(const s of SPOTS){ const d=Math.hypot(x-s.x, z-s.z); if(d<bd){ bd=d; b=s; } }
+    return { spot:b, dist:bd }; },
+};
+// screenshot / scripting hook
+window.GL_VIEW = (name, snap)=>goto(name, snap !== false);
+window.GL_CAM  = (px,py,pz,tx,ty,tz)=>{ camera.position.set(px,py,pz);
+  controls.target.set(tx,ty,tz); controls.update(); flying=null; };
+window.GL_LABELS = (v)=>{ showLabels = v; };
+// synchronous cost probe — works in a backgrounded tab, where rAF does not
+window.GL_PERF = (n)=>{
+  n = n || 40;
+  renderer.render(scene, camera);                     // warm
+  const t0 = performance.now();
+  for(let i=0;i<n;i++) renderer.render(scene, camera);
+  const ms = (performance.now() - t0)/n;
+  const r = renderer.info.render;
+  return { msPerFrame:+ms.toFixed(2), impliedFps:Math.round(1000/ms),
+           drawCalls:r.calls, triangles:r.triangles,
+           visibleChunks: ALL_CHUNKS.filter(c=>c.hi.visible||(c.lo&&c.lo.visible)).length,
+           totalChunks: ALL_CHUNKS.length };
+};
+// screenshot buttons — render a fresh frame first (belt to preserveDrawingBuffer's
+// braces) so the capture is never blank, then PNG the canvas.
+function captureBlob(cb){
+  renderer.render(scene, camera);
+  // composite the rev stamp into the image itself — a screenshot should
+  // name the revision it shows without needing the page around it
+  const src = renderer.domElement;
+  const oc = document.createElement('canvas');
+  oc.width = src.width; oc.height = src.height;
+  const cx = oc.getContext('2d');
+  cx.drawImage(src, 0, 0);
+  const fs = Math.max(12, Math.round(src.height/50));
+  cx.font = fs + 'px Consolas, monospace';
+  cx.textBaseline = 'bottom';
+  const pad = Math.round(fs*0.9);
+  const tw = cx.measureText(REV_STAMP).width;
+  cx.fillStyle = 'rgba(10,18,24,0.55)';
+  cx.fillRect(pad - 6, oc.height - pad - fs - 5, tw + 12, fs + 9);
+  cx.fillStyle = '#eaf4f8';
+  cx.fillText(REV_STAMP, pad, oc.height - pad);
+  oc.toBlob(cb, 'image/png');
+}
+function flash(btn, msg, ok){
+  const old = btn.textContent;
+  btn.textContent = msg; btn.style.color = ok ? '#b8f5c0' : '#ffb3b3';
+  setTimeout(()=>{ btn.textContent = old; btn.style.color = ''; }, 1600);
+}
+const saveBtn = document.getElementById('saveShot');
+const copyBtn = document.getElementById('copyShot');
+saveBtn.onclick = ()=> captureBlob(blob=>{
+  if(!blob){ flash(saveBtn, 'failed', false); return; }
+  const ts = new Date().toISOString().replace(/[-:]/g,'').replace('T','_').slice(0,15);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `georgeland_r${REV}_${ts}.png`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  flash(saveBtn, 'saved ✓', true);
+});
+copyBtn.onclick = ()=>{
+  // write() must run synchronously inside the click (user activation); the
+  // ClipboardItem takes a Promise so the ~1s PNG encode happens afterwards.
+  // Needs a secure context too — localhost yes, plain LAN IP no.
+  const fail = err=>{
+    console.warn('[Georgeland II] copy failed:', err);
+    flash(copyBtn, 'no clipboard', false);
+  };
+  try{
+    if(!navigator.clipboard || !window.ClipboardItem) throw new Error('no clipboard API');
+    const png = new Promise((res, rej)=> captureBlob(b=> b ? res(b) : rej(new Error('capture failed'))));
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+      .then(()=> flash(copyBtn, 'copied ✓', true), fail);
+  }catch(err){ fail(err); }
+};
+console.log('[Georgeland II] built.',
+  { radius:+meanCoast.toFixed(1), craterRim:+craterRim.toFixed(1),
+    rangePeak:+peakRange.toFixed(1), pines:pines.length, rocks:rocks.length,
+    chunks:ALL_CHUNKS.length, obstacles:OBSTACLES.length });
+</script>
+</body>
+</html>

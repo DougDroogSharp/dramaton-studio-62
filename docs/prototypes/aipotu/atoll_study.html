@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     THE RING ATOLL — a NEW George World island map, as a standalone study.
+     Filed 2026-08-31 20:56.
+
+     NOT one island: a roughly circular turquoise LAGOON ringed by a
+     necklace of small islands and sandbars. The CENTRAL island (the
+     king's seat, with one soft imposing volcano — mass, not spikes)
+     sits in the middle; five DUKE ISLETS ride the ring, one per Duke,
+     each with forage flats and camp room on its flattened crown. The
+     water between them is shallow and wadeable — Vitas cross on the
+     sandbars and the two spoke-bars that reach the central island.
+     A raft placeholder waits near the central shore. A marked SAUCER
+     BEACH on the south shore. An Easter-egg chamber hides deep under
+     the volcano (menu button teleports the camera there and back).
+
+     AESTHETIC CONTRACT (lessons learned, on purpose):
+       - SMOOTH heightfield only: sums of gaussians + smoothsteps +
+         low-frequency sines. NO terracing, NO contour-ring stepping,
+         NO jagged rock spires. Soft rounded landforms throughout.
+       - soft sand beaches + two-tone grass like the good coastline
+       - STYLE.md rig: Lambert flatShading assets, ACES 1.1, one warm
+         sun + hemi, vertex-colored sky dome, fog matched to palette
+       - water per STYLE.md: per-vertex height + color painted per
+         frame (DEEP 0x2a6f9e / SHALLOW 0x4fa8c4 / FOAM 0xf2fbfd)
+       - flora is INSTANCED (palms / firs / bushes / rocks — one draw
+         call per kind), baked vertex colors, seeded layout
+     Layout data ships as window.ATOLL so the George World builder can
+     lift the map (terrainH + every named spot) straight into the game.
+     Serve from the aipotu folder: serve_nocache.py 8210.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ring Atoll — map study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#a5ddf5; }
+  #hud {
+    position:fixed; top:10px; left:10px; z-index:10; color:#12333f;
+    font:13px/1.5 system-ui, sans-serif; background:rgba(255,255,255,0.82);
+    padding:10px 14px; border-radius:12px; max-width:280px;
+    box-shadow:0 2px 10px rgba(0,30,50,0.25);
+  }
+  #hud b { font-size:15px; }
+  #rev { font-size:11px; opacity:0.7; margin-top:2px; }
+  #hud .row { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  #hud button {
+    border:0; border-radius:8px; padding:6px 10px; cursor:pointer;
+    background:#2c7d5c; color:#fff; font:12px system-ui;
+  }
+  #hud button.alt { background:#4a6b8a; }
+  #hud button.egg { background:#7d4a8a; }
+  #hud label { font-size:12px; display:flex; align-items:center; gap:4px; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <b>🏝️ THE RING ATOLL</b>
+  <div id="rev"></div>
+  <div>Lagoon necklace: king's seat in the middle, five duke islets on the ring, wadeable sandbars between.</div>
+  <div class="row">
+    <button id="bSave">📸 Save Image</button>
+    <button id="bEgg" class="egg">🥚 Go to Easter Egg Room</button>
+  </div>
+  <div class="row">
+    <button class="alt" data-view="over">Overview</button>
+    <button class="alt" data-view="king">King's Seat</button>
+    <button class="alt" data-view="duke">Duke Ring</button>
+    <button class="alt" data-view="beach">Saucer Beach</button>
+    <button class="alt" data-view="lagoon">Lagoon Level</button>
+    <label><input type="checkbox" id="cbLabels" checked> labels</label>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- REV STAMP — BUMP REV and RESET REV_BUILT on EVERY save ----------
+const REV = 3;
+const REV_BUILT = '2026-08-31 21:14';
+const REV_STAMP = `Ring Atoll Rev ${REV} · built ${REV_BUILT}`;
+document.getElementById('rev').textContent = REV_STAMP;
+
+// ---------- helpers ----------
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep = (a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+// seeded rand — the SAME generator (and calling convention) as the asset
+// studies, so their lifted builders run deterministically here too:
+// rand() = 0..1 · rand(a) = 0..a · rand(a,b) = a..b
+let seed = 20260831;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// ---------- renderer / scene (STYLE.md rig) ----------
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY = new THREE.Color(0xa5ddf5);
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 430, 1250);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.5, 2600);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI*0.495;
+
+const hemi = new THREE.HemisphereLight(0xd6ecff, 0xb7d59a, 0.95);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
+sun.position.set(140, 190, 90);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -190; sun.shadow.camera.right = 190;
+sun.shadow.camera.top = 190; sun.shadow.camera.bottom = -190;
+sun.shadow.camera.far = 700;
+sun.shadow.bias = -0.0008;
+scene.add(sun);
+
+// vertex-colored sky dome (fog-free, per the study contract)
+{
+  const g = new THREE.SphereGeometry(2000, 24, 12);
+  const pos = g.attributes.position, col = new Float32Array(pos.count*3);
+  const cZen = new THREE.Color(0x6fb9e8), cHor = new THREE.Color(0xdff3f8);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = clamp(pos.getY(i)/2000, 0, 1);
+    c.copy(cHor).lerp(cZen, sstep(0.02, 0.55, t));
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const dome = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false }));
+  scene.add(dome);
+}
+
+// ==================== THE ATOLL HEIGHTFIELD ====================
+// Everything below is SMOOTH: gaussians, smoothsteps, low-freq sines.
+const R = 118;                    // the ring's radius — the necklace line
+const VOLC = { x:6, z:-8 };       // the soft volcano on the central island
+const KING = { x:-16, z:12 };     // the king-hall knoll (flattened crown)
+// five DUKE ISLETS on the ring (one per Duke) + three low sand cays
+const ISLETS = [
+  { name:'DUKE ISLET I',   ang:  18, h:6.6, r:25 },
+  { name:'DUKE ISLET II',  ang:  80, h:5.8, r:21 },
+  { name:'DUKE ISLET III', ang: 150, h:7.2, r:27 },
+  { name:'DUKE ISLET IV',  ang: 212, h:6.0, r:22 },
+  { name:'DUKE ISLET V',   ang: 285, h:6.9, r:24 },
+  { name:null,             ang: 118, h:2.6, r:12 },   // bare sand cays —
+  { name:null,             ang: 246, h:2.2, r:10 },   // stepping stones
+  { name:null,             ang: 332, h:2.9, r:13 },   // on the necklace
+].map(I => ({ ...I, x: Math.cos(I.ang*Math.PI/180)*R, z: Math.sin(I.ang*Math.PI/180)*R }));
+// two wadeable SPOKE-BARS: ring → central island (the Vitas' crossings)
+const SPOKES = [
+  { a: ISLETS[0], frac0: 0.86 },   // from Duke Islet I, west toward the king
+  { a: ISLETS[3], frac0: 0.86 },   // from Duke Islet IV, the far crossing
+].map(S => {
+  const p0 = { x: S.a.x*S.frac0, z: S.a.z*S.frac0 };
+  const L = Math.hypot(p0.x, p0.z);
+  const p1 = { x: p0.x/L*30, z: p0.z/L*30 };   // ends at the central shore
+  return { p0, p1 };
+});
+function segDist(x, z, p0, p1){
+  const dx=p1.x-p0.x, dz=p1.z-p0.z;
+  const t = clamp(((x-p0.x)*dx+(z-p0.z)*dz)/(dx*dx+dz*dz), 0, 1);
+  return Math.hypot(x-(p0.x+dx*t), z-(p0.z+dz*t));
+}
+
+function terrainH(x, z){
+  const d = Math.hypot(x, z);
+  const ang = Math.atan2(z, x);
+  // the LAGOON floor: a shallow sandy bowl — turquoise, wadeable in places
+  let h = -2.6 + 0.5*Math.sin(x*0.05+1)*Math.sin(z*0.045+2);
+  // the outer OCEAN: past the ring the floor falls away, softly
+  h -= 6.5*sstep(R+14, R+70, d);
+  // the REEF RING: a soft annular shoal — the necklace itself. Width and
+  // crest height breathe with angle, so the bar is dry sand in stretches,
+  // shin-deep water in others. All of it wadeable.
+  const ringW = 16 + 3.2*Math.sin(ang*3+1.7) + 2.1*Math.sin(ang*7+0.6);
+  const ring = Math.exp(-(((d-R)/ringW)**2));
+  const barH = 2.2 + 1.3*Math.sin(ang*5+2.2) + 0.9*Math.sin(ang*11+4.1);
+  h += ring*barH;
+  // the ISLETS: soft flattened domes riding the ring — the smoothstep
+  // dome shape gives each one a gently level crown (camp room for free)
+  for(const I of ISLETS){
+    const dd = Math.hypot(x-I.x, z-I.z);
+    h += I.h * (1 - sstep(I.r*0.35, I.r, dd));
+  }
+  // the CENTRAL ISLAND: a broad soft dome (the king's seat) ...
+  h += 10.5*(1 - sstep(8, 44, d));
+  // ... a beach apron so the shoreline lies down into wide soft sand ...
+  h += 1.2*Math.exp(-(((d-33)/8)**2));
+  // ... the VOLCANO: one soft imposing mass — a mountain of shoulders,
+  // not spikes — with a gentle crater bowl sunk in the summit ...
+  const vd2 = (x-VOLC.x)**2 + (z-VOLC.z)**2;
+  h += 13*Math.exp(-vd2/(15**2));
+  h -= 7*Math.exp(-vd2/(4.5**2));
+  // ... and the KING-HALL KNOLL, west of the volcano, flat-crowned
+  h += 3.2*(1 - sstep(4, 12, Math.hypot(x-KING.x, z-KING.z)));
+  // the SPOKE-BARS: two sandy causeways just under (sometimes just over)
+  // the lagoon surface, ring → central shore. The wading crossings.
+  for(const S of SPOKES){
+    const sd = segDist(x, z, S.p0, S.p1);
+    h += (2.35 + 0.45*Math.sin((x+z)*0.18)) * Math.exp(-((sd/7)**2)) * sstep(34, 44, d)*(1-sstep(R-24, R-6, d));
+  }
+  // gentle large-scale grain — NEVER sharp, NEVER stepped
+  h += 0.35*Math.sin(x*0.11+2)*Math.sin(z*0.09+1)
+     + 0.20*Math.sin(x*0.23)*Math.sin(z*0.21+3);
+  return h;
+}
+function slopeAt(x, z){
+  return Math.hypot(terrainH(x+1.2,z)-terrainH(x-1.2,z),
+                    terrainH(x,z+1.2)-terrainH(x,z-1.2)) / 2.4;
+}
+
+// ---------- terrain mesh: smooth-shaded, vertex-colored ----------
+const TSIZE = 520, TSEG = 300;
+const tGeo = new THREE.PlaneGeometry(TSIZE, TSIZE, TSEG, TSEG);
+tGeo.rotateX(-Math.PI/2);
+{
+  const pos = tGeo.attributes.position;
+  const colors = new Float32Array(pos.count*3);
+  const cGrassA = new THREE.Color(0x8fd177), cGrassB = new THREE.Color(0x63b85e);
+  const cRock = new THREE.Color(0xa29383), cRockHi = new THREE.Color(0xbcb0a2);
+  const cSand = new THREE.Color(0xeed9a4), cLagoon = new THREE.Color(0x9fcdb2);
+  const cDeepF = new THREE.Color(0x4f7d88), cBasalt = new THREE.Color(0x554941);
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x, z);
+    pos.setY(i, h);
+    const s = slopeAt(x, z);
+    const n = 0.5 + 0.5*Math.sin(x*0.23+3)*Math.sin(z*0.19+1);
+    c.copy(cGrassA).lerp(cGrassB, n);
+    // soft rock only where it's earned: steep faces and the high volcano
+    const tr = Math.max(sstep(0.62, 1.0, s), sstep(11, 15.5, h));
+    c.lerp(h>13 ? cRockHi : cRock, tr);
+    // the sand: a wide soft ring at every waterline (islet aprons, the
+    // sandbars, the whole lagoon floor)
+    const ts = (1 - sstep(1.1, 2.3, h)) * (1 - tr*0.8);
+    c.lerp(cSand, ts);
+    // underwater: pale turquoise-tinted sand shading away to a deeper
+    // floor — the lagoon reads TURQUOISE through the water above it
+    if(h < 0){
+      c.lerp(cLagoon, clamp(-h/3.5, 0, 1)*0.65);
+      c.lerp(cDeepF, sstep(3.5, 8, -h)*0.85);
+    }
+    // scorched shoulders near the crater rim — soft, never harsh
+    const vd = Math.hypot(x-VOLC.x, z-VOLC.z);
+    if(vd < 12) c.lerp(cBasalt, (1 - vd/12)*0.75);
+    colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+  }
+  tGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();   // SMOOTH normals — rounded landforms, no facets
+}
+const terrain = new THREE.Mesh(tGeo,
+  new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:false }));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+// the abyss plane under everything (the far ocean color)
+const deep = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000),
+  new THREE.MeshBasicMaterial({ color:0x1d7fa0 }));
+deep.rotation.x = -Math.PI/2; deep.position.y = -8.8;
+scene.add(deep);
+// the FAR OCEAN: an opaque deep-water ring from the animated plane's rim
+// out to the fog — so the water never ends in a hard square edge
+const farSea = new THREE.Mesh(new THREE.RingGeometry(258, 2000, 64),
+  new THREE.MeshLambertMaterial({ color:0x2a6f9e }));
+farSea.rotation.x = -Math.PI/2; farSea.position.y = -0.25;
+scene.add(farSea);
+
+// ---------- WATER (STYLE.md: per-vertex height + color, per frame) ----------
+const W_DEEP = new THREE.Color(0x2a6f9e), W_SHAL = new THREE.Color(0x4fa8c4),
+      W_FOAM = new THREE.Color(0xf2fbfd);
+const WSEG = 130, WSIZE = 560;
+const wGeo = new THREE.PlaneGeometry(WSIZE, WSIZE, WSEG, WSEG);
+wGeo.rotateX(-Math.PI/2);
+const wPos = wGeo.attributes.position;
+const wCol = new Float32Array(wPos.count*3);
+wGeo.setAttribute('color', new THREE.BufferAttribute(wCol, 3));
+const wTH = new Float32Array(wPos.count);      // terrain height under each vert
+for(let i=0;i<wPos.count;i++) wTH[i] = terrainH(wPos.getX(i), wPos.getZ(i));
+const water = new THREE.Mesh(wGeo, new THREE.MeshLambertMaterial({
+  vertexColors:true, transparent:true, opacity:0.82 }));
+scene.add(water);
+const _wc = new THREE.Color();
+function updateWater(t){
+  for(let i=0;i<wPos.count;i++){
+    const th = wTH[i];
+    const depth = -th;
+    // crests phase on distance-to-shore (terrain height is the proxy),
+    // so wave lines lie parallel to every coastline in the necklace
+    const amp = 0.07 + 0.20*sstep(0.6, 6, depth);
+    const y = amp*Math.sin(th*0.9 + t*1.7) + amp*0.45*Math.sin(th*2.1 - t*2.6 + 1.3);
+    wPos.setY(i, y);
+    _wc.copy(W_SHAL).lerp(W_DEEP, sstep(1.6, 7.5, depth));
+    // foam collar where the water meets sand — soft pulse, no hard line
+    const f = (1 - sstep(0.0, 1.5, Math.abs(th + 0.15)))
+            * (0.45 + 0.4*Math.sin(t*2.2 - th*3.0));
+    if(f > 0) _wc.lerp(W_FOAM, clamp(f, 0, 1)*0.6);
+    wCol[i*3]=_wc.r; wCol[i*3+1]=_wc.g; wCol[i*3+2]=_wc.b;
+  }
+  wPos.needsUpdate = true;
+  wGeo.attributes.color.needsUpdate = true;
+}
+
+// ==================== BAKED, INSTANCED FLORA ====================
+// Each kind is ONE vertex-colored geometry, drawn as ONE InstancedMesh.
+function bakery(){
+  const pos=[], col=[], idx=[];
+  const M = new THREE.Matrix4(), V = new THREE.Vector3(), C = new THREE.Color();
+  return {
+    add(geo, color, px,py,pz, rx=0,ry=0,rz=0, sx=1,sy=1,sz=1, jitter=0.05){
+      const g = geo.index ? geo.toNonIndexed() : geo;
+      M.compose(new THREE.Vector3(px,py,pz),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,ry,rz)),
+        new THREE.Vector3(sx,sy,sz));
+      const p = g.attributes.position, base = pos.length/3;
+      for(let i=0;i<p.count;i++){
+        V.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(M);
+        pos.push(V.x, V.y, V.z);
+        C.set(color).multiplyScalar(rand(1-jitter, 1+jitter));
+        col.push(C.r, C.g, C.b);
+      }
+      for(let i=0;i<p.count;i++) idx.push(base+i);
+    },
+    bake(){
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    }
+  };
+}
+// ==================== THE FINISHED ASSETS — LIFTED ====================
+// Doug's rule: the map uses the FINISHED standard assets, not stand-ins.
+// The builders below are lifted from the approved studies (same code,
+// same deterministic rand family):
+//   PALM ← palm_study.html (the hero coconut palm), tessellated at
+//          georgeworld's own baked LOD of that same palm (N=48 trunk
+//          rings, 15-leaflet fronds, the dense 3-5-5-4-3 ring set)
+//   FIR  ← fir_study.html (makeFir + the six specimen SPECS)
+//   BUSH ← bushgrowth_study.html (makeBush, the Joshua gnarl)
+// Each variant is BUILT ONCE by the study code, then bakeMerge() folds
+// the whole tree into one merged INDEXED geometry (vertex colors carry
+// every material's color) and it's drawn as InstancedMeshes.
+
+// ---- bake a built Group into one merged indexed geometry --------------
+function bakeMerge(root, keep = () => true){
+  root.updateWorldMatrix(true, true);
+  const P=[], NA=[], C=[], UV=[], I=[];
+  let base = 0;
+  const nm = new THREE.Matrix3(), v = new THREE.Vector3(), c = new THREE.Color();
+  root.traverse(o => {
+    if(!o.isMesh || !keep(o)) return;
+    const g = o.geometry;
+    const p = g.attributes.position, n = g.attributes.normal,
+          col = g.attributes.color, uv = g.attributes.uv;
+    nm.getNormalMatrix(o.matrixWorld);
+    const matC = o.material.color;
+    for(let i=0;i<p.count;i++){
+      v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(o.matrixWorld);
+      P.push(v.x, v.y, v.z);
+      if(n){ v.set(n.getX(i), n.getY(i), n.getZ(i)).applyMatrix3(nm).normalize(); }
+      else v.set(0, 1, 0);
+      NA.push(v.x, v.y, v.z);
+      if(col) c.setRGB(col.getX(i), col.getY(i), col.getZ(i));
+      else if(matC) c.copy(matC);
+      else c.set(1, 1, 1);
+      C.push(c.r, c.g, c.b);
+      UV.push(uv ? uv.getX(i) : 0, uv ? uv.getY(i) : 0);
+    }
+    if(g.index) for(let i=0;i<g.index.count;i++) I.push(base + g.index.getX(i));
+    else for(let i=0;i<p.count;i++) I.push(base + i);
+    base += p.count;
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(NA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));
+  geo.setIndex(I);
+  return geo;
+}
+
+// ---------- PALM — lifted from palm_study.html -------------------------
+// trunk texture: one tile = one internode (verbatim from the study)
+function trunkTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#cdc2aa'; g.fillRect(0,0,256,128);
+  for(let i=0;i<130;i++){                        // vertical fiber streaks
+    const x = rand(256);
+    g.strokeStyle = rand() < 0.5
+      ? `rgba(90,75,55,${rand(0.04,0.11)})`
+      : `rgba(240,230,205,${rand(0.05,0.14)})`;
+    g.lineWidth = rand(0.6, 2.2);
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + rand(-6,6), 128); g.stroke();
+  }
+  const band = g.createLinearGradient(0, 96, 0, 128);   // the leaf-scar band
+  band.addColorStop(0, 'rgba(0,0,0,0)');
+  band.addColorStop(0.55, 'rgba(70,58,40,0.2)');
+  band.addColorStop(0.75, 'rgba(52,42,28,0.32)');
+  band.addColorStop(1, 'rgba(40,32,20,0.16)');
+  g.fillStyle = band; g.fillRect(0, 96, 256, 32);
+  g.fillStyle = 'rgba(235,220,190,0.22)'; g.fillRect(0, 92, 256, 5);
+  for(let i=0;i<160;i++){                        // speckles / lichen
+    g.fillStyle = rand() < 0.7 ? `rgba(80,66,46,${rand(0.05,0.15)})`
+                               : `rgba(205,208,185,${rand(0.05,0.14)})`;
+    g.fillRect(rand(256), rand(128), rand(1,4), rand(1,3));
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+// curved, tapered, ring-bumped trunk — study code; N/RADIAL are the LOD
+function buildTrunkGeo({ height = 9.2, lean = 0.16, rBase = 0.30, rTop = 0.145,
+                         N = 48, RADIAL = 10, RINGS = 22 }){
+  const spine = [];
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    spine.push(new THREE.Vector3(
+      lean*height*Math.pow(t,1.65) + 0.06*Math.sin(t*6.2 + 1.4)*t,
+      t*height,
+      0.05*Math.sin(t*4.7)*t));
+  }
+  const ringAmp = [];
+  for(let r=0;r<=RINGS;r++) ringAmp.push(rand(0.014, 0.032));
+  const posA = [], uvA = [], colA = [], idx = [];
+  const tang = new THREE.Vector3(), nrm = new THREE.Vector3(), bin = new THREE.Vector3();
+  const cGray = new THREE.Color(0xffffff), cTop = new THREE.Color(0xd9ddb8), c = new THREE.Color();
+  for(let i=0;i<=N;i++){
+    const t = i/N;
+    let r = rBase + (rTop - rBase)*Math.pow(t, 0.85);
+    r += 0.17*Math.exp(-t*9);                     // base flare
+    const ringPh = t*RINGS, ringI = Math.min(RINGS, Math.floor(ringPh));
+    r *= 1 + ringAmp[ringI]*(0.5 + 0.5*Math.cos(ringPh*Math.PI*2));
+    const p = spine[i];
+    tang.copy(spine[Math.min(N,i+1)]).sub(spine[Math.max(0,i-1)]).normalize();
+    bin.set(0,0,1);
+    nrm.crossVectors(bin, tang).normalize();
+    bin.crossVectors(tang, nrm).normalize();
+    c.copy(cGray).lerp(cTop, Math.max(0, (t-0.86)/0.14));   // greenish under the crown
+    for(let j=0;j<=RADIAL;j++){
+      const a = (j/RADIAL)*Math.PI*2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const rr = r*(1 + 0.012*Math.sin(a*7 + ringI*2.4));
+      posA.push(p.x + (nrm.x*ca + bin.x*sa)*rr,
+                p.y + (nrm.y*ca + bin.y*sa)*rr,
+                p.z + (nrm.z*ca + bin.z*sa)*rr);
+      uvA.push(j/RADIAL*2, ringPh);
+      colA.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<RADIAL;j++){
+    const a = i*(RADIAL+1)+j, b = a+RADIAL+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const top = spine[N].clone();
+  const tv = spine[N].clone().sub(spine[N-4]).normalize();
+  return { geo, top, tiltZ: Math.atan2(tv.x, tv.y) };
+}
+// one frond = ONE merged mesh (rachis + all leaflets) — study code with
+// the game bake's tessellation as defaults (NSEG 14 · MSEG 2 · 15 leaflets)
+function buildFrond({
+  length = 4.0, elev = 0.5, droop = 1.5,
+  nLeaf = 15, leafMax = 0.88, leafW = 0.056,
+  cInner = 0x3e6b25, cOuter = 0x74a742,
+  collapsed = 0, NSEG = 14, MSEG = 2
+}){
+  const posA = [], colA = [], idx = [];
+  const colorIn = new THREE.Color(cInner), colorOut = new THREE.Color(cOuter);
+  const cc = new THREE.Color();
+  const spine = [], angs = [];
+  {
+    let p = new THREE.Vector3(0,0,0);
+    const step = length/NSEG;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG;
+      const a = elev - droop*Math.pow(t, 1.6);
+      spine.push(p.clone()); angs.push(a);
+      p.x += Math.cos(a)*step; p.y += Math.sin(a)*step;
+    }
+  }
+  {  // rachis tube
+    const RAD = 6, base = posA.length/3;
+    for(let i=0;i<=NSEG;i++){
+      const t = i/NSEG, p = spine[i], a = angs[i];
+      const r = 0.045*(1-t) + 0.006;
+      const nx = -Math.sin(a), ny = Math.cos(a);
+      cc.copy(colorIn).lerp(colorOut, t*0.6);
+      if(collapsed) cc.multiplyScalar(0.9);
+      for(let j=0;j<=RAD;j++){
+        const th = (j/RAD)*Math.PI*2, ct = Math.cos(th), st = Math.sin(th);
+        posA.push(p.x + nx*ct*r, p.y + ny*ct*r, p.z + st*r);
+        colA.push(cc.r, cc.g, cc.b);
+      }
+    }
+    for(let i=0;i<NSEG;i++) for(let j=0;j<RAD;j++){
+      const a2 = base + i*(RAD+1)+j, b2 = a2+RAD+1;
+      idx.push(a2, b2, a2+1, b2, b2+1, a2+1);
+    }
+  }
+  // leaflets, both sides, merged in
+  const T = new THREE.Vector3(), U = new THREE.Vector3(), S = new THREE.Vector3();
+  const d = new THREE.Vector3(), e = new THREE.Vector3(), n = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  for(let side = -1; side <= 1; side += 2){
+    for(let i=0;i<nLeaf;i++){
+      const tt = (i + 0.5)/nLeaf;
+      const t = 0.13 + 0.87*tt + rand(-0.006, 0.006);
+      const si = Math.min(NSEG-1, Math.floor(t*NSEG));
+      const f = t*NSEG - si;
+      const p0 = q.copy(spine[si]).lerp(spine[si+1], f).clone();
+      const a = angs[si] + (angs[si+1]-angs[si])*f;
+      T.set(Math.cos(a), Math.sin(a), 0);
+      U.set(-Math.sin(a), Math.cos(a), 0);
+      S.set(0, 0, side);
+      const len = leafMax * (0.22 + 0.78*Math.pow(Math.sin(Math.PI*(0.08 + 0.88*tt)), 0.7))
+                  * rand(0.92, 1.08);
+      const sweep = 0.5 + 0.35*tt + collapsed*0.75;
+      const upAmt = (0.55 - 0.75*tt) * (1 - collapsed*0.9) - collapsed*0.25;
+      d.copy(S).multiplyScalar(Math.cos(sweep))
+       .addScaledVector(T, Math.sin(sweep))
+       .addScaledVector(U, upAmt).normalize();
+      const droopL = (0.30 + 1.15*tt + collapsed*0.8) / MSEG;
+      const w0 = leafW*(1 - collapsed*0.55)*rand(0.85,1.15);
+      const base = posA.length/3;
+      const pp = p0.clone(), dd = d.clone();
+      for(let m=0;m<=MSEG;m++){
+        const u = m/MSEG;
+        e.crossVectors(dd, T).normalize();
+        n.crossVectors(e, dd).normalize();
+        if(n.y < 0){ n.negate(); e.negate(); }
+        const w = w0*(1 - u*u*0.96) * Math.min(1, 0.35 + u*3);
+        const foldDrop = w*0.45;                  // V-crease: edges below midrib
+        cc.copy(colorIn).lerp(colorOut, Math.min(1, tt*0.5 + u*0.65))
+          .multiplyScalar(rand(0.94, 1.03));
+        posA.push(pp.x - e.x*w + n.x*-foldDrop, pp.y - e.y*w + n.y*-foldDrop, pp.z - e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        posA.push(pp.x, pp.y, pp.z);
+        colA.push(cc.r, cc.g, cc.b);
+        posA.push(pp.x + e.x*w + n.x*-foldDrop, pp.y + e.y*w + n.y*-foldDrop, pp.z + e.z*w + n.z*-foldDrop);
+        colA.push(cc.r*0.88, cc.g*0.88, cc.b*0.88);
+        pp.addScaledVector(dd, len/MSEG);
+        dd.y -= droopL; dd.normalize();
+      }
+      for(let m=0;m<MSEG;m++){
+        const r0 = base + m*3, r1 = r0 + 3;
+        idx.push(r0, r1, r0+1,  r1, r1+1, r0+1,
+                 r0+1, r1+1, r0+2,  r1+1, r1+2, r0+2);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+const palmTrunkMat = new THREE.MeshStandardMaterial({
+  map: trunkTexture(), vertexColors:true, roughness:0.94, metalness:0 });
+const palmCrownMat = new THREE.MeshStandardMaterial({
+  vertexColors:true, roughness:0.65, metalness:0, side:THREE.DoubleSide });
+// assemble one whole palm exactly as the study does (bulb, frond rings
+// at the golden angle, the dead skirt, coconuts under the crown)
+function buildPalmTree({ height = 9.2, lean = 0.16 }){
+  const tree = new THREE.Group();
+  const trunk = buildTrunkGeo({ height, lean });
+  tree.add(new THREE.Mesh(trunk.geo, palmTrunkMat));
+  const crown = new THREE.Group();
+  crown.position.copy(trunk.top);
+  crown.rotation.z = -trunk.tiltZ*0.55;
+  tree.add(crown);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8),
+    new THREE.MeshStandardMaterial({ color:0x74804a }));
+  bulb.scale.set(1, 1.4, 1); bulb.position.y = 0.04;
+  crown.add(bulb);
+  const RINGSET = [   // the dense bake of the approved crown
+    { n:3, elev:1.12, droop:0.95, len:0.52, y: 0.30 },
+    { n:5, elev:0.72, droop:1.30, len:0.86, y: 0.16 },
+    { n:5, elev:0.34, droop:1.55, len:1.00, y: 0.04 },
+    { n:4, elev:0.02, droop:1.72, len:0.94, y:-0.06 },
+    { n:3, elev:-0.5, droop:1.25, len:0.72, y:-0.14, dead:true },
+  ];
+  let ringOfs = rand(Math.PI*2);
+  for(const ring of RINGSET){
+    ringOfs += 2.399963;                          // golden angle between rings
+    for(let i=0;i<ring.n;i++){
+      const geo = buildFrond({
+        length: 4.1*ring.len*rand(0.94,1.06),
+        elev:  ring.elev + rand(-0.07, 0.07),
+        droop: ring.droop*rand(0.92, 1.08),
+        leafMax: 0.88*Math.sqrt(ring.len),
+        collapsed: ring.dead ? 0.85 : 0,
+        cInner: ring.dead ? 0x6b512e : 0x3e6b25,
+        cOuter: ring.dead ? 0xa8854e : 0x74a742,
+      });
+      const m = new THREE.Mesh(geo, palmCrownMat);
+      m.rotation.order = 'YZX';
+      m.rotation.y = ringOfs + (i/ring.n)*Math.PI*2 + rand(-0.18, 0.18);
+      m.rotation.x = rand(-0.1, 0.1);
+      m.position.y = ring.y;
+      crown.add(m);
+    }
+  }
+  const nutGeo = new THREE.SphereGeometry(0.17, 10, 8);
+  const green = new THREE.MeshStandardMaterial({ color:0x7d8b3c });
+  const brown = new THREE.MeshStandardMaterial({ color:0x6b5432 });
+  for(let i=0;i<6;i++){
+    const nut = new THREE.Mesh(nutGeo, i%3 ? green : brown);
+    const a = rand(Math.PI*2);
+    nut.position.set(Math.cos(a)*rand(0.24,0.42), rand(-0.34,-0.14), Math.sin(a)*rand(0.24,0.42));
+    nut.scale.set(1, 1.18, 1);
+    nut.rotation.set(rand(1), rand(1), rand(1));
+    crown.add(nut);
+  }
+  return tree;
+}
+
+// ---------- FIR — lifted from fir_study.html ---------------------------
+const matBark = new THREE.MeshLambertMaterial({ color:0x5c4632, flatShading:true });
+const matBarkGrey = new THREE.MeshLambertMaterial({ color:0x8a8478, flatShading:true });
+const DEEP = new THREE.Color(0x2c4a34), FRESH = new THREE.Color(0x5d7d3c),
+      DEAD = new THREE.Color(0x7a6a4c);
+function foliageMat(){
+  return new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+}
+function paintFoliage(geo, dead){
+  const pos = geo.attributes.position, col = [];
+  const c = new THREE.Color();
+  let maxX = 0;
+  for(let i = 0; i < pos.count; i++) maxX = Math.max(maxX, pos.getX(i));
+  for(let i = 0; i < pos.count; i++){
+    const f = clamp(pos.getX(i) / (maxX || 1), 0, 1);
+    if(dead) c.copy(DEAD).lerp(new THREE.Color(0x8a7a58), f);
+    else c.copy(DEEP).lerp(FRESH, Math.pow(f, 1.6)).offsetHSL(0, 0, rand(-0.02, 0.02));
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+}
+// the real construction: tapered wandering trunk, whorls of individual
+// flattened branch-fans, deep-green inner → fresh tips (study verbatim;
+// only Math.random() swapped for the seeded rand)
+function makeFir(spec){
+  const { h, baseR, whorls, perWhorl, spread, droop, sparse = 0,
+          lean = 0, flag = 0, deadTop = 0, jitter = 1 } = spec;
+  const tree = new THREE.Group();
+  let tx = 0, tz = 0, ty = 0;
+  const segN = 5;
+  for(let i = 0; i < segN; i++){
+    const f0 = i/segN, f1 = (i+1)/segN;
+    const r0 = baseR * (1 - f0*0.82), r1 = baseR * (1 - f1*0.82);
+    const segH = h / segN;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segH, 8),
+      deadTop && f0 > 0.55 ? matBarkGrey : matBark);
+    const dx = lean * segH * (i+0.5)/segN + rand(-0.04, 0.04)*jitter;
+    const dz = rand(-0.04, 0.04)*jitter;
+    seg.position.set(tx + dx/2, ty + segH/2, tz + dz/2);
+    seg.rotation.z = -Math.atan2(dx, segH);
+    seg.rotation.x = Math.atan2(dz, segH);
+    tree.add(seg);
+    tx += dx; tz += dz; ty += segH;
+  }
+  if(deadTop){
+    const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.05, h*0.22, 6), matBarkGrey);
+    spike.position.set(tx, ty + h*0.1, tz);
+    tree.add(spike);
+  } else {
+    const tipG = new THREE.ConeGeometry(0.16, 0.55, 7);
+    paintFoliage(tipG);
+    const tip = new THREE.Mesh(tipG, foliageMat());
+    tip.position.set(tx, ty + 0.24, tz);
+    tree.add(tip);
+  }
+  const y0 = h * 0.16;
+  for(let w = 0; w < whorls; w++){
+    const f = w / (whorls - 1);
+    if(deadTop && f > 1 - deadTop) continue;
+    const wy = y0 + f * (h - y0 - h*0.14);
+    const wr = spread * (1 - f*0.78);
+    const n = Math.max(3, Math.round(perWhorl * (1 - f*0.3)));
+    const wobble = rand(0, Math.PI*2);
+    for(let b = 0; b < n; b++){
+      if(sparse && rand() < sparse) continue;
+      let a = wobble + (b/n) * Math.PI*2 + rand(-0.25, 0.25)*jitter;
+      if(flag && Math.cos(a) < -0.1 && rand() < flag) continue;
+      const len = wr * rand(0.75, 1.15);
+      const dr = droop * (0.5 + f*0.2 + rand(0, 0.5)) * (1 + (1-f)*0.6);
+      const br = new THREE.Group();
+      br.position.set(tx * f, wy, tz * f);
+      br.rotation.y = -a;
+      const fanG = new THREE.ConeGeometry(len*0.30, len, 5);
+      fanG.rotateZ(-Math.PI/2);
+      fanG.scale(1, 0.26, 1);
+      fanG.translate(len*0.52, 0, 0);
+      paintFoliage(fanG, deadTop && f > 0.5 - deadTop);
+      const fan = new THREE.Mesh(fanG, foliageMat());
+      fan.rotation.z = -dr;
+      br.add(fan);
+      const butt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, len*0.3, 5), matBark);
+      butt.rotation.z = Math.PI/2 + dr*0.5;
+      butt.position.set(len*0.14, 0, 0);
+      br.add(butt);
+      tree.add(br);
+    }
+  }
+  return tree;
+}
+// the study's six specimens (the snag sits out — no half-dead trees on
+// a fresh atoll; the other five give the stands their variety)
+const FIR_SPECS = [
+  { name:'noble',   h:7.2, baseR:0.26, whorls:11, perWhorl:8, spread:1.9, droop:0.28 },
+  { name:'slim',    h:6.6, baseR:0.18, whorls:13, perWhorl:6, spread:1.05, droop:0.16 },
+  { name:'elder',   h:5.6, baseR:0.34, whorls:8,  perWhorl:9, spread:2.5, droop:0.55, sparse:0.18 },
+  { name:'sapling', h:2.2, baseR:0.07, whorls:5,  perWhorl:5, spread:0.75, droop:0.1, jitter:1.6 },
+  { name:'leaner',  h:5.8, baseR:0.22, whorls:9,  perWhorl:7, spread:1.6, droop:0.35, lean:0.35, flag:0.75 },
+];
+
+// ---------- BERRY BUSH — lifted from bushgrowth_study.html -------------
+const matWoodL = new THREE.MeshLambertMaterial({ color:0x6b5436, flatShading:true });
+const matRosL  = new THREE.MeshLambertMaterial({ color:0x50783a, flatShading:true });
+const matRosD  = new THREE.MeshLambertMaterial({ color:0x3f6030, flatShading:true });
+const matRed   = new THREE.MeshLambertMaterial({ color:0xd8433c, flatShading:true });
+const matGreen = new THREE.MeshLambertMaterial({ color:0x7fa24a, flatShading:true });
+// the Joshua gnarl at three ages (study verbatim, minus the wilt rig —
+// the map plants them healthy; the game wires wilt back up)
+function makeBush(stage){
+  const g = new THREE.Group();
+  const armN = stage === 1 ? 1 : stage === 2 ? 2 : 4;
+  const scaleT = stage === 1 ? 0.45 : stage === 2 ? 0.75 : 1;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12*scaleT, 0.18*scaleT, 0.6*scaleT, 7), matWoodL);
+  trunk.position.y = 0.3*scaleT;
+  g.add(trunk);
+  for(let i = 0; i < armN; i++){
+    const a = (i/armN)*Math.PI*2 + rand(-0.3, 0.3);
+    const arm = new THREE.Group();
+    arm.position.y = 0.55*scaleT;
+    arm.rotation.y = -a;
+    arm.rotation.z = -rand(0.5, 0.9);
+    const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06*scaleT, 0.09*scaleT, 0.55*scaleT, 6), matWoodL);
+    seg1.position.y = 0.27*scaleT;
+    arm.add(seg1);
+    const elbow = new THREE.Group();
+    elbow.position.y = 0.55*scaleT;
+    elbow.rotation.z = rand(0.5, 1.0);
+    const seg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.045*scaleT, 0.06*scaleT, 0.45*scaleT, 6), matWoodL);
+    seg2.position.y = 0.22*scaleT;
+    elbow.add(seg2);
+    const ros = new THREE.Group();
+    ros.position.y = 0.48*scaleT;
+    for(let s = 0; s < (stage === 1 ? 5 : 7); s++){
+      const sp = new THREE.Group();
+      sp.rotation.y = -(s/7)*Math.PI*2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04*scaleT, 0.32*scaleT, 4),
+        s % 3 ? matRosL : matRosD);
+      spike.rotation.z = -1.05;
+      spike.position.x = 0.12*scaleT;
+      sp.add(spike);
+      ros.add(sp);
+    }
+    elbow.add(ros);
+    if(stage === 3 || (stage === 2 && i === 0)){
+      const stem = new THREE.Group();
+      stem.position.set(0.1*scaleT, 0.36*scaleT, 0);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16*scaleT, 4), matWoodL);
+      st.position.y = -0.08*scaleT;
+      stem.add(st);
+      // the CARAMBOLA: a five-finned star (cheated: squashed octahedron)
+      const fruit = new THREE.Mesh(new THREE.OctahedronGeometry(0.07*scaleT, 0),
+        i % 2 ? matRed : matGreen);
+      fruit.scale.set(1, 1.4, 1);
+      fruit.position.y = -0.18*scaleT;
+      stem.add(fruit);
+      elbow.add(stem);
+    }
+    arm.add(elbow);
+    g.add(arm);
+  }
+  return g;
+}
+// a soft rounded boulder — squashed dodecahedron, NO spires
+function rockGeo(){
+  const B = bakery();
+  B.add(new THREE.DodecahedronGeometry(1, 0), 0xa29383,
+    0, 0.5, 0, rand(0,3), rand(0,3), rand(0,3), rand(0.8,1.5), rand(0.5,0.8), rand(0.8,1.5), 0.09);
+  return B.bake();
+}
+const matFlora = new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true });
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(),
+      _e = new THREE.Euler(), _v3 = new THREE.Vector3(), _sc = new THREE.Vector3();
+function plantInstanced(geoFn, spots){
+  const mesh = new THREE.InstancedMesh(geoFn(), matFlora, spots.length);
+  spots.forEach((s, i) => {
+    _e.set(0, s.ry ?? rand(0, Math.PI*2), 0);
+    _sc.setScalar(s.s ?? rand(0.85, 1.2));
+    _m4.compose(_v3.set(s.x, terrainH(s.x, s.z)-0.15, s.z), _q.setFromEuler(_e), _sc);
+    mesh.setMatrixAt(i, _m4);
+  });
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+// scatter by band: sample the disc, keep points whose height/slope fit
+function scatter(n, tries, fit){
+  const out = [];
+  for(let k=0; k<tries && out.length<n; k++){
+    const a = rand(0, Math.PI*2), d = Math.sqrt(rand(0,1))*(R+42);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainH(x, z), s = slopeAt(x, z);
+    if(fit(x, z, h, s)) out.push({x, z});
+  }
+  return out;
+}
+const nearVolc = (x,z,r)=>Math.hypot(x-VOLC.x, z-VOLC.z) < r;
+
+// ---- bake the finished variants, plant them as instances --------------
+// Each palm variant is TWO InstancedMeshes (textured trunk + crown) that
+// share their instance transforms; firs and bushes are one each.
+const PALM_VARIANTS = [
+  { height:9.2, lean:0.16 }, { height:7.9, lean:0.23 }, { height:8.6, lean:0.10 },
+].map(p => {
+  const t = buildPalmTree(p);
+  return [
+    { geo: bakeMerge(t, o => !!o.material.map), mat: palmTrunkMat },
+    { geo: bakeMerge(t, o =>  !o.material.map), mat: palmCrownMat },
+  ];
+});
+const FIR_VARIANTS = FIR_SPECS.map(s => [{ geo: bakeMerge(makeFir(s)), mat: matFlora }]);
+const BUSH_VARIANTS = [3, 2].map(st => [{ geo: bakeMerge(makeBush(st)), mat: matFlora }]);
+
+function plantSet(variants, spots, weights){
+  const buckets = variants.map(() => []);
+  const wsum = weights.reduce((a,b)=>a+b, 0);
+  for(const s of spots){
+    let r = rand()*wsum, vi = 0;
+    while(vi < weights.length-1 && r > weights[vi]){ r -= weights[vi]; vi++; }
+    // the transform is decided ONCE per spot, so a palm's trunk and
+    // crown (two instanced meshes) land in exactly the same pose
+    s.ry = s.ry ?? rand(0, Math.PI*2);
+    s.sc = s.sc ?? rand(0.85, 1.18);
+    s.y = s.y ?? terrainH(s.x, s.z) - 0.12;
+    buckets[vi].push(s);
+  }
+  buckets.forEach((bs, vi) => {
+    if(!bs.length) return;
+    for(const part of variants[vi]){
+      const im = new THREE.InstancedMesh(part.geo, part.mat, bs.length);
+      bs.forEach((s, i) => {
+        _e.set(0, s.ry, 0);
+        _m4.compose(_v3.set(s.x, s.y, s.z), _q.setFromEuler(_e), _sc.setScalar(s.sc));
+        im.setMatrixAt(i, _m4);
+      });
+      im.castShadow = true; im.receiveShadow = true;
+      scene.add(im);
+    }
+  });
+}
+// PALMS live on the beaches (every shoreline in the necklace)
+plantSet(PALM_VARIANTS, scatter(100, 9000, (x,z,h,s)=> h>0.55 && h<2.3 && s<0.42 && !nearVolc(x,z,14)), [1,1,1]);
+// FIRS climb the higher ground: islet crowns, the dome, the volcano's
+// skirt — mostly nobles & slims, elders and leaners for character,
+// saplings coming up between them
+plantSet(FIR_VARIANTS, scatter(120, 9000, (x,z,h,s)=> h>3.4 && h<11 && s<0.6 && !nearVolc(x,z,10)), [3, 3, 1.4, 1.6, 1]);
+// ROCKS sit where rock is earned — steeper faces, plus a sparse scatter
+plantInstanced(rockGeo, scatter(70, 9000, (x,z,h,s)=> h>0.4 && h<13 && (s>0.5 || rand()<0.05)));
+// BERRY BUSHES: the FORAGE FLATS — a cluster on every duke islet's
+// crown, mature gnarls with a scatter of young two-arm plants
+{
+  const spots = [];
+  for(const I of ISLETS){
+    if(!I.name) continue;
+    for(let k=0;k<14;k++){
+      const a = rand(0, Math.PI*2), dd = rand(2, I.r*0.42);
+      const x = I.x + Math.cos(a)*dd, z = I.z + Math.sin(a)*dd;
+      if(terrainH(x,z) > 2.0) spots.push({x, z, sc: rand(0.9, 1.35)});
+    }
+  }
+  plantSet(BUSH_VARIANTS, spots, [2.5, 1]);
+}
+
+// ==================== NAMED SPOTS ====================
+const props = new THREE.Group(); scene.add(props);
+const matStone = new THREE.MeshLambertMaterial({ color:0x9a8f80, flatShading:true });
+const matWood = new THREE.MeshLambertMaterial({ color:0x8a6239, flatShading:true });
+function groundY(x, z){ return terrainH(x, z); }
+
+// the KING'S SEAT: a ring of standing stones + the fire on the knoll
+const kingY = groundY(KING.x, KING.z);
+for(let i=0;i<8;i++){
+  const a = i/8*Math.PI*2;
+  const st = new THREE.Mesh(new THREE.BoxGeometry(0.7, rand(1.4,2.1), 0.5), matStone);
+  st.position.set(KING.x+Math.cos(a)*4.4, groundY(KING.x+Math.cos(a)*4.4, KING.z+Math.sin(a)*4.4)+0.8, KING.z+Math.sin(a)*4.4);
+  st.rotation.y = a + rand(-0.2,0.2); st.castShadow = true;
+  props.add(st);
+}
+const fire = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.5, 7),
+  new THREE.MeshBasicMaterial({ color:0xff9a3c }));
+fire.position.set(KING.x, kingY+0.8, KING.z);
+props.add(fire);
+for(let i=0;i<7;i++){
+  const a = i/7*Math.PI*2;
+  const st = new THREE.Mesh(new THREE.SphereGeometry(0.28, 6, 5), matStone);
+  st.position.set(KING.x+Math.cos(a)*1.1, kingY+0.15, KING.z+Math.sin(a)*1.1);
+  props.add(st);
+}
+
+// the SAUCER BEACH: the wide south beach on the central island, marked
+// with a pale landing ring pressed into the sand
+const SAUCER = { x: 2, z: 35 };
+{
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(6, 0.35, 8, 40),
+    new THREE.MeshLambertMaterial({ color:0xf7ecd2, flatShading:true }));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(SAUCER.x, groundY(SAUCER.x, SAUCER.z)+0.15, SAUCER.z);
+  props.add(ring);
+}
+
+// the RAFT placeholder: lashed logs + a push-pole, floating just off the
+// central shore where the Duke Islet I spoke-bar comes in
+const RAFT = { x: Math.cos(18*Math.PI/180)*40, z: Math.sin(18*Math.PI/180)*40 };
+const raft = new THREE.Group();
+for(let i=0;i<5;i++){
+  const log = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 4.2, 7), matWood);
+  log.rotation.z = Math.PI/2;
+  log.position.set(0, 0, (i-2)*0.62);
+  log.castShadow = true;
+  raft.add(log);
+}
+for(const zz of [-1.5, 1.5]){
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.2, 6), matWood);
+  beam.rotation.x = Math.PI/2;
+  beam.position.set(zz, 0.3, 0);
+  raft.add(beam);
+}
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.5, 5), matWood);
+pole.position.set(1.6, 1.2, 1.1); pole.rotation.z = 0.5;
+raft.add(pole);
+raft.position.set(RAFT.x, 0.15, RAFT.z);
+raft.rotation.y = 0.6;
+props.add(raft);
+
+// CAMP rings (fire circles) on each duke islet — the camp room, claimed
+for(const I of ISLETS){
+  if(!I.name) continue;
+  const cx = I.x*0.97, cz = I.z*0.97;
+  for(let i=0;i<6;i++){
+    const a = i/6*Math.PI*2;
+    const st = new THREE.Mesh(new THREE.SphereGeometry(0.24, 6, 5), matStone);
+    st.position.set(cx+Math.cos(a)*0.9, groundY(cx+Math.cos(a)*0.9, cz+Math.sin(a)*0.9)+0.12, cz+Math.sin(a)*0.9);
+    props.add(st);
+  }
+}
+
+// ---------- floating LABELS (toggleable) ----------
+const labels = new THREE.Group(); scene.add(labels);
+function makeLabel(text, x, z, lift=9, scale=1){
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 112;
+  const g = cv.getContext('2d');
+  g.fillStyle = 'rgba(255,255,255,0.78)';
+  g.beginPath(); g.roundRect(6, 6, 500, 100, 26); g.fill();
+  g.fillStyle = '#173a46'; g.font = 'bold 52px system-ui';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 256, 58);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:tx, fog:false }));
+  sp.scale.set(16*scale, 3.5*scale, 1);
+  sp.position.set(x, groundY(x, z)+lift, z);
+  labels.add(sp);
+}
+makeLabel("KING'S SEAT", KING.x, KING.z, 8, 1.15);
+for(const I of ISLETS) if(I.name) makeLabel(I.name, I.x, I.z, 10);
+makeLabel('SAUCER BEACH', SAUCER.x, SAUCER.z, 6, 0.9);
+makeLabel('THE RAFT', RAFT.x, RAFT.z, 5, 0.75);
+document.getElementById('cbLabels').addEventListener('change', e => {
+  labels.visible = e.target.checked;
+});
+
+// ==================== THE EASTER-EGG CHAMBER ====================
+// Hidden deep under the volcano. Nothing on the surface betrays it —
+// only the menu button (and, in the game, whatever secret Doug wires)
+// gets you in. A jeweled pocket: rock dome, gem band, glowing pool,
+// the treasure heap.
+const EGG = { x: VOLC.x, y: -60, z: VOLC.z };
+const gems = [];
+const eggRoom = new THREE.Group();
+eggRoom.position.set(EGG.x, EGG.y, EGG.z);
+scene.add(eggRoom);
+{
+  const g = new THREE.SphereGeometry(13, 28, 18);
+  const pos = g.attributes.position, col = new Float32Array(pos.count*3);
+  const cLo = new THREE.Color(0x2c2320), cHi = new THREE.Color(0x4a3c33), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    c.copy(cLo).lerp(cHi, clamp(pos.getY(i)/13*0.5+0.5, 0, 1))
+     .multiplyScalar(rand(0.85, 1.1));
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const room = new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+    vertexColors:true, side:THREE.BackSide, flatShading:true, fog:false }));
+  room.scale.set(1.15, 0.75, 1.15);
+  eggRoom.add(room);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 32),
+    new THREE.MeshLambertMaterial({ color:0x3a3029, flatShading:true, fog:false }));
+  floor.rotation.x = -Math.PI/2; floor.position.y = -4.4;
+  eggRoom.add(floor);
+  // stalactites: soft cones from the ceiling (mass, not needles)
+  for(let i=0;i<14;i++){
+    const a = rand(0, Math.PI*2), rr = rand(2, 10);
+    const st = new THREE.Mesh(new THREE.ConeGeometry(rand(0.3,0.8), rand(1.2,3.2), 6),
+      new THREE.MeshLambertMaterial({ color:0x4a3c33, flatShading:true, fog:false }));
+    st.position.set(Math.cos(a)*rr, 7.5 - rr*0.28, Math.sin(a)*rr);
+    st.rotation.x = Math.PI;
+    eggRoom.add(st);
+  }
+  // the glowing pool
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(3.2, 24),
+    new THREE.MeshBasicMaterial({ color:0x59e8de, fog:false }));
+  pool.rotation.x = -Math.PI/2; pool.position.set(-4.5, -4.3, 3.5);
+  eggRoom.add(pool);
+  // the gem band around the walls — each glints on its own beat
+  const gemCols = [0xe83e6c, 0x59e8de, 0xffd34d, 0x9d6cff, 0x6cff8f];
+  for(let i=0;i<36;i++){
+    const a = i/36*Math.PI*2 + rand(-0.1,0.1);
+    const rr = 11.2, y = rand(-2.5, 3.5);
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(rand(0.18, 0.4)),
+      new THREE.MeshBasicMaterial({ color: gemCols[i%gemCols.length], fog:false }));
+    gem.position.set(Math.cos(a)*rr, y, Math.sin(a)*rr);
+    gem.rotation.set(rand(0,3), rand(0,3), rand(0,3));
+    gem.userData = { ph: rand(0, Math.PI*2), w: rand(0.8, 2.0), s: gem.scale.x };
+    eggRoom.add(gem);
+    gems.push(gem);
+  }
+  // the treasure heap + the PRIZE egg on top
+  const heap = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.6, 10),
+    new THREE.MeshLambertMaterial({ color:0xe8b93c, flatShading:true, fog:false }));
+  heap.position.set(4.2, -3.6, -2.8);
+  eggRoom.add(heap);
+  const egg = new THREE.Mesh(new THREE.SphereGeometry(0.65, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0xffe9f2, fog:false }));
+  egg.scale.set(1, 1.3, 1);
+  egg.position.set(4.2, -2.3, -2.8);
+  eggRoom.add(egg);
+  const warm = new THREE.PointLight(0xffd9a0, 260, 40); warm.position.set(0, 3, 0);
+  eggRoom.add(warm);
+  const cool = new THREE.PointLight(0x59e8de, 110, 24); cool.position.set(-4.5, -2, 3.5);
+  eggRoom.add(cool);
+}
+// ---------- camera views + the egg-room teleport ----------
+const VIEWS = {
+  over:  { pos:[-170, 150, 230], tgt:[0, 0, 0] },
+  king:  { pos:[KING.x-38, 26, KING.z+42], tgt:[KING.x, kingY+2, KING.z] },
+  duke:  { pos:[ISLETS[0].x+48, 30, ISLETS[0].z+50], tgt:[ISLETS[0].x, 5, ISLETS[0].z] },
+  beach: { pos:[SAUCER.x+8, 8, SAUCER.z+38], tgt:[SAUCER.x, 2, SAUCER.z] },
+  lagoon:{ pos:[-78, 6, -64], tgt:[0, 7, 0] },
+};
+function goView(v){
+  camera.position.set(...v.pos);
+  controls.target.set(...v.tgt);
+  controls.update();
+}
+goView(VIEWS.over);
+document.querySelectorAll('#hud button[data-view]').forEach(b =>
+  b.addEventListener('click', () => { if(inEgg) leaveEgg(); goView(VIEWS[b.dataset.view]); }));
+
+let inEgg = false;
+const savedCam = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+const bEgg = document.getElementById('bEgg');
+function enterEgg(){
+  savedCam.pos.copy(camera.position); savedCam.tgt.copy(controls.target);
+  camera.position.set(EGG.x+8.5, EGG.y+1.5, EGG.z+8.5);
+  controls.target.set(EGG.x, EGG.y-1, EGG.z);
+  controls.update();
+  scene.background = new THREE.Color(0x0c0908);
+  labels.visible = false;
+  inEgg = true;
+  bEgg.textContent = '↩ Return to Atoll';
+}
+function leaveEgg(){
+  camera.position.copy(savedCam.pos); controls.target.copy(savedCam.tgt);
+  controls.update();
+  scene.background = SKY;
+  labels.visible = document.getElementById('cbLabels').checked;
+  inEgg = false;
+  bEgg.textContent = '🥚 Go to Easter Egg Room';
+}
+bEgg.addEventListener('click', () => inEgg ? leaveEgg() : enterEgg());
+// ?view=over|king|duke|beach|lagoon|egg — deep-linkable camera (and the
+// capture rig's way in)
+{
+  const v0 = new URLSearchParams(location.search).get('view');
+  if(v0 === 'egg') enterEgg();
+  else if(VIEWS[v0]) goView(VIEWS[v0]);
+}
+
+// ---------- Save Image: canvas → PNG, rev stamp burned into the corner ----------
+document.getElementById('bSave').addEventListener('click', () => {
+  renderer.render(scene, camera);   // fresh frame in the buffer
+  const src = renderer.domElement;
+  const oc = document.createElement('canvas');
+  oc.width = src.width; oc.height = src.height;
+  const cx = oc.getContext('2d');
+  cx.drawImage(src, 0, 0);
+  cx.font = `bold ${Math.round(oc.height/48)}px system-ui`;
+  const pad = Math.round(oc.height/40);
+  const tw = cx.measureText(REV_STAMP).width;
+  cx.fillStyle = 'rgba(0,20,30,0.55)';
+  cx.fillRect(pad-8, oc.height-pad-Math.round(oc.height/34), tw+16, Math.round(oc.height/30));
+  cx.fillStyle = '#fff';
+  cx.fillText(REV_STAMP, pad, oc.height - pad);
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().replace(/[:T]/g,'-').slice(0,16);
+  a.download = `atoll_r${REV}_${ts}.png`;
+  a.href = oc.toDataURL('image/png');
+  a.click();
+});
+
+// ---------- the builder's lift: layout data on window ----------
+window.ATOLL = {
+  rev: REV, built: REV_BUILT,
+  ringRadius: R, terrainH, slopeAt,
+  volcano: VOLC, kingSeat: { ...KING, y: kingY },
+  islets: ISLETS.map(I => ({ name:I.name, x:I.x, z:I.z, h:I.h, r:I.r })),
+  spokes: SPOKES, saucerBeach: SAUCER, raft: RAFT, eggChamber: EGG,
+};
+
+// ---------- animate (dt clamped to 0.05, per the tempo rule) ----------
+let last = performance.now()/1000, T = 0;
+function tick(){
+  requestAnimationFrame(tick);
+  const now = performance.now()/1000;
+  const dt = Math.min(0.05, now-last); last = now;
+  T += dt;
+  updateWater(T);
+  // the king's fire breathes
+  fire.scale.y = 1 + 0.18*Math.sin(T*9) + 0.1*Math.sin(T*23);
+  fire.rotation.y += dt*2;
+  // the raft rides the lagoon chop
+  raft.position.y = 0.15 + 0.1*Math.sin(T*1.4);
+  raft.rotation.x = 0.03*Math.sin(T*1.1);
+  // gem glitter — sharp glints, each on its own beat
+  for(const g of gems){
+    const gl = Math.pow(0.5+0.5*Math.sin(T*g.userData.w + g.userData.ph), 6);
+    g.scale.setScalar(g.userData.s*(1 + gl*0.7));
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+tick();
+
+addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

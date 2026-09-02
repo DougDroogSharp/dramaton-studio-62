@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     HONU — the Hawaiian green sea turtle (Chelonia mydas). Study.
+     Filed 2026-08-31 (see git log for the time stamp).
+
+     STANDALONE. Nothing here touches georgeworld.html.
+
+     WHY THIS EXISTS
+     The game's turtle (georgeworld.html ~line 9767) is a squashed sphere with
+     four boxes glued on. This is the real animal, built to the same contract
+     so it drops straight in: HEAD FACES +Z, origin at ground level, carapace
+     2.4 world units long.
+
+     WHAT MAKES IT A GREEN TURTLE AND NOT A GENERIC TURTLE
+       · Carapace low and broad — width ~0.80 of length, smooth-edged, NOT the
+         serrated overlapping scutes of a hawksbill. Five vertebral scutes,
+         four pairs of costals, a flared marginal skirt.
+       · The costal scutes carry the honu SUNBURST: pale streaks radiating from
+         the lower-rear corner of each plate. Painted procedurally.
+       · Small blunt head, about 0.14 of carapace length, with ONE pair of
+         prefrontal scales (a hawksbill has two) and a serrated lower jaw.
+       · Cream-yellow plastron. Dark olive skin in a yellow-edged scale mosaic.
+       · Long wing-like foreflippers with a single claw; short rear paddles.
+
+     THE TWO GAITS, AND WHY THEY LOOK LIKE THAT
+       SWIM — underwater FLIGHT. Both foreflippers beat in SYNC (a sea lion
+         alternates; a sea turtle does not), figure-of-eight, with a feathered
+         recovery and a long GLIDE. The rear flippers are rudders, not motors.
+       CRAWL — green turtles and leatherbacks use the SIMULTANEOUS gait: both
+         foreflippers reach, plant, and heave the body forward together in one
+         lurch, then a long rest. (Loggerheads and hawksbills alternate — get
+         this wrong and it reads as the wrong species.) The plastron drags. It
+         leaves a symmetrical track with a central drag band, which this study
+         actually draws into the sand.
+       BASK — hauling out to sleep on the sand is a Hawaii speciality; honu do
+         it and almost no other green turtle population does. Worth having.
+
+     DROP-IN CONTRACT
+       window.HONU = {
+         build(opts)   -> { group, update(dt, t), setGait(g), gait, LEN },
+         makeTurtle()  -> same thing, named like the game's other factories
+       }
+       build({ lambert:true }) swaps the PBR materials for the flat-shaded
+       Lambert the game uses everywhere else.
+     Three.js is VENDORED (vendor/three, r160) — the game's exact importmap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Honu — green sea turtle study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#8fcbe4;
+    font-family:"Segoe UI", system-ui, sans-serif; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:236px;
+    background:rgba(14,26,32,0.76); color:#eaf4f8; font:12.5px/1.45 system-ui,sans-serif;
+    padding:11px 13px; border-radius:12px; user-select:none; backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,0.12); }
+  #chip b { font-size:14px; letter-spacing:.4px; }
+  #chip .sub { opacity:.6; font-size:11px; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.15); margin:9px 0; }
+  #chip h4 { margin:0 0 5px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  .btns button { background:rgba(255,255,255,0.11); color:#eaf4f8;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:5px 9px;
+    font:11.5px system-ui,sans-serif; cursor:pointer; }
+  .btns button:hover { background:rgba(255,255,255,0.26); }
+  .btns button.on { background:#2e7f6b; border-color:#7fd9bd; font-weight:700; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:6px; font-size:11.5px; }
+  label.rw input[type=range] { flex:1; min-width:0; }
+  .togs { display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; margin-top:4px; }
+  .togs label { display:flex; align-items:center; gap:5px; font-size:11.5px; cursor:pointer; }
+  #note { margin-top:9px; font-size:11px; opacity:.75; line-height:1.4;
+    border-top:1px solid rgba(255,255,255,.14); padding-top:8px; }
+  #busy { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(8,20,26,0.7); color:#eaf4f8; z-index:30; font:15px system-ui,sans-serif; }
+</style>
+</head>
+<body>
+<div id="busy">growing a turtle…</div>
+<div id="chip">
+  <b>HONU</b><br><span class="sub">Chelonia mydas · green sea turtle</span>
+  <hr>
+  <h4>Gait</h4>
+  <div class="btns" id="gaits"></div>
+  <label class="rw">speed <input id="spd" type="range" min="0.2" max="2.2" step="0.05" value="1"></label>
+  <hr>
+  <h4>Views</h4>
+  <div class="btns" id="views"></div>
+  <div class="togs" id="togs"></div>
+  <div id="note"></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2, D=Math.PI/180;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// ======================================================================
+// 1. PROPORTIONS — everything is a ratio of carapace length, so the whole
+//    animal rescales from one number. Real Chelonia mydas measurements.
+// ======================================================================
+const LEN   = 2.4;              // carapace length in world units (matches the
+                                //   game's placeholder turtle)
+const HALFL = LEN/2;
+const HALFW = LEN*0.745/2;      // carapace width ~0.75 of length
+const RIM_Y = LEN*0.052;        // where the marginal skirt sits
+// FLAT. This is the single most important number: a sea turtle's shell is a
+// hydrodynamic lid, nothing like a tortoise's dome. Total shell height runs
+// about 0.28 of length, and most of that is the plastron curve.
+const DOME  = LEN*0.150;        // dome height above the rim
+const HEAD_L= LEN*0.150;        // small blunt head — a green turtle's giveaway
+const FORE_L= LEN*0.64;         // long wing-like foreflipper
+const HIND_L= LEN*0.28;         // short rear paddle
+
+// ======================================================================
+// 2. TEXTURES — painted procedurally so there are no external assets
+// ======================================================================
+// ---- the CARAPACE map. Painted in TOP-DOWN plan space, which is exactly the
+// UV space the shell mesh uses, so the scutes land where they belong.
+function carapaceMaps(){
+  const S = 1024;
+  const cv = document.createElement('canvas'); cv.width=cv.height=S;
+  const g = cv.getContext('2d');
+  const bv = document.createElement('canvas'); bv.width=bv.height=S;
+  const b = bv.getContext('2d');                       // bump: seams are grooves
+  b.fillStyle='#808080'; b.fillRect(0,0,S,S);
+
+  // UV convention: u = 0.5 + x/(2*HALFW)  (x lateral), v = 0.5 + z/(2*HALFL)
+  // so v=1 is the HEAD end. Work in pixels with the same mapping.
+  // NOTE the minus on z: canvas Y runs down, texture V runs up. Without it the
+  // whole scute layout is painted back-to-front and the sunbursts radiate the
+  // wrong way.
+  const P = (x, z)=>[ S*(0.5 + x/2), S*(0.5 - z/2) ];   // x,z in [-1,1] shell space
+
+  g.fillStyle = '#3e3620'; g.fillRect(0,0,S,S);         // olive-brown ground
+
+  // mottling under everything
+  const rr = mulberry32(9137);
+  for(let i=0;i<2600;i++){
+    const x=rr()*S, y=rr()*S, r=6+rr()*46;
+    g.fillStyle = `rgba(${90+rr()*70|0},${74+rr()*54|0},${38+rr()*36|0},0.16)`;
+    g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+  }
+
+  // ---- a scute painter: fill, then the SUNBURST streaks radiating from a
+  // focus, then a dark seam. This is the pattern that says "green turtle".
+  function scute(pts, focus, tone, streaks){
+    g.save(); g.beginPath();
+    pts.forEach((p,i)=>{ const [X,Y]=P(p[0],p[1]); i?g.lineTo(X,Y):g.moveTo(X,Y); });
+    g.closePath(); g.clip();
+    // base
+    const [fx,fy]=P(focus[0],focus[1]);
+    const grd = g.createRadialGradient(fx,fy,2,fx,fy,S*0.30);
+    grd.addColorStop(0, tone[0]); grd.addColorStop(1, tone[1]);
+    g.fillStyle = grd; g.fillRect(0,0,S,S);
+    // radiating streaks
+    if(streaks){
+      for(let i=0;i<streaks;i++){
+        const a = (i/streaks)*Math.PI*1.55 - Math.PI*0.78 + (rr()-0.5)*0.06;
+        const w = 3 + rr()*9;
+        g.strokeStyle = `rgba(${196+rr()*44|0},${168+rr()*40|0},${96+rr()*40|0},${0.20+rr()*0.34})`;
+        g.lineWidth = w; g.lineCap='round';
+        g.beginPath(); g.moveTo(fx,fy);
+        const L = S*(0.16+rr()*0.26);
+        g.quadraticCurveTo(fx+Math.cos(a)*L*0.5, fy+Math.sin(a)*L*0.5,
+                           fx+Math.cos(a)*L, fy+Math.sin(a)*L);
+        g.stroke();
+      }
+    }
+    g.restore();
+    // the seam, on colour and on bump
+    const stroke=(ctx,style,w)=>{ ctx.save(); ctx.beginPath();
+      pts.forEach((p,i)=>{ const [X,Y]=P(p[0],p[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
+      ctx.closePath(); ctx.strokeStyle=style; ctx.lineWidth=w; ctx.stroke(); ctx.restore(); };
+    stroke(g, 'rgba(30,24,12,0.62)', 5);
+    stroke(b, '#3a3a3a', 7);
+    stroke(b, '#9a9a9a', 2);
+  }
+
+  // olive-brown, not tan. A honu in daylight is a dark animal with bright
+  // streaks, and the contrast is what makes the sunburst read at all.
+  const TONE_A = ['#6d5a2f','#3c331e'], TONE_B = ['#5f4f2a','#342c19'];
+  // FIVE vertebral scutes down the spine (z from head +0.86 to tail -0.90)
+  const vz = [0.86, 0.50, 0.12, -0.28, -0.66, -0.92];
+  for(let i=0;i<5;i++){
+    const z0=vz[i], z1=vz[i+1];
+    const w0 = 0.20*(i===0?0.8:1), w1 = 0.20*(i===4?0.62:1);
+    scute([[-w0,z0],[w0,z0],[w1*1.08,(z0+z1)/2],[w1,z1],[-w1,z1],[-w1*1.08,(z0+z1)/2]],
+          [0, (z0+z1)/2], TONE_B, 0);
+  }
+  // FOUR pairs of costal scutes — these carry the sunburst
+  const cz = [0.88, 0.46, 0.04, -0.40, -0.84];
+  for(let side=-1; side<=1; side+=2){
+    for(let i=0;i<4;i++){
+      const z0=cz[i], z1=cz[i+1];
+      const inner = 0.20, outer = 0.74 * (1 - 0.30*Math.abs((z0+z1)/2));
+      scute([[side*inner,z0],[side*outer,z0*0.94],[side*(outer+0.04),(z0+z1)/2],
+             [side*outer,z1*0.94],[side*inner,z1]],
+            [side*outer*0.92, z1], TONE_A, 9);
+    }
+  }
+  // the MARGINAL skirt — small plates all the way round
+  const NM = 26;
+  for(let i=0;i<NM;i++){
+    const a0 = (i/NM)*TAU, a1 = ((i+1)/NM)*TAU;
+    const R0 = 0.76, R1 = 1.02;
+    scute([[Math.sin(a0)*R0, Math.cos(a0)*R0],[Math.sin(a0)*R1, Math.cos(a0)*R1],
+           [Math.sin(a1)*R1, Math.cos(a1)*R1],[Math.sin(a1)*R0, Math.cos(a1)*R0]],
+          [Math.sin((a0+a1)/2)*R0, Math.cos((a0+a1)/2)*R0], TONE_B, 3);
+  }
+  // a wash of algae/wear on the older (rear) plates — honu carry a lot of it
+  for(let i=0;i<340;i++){
+    const x=(rr()*2-1), z=(rr()*2-1);
+    if(x*x+z*z > 1) continue;
+    const [X,Y]=P(x,z);
+    g.fillStyle = `rgba(${58+rr()*40|0},${72+rr()*40|0},${44+rr()*26|0},${0.05+rr()*0.13})`;
+    g.beginPath(); g.ellipse(X,Y,10+rr()*40, 8+rr()*26, rr()*3,0,TAU); g.fill();
+  }
+  const map = new THREE.CanvasTexture(cv); map.colorSpace = THREE.SRGBColorSpace;
+  const bump = new THREE.CanvasTexture(bv);
+  return { map, bump };
+}
+
+// ---- the SKIN map: the dark olive scale mosaic with pale edges that covers
+// head, neck and flippers. Cheap Voronoi-ish: scatter seeds, draw cells.
+function skinMap(){
+  const S = 512;
+  const cv = document.createElement('canvas'); cv.width=cv.height=S;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#5c6340'; g.fillRect(0,0,S,S);
+  const r = mulberry32(4211);
+  const seeds = [];
+  for(let i=0;i<300;i++) seeds.push([r()*S, r()*S]);
+  // paint each seed as an irregular polygon lightened toward the middle
+  for(const [sx,sy] of seeds){
+    const n = 5 + (r()*3|0), rad = 9 + r()*13;
+    g.beginPath();
+    for(let i=0;i<n;i++){
+      const a = i/n*TAU + r()*0.3, rr2 = rad*(0.7+r()*0.5);
+      const X=sx+Math.cos(a)*rr2, Y=sy+Math.sin(a)*rr2;
+      i?g.lineTo(X,Y):g.moveTo(X,Y);
+    }
+    g.closePath();
+    const t = r();
+    g.fillStyle = `rgb(${52+t*44|0},${58+t*42|0},${34+t*30|0})`;
+    g.fill();
+    g.strokeStyle = `rgba(${188+r()*50|0},${180+r()*46|0},${118+r()*44|0},${0.30+r()*0.34})`;
+    g.lineWidth = 1.5; g.stroke();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// ======================================================================
+// 3. GEOMETRY
+// ======================================================================
+// the carapace plan-form: a superellipse, blunter in front than behind, with
+// a small nuchal notch over the neck. Returns a radius for a bearing measured
+// from +Z (forward).
+function shellR(th){
+  const c = Math.cos(th), s = Math.sin(th);
+  const fore = c > 0;
+  const L = fore ? 0.97 : 1.03;
+  const n = fore ? 2.7 : 1.95;               // blunt shoulders, tapered tail
+  const rr = Math.pow(Math.pow(Math.abs(c)/L, n) + Math.pow(Math.abs(s)/0.99, n), -1/n);
+  const notch = 1 - 0.06*Math.exp(-Math.pow(th/0.26, 2));    // nuchal notch
+  // pinch the rear into the teardrop point a green turtle actually has
+  const tail = 1 - 0.13*Math.exp(-Math.pow(angWrap(th-Math.PI)/0.85, 2));
+  return rr * notch * tail;
+}
+function angWrap(a){ while(a>Math.PI)a-=TAU; while(a<-Math.PI)a+=TAU; return a; }
+// the dome. A low broad lid: flattest over the middle, falling away fast only
+// at the rim, and lower over the head than over the hips.
+function shellY(rf, x, z){
+  const base = Math.pow(Math.max(0, 1 - Math.pow(rf, 2.5)), 0.72);
+  return DOME * base * (1 - 0.20*clamp(z,0,1)) * (1 + 0.06*clamp(-z,0,1));
+}
+
+// WHERE THE THREE SHELL PIECES MEET.
+// The carapace skirt, the bridge and the plastron have to agree on one rim, or
+// there is an open slot along the flank and you can see the sea through the
+// animal. Declared ONCE here and consumed by all three builders, so they
+// cannot drift apart again.
+const FLARE   = 1.09;                        // rings past 1.0 curl down and out
+const SKIRT_K = 1 + (FLARE-1)*0.30;          // radius factor at the skirt's lip
+const SKIRT_Y = RIM_Y*0.05;                  // height of that lip
+const PLAST_R = 0.90;                        // plastron is narrower than the shell…
+const PLAST_Y = -LEN*0.010;                  // …and sits a little below the lip,
+                                             //   so the bridge is a visible wall
+
+function carapaceGeo(){
+  const RINGS = 26, SEG = 64;
+  const pos=[], nrm=[], uv=[], idx=[];
+  for(let i=0;i<=RINGS;i++){
+    const rf = (i/RINGS)*FLARE;
+    for(let j=0;j<=SEG;j++){
+      const th = (j/SEG)*TAU;
+      const R = shellR(th);
+      const k = Math.min(rf, 1) + Math.max(0, rf-1)*0.30;   // the skirt barely widens
+      const x = Math.sin(th)*R*k*HALFW;
+      const z = Math.cos(th)*R*k*HALFL;
+      let y;
+      if(rf <= 1) y = RIM_Y + shellY(rf, Math.sin(th)*R, Math.cos(th)*R);
+      else        y = RIM_Y - (rf-1)/(FLARE-1) * (RIM_Y - SKIRT_Y);  // marginal flare
+      pos.push(x, y, z);
+      uv.push(0.5 + Math.sin(th)*R*Math.min(rf,1.02)/2,
+              0.5 + Math.cos(th)*R*Math.min(rf,1.02)/2);
+    }
+  }
+  for(let i=0;i<RINGS;i++) for(let j=0;j<SEG;j++){
+    const a=i*(SEG+1)+j, b=a+SEG+1;
+    idx.push(a, b, a+1, a+1, b, b+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// the plastron: the pale underside, a shallow dish bulging gently DOWNWARD
+function plastronGeo(){
+  const RINGS = 10, SEG = 64;
+  const pos=[], uv=[], idx=[];
+  for(let i=0;i<=RINGS;i++){
+    const rf = i/RINGS;
+    for(let j=0;j<=SEG;j++){
+      const th=(j/SEG)*TAU, R=shellR(th)*PLAST_R;
+      pos.push(Math.sin(th)*R*rf*HALFW,
+               PLAST_Y - 0.013*LEN*(1-rf*rf),
+               Math.cos(th)*R*rf*HALFL);
+      uv.push(0.5+Math.sin(th)*R*rf/2, 0.5+Math.cos(th)*R*rf/2);
+    }
+  }
+  for(let i=0;i<RINGS;i++) for(let j=0;j<SEG;j++){
+    const a=i*(SEG+1)+j, b=a+SEG+1;
+    idx.push(a, a+1, b, a+1, b+1, b);        // wound to face DOWN
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// THE BRIDGE — the wall of shell that joins carapace to plastron along each
+// flank. Without it the two pieces are separate lids with a ring of nothing
+// between them, and from a low angle you see straight through the turtle to
+// the sea. It runs from the plastron's rim out and up to the skirt's lip,
+// bulging slightly so it reads as a body and not a bevel.
+function bridgeGeo(){
+  const RINGS = 5, SEG = 64;
+  const pos=[], uv=[], idx=[];
+  for(let i=0;i<=RINGS;i++){
+    const u = i/RINGS;                                   // 0 = plastron, 1 = skirt
+    const bulge = 0.035*Math.sin(u*Math.PI);
+    const k = lerp(PLAST_R, SKIRT_K, u) + bulge;
+    const y = lerp(PLAST_Y, SKIRT_Y, u);
+    for(let j=0;j<=SEG;j++){
+      const th=(j/SEG)*TAU, R=shellR(th);
+      pos.push(Math.sin(th)*R*k*HALFW, y, Math.cos(th)*R*k*HALFL);
+      uv.push(j/SEG*3, u);
+    }
+  }
+  for(let i=0;i<RINGS;i++) for(let j=0;j<SEG;j++){
+    const a=i*(SEG+1)+j, b=a+SEG+1;
+    idx.push(a, a+1, b, a+1, b+1, b);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// A FLIPPER BLADE over a span range. Built in segments so the limb can flex:
+// the tip lags the shoulder, which is what makes flapping read as a wing and
+// not as a rotating plank.
+function bladeGeo(u0, u1, opt){
+  const { len, chord, sweep, taper, thick, tipRound } = opt;
+  const NU = 10, NV = 8;
+  const pos=[], uv=[], idx=[];
+  const chordAt = u => chord * (1 - taper*u*u) * (tipRound ? Math.pow(1-Math.pow(u,7), 0.35) : 1);
+  const offAt   = u => -sweep*Math.pow(u, 1.55);
+  for(let i=0;i<=NU;i++){
+    const u = lerp(u0, u1, i/NU);
+    const c = chordAt(u), o = offAt(u), th = thick*(1 - 0.55*u);
+    for(let j=0;j<=NV;j++){
+      const v = j/NV, a = v*TAU;
+      // an aerofoil-ish section: flat-ish under, cambered over
+      const cx = Math.cos(a)*0.5, cy = Math.sin(a);
+      pos.push(u*len,
+               (cy>0 ? cy*th : cy*th*0.45) + Math.pow(u,2)*0.02*len,
+               o + cx*c);
+      uv.push(u*2.4, v);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// the HEAD: a blunt wedge, not a sphere. Green turtles have a short rounded
+// snout and a deep jaw line.
+function headGeo(){
+  const NU=16, NV=16, pos=[], uv=[], idx=[];
+  for(let i=0;i<=NU;i++){
+    const u=i/NU;                                  // 0 = neck, 1 = snout
+    // top profile: rises over the crown then drops to the nose
+    const w = HEAD_L*(0.62 - 0.30*Math.pow(u,1.8)) * Math.pow(1-Math.pow(u,9),0.30);
+    const hUp = HEAD_L*(0.50 - 0.26*Math.pow(u,1.5)) * Math.pow(1-Math.pow(u,9),0.30);
+    const hDn = HEAD_L*(0.46 - 0.30*Math.pow(u,1.2)) * Math.pow(1-Math.pow(u,9),0.30);
+    const yc  = HEAD_L*(-0.02 + 0.06*Math.sin(u*2.2));
+    for(let j=0;j<=NV;j++){
+      const a=(j/NV)*TAU, cs=Math.cos(a), sn=Math.sin(a);
+      pos.push(sn*w, yc + (cs>0?cs*hUp:cs*hDn), u*HEAD_L*1.42);
+      uv.push(u*1.6, j/NV);
+    }
+  }
+  for(let i=0;i<NU;i++) for(let j=0;j<NV;j++){
+    const a=i*(NV+1)+j, b=a+NV+1;
+    idx.push(a,b,a+1, a+1,b,b+1);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// ======================================================================
+// 4. BUILD THE ANIMAL
+// ======================================================================
+const CARA = carapaceMaps();
+const SKIN = skinMap();
+
+function build(opts){
+  opts = opts || {};
+  const flat = !!opts.lambert;                    // game-matching material mode
+  const matShell = flat
+    ? new THREE.MeshLambertMaterial({ map:CARA.map, flatShading:true })
+    : new THREE.MeshStandardMaterial({ map:CARA.map, bumpMap:CARA.bump,
+        bumpScale:0.035, roughness:0.72, metalness:0.03 });
+  // DoubleSide is not cosmetic here: the left limbs are the right limbs with
+  // scale.z = -1, and a negative scale reverses winding. Without it the whole
+  // left side renders inside-out.
+  const matSkin = flat
+    ? new THREE.MeshLambertMaterial({ map:SKIN, flatShading:true, side:THREE.DoubleSide })
+    : new THREE.MeshStandardMaterial({ map:SKIN, roughness:0.78, metalness:0.0,
+        side:THREE.DoubleSide });
+  // DoubleSide on the underside pieces too — the plastron is wound to face
+  // down and the bridge is a ring; neither should ever vanish at a grazing
+  // angle and re-open the hole this was built to close.
+  const matPlast = flat
+    ? new THREE.MeshLambertMaterial({ color:0xe8dcae, flatShading:true,
+        side:THREE.DoubleSide })
+    : new THREE.MeshStandardMaterial({ color:0xe8dcae, roughness:0.80,
+        side:THREE.DoubleSide });
+  const matDark = new THREE.MeshStandardMaterial({ color:0x14140f, roughness:0.35 });
+  const matClaw = new THREE.MeshStandardMaterial({ color:0x2b2418, roughness:0.5 });
+
+  const group = new THREE.Group();               // origin AT GROUND, head +Z
+  const body  = new THREE.Group();               // everything that bobs/pitches
+  body.position.y = RIM_Y*0.55;
+  group.add(body);
+
+  const shell = new THREE.Mesh(carapaceGeo(), matShell);
+  shell.castShadow = shell.receiveShadow = true;
+  body.add(shell);
+  const plast = new THREE.Mesh(plastronGeo(), matPlast);
+  plast.receiveShadow = true;
+  body.add(plast);
+  const bridge = new THREE.Mesh(bridgeGeo(), matPlast);
+  bridge.castShadow = bridge.receiveShadow = true;
+  body.add(bridge);
+
+  // ---- NECK + HEAD. Two short neck segments let the head retract and extend.
+  // The neck is SHORT and THICK — a sea turtle cannot retract its head, so it
+  // is a stout column, not a tortoise's periscope. It emerges from under the
+  // nuchal notch, not from the top of the shell.
+  const neck1 = new THREE.Group();
+  const NECK_Y = RIM_Y*1.05 + DOME*0.10;
+  neck1.position.set(0, NECK_Y, HALFL*0.80);
+  body.add(neck1);
+  const neckMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(HEAD_L*0.54, HEAD_L*0.70, HEAD_L*0.62, 14, 1), matSkin);
+  neckMesh.rotation.x = Math.PI/2;
+  neckMesh.position.z = HEAD_L*0.28;
+  neck1.add(neckMesh);
+  const neck2 = new THREE.Group();
+  neck2.position.z = HEAD_L*0.55;
+  neck1.add(neck2);
+
+  const head = new THREE.Mesh(headGeo(), matSkin);
+  head.castShadow = true;
+  neck2.add(head);
+  // the beak: a pale horny sheath over the snout, with the green turtle's
+  // serrated lower jaw
+  const beak = new THREE.Mesh(
+    new THREE.ConeGeometry(HEAD_L*0.20, HEAD_L*0.40, 10),
+    new THREE.MeshStandardMaterial({ color:0xbeb48c, roughness:0.55 }));
+  beak.rotation.x = Math.PI/2;
+  beak.position.set(0, -HEAD_L*0.04, HEAD_L*1.44);
+  head.add(beak);
+  // eyes, set high and to the sides
+  const eyes = [];
+  for(const s of [-1,1]){
+    const e = new THREE.Group();
+    // LOW and on the SIDE of the skull, looking outward — not two beads stuck
+    // on the forehead. A sea turtle's eye barely protrudes; the socket rim is
+    // most of what you see.
+    e.position.set(s*HEAD_L*0.44, HEAD_L*0.04, HEAD_L*0.80);
+    e.rotation.y = s*0.55;
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(HEAD_L*0.115, 12, 10), matDark);
+    ball.scale.set(0.75, 1, 1);
+    e.add(ball);
+    const shine = new THREE.Mesh(new THREE.SphereGeometry(HEAD_L*0.026, 6, 5),
+      new THREE.MeshBasicMaterial({ color:0xdfe8ee }));
+    shine.position.set(s*HEAD_L*0.055, HEAD_L*0.045, HEAD_L*0.055);
+    e.add(shine);
+    // the lid: a scaled sphere cap that closes over the eye for a blink
+    const lid = new THREE.Mesh(new THREE.SphereGeometry(HEAD_L*0.128, 12, 10), matSkin);
+    lid.scale.set(0.78, 0.02, 1); lid.position.y = HEAD_L*0.115;
+    e.add(lid);
+    head.add(e); eyes.push({ grp:e, lid });
+  }
+  // nostrils — where the bubbles come from
+  const nose = new THREE.Object3D();
+  nose.position.set(0, HEAD_L*0.10, HEAD_L*1.52);
+  head.add(nose);
+
+  // ---- FLIPPERS -------------------------------------------------------
+  // Each foreflipper is shoulder → mid → tip. Animating three nested groups
+  // instead of one gives the blade its whip; the tip lags, the wing bends.
+  // RIG NOTE. The mirror lives on a ROOT group ABOVE the animated joints, with
+  // scale.x = ±1. Because an Object3D applies its own scale INSIDE its own
+  // rotation (M = T·R·S), putting the mirror on the animated joint itself
+  // mirrors the mesh but not the joint — which is what made the left flipper
+  // swing across the body. With the mirror one level up, every angle below it
+  // is reflected for free and both sides take identical animation values.
+  const fore = [];
+  for(const s of [-1,1]){
+    const root = new THREE.Group();
+    root.position.set(s*HALFW*0.80, RIM_Y*0.55, HALFL*0.46);
+    root.scale.x = s;
+    body.add(root);
+    const sh = new THREE.Group();
+    root.add(sh);
+    const inner = new THREE.Mesh(bladeGeo(0, 0.40, {
+      len:FORE_L, chord:FORE_L*0.40, sweep:FORE_L*0.26, taper:0.62,
+      thick:FORE_L*0.030, tipRound:false }), matSkin);
+    inner.castShadow = true;
+    sh.add(inner);
+    const mid = new THREE.Group();
+    mid.position.x = FORE_L*0.40;
+    sh.add(mid);
+    const midM = new THREE.Mesh(bladeGeo(0.40, 0.74, {
+      len:FORE_L, chord:FORE_L*0.40, sweep:FORE_L*0.26, taper:0.62,
+      thick:FORE_L*0.030, tipRound:false }), matSkin);
+    midM.position.x = -FORE_L*0.40; midM.castShadow = true;
+    mid.add(midM);
+    const tip = new THREE.Group();
+    tip.position.x = FORE_L*0.34;
+    mid.add(tip);
+    const tipM = new THREE.Mesh(bladeGeo(0.74, 1.0, {
+      len:FORE_L, chord:FORE_L*0.40, sweep:FORE_L*0.26, taper:0.62,
+      thick:FORE_L*0.030, tipRound:true }), matSkin);
+    tipM.position.x = -FORE_L*0.74; tipM.castShadow = true;
+    tip.add(tipM);
+    // the single claw on the leading edge — green turtles have exactly one
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(FORE_L*0.020, FORE_L*0.075, 6), matClaw);
+    claw.rotation.z = -Math.PI/2 + 0.5;
+    claw.position.set(FORE_L*0.30, 0, FORE_L*0.10);
+    sh.add(claw);
+    fore.push({ s, sh, mid, tip });
+  }
+  const hind = [];
+  for(const s of [-1,1]){
+    const hroot = new THREE.Group();
+    hroot.position.set(s*HALFW*0.68, RIM_Y*0.30, -HALFL*0.60);
+    hroot.scale.x = s;
+    body.add(hroot);
+    const hp = new THREE.Group();
+    hroot.add(hp);
+    const m = new THREE.Mesh(bladeGeo(0, 1, {
+      len:HIND_L, chord:HIND_L*0.72, sweep:HIND_L*0.34, taper:0.28,
+      thick:HIND_L*0.070, tipRound:true }), matSkin);
+    m.castShadow = true;
+    hp.add(m);
+    hind.push({ s, hp });
+  }
+  // a short tail
+  const tail = new THREE.Mesh(
+    new THREE.ConeGeometry(HEAD_L*0.26, HEAD_L*0.85, 8), matSkin);
+  tail.rotation.x = -Math.PI/2 + 0.35;
+  tail.position.set(0, RIM_Y*0.25, -HALFL*0.98);
+  body.add(tail);
+
+  // ---- BUBBLES (swim only) --------------------------------------------
+  const bubbles = [];
+  const bubGeo = new THREE.SphereGeometry(1, 7, 6);
+  const bubMat = new THREE.MeshStandardMaterial({ color:0xdff6ff, transparent:true,
+    opacity:0.5, roughness:0.1, metalness:0.0 });
+  const bubRoot = new THREE.Group(); group.add(bubRoot);
+  for(let i=0;i<14;i++){
+    const b = new THREE.Mesh(bubGeo, bubMat);
+    b.visible = false; bubRoot.add(b);
+    bubbles.push({ m:b, life:0, r:0, vx:0, vz:0 });
+  }
+
+  // ==================================================================
+  // 5. THE GAITS
+  // ==================================================================
+  let gait = 'swim', phase = 0, blink = 0, nextBlink = 3, breathe = 0;
+  let advance = 0;                    // metres crawled this cycle (for tracks)
+  const api = {
+    group, body, LEN, fore, hind, nose,
+    onLurch: null,                    // hook: fired at each crawl plant
+    get gait(){ return gait; },
+    setGait(g){ gait = g; phase = 0; },
+    update, LEN_TOTAL: LEN,
+  };
+
+  // -- SWIM: synchronous underwater flight -----------------------------
+  // The phase is deliberately NOT sinusoidal. A sea turtle beats down hard,
+  // recovers slowly with the blade feathered, then GLIDES. Sine would give a
+  // fish-tail flutter, which is the wrong animal entirely.
+  function swimShape(p){
+    // returns {dihedral 0..1 (1=top), power 0..1}
+    if(p < 0.30){ const u = p/0.30;                      // DOWNSTROKE — fast
+      return { d: Math.cos(u*Math.PI)*0.5+0.5, power: Math.sin(u*Math.PI), rec:0 }; }
+    if(p < 0.62){ const u = (p-0.30)/0.32;               // RECOVERY — feathered
+      return { d: (1-Math.cos(u*Math.PI))*0.5, power:0, rec: Math.sin(u*Math.PI) }; }
+    return { d:1, power:0, rec:0 };                      // GLIDE — held high
+  }
+  function doSwim(dt, t, sp){
+    phase = (phase + dt*sp/2.6) % 1;
+    const S = swimShape(phase);
+    for(const f of fore){
+      const lag = swimShape((phase + 0.92) % 1);         // the tip trails
+      const lag2 = swimShape((phase + 0.86) % 1);
+      // dihedral: +42 deg above horizontal down to -34
+      f.sh.rotation.z = lerp(-34*D, 42*D, S.d);
+      // feather: leading edge pitched into the stroke, flat on recovery
+      f.sh.rotation.x = lerp(0, -26*D, S.power) + lerp(0, 34*D, S.rec);
+      // a little fore-aft sweep so the tip traces a figure of eight
+      f.sh.rotation.y = Math.sin(phase*TAU)*9*D;
+      f.mid.rotation.z = lerp(-16*D, 15*D, lag.d) * 0.9;
+      f.mid.rotation.x = lerp(0, 16*D, lag.rec);
+      f.tip.rotation.z = lerp(-20*D, 17*D, lag2.d);
+    }
+    // rear flippers are RUDDERS: trailing, with a slow lazy sway
+    // +y sweeps a blade toward -Z, i.e. BACKWARD — the rudders trail
+    for(const h of hind){
+      h.hp.rotation.z = -5*D + Math.sin(t*0.7 + h.s)*4*D;
+      h.hp.rotation.y = 34*D + Math.sin(t*0.5)*8*D;
+      h.hp.rotation.x = 0;
+    }
+    // the body answers the stroke a beat late — lift on the downbeat
+    body.position.y = RIM_Y*0.55 + Math.sin((phase-0.12)*TAU)*LEN*0.022;
+    body.rotation.x = Math.sin((phase-0.20)*TAU)*3.0*D;
+    body.rotation.z = 0;
+    neck1.rotation.x = -4*D + Math.sin(t*0.6)*2*D;
+    neck2.rotation.y = Math.sin(t*0.31)*6*D;
+    neck1.position.z = HALFL*0.86;
+    // a breath of bubbles now and then
+    if(Math.random() < dt*0.55) spawnBubble();
+  }
+
+  // -- CRAWL: the SIMULTANEOUS gait. Both foreflippers, one heave, long rest.
+  //    (Loggerheads alternate. Green turtles do not.)
+  function doCrawl(dt, t, sp){
+    const prev = phase;
+    phase = (phase + dt*sp/4.2) % 1;
+    if(phase < prev) advance = 0;
+
+    let reach=0, plant=0, pull=0, rest=0;
+    if(phase < 0.14){ reach = phase/0.14; }
+    else if(phase < 0.23){ reach = 1; plant = (phase-0.14)/0.09; }
+    else if(phase < 0.46){ pull = (phase-0.23)/0.23; }
+    else { rest = (phase-0.46)/0.54; }
+
+    // the flippers: up and forward, then down and hard back
+    const swing = plant>0 ? lerp(1, 0.85, plant)
+                : pull>0  ? lerp(0.85, -0.55, sstep(0,1,pull))
+                : rest>0  ? lerp(-0.55, 0, sstep(0, 0.35, rest))
+                : reach;
+    // she barely clears the sand — this is a heavy animal out of its element,
+    // not a lizard picking its feet up
+    const lift  = reach>0 ? Math.sin(reach*Math.PI)*0.55
+                : plant>0 ? lerp(0.16, 0, plant) : 0;
+    for(const f of fore){
+      f.sh.rotation.y = -swing * 40*D + 8*D;             // negative y = FORWARD reach
+      f.sh.rotation.z = lift * 22*D - 7*D;               // lifted clear, or dug in
+      f.sh.rotation.x = pull>0 ? -14*D*Math.sin(pull*Math.PI) : -3*D;
+      f.mid.rotation.y = -swing * 16*D;
+      f.mid.rotation.z = lift * 12*D;
+      f.tip.rotation.z = lift * 16*D - (pull>0 ? 8*D : 0);
+      f.tip.rotation.y = -swing * 10*D;
+    }
+    // the rear flippers brace and shove
+    for(const h of hind){
+      h.hp.rotation.y = 26*D + (pull>0 ? Math.sin(pull*Math.PI)*24*D : 0);
+      h.hp.rotation.z = -10*D + (pull>0 ? Math.sin(pull*Math.PI)*8*D : 0);
+    }
+    // THE LURCH. All the ground speed happens inside the pull; the rest of the
+    // cycle the animal is simply lying there, which is the honest picture.
+    const surge = pull>0 ? sstep(0, 1, pull) : (rest>0 ? 1 : 0);
+    const stride = LEN*0.30;
+    const target = stride*surge;
+    const step = target - advance;
+    advance = target;
+    group.translateZ(step);
+    if(step > 0.0001 && api.onLurch) api.onLurch(step, pull);
+
+    // the body heaves: nose down as it digs, up over the plastron, then flat
+    body.position.y = RIM_Y*0.55 + (pull>0 ? Math.sin(pull*Math.PI)*LEN*0.020 : 0);
+    body.rotation.x = pull>0 ? Math.sin(pull*Math.PI)*-3.5*D
+                    : reach>0 ? reach*1.5*D : 0;
+    body.rotation.z = 0;
+    // head: stretched out and low during the heave, resting between
+    neck1.rotation.x = pull>0 ? lerp(6*D, -8*D, pull) : lerp(6*D, 10*D, rest);
+    neck1.position.z = HALFL*0.86 + (pull>0 ? Math.sin(pull*Math.PI)*HEAD_L*0.30 : 0);
+    neck2.rotation.y = rest>0.5 ? Math.sin(t*0.5)*7*D : 0;
+    // hauling a shell up a beach is hard work — she breathes for it
+    breathe += dt*(rest>0 ? 1.6 : 0.7);
+    shell.scale.y = 1 + Math.sin(breathe)*0.012;
+  }
+
+  // -- BASK: hauled out, motionless, breathing. The Hawaii speciality. ----
+  function doBask(dt, t){
+    for(const f of fore){
+      f.sh.rotation.y = 30*D; f.sh.rotation.z = -8*D; f.sh.rotation.x = 3*D;
+      f.mid.rotation.y = 14*D; f.mid.rotation.z = 0; f.tip.rotation.z = 2*D;
+      f.tip.rotation.y = 8*D;
+    }
+    for(const h of hind){ h.hp.rotation.y = 42*D; h.hp.rotation.z = -10*D; }
+    breathe += dt*0.9;
+    shell.scale.y = 1 + Math.sin(breathe)*0.018;
+    body.position.y = RIM_Y*0.55 - LEN*0.006;
+    body.rotation.x = 0; body.rotation.z = 0;
+    neck1.rotation.x = 8*D; neck1.position.z = HALFL*0.86;
+    // an occasional slow look around, the only thing that moves
+    const look = Math.sin(t*0.16);
+    neck2.rotation.y = (Math.abs(look) > 0.86 ? Math.sign(look)*(Math.abs(look)-0.86)/0.14 : 0) * 26*D;
+  }
+
+  function spawnBubble(){
+    const b = bubbles.find(x => x.life <= 0);
+    if(!b) return;
+    const p = new THREE.Vector3();
+    nose.getWorldPosition(p);
+    group.worldToLocal(p);
+    b.m.position.copy(p);
+    b.r = LEN*(0.012 + Math.random()*0.022);
+    b.m.scale.setScalar(b.r);
+    b.life = 1; b.vx = (Math.random()-0.5)*0.12; b.vz = (Math.random()-0.5)*0.12;
+    b.m.visible = true;
+  }
+
+  function update(dt, t){
+    const sp = api.speed === undefined ? 1 : api.speed;
+    if(gait === 'swim') doSwim(dt, t, sp);
+    else if(gait === 'crawl') doCrawl(dt, t, sp);
+    else doBask(dt, t);
+
+    // blinking, in every gait — the cheapest thing that makes it alive
+    nextBlink -= dt;
+    if(nextBlink <= 0){ blink = 1; nextBlink = 2.5 + Math.random()*5; }
+    if(blink > 0){
+      blink = Math.max(0, blink - dt*7);
+      const shut = Math.sin((1-blink)*Math.PI);
+      for(const e of eyes){ e.lid.scale.y = 0.02 + shut*1.05;
+        e.lid.position.y = HEAD_L*0.115 - shut*HEAD_L*0.125; }
+    }
+    // bubbles rise and fade
+    for(const b of bubbles){
+      if(b.life <= 0) continue;
+      b.life -= dt*0.5;
+      b.m.position.y += dt*LEN*0.55*(0.6 + b.r*10);
+      b.m.position.x += b.vx*dt; b.m.position.z += b.vz*dt;
+      b.m.scale.setScalar(b.r*(1 + (1-b.life)*0.5));
+      if(b.life <= 0) b.m.visible = false;
+    }
+    bubRoot.visible = (gait === 'swim');
+  }
+  return api;
+}
+window.HONU = { build, makeTurtle:build, LEN };
+
+// ======================================================================
+// 6. THE STUDY SCENE
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY_BEACH = new THREE.Color(0x9fd7ef), SKY_SEA = new THREE.Color(0x14607e);
+scene.background = SKY_BEACH;
+scene.fog = new THREE.Fog(SKY_BEACH, 22, 70);
+
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.05, 400);
+camera.position.set(4.2, 2.0, 5.0);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.5, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 1.2; controls.maxDistance = 40;
+
+scene.add(new THREE.HemisphereLight(0xd8eeff, 0xa08a62, 0.85));
+const sun = new THREE.DirectionalLight(0xfff2d6, 2.0);
+sun.position.set(6, 9, 4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-8; sun.shadow.camera.right=8;
+sun.shadow.camera.top=8; sun.shadow.camera.bottom=-8;
+sun.shadow.camera.far=40; sun.shadow.bias=-0.0007;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0xbfe6ff, 0.55);
+rim.position.set(-6, 3, -5); scene.add(rim);
+
+// ---- the SAND, with a live track canvas painted into it -----------------
+const TRK = 1024, TRK_SPAN = 40;                 // world units across the canvas
+const trkCv = document.createElement('canvas'); trkCv.width = trkCv.height = TRK;
+const trk = trkCv.getContext('2d');
+
+// The clean sand is painted ONCE into an offscreen canvas. The track layer is
+// then rebuilt from a stored path every time it changes, rather than being
+// stroked on top of itself — otherwise the drag band is overdrawn ~60 times
+// per lurch and saturates to a white stripe within one stride.
+const baseCv = document.createElement('canvas'); baseCv.width = baseCv.height = TRK;
+{
+  const b = baseCv.getContext('2d');
+  b.fillStyle = '#e3cca0'; b.fillRect(0,0,TRK,TRK);
+  const r = mulberry32(77);
+  for(let i=0;i<26000;i++){
+    const x=r()*TRK, y=r()*TRK, s=1+r()*2.2;
+    b.fillStyle = `rgba(${190+r()*55|0},${168+r()*50|0},${124+r()*46|0},${0.10+r()*0.22})`;
+    b.fillRect(x,y,s,s);
+  }
+  const grd = b.createLinearGradient(0,0,TRK*0.42,0);          // damp sand by the water
+  grd.addColorStop(0,'rgba(150,130,96,0.55)'); grd.addColorStop(1,'rgba(150,130,96,0)');
+  b.fillStyle = grd; b.fillRect(0,0,TRK,TRK);
+}
+const TRACK = { path: [], gouges: [] };
+function paintSandBase(){
+  TRACK.path.length = 0; TRACK.gouges.length = 0;
+  redrawSand();
+}
+function redrawSand(){
+  trk.clearRect(0,0,TRK,TRK);
+  trk.drawImage(baseCv, 0, 0);
+  const W = (LEN*0.55)/TRK_SPAN*TRK;
+  const P = TRACK.path;
+  if(P.length > 1){
+    trk.lineCap = trk.lineJoin = 'round';
+    const band = (style, w)=>{
+      trk.strokeStyle = style; trk.lineWidth = w;
+      trk.beginPath(); trk.moveTo(P[0][0], P[0][1]);
+      for(let i=1;i<P.length;i++) trk.lineTo(P[i][0], P[i][1]);
+      trk.stroke();
+    };
+    band('rgba(236,222,188,0.55)', W*1.45);      // berms of thrown sand
+    band('rgba(124,102,68,0.42)',  W);           // the ploughed hollow
+    band('rgba(98,80,52,0.30)',    W*0.34);      // the deepest centre line
+  }
+  const U = TRK/TRK_SPAN;
+  for(const g of TRACK.gouges){
+    trk.save(); trk.translate(g[0], g[1]); trk.rotate(g[2]);
+    trk.fillStyle = 'rgba(246,234,204,0.26)';    // sand flung out behind the bite
+    trk.beginPath(); trk.ellipse(0, LEN*0.30*U, LEN*0.15*U, LEN*0.13*U, 0,0,TAU); trk.fill();
+    const gr = trk.createLinearGradient(0, -LEN*0.26*U, 0, LEN*0.26*U);
+    gr.addColorStop(0,   'rgba(146,120,82,0.34)');
+    gr.addColorStop(0.6, 'rgba(92,74,46,0.86)');
+    gr.addColorStop(1,   'rgba(74,58,36,0.92)');
+    trk.fillStyle = gr;
+    trk.beginPath(); trk.ellipse(0,0, LEN*0.115*U, LEN*0.30*U, 0,0,TAU); trk.fill();
+    trk.restore();
+  }
+  sandTex.needsUpdate = true;
+}
+trk.drawImage(baseCv, 0, 0);        // seed the canvas before the texture reads it
+const sandTex = new THREE.CanvasTexture(trkCv);
+sandTex.colorSpace = THREE.SRGBColorSpace;
+const sand = new THREE.Mesh(new THREE.PlaneGeometry(TRK_SPAN, TRK_SPAN, 1, 1),
+  new THREE.MeshStandardMaterial({ map:sandTex, roughness:0.96 }));
+sand.rotation.x = -Math.PI/2; sand.receiveShadow = true;
+scene.add(sand);
+const W2C = (x,z)=>[ TRK*(0.5 + x/TRK_SPAN), TRK*(0.5 + z/TRK_SPAN) ];
+
+// ---- the SEA (beach mode: a sheet off to one side) ----------------------
+const seaGeo = new THREE.PlaneGeometry(60, 60, 60, 60);
+seaGeo.rotateX(-Math.PI/2);
+const seaBase = seaGeo.attributes.position.array.slice();
+const sea = new THREE.Mesh(seaGeo, new THREE.MeshStandardMaterial({
+  color:0x2fa8c4, transparent:true, opacity:0.82, roughness:0.18, metalness:0.1 }));
+sea.position.set(-33, 0.05, 0);
+scene.add(sea);
+
+// ---- underwater dressing (swim mode) ------------------------------------
+const uw = new THREE.Group(); uw.visible = false; scene.add(uw);
+{ // the sea floor, far below, plus drifting motes and light shafts
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(120,120),
+    new THREE.MeshStandardMaterial({ color:0x2a6a74, roughness:1 }));
+  floor.rotation.x = -Math.PI/2; floor.position.y = -9; uw.add(floor);
+  const surf = new THREE.Mesh(new THREE.PlaneGeometry(120,120,40,40),
+    new THREE.MeshStandardMaterial({ color:0x7fd8ee, transparent:true, opacity:0.35,
+      side:THREE.DoubleSide, roughness:0.1 }));
+  surf.rotation.x = -Math.PI/2; surf.position.y = 9; uw.add(surf);
+  const moteG = new THREE.SphereGeometry(0.03, 5, 4);
+  const moteM = new THREE.MeshBasicMaterial({ color:0xdff4ff, transparent:true, opacity:0.4 });
+  const mr = mulberry32(555);
+  for(let i=0;i<260;i++){
+    const m = new THREE.Mesh(moteG, moteM);
+    m.position.set((mr()-0.5)*36, (mr()-0.5)*14, (mr()-0.5)*36);
+    m.userData.v = 0.05 + mr()*0.12;
+    uw.add(m);
+  }
+  for(let i=0;i<7;i++){   // shafts of light from the surface
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 18),
+      new THREE.MeshBasicMaterial({ color:0xbfeeff, transparent:true, opacity:0.055,
+        side:THREE.DoubleSide, depthWrite:false }));
+    sh.position.set((mr()-0.5)*24, 0, (mr()-0.5)*24);
+    sh.rotation.set(0.18, mr()*3, 0.10);
+    uw.add(sh);
+  }
+}
+
+// ---- the animal ---------------------------------------------------------
+const honu = build();
+scene.add(honu.group);
+honu.speed = 1;
+// each lurch stamps a track: two flipper gouges and the plastron drag band
+let lastTrack = null;
+honu.onLurch = ()=>{
+  const p = honu.group.position;
+  const [cx, cy] = W2C(p.x, p.z);
+  // one path point every ~0.10 world units, no matter how many frames the pull
+  // takes — the band is a stored polyline, not a pile of strokes
+  if(lastTrack && Math.hypot(cx-lastTrack[0], cy-lastTrack[1]) < 2.6) return;
+  TRACK.path.push([cx, cy]);
+  lastTrack = [cx, cy];
+  redrawSand();
+};
+// the flipper gouges are recorded once per cycle, at the plant
+let stampedThisCycle = false;
+function stampFlippers(){
+  const p = honu.group.position, yaw = honu.group.rotation.y;
+  for(const s of [-1,1]){
+    const lx = s*HALFW*0.96, lz = HALFL*0.62;
+    const wx = p.x + lx*Math.cos(yaw) + lz*Math.sin(yaw);
+    const wz = p.z - lx*Math.sin(yaw) + lz*Math.cos(yaw);
+    const [X,Y] = W2C(wx, wz);
+    TRACK.gouges.push([X, Y, -yaw + (s<0?0.45:-0.45)]);
+  }
+  if(TRACK.gouges.length > 200) TRACK.gouges.splice(0, 2);
+  redrawSand();
+}
+
+// ======================================================================
+// 7. UI
+// ======================================================================
+const GAITS = [['crawl','Crawl'],['swim','Swim'],['bask','Bask']];
+const NOTES = {
+  crawl:'SIMULTANEOUS gait — both foreflippers together, one heave, long rest. '
+      + 'Green turtles and leatherbacks crawl this way; loggerheads alternate. '
+      + 'Watch the tracks: symmetrical gouges with a plastron drag band.',
+  swim: 'Underwater FLIGHT. Both foreflippers beat in sync — hard downstroke, '
+      + 'feathered recovery, then a long glide. The rear flippers only steer.',
+  bask: 'Hauled out on the sand. Hawaiian honu bask on beaches; almost no other '
+      + 'green turtle population does. Nothing moves but her breathing.',
+};
+const gaitsEl = document.getElementById('gaits');
+const gaitBtns = {};
+function setGait(g){
+  honu.setGait(g);
+  for(const k in gaitBtns) gaitBtns[k].classList.toggle('on', k===g);
+  document.getElementById('note').textContent = NOTES[g];
+  const swimming = (g === 'swim');
+  uw.visible = swimming;
+  sand.visible = sea.visible = !swimming;
+  scene.background = swimming ? SKY_SEA : SKY_BEACH;
+  scene.fog = swimming ? new THREE.FogExp2(0x15687f, 0.030)
+                       : new THREE.Fog(SKY_BEACH, 22, 70);
+  honu.group.position.set(0, swimming ? 0 : 0, swimming ? 0 : -3);
+  honu.group.rotation.y = 0;
+  if(!swimming){ lastTrack = null; paintSandBase(); }
+}
+for(const [k,label] of GAITS){
+  const b = document.createElement('button'); b.textContent = label;
+  b.onclick = ()=>setGait(k); gaitsEl.appendChild(b); gaitBtns[k] = b;
+}
+document.getElementById('spd').oninput = e => honu.speed = +e.target.value;
+
+const VIEWS = {
+  'Three-quarter': [ 3.6, 1.9, 4.4],
+  'Side':          [ 6.2, 0.9, 0.2],
+  'Top':           [ 0.3, 6.6, 0.6],
+  'Head':          [ 1.5, 0.85, 3.0],
+  'Front':         [ 0.2, 1.1, 5.4],
+  'Under':         [ 2.6,-1.4, 3.6],
+};
+const viewsEl = document.getElementById('views');
+for(const k of Object.keys(VIEWS)){
+  const b = document.createElement('button'); b.textContent = k;
+  b.onclick = ()=>{ const v = VIEWS[k];
+    camera.position.set(honu.group.position.x+v[0], v[1], honu.group.position.z+v[2]);
+    controls.target.set(honu.group.position.x, 0.45, honu.group.position.z);
+    controls.update(); };
+  viewsEl.appendChild(b);
+}
+const TOGS = [
+  ['follow','Follow', v=>follow=v],
+  ['tracks','Tracks', v=>{ sand.material.map = v ? sandTex : null;
+                           sand.material.needsUpdate = true; }],
+  ['shadow','Shadows',v=>{ renderer.shadowMap.enabled = v;
+                           scene.traverse(o=>{ if(o.material) o.material.needsUpdate=true; }); }],
+  ['spin',  'Turn',   v=>turning=v],
+];
+let follow = true, turning = false;
+const togsEl = document.getElementById('togs');
+for(const [id,txt,fn] of TOGS){
+  const l = document.createElement('label');
+  const cb = document.createElement('input'); cb.type='checkbox';
+  cb.checked = (id==='follow' || id==='tracks' || id==='shadow');
+  cb.onchange = ()=>fn(cb.checked);
+  l.appendChild(cb); l.appendChild(document.createTextNode(txt));
+  togsEl.appendChild(l);
+}
+
+// ======================================================================
+// 8. LOOP
+// ======================================================================
+const clock = new THREE.Clock();
+let t = 0, lastPhaseBucket = -1, prevPos = new THREE.Vector3();
+// The per-frame work lives in step(dt) rather than inside the rAF callback, so
+// it can be driven manually — a backgrounded tab suspends rAF entirely, and
+// "nothing moved" then looks exactly like a broken animation.
+function step(dt){
+  t += dt;
+
+  if(turning) honu.group.rotation.y += dt*0.25*(honu.gait==='crawl'?1:0.6);
+
+  prevPos.copy(honu.group.position);
+  honu.update(dt, t);
+
+  // stamp the flipper gouges once, at the moment of the plant
+  if(honu.gait === 'crawl'){
+    const moved = honu.group.position.distanceTo(prevPos);
+    if(moved > 0.0005 && !stampedThisCycle){ stampFlippers(); stampedThisCycle = true; }
+    if(moved <= 0.0005) stampedThisCycle = false;
+    // keep her on the canvas
+    if(honu.group.position.length() > TRK_SPAN*0.42){
+      honu.group.position.set(0,0,-3); honu.group.rotation.y = 0;
+      lastTrack = null; paintSandBase();
+    }
+  } else if(honu.gait === 'swim'){
+    honu.group.position.z += dt*LEN*0.30*honu.speed;   // she makes way
+    if(honu.group.position.z > 14) honu.group.position.z = -14;
+  }
+
+  if(follow){
+    const p = honu.group.position;
+    controls.target.lerp(new THREE.Vector3(p.x, 0.45, p.z), 0.08);
+  }
+  // water
+  const wp = seaGeo.attributes.position;
+  for(let i=0;i<wp.count;i++){
+    const x = seaBase[i*3], z = seaBase[i*3+2];
+    wp.setY(i, Math.sin(x*0.5 + t*1.5)*0.05 + Math.sin(z*0.7 - t*1.1)*0.04);
+  }
+  wp.needsUpdate = true;
+  for(const o of uw.children) if(o.userData.v){
+    o.position.y += o.userData.v*dt;
+    if(o.position.y > 8) o.position.y = -8;
+  }
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+// advance n fixed steps and draw — usable when the tab is backgrounded
+window.HONU_STEP = (n, dt)=>{
+  n = n||60; dt = dt||1/60;
+  for(let i=0;i<n;i++) step(dt);
+  renderer.render(scene, camera);
+  return { z:+honu.group.position.z.toFixed(3), gait:honu.gait, t:+t.toFixed(2) };
+};
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+setGait('crawl');
+document.getElementById('busy').remove();
+frame();
+
+window.HONU_VIEW = (k)=>{ const v = VIEWS[k]; if(!v) return;
+  camera.position.set(honu.group.position.x+v[0], v[1], honu.group.position.z+v[2]);
+  controls.target.set(honu.group.position.x, 0.45, honu.group.position.z);
+  controls.update(); };
+window.HONU_GAIT = setGait;
+window.HONU_REF = honu;
+console.log('[Honu] built.', { LEN, gait:honu.gait });
+</script>
+</body>
+</html>

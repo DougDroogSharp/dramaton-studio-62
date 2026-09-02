@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     GROUND FLORA — ten weeds, six wildflowers. Study.
+     Filed 2026-08-31. Standalone; nothing here touches georgeworld.html.
+
+     WHAT THIS IS
+     A scatter library for the islands' ground layer. The existing grass is one
+     tuft repeated; this is sixteen distinct plants with their own silhouettes,
+     habits and habitats, so a hillside stops reading as carpet.
+
+     THE TEN WEEDS                        THE SIX WILDFLOWERS
+       1  tussock grass    (everywhere)     11  beach morning glory  (sand)
+       2  wiry bent        (dry, thin)      12  yellow hibiscus      (scrub)
+       3  broad dock       (damp, rich)     13  scarlet pea          (open grass)
+       4  spear thistle    (waste, grazed)  14  white sea daisy      (shore)
+       5  bracken fern     (shade, slopes)  15  blue harebell        (upland)
+       6  sedge tuft       (wet, fjord)     16  purple orchid spike  (damp shade)
+       7  ribwort plantain (trodden, paths)
+       8  yarrow           (dry banks)
+       9  coastal spinifex (dune, salt)
+      10  low creeping mat (rock, exposed)
+
+     HOW IT PLUGS IN
+       window.FLORA = {
+         SPECIES,                    // 16 entries, each with a habitat rule
+         geometryFor(key, lod)       // 'hi' | 'lo' merged, vertex-coloured
+         scatter(opts)               // habitat-weighted placement -> instances
+         build(scene, opts)          // chunked InstancedMesh per species+chunk
+         tick(elapsed)               // one wind uniform drives everything
+       }
+     Every species is ONE merged, vertex-coloured geometry so it instances in a
+     single draw call, and all of them share one material — so sixteen species
+     across a whole island costs about what the single grass tuft cost.
+     Wind is injected into the standard vertex stage and reads WORLD position,
+     so a whole hillside leans together instead of each plant leaning in its
+     own instance-rotated frame.
+     Three.js is VENDORED (vendor/three, r160) — the game's exact importmap.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Ground Flora — weeds & wildflowers</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#a8d3e8;
+    font-family:"Segoe UI", system-ui, sans-serif; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:250px;
+    background:rgba(16,24,18,0.80); color:#eef6ec; font:12.5px/1.45 system-ui,sans-serif;
+    padding:11px 13px; border-radius:12px; user-select:none; backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,0.12); max-height:calc(100vh - 24px); overflow:auto; }
+  #chip b { font-size:14px; letter-spacing:.4px; }
+  #chip .sub { opacity:.6; font-size:11px; }
+  #chip hr { border:0; border-top:1px solid rgba(255,255,255,0.15); margin:9px 0; }
+  #chip h4 { margin:0 0 5px; font:700 10.5px/1 system-ui,sans-serif; letter-spacing:1.4px;
+    opacity:.55; text-transform:uppercase; }
+  .btns { display:flex; flex-wrap:wrap; gap:4px; }
+  .btns button { background:rgba(255,255,255,0.10); color:#eef6ec;
+    border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:4px 7px;
+    font:11px system-ui,sans-serif; cursor:pointer; }
+  .btns button:hover { background:rgba(160,230,150,0.30); }
+  .btns button.on { background:#2f7a3c; border-color:#9be5a4; font-weight:700; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:6px; font-size:11.5px; }
+  label.rw input[type=range] { flex:1; min-width:0; }
+  #stats { opacity:.72; font-size:11px; margin-top:8px; white-space:pre-line;
+    font-family:Consolas,monospace; }
+  #busy { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,18,12,0.72); color:#eef6ec; z-index:30; font:15px system-ui,sans-serif; }
+  #lab { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:9;
+    background:rgba(16,24,18,0.8); color:#eef6ec; padding:6px 14px; border-radius:9px;
+    font:12.5px system-ui,sans-serif; border:1px solid rgba(255,255,255,.16); }
+</style>
+</head>
+<body>
+<div id="busy">seeding the ground…</div>
+<div id="lab"></div>
+<div id="chip">
+  <b>GROUND FLORA</b><br><span class="sub">10 weeds · 6 wildflowers</span>
+  <hr>
+  <h4>Mode</h4>
+  <div class="btns" id="modes"></div>
+  <h4 style="margin-top:9px">Single species</h4>
+  <div class="btns" id="species"></div>
+  <label class="rw">wind <input id="wind" type="range" min="0" max="2.5" step="0.05" value="1"></label>
+  <label class="rw">density <input id="dens" type="range" min="0.2" max="2" step="0.05" value="1"></label>
+  <div id="stats">building…</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2, D=Math.PI/180;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// ======================================================================
+// 1. GEOMETRY KIT — everything merges down to one vertex-coloured buffer
+// ======================================================================
+function mergeParts(parts){
+  let n=0;
+  for(const {g} of parts) n += g.attributes.position.count;
+  const P=new Float32Array(n*3), N=new Float32Array(n*3), C=new Float32Array(n*3);
+  const idx=[]; let vo=0;
+  const nm=new THREE.Matrix3(), v=new THREE.Vector3(), col=new THREE.Color();
+  for(const {g,m,c} of parts){
+    nm.getNormalMatrix(m);
+    col.set(c);
+    const p=g.attributes.position, no=g.attributes.normal;
+    for(let i=0;i<p.count;i++){
+      v.fromBufferAttribute(p,i).applyMatrix4(m);
+      P[(vo+i)*3]=v.x; P[(vo+i)*3+1]=v.y; P[(vo+i)*3+2]=v.z;
+      v.fromBufferAttribute(no,i).applyMatrix3(nm).normalize();
+      N[(vo+i)*3]=v.x; N[(vo+i)*3+1]=v.y; N[(vo+i)*3+2]=v.z;
+      C[(vo+i)*3]=col.r; C[(vo+i)*3+1]=col.g; C[(vo+i)*3+2]=col.b;
+    }
+    const gi=g.getIndex();
+    if(gi) for(let i=0;i<gi.count;i++) idx.push(gi.getX(i)+vo);
+    else   for(let i=0;i<p.count;i++)  idx.push(i+vo);
+    vo += p.count;
+  }
+  const out=new THREE.BufferGeometry();
+  out.setAttribute('position',new THREE.BufferAttribute(P,3));
+  out.setAttribute('normal',new THREE.BufferAttribute(N,3));
+  out.setAttribute('color',new THREE.BufferAttribute(C,3));
+  out.setIndex(idx); out.computeBoundingSphere();
+  return out;
+}
+const MX = (x,y,z,rx,ry,rz,sx,sy,sz)=> new THREE.Matrix4().compose(
+  new THREE.Vector3(x,y,z),
+  new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),
+  new THREE.Vector3(sx===undefined?1:sx, sy===undefined?(sx===undefined?1:sx):sy,
+                    sz===undefined?(sx===undefined?1:sx):sz));
+
+// --- a BLADE: a tapered strip that arcs over. The workhorse of every grass.
+function bladeGeo(len, wid, arc, seg, twist){
+  seg = seg||6;
+  const pos=[], nor=[], idx=[];
+  for(let i=0;i<=seg;i++){
+    const u=i/seg;
+    const w = wid*(1-Math.pow(u,1.35))*(0.55+0.45*Math.sin(u*Math.PI*0.9+0.4));
+    // the arc: rises, then bends over under its own weight
+    const y = len*Math.sin(u*Math.PI*0.5*(0.55+arc*0.45));
+    const z = len*arc*(u*u)*0.9;
+    const tw = (twist||0)*u;
+    const cx = Math.cos(tw), sx = Math.sin(tw);
+    pos.push(-w*cx, y - w*sx*0.2, z);
+    pos.push( w*cx, y + w*sx*0.2, z);
+    nor.push(0,1,0, 0,1,0);
+  }
+  for(let i=0;i<seg;i++){
+    const a=i*2;
+    idx.push(a,a+1,a+2, a+1,a+3,a+2);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// --- a LEAF: a flat rounded blade for broadleaf weeds
+function leafGeo(len, wid, seg){
+  seg = seg||7;
+  const pos=[], idx=[];
+  for(let i=0;i<=seg;i++){
+    const u=i/seg;
+    const w = wid*Math.sin(Math.PI*Math.pow(u,0.78))*(1-0.15*u);
+    const y = len*u*0.22*Math.sin(u*2.6);         // a little dish
+    pos.push(-w, y, u*len); pos.push(w, y, u*len);
+  }
+  for(let i=0;i<seg;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+const STEM = new THREE.CylinderGeometry(1,1,1,5);
+STEM.translate(0,0.5,0);
+const PETAL = leafGeo(1, 0.42, 5);
+const DISC  = new THREE.SphereGeometry(1, 8, 6);
+const BELL  = new THREE.ConeGeometry(1, 1, 7, 1, true);
+BELL.translate(0,-0.5,0);
+const TRUMPET = new THREE.CylinderGeometry(1, 0.18, 1, 9, 1, true);
+TRUMPET.translate(0,0.5,0);
+
+// --- a flower head: n petals radiating round a centre
+function flowerParts(parts, x,y,z, rot, petalN, petalLen, petalWid, petalCol,
+                     discR, discCol, tilt){
+  for(let i=0;i<petalN;i++){
+    const a = (i/petalN)*TAU + rot;
+    parts.push({ g:PETAL, c:petalCol, m:MX(x,y,z, tilt||0, a, 0,
+      petalWid/0.42, 1, petalLen) });
+  }
+  if(discR>0) parts.push({ g:DISC, c:discCol, m:MX(x,y+0.005,z, 0,0,0,
+    discR, discR*0.62, discR) });
+}
+
+// ======================================================================
+// 2. THE SIXTEEN SPECIES
+//    Each builder returns merged parts. Habitat rules live alongside so the
+//    scatter can put the right plant in the right place instead of confetti.
+// ======================================================================
+// habitat fields the scatter provides: {h (height), slope, sand (0..1),
+// wet (0..1), shade (0..1), trodden (0..1), exposure (0..1)}
+const SPECIES = [
+  // ---------------- TEN WEEDS ----------------
+  { key:'tussock', name:'1 · Tussock grass', kind:'weed', h:[0.55,1.0],
+    rar:1.0, note:'the default cover — dense arching blades, seed heads in late stalks',
+    fit:(e)=> 0.55 + 0.35*(1-e.sand) - 0.4*e.wet,
+    build(r){
+      const p=[], N=14+((r()*7)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU, tilt=0.10+r()*0.34, L=0.55+r()*0.55;
+        const c = ['#6fa843','#7cb84c','#5d9138','#89c15b'][(r()*4)|0];
+        p.push({ g:bladeGeo(L, 0.032+r()*0.016, 0.5+r()*0.7, 6, r()*0.9),
+                 c, m:MX(Math.cos(a)*0.035*r(), 0, Math.sin(a)*0.035*r(),
+                          tilt, a, 0) });
+      }
+      for(let i=0;i<3;i++){        // seed stalks stand above the leaf mass
+        const a=r()*TAU, L=0.85+r()*0.4;
+        p.push({ g:STEM, c:'#b7ba6c', m:MX(0,0,0, 0.14, a, 0, 0.008,L,0.008) });
+        p.push({ g:bladeGeo(0.22, 0.030, 0.35, 4), c:'#cfcf8e',
+                 m:MX(Math.cos(a)*0.02, L, Math.sin(a)*0.02, 0.5, a, 0) });
+      }
+      return p;
+    }},
+  { key:'bent', name:'2 · Wiry bent', kind:'weed', h:[0.35,0.7],
+    rar:0.7, note:'thin, sparse, dry ground — the grass of a picked-over hillside',
+    fit:(e)=> 0.3 + 0.6*e.exposure - 0.5*e.wet,
+    build(r){
+      const p=[], N=7+((r()*5)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU;
+        p.push({ g:bladeGeo(0.42+r()*0.42, 0.016+r()*0.008, 0.85+r()*0.6, 6, r()*1.4),
+                 c:['#9aa860','#8c9a54','#aab472'][(r()*3)|0],
+                 m:MX(0,0,0, 0.18+r()*0.3, a, 0) });
+      }
+      return p;
+    }},
+  { key:'dock', name:'3 · Broad dock', kind:'weed', h:[0.35,0.7],
+    rar:0.34, note:'big paddle leaves in a low rosette, rust-red seed spike',
+    fit:(e)=> 0.15 + 0.7*e.wet + 0.3*(1-e.exposure),
+    build(r){
+      const p=[], N=5+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU + r()*0.5, L=0.30+r()*0.24;
+        p.push({ g:leafGeo(1, 0.30, 8), c:['#4e8434','#5c9440','#457a2e'][(r()*3)|0],
+                 m:MX(0,0.02,0, 0.90+r()*0.35, a, 0, L*0.9, L, L) });
+      }
+      if(r()<0.8){
+        const L=0.42+r()*0.32;
+        p.push({ g:STEM, c:'#8d6a3c', m:MX(0,0,0, 0,0,0, 0.014,L,0.014) });
+        for(let i=0;i<9;i++){
+          const u=0.35+0.62*(i/9);
+          p.push({ g:DISC, c:'#9c4a2a', m:MX(0, L*u, 0, 0,0,0,
+                   0.035*(1-u*0.4), 0.022, 0.035*(1-u*0.4)) });
+        }
+      }
+      return p;
+    }},
+  { key:'thistle', name:'4 · Spear thistle', kind:'weed', h:[0.5,0.95],
+    rar:0.26, note:'spiny, grey-green, one purple brush — what takes over grazed ground',
+    fit:(e)=> 0.12 + 0.55*e.trodden + 0.3*e.exposure,
+    build(r){
+      const p=[], N=6+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU+r()*0.4, L=0.26+r()*0.20;
+        p.push({ g:bladeGeo(1, 0.10, 0.55, 7, 1.5), c:'#7f9070',
+                 m:MX(0,0.02,0, 0.95, a, 0, L, L, L) });
+      }
+      const H=0.45+r()*0.36;
+      p.push({ g:STEM, c:'#7c8a6a', m:MX(0,0,0, 0,0,0, 0.016,H,0.016) });
+      for(let i=0;i<3;i++){        // spiny bracts under the brush
+        const a=(i/3)*TAU;
+        p.push({ g:PETAL, c:'#6f7f60', m:MX(0,H-0.05,0, 0.9, a, 0, 0.16,1,0.10) });
+      }
+      p.push({ g:DISC, c:'#7a5f8c', m:MX(0,H,0, 0,0,0, 0.055,0.045,0.055) });
+      for(let i=0;i<10;i++){
+        const a=(i/10)*TAU;
+        p.push({ g:STEM, c:'#9b6fb0', m:MX(Math.cos(a)*0.02, H+0.02, Math.sin(a)*0.02,
+                 -0.35+r()*0.2, a, 0, 0.006, 0.075, 0.006) });
+      }
+      return p;
+    }},
+  { key:'bracken', name:'5 · Bracken fern', kind:'weed', h:[0.6,1.15],
+    rar:0.3, note:'triangular fronds on wiry stipes — colonises shaded slopes',
+    fit:(e)=> 0.10 + 0.65*e.shade + 0.35*sstep(0.2,0.7,e.slope),
+    build(r){
+      const p=[], N=3+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU+r()*0.7, H=0.42+r()*0.42, tilt=0.14+r()*0.22;
+        p.push({ g:STEM, c:'#6c7a3e', m:MX(0,0,0, tilt, a, 0, 0.010,H,0.010) });
+        const bx=Math.sin(a)*Math.sin(tilt)*H, bz=Math.cos(a)*Math.sin(tilt)*H;
+        // pinnae stepping down the rachis, shorter toward the tip
+        for(let k=0;k<7;k++){
+          const u=0.30+0.66*(k/7), pl=(1-u*0.72)*0.28;
+          for(const s of [-1,1]){
+            p.push({ g:leafGeo(1, 0.16, 5), c:['#4f7d33','#5c8c3c','#436f2b'][(r()*3)|0],
+              m:MX(bx*u, H*u*Math.cos(tilt), bz*u, 1.35, a + s*1.15, 0, pl, pl, pl*1.5) });
+          }
+        }
+      }
+      return p;
+    }},
+  { key:'sedge', name:'6 · Sedge tuft', kind:'weed', h:[0.45,0.85],
+    rar:0.52, note:'stiff triangular blades, dark heads — wet ground and fjord edges',
+    fit:(e)=> 0.05 + 0.85*e.wet,
+    build(r){
+      const p=[], N=11+((r()*6)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU;
+        p.push({ g:bladeGeo(0.48+r()*0.42, 0.022, 0.22+r()*0.25, 5),
+                 c:['#3f7a52','#4a8a5c','#356b46'][(r()*3)|0],
+                 m:MX(0,0,0, 0.06+r()*0.16, a, 0) });
+      }
+      for(let i=0;i<2;i++){
+        const a=r()*TAU, H=0.62+r()*0.3;
+        p.push({ g:STEM, c:'#4a7a55', m:MX(0,0,0, 0.05, a, 0, 0.009,H,0.009) });
+        p.push({ g:DISC, c:'#4b3a26', m:MX(0,H,0, 0,0,0, 0.022,0.055,0.022) });
+      }
+      return p;
+    }},
+  { key:'plantain', name:'7 · Ribwort plantain', kind:'weed', h:[0.28,0.5],
+    rar:0.4, note:'flat ribbed rosette and a bobbing bullet head — grows in footpaths',
+    fit:(e)=> 0.05 + 0.85*e.trodden,
+    build(r){
+      const p=[], N=5+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU+r()*0.5, L=0.22+r()*0.16;
+        p.push({ g:leafGeo(1, 0.085, 6), c:'#5a8f3e',
+                 m:MX(0,0.012,0, 1.15+r()*0.25, a, 0, L,L,L*1.4) });
+      }
+      for(let i=0;i<2+((r()*2)|0);i++){
+        const a=r()*TAU, H=0.24+r()*0.20;
+        p.push({ g:STEM, c:'#7d9152', m:MX(0,0,0, 0.16+r()*0.2, a, 0, 0.006,H,0.006) });
+        const bx=Math.sin(a)*Math.sin(0.2)*H, bz=Math.cos(a)*Math.sin(0.2)*H;
+        p.push({ g:DISC, c:'#4c4130', m:MX(bx,H,bz, 0,0,0, 0.020,0.042,0.020) });
+      }
+      return p;
+    }},
+  { key:'yarrow', name:'8 · Yarrow', kind:'weed', h:[0.35,0.6],
+    rar:0.3, note:'feathery foliage under a flat white plate of tiny florets',
+    fit:(e)=> 0.20 + 0.45*e.exposure - 0.35*e.wet,
+    build(r){
+      const p=[], N=5+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU;
+        p.push({ g:bladeGeo(0.20+r()*0.14, 0.030, 0.5, 4, 1.1), c:'#6d8a55',
+                 m:MX(0,0,0, 0.7+r()*0.4, a, 0) });
+      }
+      for(let k=0;k<2+((r()*2)|0);k++){
+        const a=r()*TAU, H=0.28+r()*0.24;
+        p.push({ g:STEM, c:'#7d8f60', m:MX(0,0,0, 0.06, a, 0, 0.007,H,0.007) });
+        for(let i=0;i<9;i++){            // the flat corymb
+          const b=(i/9)*TAU, rr=0.018+ (i%3)*0.012;
+          p.push({ g:DISC, c: i%4===0 ? '#f2f0e2' : '#fbfaf2',
+            m:MX(Math.cos(b)*rr, H+0.004*Math.sin(b*2), Math.sin(b)*rr,
+                 0,0,0, 0.017, 0.008, 0.017) });
+        }
+      }
+      return p;
+    }},
+  { key:'spinifex', name:'9 · Coastal spinifex', kind:'weed', h:[0.3,0.6],
+    rar:0.6, note:'pale blue-green runners that hold the dunes together',
+    fit:(e)=> 0.05 + 0.9*e.sand,
+    build(r){
+      const p=[], N=10+((r()*6)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU;
+        p.push({ g:bladeGeo(0.32+r()*0.36, 0.020, 1.15+r()*0.5, 6, r()*0.6),
+                 c:['#9db894','#a9c2a0','#8fae88'][(r()*3)|0],
+                 m:MX(0,0,0, 0.55+r()*0.45, a, 0) });
+      }
+      return p;
+    }},
+  { key:'creeper', name:'10 · Creeping mat', kind:'weed', h:[0.08,0.18],
+    rar:0.55, note:'a tight cushion that clings to bare rock where nothing else will',
+    fit:(e)=> 0.05 + 0.8*sstep(0.5,1.1,e.slope) + 0.4*e.exposure,
+    build(r){
+      const p=[], N=16+((r()*10)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU, rr=r()*0.11;
+        p.push({ g:DISC, c:['#5c7a4a','#6d8a56','#4e6b3e'][(r()*3)|0],
+          m:MX(Math.cos(a)*rr, 0.012+r()*0.02, Math.sin(a)*rr, 0,0,0,
+               0.030+r()*0.026, 0.016+r()*0.012, 0.030+r()*0.026) });
+      }
+      return p;
+    }},
+
+  // ---------------- SIX WILDFLOWERS ----------------
+  { key:'morningglory', name:'11 · Beach morning glory', kind:'flower', h:[0.15,0.35],
+    rar:0.22, note:'pink-mauve trumpets on a runner — the classic tropical beach vine',
+    fit:(e)=> 0.02 + 0.9*e.sand,
+    build(r){
+      const p=[];
+      const runA = r()*TAU;
+      for(let i=0;i<6;i++){         // a trailing runner with round leaves
+        const u=i/6, x=Math.cos(runA)*u*0.42, z=Math.sin(runA)*u*0.42;
+        p.push({ g:STEM, c:'#5f8a4a', m:MX(x,0.012,z, 1.5, runA, 0, 0.007,0.08,0.007) });
+        p.push({ g:leafGeo(1, 0.13, 6), c:'#4f8c42',
+          m:MX(x,0.02,z, 1.05+r()*0.3, runA + (i%2?1.4:-1.4), 0, 0.14,0.14,0.14) });
+      }
+      for(let k=0;k<1+((r()*2)|0);k++){
+        const a=r()*TAU, rr=r()*0.22, H=0.15+r()*0.10;
+        const x=Math.cos(a)*rr, z=Math.sin(a)*rr;
+        p.push({ g:STEM, c:'#5f8a4a', m:MX(x,0,z, 0,0,0, 0.007,H,0.007) });
+        p.push({ g:TRUMPET, c:'#d47fc0',
+          m:MX(x,H,z, -0.5+r()*0.35, a, 0, 0.085,0.11,0.085) });
+        p.push({ g:DISC, c:'#f2e0f2', m:MX(x,H+0.055,z, 0,0,0, 0.030,0.012,0.030) });
+      }
+      return p;
+    }},
+  { key:'hibiscus', name:'12 · Yellow hibiscus', kind:'flower', h:[0.5,0.95],
+    rar:0.11, note:'big five-petal yellow bloom with a crimson throat, on a woody sprig',
+    fit:(e)=> 0.10 + 0.45*(1-e.exposure) + 0.25*(1-e.sand),
+    build(r){
+      const p=[], H=0.40+r()*0.36;
+      p.push({ g:STEM, c:'#6b5a34', m:MX(0,0,0, 0.05,0,0, 0.018,H,0.018) });
+      for(let i=0;i<5;i++){
+        const a=(i/5)*TAU, u=0.35+0.55*(i/5);
+        p.push({ g:leafGeo(1, 0.14, 6), c:'#3f7a34',
+          m:MX(0,H*u,0, 1.0+r()*0.3, a, 0, 0.20,0.20,0.24) });
+      }
+      for(let k=0;k<1+((r()*2)|0);k++){
+        const a=r()*TAU, hh=H*(0.72+r()*0.3);
+        const x=Math.cos(a)*0.05, z=Math.sin(a)*0.05;
+        flowerParts(p, x, hh, z, r()*TAU, 5, 0.16, 0.14, '#f5c92c', 0, '#000', -0.55);
+        p.push({ g:TRUMPET, c:'#c8341f', m:MX(x,hh,z, 0,0,0, 0.020,0.10,0.020) });
+        p.push({ g:DISC, c:'#f5e08a', m:MX(x,hh+0.10,z, 0,0,0, 0.020,0.014,0.020) });
+      }
+      return p;
+    }},
+  { key:'scarletpea', name:'13 · Scarlet pea', kind:'flower', h:[0.3,0.6],
+    rar:0.2, note:'a scramble of little red pea flowers through open grass',
+    fit:(e)=> 0.25 + 0.35*(1-e.sand) - 0.3*e.wet,
+    build(r){
+      const p=[], N=3+((r()*2)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU+r()*0.6, H=0.24+r()*0.24;
+        p.push({ g:STEM, c:'#5c8446', m:MX(0,0,0, 0.22+r()*0.2, a, 0, 0.007,H,0.007) });
+        const bx=Math.sin(a)*Math.sin(0.3)*H, bz=Math.cos(a)*Math.sin(0.3)*H;
+        for(let k=0;k<3;k++){
+          const u=0.4+0.5*(k/3);
+          p.push({ g:leafGeo(1,0.09,5), c:'#548c44',
+            m:MX(bx*u,H*u,bz*u, 1.1, a+(k%2?1.2:-1.2), 0, 0.10,0.10,0.12) });
+        }
+        for(let k=0;k<3;k++){
+          const u=0.72+0.26*(k/3), b=a+k*2.1;
+          const fx=bx*u+Math.cos(b)*0.03, fz=bz*u+Math.sin(b)*0.03;
+          p.push({ g:PETAL, c:'#cf2f2a',
+            m:MX(fx, H*u, fz, -0.9, b, 0, 0.16, 1, 0.055) });
+          p.push({ g:DISC, c:'#e0563f', m:MX(fx, H*u, fz, 0,0,0, 0.020,0.016,0.020) });
+        }
+      }
+      return p;
+    }},
+  { key:'seadaisy', name:'14 · White sea daisy', kind:'flower', h:[0.2,0.42],
+    rar:0.22, note:'salt-tolerant white rays round a yellow eye, low above the shore',
+    fit:(e)=> 0.12 + 0.55*e.sand + 0.25*e.exposure,
+    build(r){
+      const p=[], N=5+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=(i/N)*TAU+r()*0.5;
+        p.push({ g:leafGeo(1,0.075,5), c:'#6d9463',
+          m:MX(0,0.01,0, 1.2, a, 0, 0.14,0.14,0.16) });
+      }
+      for(let k=0;k<2+((r()*2)|0);k++){
+        const a=r()*TAU, H=0.16+r()*0.16, rr=r()*0.05;
+        const x=Math.cos(a)*rr, z=Math.sin(a)*rr;
+        p.push({ g:STEM, c:'#7a9668', m:MX(x,0,z, 0.08,0,0, 0.006,H,0.006) });
+        flowerParts(p, x, H, z, r()*TAU, 11, 0.075, 0.026, '#f6f4ec',
+                    0.028, '#e8b93a', -0.16);
+      }
+      return p;
+    }},
+  { key:'harebell', name:'15 · Blue harebell', kind:'flower', h:[0.25,0.45],
+    rar:0.2, note:'nodding violet-blue bells on hair-thin stems — upland and pass edges',
+    fit:(e)=> 0.10 + 0.50*e.exposure + 0.35*sstep(14, 34, e.h),
+    build(r){
+      const p=[], N=2+((r()*3)|0);
+      for(let i=0;i<N;i++){
+        const a=r()*TAU, H=0.20+r()*0.20, tilt=0.10+r()*0.24;
+        p.push({ g:STEM, c:'#6f8a58', m:MX(0,0,0, tilt, a, 0, 0.0045,H,0.0045) });
+        const bx=Math.sin(a)*Math.sin(tilt)*H, bz=Math.cos(a)*Math.sin(tilt)*H;
+        p.push({ g:BELL, c:'#6f7fd6',
+          m:MX(bx, H*Math.cos(tilt), bz, 0.55+r()*0.4, a, 0, 0.042,0.062,0.042) });
+      }
+      for(let i=0;i<3;i++){
+        const a=r()*TAU;
+        p.push({ g:bladeGeo(0.13,0.012,0.6,4), c:'#7d9a64', m:MX(0,0,0, 0.5, a, 0) });
+      }
+      return p;
+    }},
+  { key:'orchid', name:'16 · Purple orchid spike', kind:'flower', h:[0.35,0.65],
+    rar:0.1, note:'a dense magenta spike over spotted strap leaves — damp shade',
+    fit:(e)=> 0.03 + 0.55*e.shade + 0.4*e.wet,
+    build(r){
+      const p=[];
+      for(let i=0;i<3+((r()*2)|0);i++){
+        const a=(i/3)*TAU+r()*0.6;
+        p.push({ g:leafGeo(1,0.075,6), c:'#4c7d3c',
+          m:MX(0,0.012,0, 1.05+r()*0.3, a, 0, 0.19,0.19,0.24) });
+      }
+      const H=0.30+r()*0.24;
+      p.push({ g:STEM, c:'#6a8a52', m:MX(0,0,0, 0.05,0,0, 0.010,H,0.010) });
+      const FL=9+((r()*5)|0);
+      for(let i=0;i<FL;i++){
+        const u=0.42+0.56*(i/FL), b=i*2.399;      // florets on a spiral
+        const rr=0.030*(1-u*0.35);
+        const x=Math.cos(b)*rr, z=Math.sin(b)*rr;
+        p.push({ g:PETAL, c:'#a63bab',
+          m:MX(x, H*u, z, -0.5, b, 0, 0.085, 1, 0.030) });
+        p.push({ g:DISC, c:'#c964cf', m:MX(x, H*u, z, 0,0,0, 0.016,0.013,0.016) });
+      }
+      return p;
+    }},
+];
+
+// ======================================================================
+// 3. BAKE — one merged geometry per species, plus a cheap far LOD
+// ======================================================================
+const GEO = {}, GEO_LO = {};
+let totalTris = 0;
+for(let i=0;i<SPECIES.length;i++){
+  const S = SPECIES[i];
+  const r = mulberry32(0x5EED + i*977);
+  GEO[S.key] = mergeParts(S.build(r));
+  totalTris += GEO[S.key].getIndex().count/3;
+  // the far LOD: the same builder on a stingier RNG stream, then decimated by
+  // simply building fewer parts — a distant weed only needs a silhouette
+  const r2 = mulberry32(0x1234 + i*131);
+  const full = S.build(r2);
+  GEO_LO[S.key] = mergeParts(full.filter((_,k)=> k % 3 === 0).length
+    ? full.filter((_,k)=> k % 3 === 0) : full);
+}
+
+// ======================================================================
+// 4. SCATTER + INSTANCING
+//    One material for all sixteen species; wind injected into the standard
+//    vertex stage, reading WORLD position so a hillside leans together.
+// ======================================================================
+const uTime = { value: 0 }, uWind = { value: 1 };
+const floraMat = new THREE.MeshLambertMaterial({ vertexColors:true,
+  side:THREE.DoubleSide });
+floraMat.onBeforeCompile = (sh)=>{
+  sh.uniforms.uTime = uTime; sh.uniforms.uWind = uWind;
+  sh.vertexShader = 'uniform float uTime;\nuniform float uWind;\n' + sh.vertexShader
+    .replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      #ifdef USE_INSTANCING
+        vec3 wp = vec3(instanceMatrix[3][0], 0.0, instanceMatrix[3][2]);
+      #else
+        vec3 wp = vec3(0.0);
+      #endif
+      // sway scales with height above the plant's own base, so the roots stay
+      // put and only the tips move
+      float sway = max(transformed.y, 0.0) * 0.55 * uWind;
+      float g1 = sin(uTime*1.35 + wp.x*0.20 + wp.z*0.14);
+      float g2 = sin(uTime*2.70 + wp.x*0.55 - wp.z*0.31);
+      transformed.x += (g1*0.75 + g2*0.25) * sway;
+      transformed.z += (g1*0.45 - g2*0.30) * sway * 0.7;
+    `);
+};
+
+const CHUNK = 9;
+function buildField(parent, items, geoMap, lodMap){
+  const buckets = new Map();
+  for(const it of items){
+    const k = `${it.key}|${Math.floor(it.x/CHUNK)},${Math.floor(it.z/CHUNK)}`;
+    if(!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(it);
+  }
+  const chunks = [];
+  const mtx = new THREE.Matrix4();
+  for(const [k, list] of buckets){
+    const key = k.split('|')[0];
+    const mk = (geo)=>{
+      const im = new THREE.InstancedMesh(geo, floraMat, list.length);
+      im.castShadow = false; im.receiveShadow = false;
+      list.forEach((it,i)=>{
+        mtx.compose(new THREE.Vector3(it.x, it.y, it.z),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(it.rx, it.ry, it.rz)),
+          new THREE.Vector3(it.s*it.sx, it.s, it.s*it.sx));
+        im.setMatrixAt(i, mtx);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      return im;
+    };
+    let cx=0, cz=0;
+    for(const it of list){ cx+=it.x; cz+=it.z; }
+    const hi = mk(geoMap[key]), lo = mk(lodMap[key]);
+    lo.visible = false;
+    parent.add(hi); parent.add(lo);
+    chunks.push({ hi, lo, cx:cx/list.length, cz:cz/list.length, key, n:list.length });
+  }
+  return chunks;
+}
+
+// ======================================================================
+// 5. THE STUDY SCENE — a rolling patch of ground with varied habitat
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa8d3e8);
+scene.fog = new THREE.Fog(0xa8d3e8, 26, 78);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.02, 300);
+camera.position.set(4.6, 2.3, 5.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.4, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 0.4; controls.maxDistance = 60;
+
+scene.add(new THREE.HemisphereLight(0xdcefff, 0x6f7a4a, 1.0));
+const sun = new THREE.DirectionalLight(0xfff3da, 1.9);
+sun.position.set(8, 12, 5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-14; sun.shadow.camera.right=14;
+sun.shadow.camera.top=14; sun.shadow.camera.bottom=-14;
+sun.shadow.camera.far=40; sun.shadow.bias=-0.0007;
+scene.add(sun);
+
+// a small piece of terrain with real habitat variety: a damp hollow, a dry
+// rise, a sand edge, a shaded corner, and a trodden path across the middle
+const GN = 120, GS = 34;
+function gh(x,z){
+  return 0.85*Math.sin(x*0.16)*Math.cos(z*0.13)
+       + 0.45*Math.sin(x*0.31+1.4)*Math.sin(z*0.27)
+       + 0.9*Math.exp(-((x+9)**2 + (z-6)**2)/60)          // the rise
+       - 0.8*Math.exp(-((x-8)**2 + (z+7)**2)/70);         // the hollow
+}
+const ENV = {
+  sand:   (x,z)=> sstep(6, 15, x + 3*Math.sin(z*0.2)),
+  wet:    (x,z)=> sstep(0.1, -0.7, gh(x,z)),
+  shade:  (x,z)=> sstep(4, 12, -x) * sstep(4, 12, -z),
+  trodden:(x,z)=> 1 - sstep(0.5, 2.1, Math.abs(z - 2.5*Math.sin(x*0.14))),
+  expo:   (x,z)=> sstep(0.2, 1.4, gh(x,z)),
+};
+{
+  const g = new THREE.PlaneGeometry(GS, GS, GN, GN);
+  g.rotateX(-Math.PI/2);
+  const pos = g.attributes.position;
+  const col = new Float32Array(pos.count*3);
+  const c = new THREE.Color();
+  const cGrass=new THREE.Color(0x6f8f4e), cDamp=new THREE.Color(0x4f7a48),
+        cSand=new THREE.Color(0xdfcb9c), cDry=new THREE.Color(0x94a068),
+        cPath=new THREE.Color(0xa78f68);
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i), z=pos.getZ(i);
+    pos.setY(i, gh(x,z));
+    c.copy(cGrass);
+    c.lerp(cDry,  ENV.expo(x,z)*0.6);
+    c.lerp(cDamp, ENV.wet(x,z)*0.7);
+    c.lerp(cPath, ENV.trodden(x,z)*0.55);
+    c.lerp(cSand, ENV.sand(x,z));
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col,3));
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors:true }));
+  m.receiveShadow = true; scene.add(m);
+}
+function slopeAt(x,z){ const e=0.4;
+  return Math.hypot(gh(x+e,z)-gh(x-e,z), gh(x,z+e)-gh(x,z-e))/(2*e); }
+
+// ---- the scatter -----------------------------------------------------
+const field = new THREE.Group(); scene.add(field);
+let CHUNKS = [], counts = {};
+function scatterAll(density, only){
+  for(const c of CHUNKS){ field.remove(c.hi); field.remove(c.lo);
+    c.hi.dispose && c.hi.dispose(); }
+  field.clear();
+  const r = mulberry32(0xF10A);
+  const items = []; counts = {};
+  const TRIES = Math.round(4200*density);
+  for(let a=0; a<TRIES; a++){
+    const x = (r()-0.5)*GS*0.94, z = (r()-0.5)*GS*0.94;
+    const y = gh(x,z);
+    const e = { h:y, slope:slopeAt(x,z), sand:ENV.sand(x,z), wet:ENV.wet(x,z),
+                shade:ENV.shade(x,z), trodden:ENV.trodden(x,z), expo:ENV.expo(x,z),
+                exposure:ENV.expo(x,z) };
+    // TRUE ROULETTE over habitat fitness × rarity. Taking the highest-weighted
+    // species instead meant the commonest plant won almost every roll and half
+    // the library never appeared at all — a mix needs proportional share, not
+    // a contest.
+    let tot = 0; const ws = [];
+    for(const S of SPECIES){
+      const w = (only && S.key !== only) ? 0 : Math.max(0, S.fit(e)) * S.rar;
+      ws.push(w); tot += w;
+    }
+    if(tot < 0.02) continue;
+    let pick = r()*tot, best = null;
+    for(let i=0;i<SPECIES.length;i++){ pick -= ws[i]; if(pick <= 0){ best = SPECIES[i]; break; } }
+    if(!best) continue;
+    const s = lerp(best.h[0], best.h[1], r());
+    items.push({ key:best.key, x, y, z, s,
+      sx: 0.85 + r()*0.35, rx: (r()-0.5)*0.10, ry: r()*TAU, rz: (r()-0.5)*0.10 });
+    counts[best.key] = (counts[best.key]||0) + 1;
+  }
+  CHUNKS = buildField(field, items, GEO, GEO_LO);
+  document.getElementById('stats').textContent =
+    `plants ${items.length} · chunks ${CHUNKS.length}\n`
+  + `species tris ${Math.round(totalTris)} (all 16)\n`
+  + SPECIES.map(S=>`${S.key.padEnd(13)}${counts[S.key]||0}`).join('\n');
+}
+
+// ======================================================================
+// 6. UI
+// ======================================================================
+let onlyKey = null;
+const modesEl = document.getElementById('modes');
+const speciesEl = document.getElementById('species');
+const labEl = document.getElementById('lab');
+function setOnly(k){
+  onlyKey = k;
+  scatterAll(+document.getElementById('dens').value, k);
+  for(const b of speciesEl.children) b.classList.toggle('on', b.dataset.k === k);
+  for(const b of modesEl.children) b.classList.toggle('on', !k && b.dataset.m==='all');
+  const S = SPECIES.find(s=>s.key===k);
+  labEl.textContent = S ? `${S.name} — ${S.note}`
+                        : 'All sixteen, placed by habitat: sand at the shore edge, '
+                        + 'sedge in the damp hollow, plantain on the path, '
+                        + 'bracken in the shaded corner, harebell on the dry rise.';
+}
+for(const [m,l] of [['all','All sixteen'],['weeds','Weeds only'],['flowers','Flowers only']]){
+  const b=document.createElement('button'); b.textContent=l; b.dataset.m=m;
+  b.onclick=()=>{
+    onlyKey=null;
+    const keep = m==='all' ? null : (m==='weeds' ? 'weed' : 'flower');
+    scatterAllKind(keep);
+    for(const x of modesEl.children) x.classList.toggle('on', x.dataset.m===m);
+    for(const x of speciesEl.children) x.classList.remove('on');
+    labEl.textContent = m==='all'
+      ? 'All sixteen, placed by habitat.'
+      : (m==='weeds' ? 'The ten weeds.' : 'The six wildflowers.');
+  };
+  modesEl.appendChild(b);
+}
+function scatterAllKind(kind){
+  const saved = SPECIES.map(S=>S.fit);
+  if(kind) SPECIES.forEach((S,i)=>{ if(S.kind!==kind) S.fit = ()=>-1; });
+  scatterAll(+document.getElementById('dens').value, null);
+  SPECIES.forEach((S,i)=> S.fit = saved[i]);
+}
+for(const S of SPECIES){
+  const b=document.createElement('button');
+  b.textContent = S.name.split('·')[0].trim();
+  b.title = S.name;
+  b.dataset.k = S.key;
+  b.onclick = ()=>setOnly(S.key);
+  speciesEl.appendChild(b);
+}
+document.getElementById('wind').oninput = e => uWind.value = +e.target.value;
+document.getElementById('dens').oninput = e => scatterAll(+e.target.value, onlyKey);
+
+// ======================================================================
+// 7. LOOP
+// ======================================================================
+const clock = new THREE.Clock();
+let T=0;
+function step(dt){
+  T += dt; uTime.value = T;
+  const cp = camera.position;
+  for(const c of CHUNKS){
+    const d = Math.hypot(cp.x-c.cx, cp.z-c.cz);
+    const far = d > 16;
+    if(c.hi.visible === far){ c.hi.visible = !far; c.lo.visible = far; }
+  }
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+scatterAll(1, null);
+setOnly(null);
+document.getElementById('busy').remove();
+frame();
+
+// ======================================================================
+// 8. DROP-IN SURFACE
+// ======================================================================
+window.FLORA = {
+  SPECIES, GEO, GEO_LO, material: floraMat,
+  geometryFor:(k, lod)=> (lod==='lo' ? GEO_LO : GEO)[k],
+  buildField, scatterAll,
+  tick:(t)=>{ uTime.value = t; },
+  setWind:(w)=>{ uWind.value = w; },
+};
+window.FLORA_ONLY = setOnly;
+window.FLORA_STEP = (n,dt)=>{ n=n||1; dt=dt||1/60;
+  for(let i=0;i<n;i++) step(dt); renderer.render(scene,camera); return T; };
+window.FLORA_CAM = (px,py,pz,tx,ty,tz)=>{ camera.position.set(px,py,pz);
+  controls.target.set(tx,ty,tz); controls.update(); };
+console.log('[Flora] built.', { species:SPECIES.length, tris:Math.round(totalTris) });
+</script>
+</body>
+</html>
