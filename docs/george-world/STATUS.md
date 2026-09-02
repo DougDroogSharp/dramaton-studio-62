@@ -16,10 +16,19 @@
 3. Proper names for the Caldera, Ring Atoll, River Delta, Georgeland 2. (#17)
 4. Where the HvB master record lives after eviction from this repo (Dropbox HvB or the HvB chat project). (#10)
 
+## LANES RUNNING (2026-09-01 evening)
+| Seat | Folder / branch | Doing |
+|---|---|---|
+| GW DIALOGUE | `C:\Users\dougs\gw-dialogue` · `gw-dialogue` · port 8216 | the dialogue-richness batch (brief: Dropbox `DIALOGUE_BATCH_BRIEF.md`) |
+| EDITOR | `C:\Users\dougs\editor-lane` · `narraton-editor` · port 8087 | merging main into the branch, tests, push; DISPATCH fast-forwards main (brief: `docs/EDITOR_LANE_BRIEF.md`) |
+| HVB | `C:\Users\dougs\hvb-design` (its own repo, GitHub `DougDroogSharp/hvb-design`, mirror Dropbox `HvB Design/`) | folding the 2026-09-01 rulings into the master record (brief: `LANE_BRIEF.md` there) |
+| GW BUILDER | main checkout · `main` · :8201 | HvM Graphics; map-contract proposal pending; merge `gw-studies` |
+| GW STUDIES / foundry | `C:\Users\dougs\dramaton-editor` · `asset-foundry` | 16 studies waiting to move onto main; queue of 16 more |
+
 ## NEXT THREE MOVES
 1. **GW BUILDER (HvM Graphics):** post the map-contract proposal (terrainH/terrainNormal + sea/bounds/spawn + named anchors + room for tier list, cast names, switches, resources, egg chamber, locked cast); Aipotu = module #0 byte-for-byte. Then build. Also: merge `gw-studies` (nine studies + FBX loader) and wire the FBX loader into the skin gallery.
-2. **DISPATCH:** step 3, brief and start the HVB and EDITOR lane sessions (terminal sessions, own worktrees); then the HvB eviction (#10) once Doug names its home.
-3. **GW DIALOGUE:** the dialogue-richness batch, running in `C:\Users\dougs\gw-dialogue` (launched 2026-09-01 ~17:35), brief in Dropbox `DIALOGUE_BATCH_BRIEF.md`.
+2. **DISPATCH:** fast-forward `main` when EDITOR reports the merge green; drop `stash@{0}`; set the lane permission allow-list (7b); move the foundry's 16 studies onto main (7a).
+3. **Doug:** the four DECIDE items above; create nothing else, the lanes are running.
 
 ## BUILDER QUEUE (ruled order)
 map loader → Georgeotron round trip (long-press entry; any-layer default; king-only as a switch) → industry/steam engine → births/weddings/child-labour. In parallel: dialogue batch (own worktree). Editor lane: Populous builder after the loader. Studies seat: foundry queue (16 pending), beaver/pig/dolphins, coal/iron art.
