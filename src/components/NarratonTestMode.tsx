@@ -1,28 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { GameData, Scene, ScenePhase } from '@/types';
+import { GameData, Scene } from '@/types';
 import { Stage } from '@/components/Stage';
 import { DialogueBox } from '@/components/theater/DialogueBox';
 import { useScriptRunner, VarChange } from '@/hooks/useScriptRunner';
-import { narratonRank, scoreKey } from '@/utils/narratonDirector';
+import { selectNarratonScene, createNarratonHistory, sortCandidates } from '@/utils/narraton';
+import { ActBadge, reasonLabel } from '@/components/NarratonBadges';
 import { SetCommand } from '@/utils/scriptParser';
 import { X, RotateCcw, Play, Drama, FastForward } from 'lucide-react';
 
 // Narraton TEST MODE: play a scene sandboxed (world state is snapshotted, the
 // real game.info.worldState is never touched), with a live panel showing
 // world variables, in-scene variables, the current scene's key stats, every
-// change made, and the selector's ranking of where this could lead.
+// change made, and the THEATER selector's ranking of where this could lead
+// (the same selectNarratonScene a [NARRATON pool=x] runs in a shipped game).
 
 interface NarratonTestModeProps {
   game: GameData;
   startScene: Scene;
   onClose: () => void;
 }
-
-const PHASE_COLORS: Record<ScenePhase, string> = {
-  BEGINNING: 'text-diesel-green',
-  MIDDLE: 'text-diesel-gold',
-  END: 'text-diesel-rust',
-};
 
 const setLabel = (s: SetCommand) =>
   `${s.variable} ${s.op || '='} ${typeof s.value === 'string' ? `"${s.value}"` : s.value}`;
@@ -68,17 +64,16 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
     ? game.actors.find(a => a.id === state.activeDialogue?.actorId)
     : undefined;
 
-  // Director's view against the SANDBOX world state: consumed scenes are out,
-  // phases gate, the last subplot pays the rotation penalty.
-  const playedSceneIds = trail.slice(0, -1);
-  const lastPlayed = playedSceneIds.length > 0
-    ? game.scenes.find(s => s.id === playedSceneIds[playedSceneIds.length - 1])
-    : undefined;
-  const ranking = narratonRank(game.scenes, state.worldState, {
-    playedSceneIds,
-    lastSubplotId: lastPlayed?.subplotId,
-  });
-  const topPick = ranking.find(m => !m.ineligible && m.scene.id !== state.currentSceneId);
+  // The theater's selector against the SANDBOX world state: every scene in
+  // the trail counts as played, the pool is the current scene's pool.
+  const pool = currentScene?.narraton?.pool ?? startScene.narraton?.pool ?? null;
+  const history = createNarratonHistory();
+  for (const id of trail) history.played.add(id);
+  const ranking = pool
+    ? sortCandidates(selectNarratonScene(pool, game.scenes, state.worldState, history, { quiet: true }).candidates)
+    : [];
+  // Deterministic top pick for display; the theater breaks exact ties at random.
+  const topPick = ranking.find(c => c.eligible && c.scene.id !== state.currentSceneId);
 
   // Narraton Drive: auto-continue to the director's pick at scene end.
   useEffect(() => {
@@ -86,9 +81,7 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
     const timer = setTimeout(() => scriptRunner.goToScene(topPick.scene.id), 1500);
     return () => clearTimeout(timer);
   }, [driveMode, state.isComplete, state.activeDialogue, state.choices, topPick, scriptRunner]);
-  const currentStats = currentScene?.key && Object.keys(currentScene.key).length > 0
-    ? scoreKey(currentScene.key, state.worldState)
-    : null;
+  const currentStats = ranking.find(c => c.scene.id === state.currentSceneId) ?? null;
   const changesHere = state.varLog.filter(c => c.sceneId === state.currentSceneId);
 
   useEffect(() => {
@@ -214,12 +207,12 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                 <p className="text-diesel-steel text-sm uppercase tracking-wider mb-1">— End of Scene —</p>
                 {topPick ? (
                   <p className="text-diesel-cyan text-xs mb-3 font-mono">
-                    Narraton would pick: {topPick.scene.name} (Δ² {topPick.adjustedScore})
+                    Narraton would pick: {topPick.scene.name} (score {topPick.weightedScore.toFixed(3)})
                     {driveMode && ' — driving there…'}
                   </p>
                 ) : (
                   <p className="text-diesel-steel/60 text-xs mb-3">
-                    The board is exhausted — no eligible keyed scene remains.
+                    {pool ? `Pool "${pool}" is exhausted — no eligible scene remains.` : 'This scene is in no pool — Narraton cannot continue from here.'}
                   </p>
                 )}
                 <div className="flex items-center justify-center gap-3">
@@ -311,35 +304,31 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
             <div className={panelTitle}>Current scene</div>
             <div className="text-diesel-paper text-xs font-bold mb-1">
               {currentScene?.name ?? state.currentSceneId}
-              {currentScene?.phase && (
-                <span className={`ml-2 text-[9px] uppercase ${PHASE_COLORS[currentScene.phase]}`}>
-                  {currentScene.phase}
-                </span>
-              )}
+              <span className="ml-2"><ActBadge act={currentScene?.narraton?.act} /></span>
             </div>
             {currentStats ? (
               <>
-                {currentStats.distances.map(d => (
+                {currentStats.keyDeltas.length === 0 && (
+                  <p className="text-diesel-steel/50 text-[10px]">no keys — matches any state (score 0)</p>
+                )}
+                {currentStats.keyDeltas.map(d => (
                   <div key={d.variable} className="flex justify-between font-mono text-[11px] py-0.5">
                     <span className="text-diesel-gold">{d.variable}</span>
                     <span className="text-diesel-steel">
-                      {d.actual} / {d.target}
-                      <span className={Math.abs(d.diff) > 25 ? 'text-diesel-rust ml-1' : 'text-diesel-steel/50 ml-1'}>
-                        ({d.diff >= 0 ? '+' : ''}{d.diff})
+                      {d.current} / {d.target}
+                      <span className={Math.abs(d.normalizedDelta) > 0.25 ? 'text-diesel-rust ml-1' : 'text-diesel-steel/50 ml-1'}>
+                        ({d.normalizedDelta >= 0 ? '+' : ''}{d.normalizedDelta.toFixed(2)})
                       </span>
                     </span>
                   </div>
                 ))}
                 <div className="flex justify-between font-mono text-[11px] pt-1 border-t border-diesel-border/50 mt-1">
-                  <span className="text-diesel-steel">match score Δ²</span>
-                  <span className={currentStats.excluded ? 'text-diesel-rust' : 'text-diesel-paper'}>
-                    {currentStats.score}
-                    {currentStats.excluded ? ' (excluded)' : ''}
-                  </span>
+                  <span className="text-diesel-steel">match score</span>
+                  <span className="text-diesel-paper">{currentStats.weightedScore.toFixed(3)}</span>
                 </div>
               </>
             ) : (
-              <p className="text-diesel-steel/50 text-[10px]">no key — invisible to the selector</p>
+              <p className="text-diesel-steel/50 text-[10px]">not in a pool — invisible to the selector</p>
             )}
             {changesHere.length > 0 && (
               <div className="mt-1.5">
@@ -372,9 +361,9 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                   <span className={i === trail.length - 1 ? 'text-diesel-paper font-bold' : 'text-diesel-steel'}>
                     {s?.name ?? id}
                   </span>
-                  {s?.subplotId && (
+                  {s?.narraton?.subplot && (
                     <span className="text-[9px] text-diesel-purple">
-                      {game.subplots?.find(sp => sp.id === s.subplotId)?.name}
+                      {game.subplots?.find(sp => sp.id === s.narraton?.subplot)?.name ?? s.narraton.subplot}
                     </span>
                   )}
                 </div>
@@ -386,13 +375,14 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
           <div className={panelSection}>
             <div className={panelTitle}>Where this could lead</div>
             {ranking.length === 0 ? (
-              <p className="text-diesel-steel/50 text-[10px]">no keyed scenes</p>
+              <p className="text-diesel-steel/50 text-[10px]">{pool ? `pool "${pool}" is empty` : 'no pool'}</p>
             ) : (
               ranking.slice(0, 8).map((m, i) => (
                 <div
                   key={m.scene.id}
+                  title={m.eligible ? undefined : m.exclusionReasons.join('; ')}
                   className={`flex justify-between text-[11px] py-0.5 ${
-                    m.ineligible
+                    !m.eligible
                       ? 'text-diesel-steel/40'
                       : m.scene.id === state.currentSceneId
                         ? 'text-diesel-steel'
@@ -404,13 +394,9 @@ const TestRun: React.FC<NarratonTestModeProps & { onRestart: () => void }> = ({
                   <span className="truncate mr-2">
                     {i + 1}. {m.scene.name}
                     {m.scene.id === state.currentSceneId && ' (here)'}
-                    {m.sameSubplot && !m.ineligible && ' ↻'}
                   </span>
                   <span className="font-mono shrink-0">
-                    {m.ineligible === 'played' && 'PLAYED'}
-                    {m.ineligible === 'wrong-phase' && 'PHASE'}
-                    {m.ineligible === 'big-miss' && 'MISS'}
-                    {!m.ineligible && `Δ² ${m.adjustedScore}`}
+                    {m.eligible ? `score ${m.weightedScore.toFixed(3)}` : reasonLabel(m)}
                   </span>
                 </div>
               ))

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NarratonMeta, NarratonRequirement, NarratonKey } from '@/types';
+import { NarratonMeta, NarratonRequirement, NarratonKey, NarratonAct } from '@/types';
 import { OPERATORS } from '@/constants';
 import { Plus, X } from 'lucide-react';
 
@@ -11,8 +11,13 @@ import { Plus, X } from 'lucide-react';
 interface NarratonEditorProps {
   meta: NarratonMeta | undefined;
   worldStateVars: string[]; // known variable names for datalist hints
+  // The editor's named subplots (GameData.subplots); `subplot` may hold one
+  // of their ids, or any free string.
+  subplots?: { id: string; name: string; owner?: string }[];
   onChange: (meta: NarratonMeta | undefined) => void;
 }
+
+const ACTS: NarratonAct[] = ['BEGINNING', 'MIDDLE', 'END'];
 
 const inputCls =
   'bg-diesel-dark border border-diesel-border text-diesel-paper p-1.5 text-xs focus:outline-none focus:border-diesel-gold';
@@ -20,7 +25,7 @@ const inputCls =
 const keyTarget = (k: number | NarratonKey): number => (typeof k === 'number' ? k : k.target);
 const keyScale = (k: number | NarratonKey): number => (typeof k === 'number' ? 100 : (k.scale ?? 100));
 
-export const NarratonEditor: React.FC<NarratonEditorProps> = ({ meta, worldStateVars, onChange }) => {
+export const NarratonEditor: React.FC<NarratonEditorProps> = ({ meta, worldStateVars, subplots = [], onChange }) => {
   const update = (patch: Partial<NarratonMeta>) => {
     onChange({ pool: meta?.pool ?? '', ...meta, ...patch });
   };
@@ -79,6 +84,9 @@ export const NarratonEditor: React.FC<NarratonEditorProps> = ({ meta, worldState
 
       <datalist id="narraton-vars">
         {worldStateVars.map(v => <option key={v} value={v} />)}
+      </datalist>
+      <datalist id="narraton-subplots">
+        {subplots.map(sp => <option key={sp.id} value={sp.id}>{sp.name}{sp.owner ? ` (${sp.owner})` : ''}</option>)}
       </datalist>
 
       {/* Pool */}
@@ -189,6 +197,27 @@ export const NarratonEditor: React.FC<NarratonEditorProps> = ({ meta, worldState
             ))}
           </div>
 
+          {/* Act: dramatic position, gated against the `act` world variable */}
+          <div className="mb-3">
+            <label className="text-[10px] uppercase tracking-widest text-diesel-gold font-bold block mb-1">Act</label>
+            <div className="flex gap-1">
+              {ACTS.map(a => (
+                <button
+                  key={a}
+                  onClick={() => update({ act: meta.act === a ? undefined : a })}
+                  className={`px-2 py-1 border text-[10px] font-bold uppercase tracking-wider ${
+                    meta.act === a
+                      ? 'border-diesel-gold text-diesel-gold bg-diesel-gold/10'
+                      : 'border-diesel-border text-diesel-steel hover:text-diesel-paper'
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
+              <span className="text-[10px] text-diesel-steel self-center ml-1">untagged plays in any act</span>
+            </div>
+          </div>
+
           {/* Repeatable / Subplot / Weight */}
           <div className="flex gap-2 items-end">
             <label className="flex items-center gap-1.5 text-xs text-diesel-paper cursor-pointer pb-1.5">
@@ -205,6 +234,7 @@ export const NarratonEditor: React.FC<NarratonEditorProps> = ({ meta, worldState
               <input
                 type="text"
                 value={meta.subplot ?? ''}
+                list="narraton-subplots"
                 onChange={e => update({ subplot: e.target.value.trim() || undefined })}
                 placeholder="(none)"
                 className={inputCls}

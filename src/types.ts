@@ -170,13 +170,6 @@ export interface SceneAudio {
 // AGENCY = the player acts; WITNESS = the player watches, but reacts.
 export type SceneType = 'AGENCY' | 'WITNESS';
 
-// Narraton (King-of-Chicago mechanism, CGDC 1989): each scene may carry a KEY —
-// target values (0–100) for one or more world-state variables. The selector
-// ranks candidate scenes by least-squares distance from the live world state.
-export type SceneKey = Record<string, number>;
-
-// Phase marker within a subplot's arc (KoC: position in a sequence's bag).
-export type ScenePhase = 'BEGINNING' | 'MIDDLE' | 'END';
 // ============ NARRATON ============
 // The 1986 King of Chicago storyteller: scenes carry selection keys and
 // the [NARRATON pool=x] command picks the scene whose keys least-squares
@@ -202,6 +195,9 @@ export interface NarratonKey {
 // play at the climax and a summing-up cannot play third.
 export type NarratonAct = 'BEGINNING' | 'MIDDLE' | 'END';
 
+// Pool a scene joins when the editor tags it without naming one.
+export const DEFAULT_NARRATON_POOL = 'main';
+
 export interface NarratonMeta {
   pool: string;                                   // selection pool membership
   keys?: Record<string, number | NarratonKey>;    // target values, least-squares matched
@@ -225,13 +221,13 @@ export interface Scene {
   script?: string;
   audioTracks?: SceneAudio[];
   audioData?: Record<string, string>;
+  // Narraton selection metadata (decision 2026-09-01 #5: the theater's
+  // shape is THE shape; the editor's earlier key/phase/subplotId fields
+  // migrate into it on load). `subplot` holds a Subplot id from
+  // GameData.subplots when the editor set it, or any free string.
   narraton?: NarratonMeta;
   note?: string;
   status?: AssetStatus;
-  // Narraton fields — all optional; absent on scenes the selector ignores.
-  key?: SceneKey;
-  phase?: ScenePhase;
-  subplotId?: string;
   // In-scene variables: scene-local initial values, invisible to the Narraton
   // selector and never written to info.worldState.
   localVars?: Record<string, string | number | boolean>;
@@ -556,6 +552,32 @@ export const migrateGameData = (data: any): GameData => {
   // Ensure subplots array exists (Narraton, added 2026-08-31)
   if (!migrated.subplots) {
     migrated.subplots = [];
+  }
+
+  // Fold the editor lane's first Narraton shape (Scene.key / phase /
+  // subplotId, 2026-08-31) into the theater's Scene.narraton (decision #5,
+  // 2026-09-01). A keyed scene with no pool joins the default pool so it
+  // stays selectable; an existing narraton block keeps its own values.
+  if (Array.isArray(migrated.scenes)) {
+    migrated.scenes = migrated.scenes.map((s: any) => {
+      if (!s || typeof s !== 'object') return s;
+      const { key, phase, subplotId, ...rest } = s;
+      const hasLegacy = (key && typeof key === 'object' && Object.keys(key).length > 0) || phase || subplotId;
+      if (!hasLegacy) {
+        if ('key' in s || 'phase' in s || 'subplotId' in s) return rest;
+        return s;
+      }
+      const prior = rest.narraton && typeof rest.narraton === 'object' ? rest.narraton : undefined;
+      const keys = { ...(key && typeof key === 'object' ? key : {}), ...(prior?.keys ?? {}) };
+      const narraton: NarratonMeta = {
+        ...(prior ?? {}),
+        pool: prior?.pool || DEFAULT_NARRATON_POOL,
+        ...(Object.keys(keys).length > 0 ? { keys } : {}),
+        ...(prior?.act ? {} : phase ? { act: phase } : {}),
+        ...(prior?.subplot ? {} : subplotId ? { subplot: subplotId } : {}),
+      };
+      return { ...rest, narraton };
+    });
   }
 
   // Ensure skins array exists (skin library, added 2026-08-31)

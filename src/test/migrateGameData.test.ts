@@ -112,3 +112,57 @@ describe('migrateGameData — sceneType normalization', () => {
     expect(migrated.scenes[0].sceneType).toBe('AGENCY');
   });
 });
+
+describe('migrateGameData — one Narraton shape (decision #5, 2026-09-01)', () => {
+  it('folds the editor lane key/phase/subplotId fields into Scene.narraton', () => {
+    const legacy = {
+      ...createDefaultGame(),
+      scenes: [
+        { id: 's1', name: 'Keyed', key: { tension: 40, gold: 10 }, phase: 'MIDDLE', subplotId: 'subplot_pinky' },
+        { id: 's2', name: 'Plain' },
+      ],
+    };
+    const migrated = migrateGameData(legacy);
+    const [s1, s2] = migrated.scenes as any[];
+    expect(s1.narraton).toEqual({
+      pool: 'main',
+      keys: { tension: 40, gold: 10 },
+      act: 'MIDDLE',
+      subplot: 'subplot_pinky',
+    });
+    expect('key' in s1).toBe(false);
+    expect('phase' in s1).toBe(false);
+    expect('subplotId' in s1).toBe(false);
+    expect(s2.narraton).toBeUndefined();
+  });
+
+  it('keeps an existing narraton block in charge when both shapes are present', () => {
+    const legacy = {
+      ...createDefaultGame(),
+      scenes: [
+        {
+          id: 's1',
+          name: 'Both',
+          key: { tension: 40 },
+          phase: 'END',
+          subplotId: 'old',
+          narraton: { pool: 'act2', keys: { gold: { target: 20, scale: 1000 } }, act: 'BEGINNING', subplot: 'new', weight: 2 },
+        },
+      ],
+    };
+    const [s1] = migrateGameData(legacy).scenes as any[];
+    expect(s1.narraton.pool).toBe('act2');
+    expect(s1.narraton.act).toBe('BEGINNING');
+    expect(s1.narraton.subplot).toBe('new');
+    expect(s1.narraton.weight).toBe(2);
+    // legacy keys merge in underneath the block's own
+    expect(s1.narraton.keys).toEqual({ tension: 40, gold: { target: 20, scale: 1000 } });
+  });
+
+  it('drops empty legacy fields without inventing a pool', () => {
+    const legacy = { ...createDefaultGame(), scenes: [{ id: 's1', name: 'Empty key', key: {} }] };
+    const [s1] = migrateGameData(legacy).scenes as any[];
+    expect(s1.narraton).toBeUndefined();
+    expect('key' in s1).toBe(false);
+  });
+});
