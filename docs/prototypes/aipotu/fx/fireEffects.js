@@ -45,7 +45,7 @@
 // ======================================================================
 import * as THREE from 'three';
 
-export const VERSION = '0.1';
+export const VERSION = '0.2';   // 0.2 (2026-09-02 21:40): stopBurst(); fire_fx.js adapter for the Effects page
 export const HEAT_LAYER = 7;   // heat masks live on this layer only
 
 // ---------------------------------------------------------------------
@@ -527,6 +527,12 @@ export class Fire extends THREE.Group {
       const u = m.material.uniforms;
       if(u.uBurstStart){ u.uBurstStart.value = this.time; u.uBurstSpread.value = len; }
     }
+    return this;
+  }
+  /** cut a burst short: everything already in flight dies on schedule, nothing new is born */
+  stopBurst(){
+    this.burstStart = -1e9;
+    for(const m of Object.values(this.layers_)){ const u = m.material.uniforms; if(u.uBurstStart) u.uBurstStart.value = -1e9; }
     return this;
   }
   /** fraction of the burst still alive (0 when quiet); 1 while looping */

@@ -49,7 +49,10 @@ fx.dispose();
 
 `createFire(kind, opts)` gives a bare `Fire` for a page that has no `FireSystem`: `scene.add(fire)`, call `fire.update(dt, { wind })` yourself, draw with your own `renderer.render`; you get everything except heat shimmer (the heat layer sits on layer 7 and never shows).
 
-## Wiring it into stage.html's Effects page
+## The Effects page (effects_study.html) — use `../fire_fx.js`
+Filed 2026-09-02 21:50 (-07:00): HvM's bench lazily imports `./fire_fx.js` and expects `createFire(scene, opts) -> { group, setPreset(name), aim(origin, dir), update(dt), dispose() }` with presets `embers · small · campfire · hearth · big · belch`. `fire_fx.js` (next to stage.html) is that adapter over this module: `big` maps to `roaring`, `aim` takes WORLD origin and direction like `DRAGONFIRE` in dragon_study.html, the belch auto-fires every ~4 s (`auto=false` to drive it with `burst()` / `breathe()` / `stop()` yourself), `setWind(0..2)` follows the bench slider, and `render(renderer, camera)` is the optional heat-shimmer draw. Nothing below is needed for the bench; it is for pages that want the module directly.
+
+## Wiring the module directly into another page
 1. The page's importmap already maps `three` and `three/addons/`; add `import { FireSystem, KINDS, PRESETS } from './fx/fireEffects.js';`
 2. Build the `FireSystem` once after the renderer exists. Fill the effect menu from `KINDS` (labels from `PRESETS[k].label`).
 3. On pick: `fx.remove(old)`, then `fx.spawn(kind, { position })`; for `belch`/`atomic` also `fire.aim(dir)` and `fire.burst()` (repeat on a timer or a button).
