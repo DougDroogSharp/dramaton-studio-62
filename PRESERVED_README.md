@@ -3,7 +3,10 @@
 Filed 2026-09-03 08:41 -0700 by Claude Code, at Doug's request: keep a permanently
 runnable copy of the Dramaton Editor as it stood when this collaboration was
 evolving it toward Phrog, so the ancestor can always be shown. Updated
-2026-09-03 09:12 -0700 with the zip-vs-git finding below and a launch script.
+2026-09-03 09:12 -0700 with the zip-vs-git finding and a launch script, and
+again 2026-09-03 09:31 -0700 to add the older Dramaton Editor 2.0 ancestor
+(the prototype this codebase's own comments say its taxonomy was "salvaged
+from").
 
 ## Quickest path: relaunch the as-handed-off editor
 
@@ -86,6 +89,71 @@ npm install
 npm run dev -- --port 8093
 ```
 
+## The older ancestor: Dramaton Editor 2.0
+
+This codebase (`vite_react_shadcn_ts` / "usavsmaga" / `dramaton-studio-62`) is
+not the start of the line. `src/constants.ts` in the main repo says outright:
+"Taxonomy salvaged from Dramaton Editor 2.0" — a separate, earlier prototype
+(`package.json` name `dramaton-editor-2.0`: flat file layout, no `src/`, React
+19 + Vite 6 + `@google/genai`, not the Supabase/shadcn stack above). Doug had
+it Lovable/AI-Studio-exported as a long string of zips through December 2025;
+none of that history lives in any git repo.
+
+**Chosen as authoritative: `dramaton-old (3).zip`**, downloaded
+2025-12-18 13:09:58 -0800, content dated 2025-12-18 21:09, 271,616 bytes
+uncompressed, 30 files. It's the newest of the whole set (content-identical
+to `dramaton-old (2).zip`, downloaded 36 minutes earlier — same work,
+re-exported twice) and more complete than the unzipped copy already sitting
+in Dropbox at `App Source\Dramaton 2.0 Git\Dramaton-2.0` (that one's dated
+2025-12-11, and its `App.tsx` is 22,890 bytes against this zip's 28,449 —
+genuinely less code).
+
+Full catalog, all in `C:\Users\dougs\Downloads` unless noted, oldest first:
+
+| File | Size | Modified |
+|---|---|---|
+| `dramaton-game-editor-v2.0.zip` | 112,536 B | 2025-12-01 20:00 |
+| `dramaton-game-editor-v2.0 (1).zip` | 129,948 B | 2025-12-03 14:28 |
+| `dramaton-editor-fixed.zip` | 41,137 B | 2025-12-03 14:35 |
+| `dramaton-game-editor-v2.0 (2).zip` | 127,538 B | 2025-12-06 15:15 |
+| `dramaton-game-editor-v2.0 (3).zip` | 127,538 B | 2025-12-06 18:44 |
+| `dramaton-game-editor-v2.0 (4).zip` | 127,538 B | 2025-12-11 13:32 |
+| `dramaton-game-editor-v2.0 (5).zip` | 136,042 B | 2025-12-11 18:31 |
+| (unzipped) `Dramaton 2.0 Git\Dramaton-2.0` | — | 2025-12-11 (folder) |
+| `dramaton-game-editor-v2.0 (6).zip` | 174,246 B | 2025-12-12 15:54 |
+| `dramaton-game-editor-v2.0 (7).zip` | 176,683 B | 2025-12-12 18:34 |
+| `dramaton-game-editor-v2.0 (8).zip` | 253,870 B | 2025-12-14 20:58 |
+| `dramaton-game-editor-v2.0 (9).zip` | 266,853 B | 2025-12-15 13:46 |
+| `dramaton-game-editor-v2.0 (10).zip` | 267,938 B | 2025-12-16 17:45 |
+| `dramaton-old.zip` | 267,912 B | 2025-12-16 18:06 |
+| `dramaton-old (1).zip` | 267,916 B | 2025-12-16 20:00 |
+| `dramaton-old (2).zip` | 271,616 B | 2025-12-18 12:33 |
+| **`dramaton-old (3).zip`** | **271,616 B** | **2025-12-18 13:09 ← chosen** |
+
+Preserved at `C:\Users\dougs\dramaton-editor-preserved\dramaton-2.0-ancestor\`:
+
+- `dramaton-old_2025-12-18_ancestor.zip` — the chosen zip, byte-for-byte as
+  found in Downloads. Untouched, authoritative.
+- `extracted\` — that zip extracted and `npm install`'d, otherwise
+  unmodified. **This copy does not build.** It has a genuine bug baked into
+  the original source: `components/editors/SceneEditor.tsx` line 929 has a
+  literal `>>` inside JSX text (`>> GOTO: Scene Name`), which is invalid JSX
+  (bare `>` must be escaped or wrapped) and fails under the esbuild version
+  Vite 6 now pulls in. This is authentic to the snapshot, not something
+  preservation introduced — left as-is on purpose so the artifact stays exact.
+- `preview-patched\` — a separate copy with exactly that one line changed
+  (wrapped in `{'...'}` instead of raw JSX text) so the app can actually be
+  looked at. This is the copy the launch script below runs. Everything else
+  in it is identical to `extracted\`.
+
+**To relaunch:** double-click
+`dramaton-2.0-ancestor\LAUNCH-dramaton-2.0-ancestor.bat`. First run installs
+dependencies; then it opens **http://localhost:8096**, landing on a "DRAMATON
+2.0 — DIESELPUNK NARRATIVE ARCHITECT v2.5" splash with new-game/load-game —
+confirmed working 2026-09-03. It uses a placeholder Gemini API key
+(`.env.local`), so anything that calls out to Gemini won't work; the editor
+UI itself is otherwise intact.
+
 ## What this folder is
 
 A dedicated git worktree, frozen on its own branch — not touched by ongoing
@@ -99,7 +167,10 @@ work in `C:\Users\dougs\dramaton-studio-62` (main) or any other worktree/branch.
 ## Keeping it frozen
 
 Do not `git pull` or `git merge` into this worktree/branch, and do not edit
-the extracted `as-handed-off-zip\usavsmaga-main\` copy or its source zip. If
-you want to compare against how the editor has evolved since, do that from
-main or another worktree — leave everything here exactly as tagged and
-zipped.
+the extracted `as-handed-off-zip\usavsmaga-main\` copy, either `dramaton-2.0-ancestor`
+copy, or any of the source zips. If you want to compare against how the
+editor has evolved since, do that from main or another worktree — leave
+everything here exactly as tagged and zipped. The one intentional exception
+is `dramaton-2.0-ancestor\preview-patched\`, which carries a single
+documented line-fix so it can run; `extracted\` next to it is the true,
+unpatched original.
