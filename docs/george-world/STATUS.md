@@ -1,10 +1,10 @@
 # GEORGE WORLD — STATUS
 
-**Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
+**Amended 2026-09-02 12:13 PDT by DISPATCH** (ride-notes fold, additive: DECIDE items 6–8, the RULED 2026-09-02 block, the BUILDER QUEUE note; no version change). **Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
 
 ## NOW
 - **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
-- **Repo:** `main` = `968bd9c` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; **`narraton-editor` merged at `968bd9c`**, 390 tests green on the branch; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
+- **Repo:** `main` = `c26448a` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; `narraton-editor` merged at `968bd9c`, 390 tests green, and again at `c26448a` for the one-Narraton-shape change, 372 tests green; skins/retargeting/stage v3 via `gw-studies` through `bc3f5c2`; debrief fold `857a881`; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
 - **Branches:** `gw-studies` (merged; the GW STUDIES seat keeps working there) · `gw-dialogue` (the dialogue batch, in progress) · `narraton-editor` `ad780bd` (EDITOR lane merging main in now; DISPATCH fast-forwards main after) · `asset-foundry` (merged; foundry worktree now carries main).
 - **HvB Asset Stage** (renamed 2026-09-01; `stage.html`, v3): 91 entries; ◀ ▶ buttons and ← → keys step through every item whatever has focus; a NOTES box per item saves Doug's critiques to `docs/prototypes/aipotu/STAGE_NOTES.md` (+ `stage_notes.json`) through `serve_nocache.py`'s `POST /stage-notes`. **Sessions: read STAGE_NOTES.md for Doug's verdict on each asset.** Public copy redeployed with v3. Terrain Walk's blank-page crash (TDZ) fixed.
 - **Servers:** game + stage `http://10.0.0.137:8201/` (phone) · `http://localhost:8201/` (laptop). Public: `https://george-world-aipotu.netlify.app` (game, v0.79) · `https://dramaton-stage.netlify.app` (stage, STALE: 62 entries).
@@ -16,7 +16,17 @@
 2. Approve the map/Georgeland contract once HvM Graphics posts the one-page proposal. (#23)
 3. Proper names for the Caldera, Ring Atoll, River Delta, Georgeland 2. (#17)
 4. ~~Where the HvB master record lives~~ — ruled 10b: repo `DougDroogSharp/hvb-design`, mirror Dropbox `HvB Design/`.
-5. **Two Narraton metadata shapes now coexist on Scene** after the editor merge: `key/phase/subplotId` (the editor's director) and `narraton` (the theater runtime from GitHub's line). Unify, or keep both? (EDITOR flagged it 2026-09-01.)
+5. ~~Two Narraton metadata shapes coexist on Scene~~ — **ruled 2026-09-02 (option 2, Doug via the EDITOR session): the theater's `Scene.narraton` is the one shape.** The editor's `key/phase/subplotId` migrate into it on load; the editor ranks with `selectNarratonScene`; theater runtime path unchanged. Landed on main at `c26448a` (branch `be4e24a`, 372 tests green).
+6. **The state doll** (2026-09-02 ride): where it lives (Georgeotron panel / over the Vita / both), and fixed vocabulary of states vs continuous. (DESIGN.md CANON open questions 11–12)
+7. **Generosity beat** (2026-09-02 ride): build Ludo's "generosity as a losing intervention" teaching beat, or just the generous / selfish / "beautiful taxpayer" descriptors on the doll. (CANON 13)
+8. **Seeds to shape, not rule yet** (2026-09-02 ride): full Populous mode for the tutorial Georgelands (parked, keep thinking); the strong-vs-weak model (capacity × effort in berries, accepted as a seed); the Dragon's-Egg → Big-Bang → life opening authored in the Dramaton editor. (CANON 14–16)
+
+## RULED 2026-09-02 (ride debrief, Doug; full text in DESIGN.md "2026-09-02 — RIDE NOTES")
+- **Berries stay at 8 near / 20 far (v0.78).** No change; deploy as-is for the friends demo.
+- **One STATE DOLL per Vita**, animated, genderless, acting out the Vita's overall state (not one icon per knob), live as the knobs turn, with text; not the skinned Vita; readable at thumbnail size. Supersedes the abstract status icon; refines the glance-figure.
+- **"Conditions"** is the name for a Georgeland's settable societal conditions (slavery, child labour, reproduction, …).
+- **Berries are the unit of account** for measuring a Vita's inputs and outputs in the Georgeotron workshop (measurement, not currency).
+- **Generosity is already in the model** as the three-way outflow (pump / self / gift); write it into the state descriptions rather than build a mechanic.
 
 ## LANES RUNNING (2026-09-01 evening)
 | Seat | Folder / branch | Doing |
@@ -34,6 +44,7 @@
 
 ## BUILDER QUEUE (ruled order)
 map loader → Georgeotron round trip (long-press entry; any-layer default; king-only as a switch) → industry/steam engine → births/weddings/child-labour. In parallel: dialogue batch (own worktree). Editor lane: Populous builder after the loader. Studies seat: foundry queue (16 pending), beaver/pig/dolphins, coal/iron art.
+- **Added 2026-09-02 (ride fold, order unchanged):** the Georgeotron round-trip session now also carries the state doll + text, the two-way descriptors (knobs ↔ pull-down words), berry-flow instrumentation of inputs and outputs, and the generosity descriptors read off the three-way outflow (DESIGN.md "2026-09-02 — RIDE NOTES" 2–4; the builder must decide whether the pump / self / gift split is a derived stat or a knob). The map loader gains its purpose: a library of tutorial Georgelands with Conditions and a play ↔ inspect flip (6–8). Doug's own next step is to play in the Georgeotron workshop (1). The state-doll art is a foundry study candidate (a genderless doll on the standard armature, poses readable at thumbnail size).
 
 ## PARKED / RESOLVED (flag only, per the 2026-09-02 fold instruction)
 - **narraton-editor → main** and **asset-foundry's 16 studies → main**: the fold instruction asked to record both as parked and perform neither. Both had already been performed on 2026-09-01 (decisions 37 and 7a; merge commits `968bd9c` and `995583e`, pushed). Nothing was performed on 2026-09-02. Editor-lane spine: `docs/editor/STATUS.md`, `docs/editor/DESIGN.md`.

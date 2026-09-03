@@ -7,6 +7,14 @@
 
 Terse; where a line of Doug's exists it is quoted. Authority for what is canon: `DECISIONS_2026-09-01.md` (36 rulings, table at the end of the LOG). Build state and version log: `STATUS.md`. Everything below points into the LOG for the full text.
 
+### Ruled 2026-09-02 (ride debrief; added 2026-09-02 12:13 PDT, additive — full text and reasoning in the LOG, "2026-09-02 — RIDE NOTES")
+- **The STATE DOLL (Doug, 2026-09-02):** ONE small animated, genderless doll per Vita, acting out that Vita's OVERALL state (hungry · working too hard · producing too much and not eating enough · tummy full and hardly working · generous / selfish / "a beautiful taxpayer"), live-updating as the Georgeotron knobs turn, with a short accompanying text. Not the skinned Vita; must read at thumbnail size. One doll for the whole state, not one per knob. Supersedes the abstract status icon of the same ride; refines the 2026-08-31 glance-figure.
+- **CONDITIONS (Doug, 2026-09-02):** the name for a Georgeland's settable societal conditions (slavery, child labour, reproduction, …), set per tutorial world. Full Populous mode stays parked.
+- **Berries stay at 8 near / 20 far, v0.78 (Doug, 2026-09-02):** no change; deploy as-is for the friends demo.
+- **Berries are the unit of account (Doug, 2026-09-02):** a Vita's inputs and outputs are measured in berries in the Georgeotron workshop. Measurement, not money; currency still arrives with industry (decisions 25/30).
+- **Generosity is already in the model (Doug, 2026-09-02):** the three-way outflow (up to the pump / to yourself / gift). No new mechanic; write it into the state descriptions: generous / selfish / "a beautiful taxpayer".
+- **The workshop IS George World (Doug, 2026-09-02):** several Vitas wired together in the Georgeotron workshop and dropped into a Georgeland is the game. "that's actually George world."
+
 ### What it is + teaching goal (D, 2026-08-29, verbatim)
 A **3-D god-game / civilization builder centered on the ECONOMY**, with a very **LIGHT tech tree** (a small, manageable set of skills/tools being built). Reuses the HvB **Georgeomat** machine — Vitas and the connections between them — as its engine, polarity flipped toward **building** a society rather than feeding the dragon. You win by maximizing collective flourishing; you can also just **stop at the village level and run a harmonious village**. (D)
 
@@ -59,12 +67,18 @@ A **3-D god-game / civilization builder centered on the ECONOMY**, with a very *
 2. Approve the map/Georgeland contract once GW BUILDER posts the one-page proposal. (#23)
 3. Proper names for the Caldera, Ring Atoll, River Delta, Georgeland 2. (#17)
 4. Where the HvB master record lives after eviction from this repo (Dropbox HvB or the HvB chat project). (#10)
-5. Glance-figure: what the second arm and the legs stand for; "health is just hunger" — one axis or two? (2026-08-31 walk)
+5. Glance-figure: what the second arm and the legs stand for; "health is just hunger" — one axis or two? (2026-08-31 walk) (2026-09-02: the figure becomes the state doll; the part-semantics question stands)
 6. The taxes discovery scene itself: decision 26 gives the shape (the tithe made law, a visible rate, the single-tax lever at law & writing); what the moment looks and sounds like is unwritten.
 7. The easter-egg rock's full payload beyond summoning the dragon (CHANGELOG v0.35: "awaiting his word") — and which of the three Easter Egg Room flavors Aipotu gets.
 8. The pending advanced-panel candidates: land-ownership, inheritance, currency, single-tax, weather/seasons, disease, war/raiding, migration, dragon on/off, religion — which become Georgeland switches.
 9. A real volcano eruption that damages the island ("Later") — the appeasement ritual is the beat for now.
 10. Vitas "start as DEPENDENT BABIES" (2026-08-29) versus the cast beaming down grown (as built): reconcile when the births session (decision 28) is designed.
+11. Where the state doll lives: on the Georgeotron panel, floating over the Vita, or both. (2026-09-02 ride)
+12. Doll states: a fixed vocabulary (hungry, working too hard, producing too much and not eating enough, full and idle, generous, selfish, beautiful taxpayer, …) or continuous blends. (2026-09-02 ride)
+13. Build the "generosity as a losing intervention" teaching beat (Ludo's seed), or just the generosity descriptors on the doll. (2026-09-02 ride)
+14. Full "Populous mode" for the tutorial Georgelands: parked, keep thinking. (2026-09-02 ride)
+15. The strong-vs-weak productivity model (capacity × effort, in berries): accepted as a seed, mechanics TBD. (2026-09-02 ride)
+16. The opening Dragon's Egg → Big Bang → life sequence authored in the Dramaton editor: who builds it, when, and how it sits beside the saucer arrival. (2026-09-02 ride)
 
 ## DIRECTIONS (not built)
 
@@ -95,6 +109,10 @@ One line each; the full text is in the LOG under the named section.
 - **Mining assets** — pick-carry Vita, coal wagon empty/full (art only, decision 30). → "RIDE NOTES" 9.
 - **Social Credit** — C.H. Douglas as critique material or a monetary-reformer character; handle the baggage. → "RIDE NOTES" 10.
 - **Easter Egg Room per Georgeland**; **Cloud/sky gameplay hooks**; **the Ponzi "BUBBLE" scenario**; **reputation washing + a proper crowning ceremony** — all in their LOG sections.
+- **Georgeotron live read-out** (2026-09-02) — the state doll + its text, two-way descriptors (knobs → words; a pull-down word → knobs), berry-flow instrumentation of a Vita's inputs and outputs, the generosity descriptors from the three-way outflow. Rides with the Georgeotron round-trip session. → "2026-09-02 — RIDE NOTES" 2–4.
+- **Tutorial Georgeland library** (2026-09-02) — a series of Georgelands as tutorial stages, bare islands first, richer terrain later; each with its Conditions; a seamless play ↔ inspect flip; wire or preset Vitas, drop them in, watch a minimal storyline with the beaver commenting. Rides on the map loader. → "2026-09-02 — RIDE NOTES" 6–8.
+- **Strong-vs-weak productivity** (2026-09-02) — a capacity attribute, output = capacity × effort in berries; earned wages of ability shown beside the unearned skim of the claim. Seed only. → "2026-09-02 — RIDE NOTES" 9.
+- **Opening sequence in the editor** (2026-09-02) — Dragon's Egg → Big Bang → life authored as a Dramaton scene on top of `bigbang_study.html`. → "2026-09-02 — RIDE NOTES" 10.
 
 ## LOG
 
@@ -596,7 +614,7 @@ Every Georgeland map gets a HIDDEN FANTASTICAL CHAMBER — a secret Easter-egg l
 - **HIERARCHY rules:** exactly ONE king (2nd only via deposing); DUKE COUP if king over-demands + under-rewards Dukes (king→serf, strong duke→king); harsh-taskmaster Duke can drive serfs to death; rebellion HELD off for now (decline→death); dying serfs cost a Duke power + royal favor. DUKE hat = BLACK TOP HAT (not Tyrolean). Vitas = NO BEARD (non-binary).
 - **UI:** left = STATS drawer (opaque, side-tab), right = LOG drawer (chronicle + synopsis on top + interventions); bottom = one substantial status panel (yellow headline / white details, bigger fonts, slides up/down, no "press G" hint, zoom-to-event on announce); Machine View in upper-right (G/Georgeomat button); time dial 8 notches (¼ ½ 1× 2 5 12 25 50, 1× at notch 3, handle sits on notch 3 at 1×); blue skip buttons removed.
 - **Advanced-options panel toggles:** Slavery, Reproduction/Aging/Death, Natural Disasters (tsunami/drought/earthquake), and **Godzilla (own toggle)**. Candidates pending: land-ownership, inheritance, currency, single-tax, weather/seasons, disease, war/raiding, migration, dragon-on/off, religion.
-- **KNOWN pipeline:** 6 approved 3D studies being integrated (palm, Vita character, sky/clouds/moon, seagulls, Joshua-tree berry bushes, orcas). Editor "all-scene-text list" feature in a separate session.
+- **KNOWN pipeline:** 6 approved 3D studies being integrated (palm, Vita character, sky/clouds/moon, seagulls, Joshua-tree berry bushes, orcas). Editor "all-scene-text list" feature in a separate session. (2026-09-02: that feature shipped as the editor's "All Text" panel, on main since the narraton-editor merge — `docs/editor/DESIGN.md`.)
 
 **UNBUILT (direction) → decision 31 (EDITOR lane, after the map loader; phase one placement, phase two terraforming — answers the OPEN)**
 ## 2026-08-30 — GEORGE WORLD BUILDER (Populous-style map editor) (D) — its own session
@@ -628,7 +646,7 @@ Doug: build a GEORGE WORLD BUILDER — the player PLACES Vitas and RESOURCES aro
 - **Control-scope MODES (open):** one Georgeotron mode where you can control ONLY THE KING; another where you can control any layer. "We gotta think that through."
 - **Georgeotron in the story games too:** the flip is available inside William, Capone, etc. (extends the Georgeomat-view-on-scenes keystone).
 
-**UNBUILT (direction) — a separate small pass after the round trip (decision 24); the open parts are CANON open question 5**
+**UNBUILT (direction) — a separate small pass after the round trip (decision 24); the open parts are CANON open question 5. REFINED 2026-09-02 → the STATE DOLL: one animated genderless doll per Vita acting out its overall state, live as the knobs turn, with text (see "2026-09-02 — RIDE NOTES" 2); the part-by-part sketch below stays as the record of the idea, and the hover-icon toggle is one candidate answer to where the doll lives (CANON 11)**
 ### GLANCE-FIGURE — per-Vita shorthand status icon (D)
 - A shorthand little FIGURE representing a Vita's state at a glance: a FACE with an expression; a BICEP ARM for WORK (flexing vs drooping); a second arm considered for "amount of control" but control already reads via the connectors on the Georgeotron — what the other parts represent is OPEN; a HAT (rank, of course); body STOUT — explicitly NOT fat (consistent with the standing no-body-shaming values fix); LEGS CRUMPLE as overall health deteriorates (open: "health is just hunger"? — one axis or two); a REBELLIOUS symbol — maybe a FIERCE FACE (spec parks alongside the currently-HELD rebellion mechanic, ready when it's re-enabled).
 - **Hover-icon toggle:** a mode where ALL Vitas in the world have their status icon hovering above them. (Reconcile with the "no always-on status bars" declutter ruling: this is the opt-in mode of that idea, with the glance-figure replacing raw bars.)
@@ -640,7 +658,7 @@ Doug: build a GEORGE WORLD BUILDER — the player PLACES Vitas and RESOURCES aro
 - A Georgeland **carries the SWITCHES** (natural disasters, weather, slavery-is-legal, reproduction/death, …) + settable **RESOURCE LEVELS**. Current resources: exactly TWO — **WOOD and FOOD BERRIES**.
 - **One set of Vitas can be LOCKED to a Georgeland.** Challenge shapes: **the RESCUE** ("this Georgeland is headed toward disaster — what do we do to pull it out?"); **the ENDURANCE time challenge** (who can keep the civilization alive the LONGEST — maybe with a recurring DROUGHT CYCLE).
 - **Portable across the platform:** set things up technically so new Georgelands load into ANY of the games (William, Capone, …). (Georgeland becomes the world-format counterpart of the Dramaton script format.)
-- **Tutorial Georgeland:** teaches the Georgeotron via a GUIDED session — the tutorial controls the focus, showing how knob movements REVERBERATE in the Georgeland and vice versa (both directions).
+- **Tutorial Georgeland:** teaches the Georgeotron via a GUIDED session — the tutorial controls the focus, showing how knob movements REVERBERATE in the Georgeland and vice versa (both directions). (2026-09-02: grew into a LIBRARY of tutorial Georgelands, one per stage — see "2026-09-02 — RIDE NOTES" 6.)
 - **Full-control editing = Dramaton-editor parts:** full control of a Georgeland brings up parts of the Dramaton editor so SCRIPTS can be edited and scenes played out — as a **3D scene inside the Dramaton editor** (C-reading of dictated "Scripps" = scripts, "three day" = 3D). Extends the editable-scenes + runtime keystones: the editor gains a live 3D stage.
 
 **CURRENT (directions) — iron/coal → decision 30 (no); taxes → decision 26 (the tithe made law, at law & writing per decision 21; answers the open wrinkle); weddings → decision 28; reputation washing and the crowning ceremony UNBUILT**
@@ -787,3 +805,102 @@ Ruled one at a time in the Code session, 15:19–18:15 PDT (row times after 17:2
 **The digest's five open questions, mapped:** (1) the ten-word no-repeat rule in George World → decision 36, adopted; (2) Georgeomat vs Georgeotron → decision 13, one name; (3) "pot of workers" = a pod of orcas → decision 32a, confirmed; (4) delete DESIGN_backup → decision 5, deleted; (5) who owns graphics work on georgeworld.html → decision 33, GW BUILDER.
 
 **Two items the 2026-09-02 fold instruction asked to flag as PARKED, not performed:** (1) the narraton-editor branch merge into main and (2) the asset-foundry studies onto main. Both had already been performed on 2026-09-01 by DISPATCH under decisions 37 and 7a (merge commits `968bd9c` and `995583e`, pushed). Nothing was performed on 2026-09-02; they are recorded as resolved in `docs/george-world/STATUS.md` and `docs/editor/STATUS.md` so the records agree.
+
+**UNBUILT (directions) except the four rulings, which are CANON ("Ruled 2026-09-02"). Source of record, kept verbatim and never superseded by this entry: Dropbox `Consolidated/Projects/AIPOTU/RIDE_NOTES_2026-09-02.md` (the extraction, written the same day). Folded 2026-09-02 12:13 PDT, additive.**
+## 2026-09-02 — RIDE NOTES: the Georgeotron and the critters, together (D, scooter, with the puppy)
+
+### 1. Next focus: the Georgeotron + the critters, together (Doug, 2026-09-02)
+- When back, focus on the Georgeotron. Goal: "start getting the Georgeotron and the critters (Vitas) working together" as one thing. First step, for Doug himself: play around in the Georgeotron workshop (the test-bed / sandbox).
+- Why it comes first: every other item on this ride (the read-out, the descriptors, the instrumentation, the wiring, the tutorial library) is something you do IN the workshop. CANON already says one Vita's machine is shown large so the player can learn it; the workshop is where the machine gets legible before it is scaled up to a society.
+
+### 2. The live status read-out → the STATE DOLL (Doug, 2026-09-02; ruled at the debrief)
+- ~~The status icons that represent a Vita's internal state should update LIVE as you monkey with the knobs: turn a knob, the icon changes, a direct read-out. Knob → internal state → icon. Example states in Doug's words: "working hard but I'm eating hard," "happy," "hearty." Each state of the icon gets accompanying text, a short label beside it, so the read-out is legible and not just a picture.~~ (superseded 2026-09-02, later the same ride, by the animated doll below; the live-update loop and the accompanying text carry over unchanged, and the example states stay as candidate doll states)
+- **Refinement, later the same ride (Doug):** not an abstract icon but a small animated thumbnail of a character ACTING OUT how it feels. Pantomime, not a symbol. States it should act out: hungry · working too hard · producing too much and not eating enough · tummy full and hardly working (full and idle). Because a symbol has to be learned and a little figure clutching its stomach or slumping over a full basket is read by anyone at a glance, which is the "beats the theory of George into players' heads" goal at thumbnail size.
+- **Not the actual Vita (Doug):** Vitas wear various skins, so the state avatar must not be skin-specific. Use a simple, genderless animated DOLL as the universal read-out. Because the skin gallery means a Vita can look like anything; a read-out re-animated per skin would never stay current, and a doll that looks the same on every Vita is the thing a player learns once.
+- **Must be easily readable when small (Doug):** clear silhouette, big legible poses. The whole point is a glanceable thumbnail.
+- **Ruled at the debrief (Doug, 2026-09-02): ONE doll per Vita, showing its OVERALL state, not one per knob.** Because the question a player asks is "how is this Vita doing," and one composite pose answers it; a row of per-knob icons is the gauges again, which the Georgeotron already draws. This answers the ride's own open question ("one composite state icon per Vita, or one per knob/gauge?").
+- **The doll also carries the generosity descriptors** from section 4: generous / selfish / "a beautiful taxpayer" are states it acts out, with their text.
+- **Relation to the glance-figure (2026-08-31):** the glance-figure (face + bicep arm + hat + crumpling legs) was the first sketch of this same object; the state doll is its animated, whole-state form. The part-by-part semantics stay recorded in that section and CANON open question 5 stands.
+- **Still open (CANON 11, 12):** where the doll lives (the Georgeotron panel, floating over the Vita, or both; the glance-figure's hover-icon toggle is one candidate for "over the Vita"); whether the states are a fixed vocabulary or continuous.
+
+### 3. Descriptors that play BOTH ways + measuring the model (Doug, 2026-09-02)
+- The funny bit: you see the Vita's machine AND a row of descriptions (hungry, generous, …). It reads out from the knobs, but you can also fiddle the descriptors directly via a pull-down menu, and that drives the knobs to match. Play it both ways: knobs → descriptor, and descriptor → knobs.
+- (C-reading, not yet blessed) These are the editor's named Vita presets ("Happy Voracious", "Starving Lazy", see `docs/editor/DESIGN.md`) surfaced in the Georgeotron as plain-state words you can pick; one preset table serves both directions if each descriptor is a target region in knob space. It also bridges TWO VOCABULARIES: the descriptor row is the human tongue sitting right beside the machine tongue, on the one page where machine words are allowed.
+- **Measurement / instrumentation (Doug):** to engage and test the model you need to measure a Vita's inputs and outputs, the amount of flow. **Unit = food berries.** The berry is already the single food; now it doubles as the unit of account for flow, inputs and outputs both rated in berries. Ruled at the debrief as a measurement unit for the workshop, not currency: currency still arrives with industry (decisions 25/30), and a berry count is something a serf can hold in a basket, so it stays in the world's own vocabulary.
+
+### 4. How do we introduce generosity? (Doug asked; Ludo seeded; Doug resolved, 2026-09-02)
+Doug's question on the ride. Ludo's seeds, offered to react to (Ludo proposed, 2026-09-02; none adopted as mechanics):
+- Vita-to-Vita generosity as emergent behaviour: a Vita with a full basket hands a berry to a hungry neighbour, a small pantomime. Shows people are generous by nature and contrasts with the machine that isn't. (Peer gifts already exist in the game as the trade beat, `tradeGift`, since the trade batch.)
+- Generosity-from-above as theater: the King's Sunday distribution is performative charity the beaver notes barely dents the extraction, charity versus justice. (Already the built Sunday sequence and its "THE BLESSING" hint.)
+- Generosity as a losing intervention, the Georgist punchline: let the player try to fix poverty with charity and watch the arrangement stay unchanged, against the one clean lever (land tax). Generosity is kind but doesn't touch the choke point. Strongest teaching device; fits the machine thesis. Whether to build it is CANON open question 13.
+
+**RESOLUTION (Doug, same ride):** generosity is ALREADY in the model: the **three-way outflow**. A Vita can direct some of its output (1) upward to the pump, (2) to yourself, or (3) as a gift to a person or the community. So there is no new mechanic to build; the work is to write it into the Vita STATE DESCRIPTIONS, so the read-out says which way a Vita leans:
+- gift-heavy → "generous"
+- self-heavy → "selfish"
+- pump-heavy → "a beautiful taxpayer" (Doug's phrase, verbatim: the extraction dressed as civic virtue; keep it)
+
+Why this beats a new mechanic: the three-knobs rule stands ("Do not add knobs to the Vita machine right now"), and the point of generosity in George World is not that it fixes anything but that the player can SEE who is kind and who is being skimmed; naming the lean on the doll does that with no new machinery. It feeds straight into the state doll of section 2. (C-note for the builder: v0.79 has peer gifts and the tithe pipe, but no per-Vita split of output among pump / self / gift that a descriptor could read off; whether that split is a derived statistic or a knob belongs to the Georgeotron round-trip session, and the three-knobs rule leans it toward derived.)
+
+### 5. Wiring Vitas together IS George World (Doug, 2026-09-02) — convergence
+- In the Georgeotron workshop you should be able to hook different Vitas together, wire them with pipes and springs, and run experiments (the pipe = green flow, the spring = red coil: the existing combined claim connector).
+- Doug's realisation mid-thought: **"that's actually George world."** The workshop, scaled up from one Vita to several wired together, IS the game. The sandbox and George World converge: same object, different number of Vitas. This restates the 2026-08-29 "bench → island pipeline" and the 2026-08-31 flip-and-monkey round trip as an identity rather than a hand-off: there is no deploy step, only a count.
+
+### 6. A library of Georgelands = tutorial stages (Doug, 2026-09-02)
+- Create, or have a library of, Georgelands that correspond to stages in the tutorial. They vary: bare little islands at first → places with variable resources and topography as the tutorial advances.
+- Ties straight to the MAP LOADER (greenlit; decisions 12 and 23): the loader is the machinery that makes a library possible, and the tutorial progression is what gives the loader its purpose. Each stage is a Georgeland module. Extends the single "Tutorial Georgeland" of 2026-08-31 into a series.
+
+### 7. Drop-in workflow: wired or preset Vitas → a Georgeland → a minimal storyline (Doug, 2026-09-02)
+- Wire the Vitas together and drop the assembly into the little Georgeland, or just drop them in with their presets, and see what happens.
+- It plays out like a really, really minimal storyline with minimal small talk: emergent, sparse, not scripted.
+- **The beaver comments on it (don't forget):** the Greek-chorus beaver reads what is happening and points at it. The commentary layer is what turns a bare drop-in experiment into a tiny story. (The beaver sits in the foundry queue, decision 20; this gives it its first job in George World.)
+
+### 8. Tutorial Georgelands: CONDITIONS + a play/inspect toggle (Doug, 2026-09-02; the name ruled at the debrief)
+- Each little tutorial world lets you set its **Conditions**: slavery, child labour, reproduction, etc. Doug fished for the word on the ride: ~~Laws / Rules of the land / Switches~~ were the other candidates (superseded 2026-09-02 by "Conditions", ruled at the debrief). (C-reading, confirm: "Conditions" is the player-facing name for the set; "switch" stays the file-level word for one on/off toggle inside a Georgeland file, as in decisions 27 and 29a.)
+- Not full "Populous mode" yet: parked at this point, but keep thinking about it, don't drop it (CANON 14).
+- Reinforces the series of tutorial Georgelands (the library = the tutorial stages).
+- **A really easy way to flip between two views:** watching them operate (the world) ↔ looking at their internal states and connections (the Georgeotron / machine). A seamless play ↔ inspect toggle, the same object seen two ways. The flip already exists as the Georgeotron panel; the ask is that in the tutorial worlds it is effortless.
+
+### 9. Heterogeneous productivity: strong-at-5 vs weak-at-flat-out (Doug asked; Ludo answered; seed accepted 2026-09-02, mechanics TBD)
+- Doug's question: Vitas produce different amounts. A strong Vita at effort 5/10 might out-produce a weak Vita flat out. How to model it, and does George address it?
+- **George does address it** (Ludo, 2026-09-02): the "wages of superior ability" / "rent of ability". George treats the extra return to exceptional strength or skill as rent-like, a scarcity premium, BUT his thesis is that individual differences are NOT the cause of poverty; land rent capturing the surplus is. Productivity variation is the fair, earned part; the injustice is the unearned skim on top.
+- **Model seed (Ludo proposed, 2026-09-02; Doug accepted as a seed, CANON 15):** give each Vita a capacity/strength attribute; output = capacity × effort-knob, measured in berries. Strong at 0.5 beats weak at 1.0 naturally, no special case. Against the three-knobs rule: capacity is an attribute the world sets, not a knob the player turns, like the per-Duke spring-strength trait already in the build.
+- **Teaching payoff:** the game can separate the two. A strong Vita producing more by working = fair wages of labour; the Duke producing more by holding the claim captures surplus regardless of who made it = rent, the unearned part. Showing earned-difference next to unearned-skim is pure George: the machine doesn't care who's strong; it skims the claim either way.
+
+### 10. Opening sequence authored in the Dramaton editor (Doug, 2026-09-02; open, CANON 16)
+- Build the opening "Dragon's Egg → Big Bang → life" sequence, the game's opening cinematic / interaction, in the Dramaton editor. `bigbang_study.html` already exists as the visual (heartbeat quickens, glowing cracks, detonation into a Hubble-flow galaxy and tumbling shards). The idea: author the opening AS a Dramaton scene, not hand-coded, a first real use of the editor to drive George World's intro. The saucer arrival stays the opening of a run; this is the chapter's opening above it.
+
+### Berries: no change (Doug, ruled 2026-09-02)
+Leave the bushes at 8 near / 20 far (v0.78). Deploy as-is for the friends demo. Because the friends demo tests legibility, not tuning, and the far grove as the rent seed (decision 16) reads at the current counts.
+
+### The editor item from the same ride
+"See and edit all the strings in a scene" (built for heavy rewriting) and "maybe hook BIRO up to the editor via the DRAM bridge" are folded into `docs/editor/DESIGN.md`; the All Text panel already exists on main. The BIRO line is also appended to `CrossProjectComm/TO_PHROG.md` per the cross-project routing rule, nothing marked handled on Phrog's behalf.
+
+### Still open from this ride
+CANON open questions 11–16. The three questions at the foot of the ride notes became 11 and 12; the third ("one composite icon per Vita, or one per knob") was ruled: one. Nothing else trailed off.
+
+**CURRENT — verbatim, never edited (the 2026-08-29/30 set stays in its own section above, untouched)**
+## Quotable lines — running, from the 2026-09-02 ride (Doug, verbatim)
+- "a beautiful taxpayer" — the pump-heavy Vita; extraction dressed as civic virtue. (Doug, 2026-09-02)
+- "working hard but I'm eating hard" — an example state for the read-out, in Doug's words. (Doug, 2026-09-02)
+- "that's actually George world." — realising mid-thought that the wired-up workshop is the game. (Doug, 2026-09-02)
+- "tummy full and hardly working" — the full-and-idle doll state. (Doug, 2026-09-02)
+- "the critters" — Doug's ride-word for the Vitas. (Doug, 2026-09-02)
+- "don't forget" — on the beaver commenting; the Greek chorus must not be lost in the drop-in workflow. (Doug, 2026-09-02)
+
+**CURRENT — running; one line per coinage, dated**
+## Glossary — running, started 2026-09-02 (the "Vocabulary (decision 17)" list in CANON stays as written)
+- **Georgeland** — a loadable parcel of world: terrain + Conditions + resource levels + optional locked cast + tier list + cast names. Aipotu is the first. The tutorial is a library of them. (decision 17; Doug, 2026-09-02)
+- **Georgeotron** — the machine, its page, the bench and the parts kit, one name. (decision 13)
+- **Georgeotron workshop** — the test-bed / sandbox side of the Georgeotron, where one or several Vitas are wired and tested; scaled up, it IS George World. (Doug, 2026-09-02)
+- **Conditions** — a Georgeland's settable societal conditions: slavery, child labour, reproduction, and so on. The player-facing word; "switch" stays the file-level toggle. (Doug, 2026-09-02)
+- **berry, the unit of account** — the berry is the single food AND the unit in which a Vita's inputs and outputs (flow) are measured in the Georgeotron. Measurement, not money. (Doug, 2026-09-02)
+- **the state doll** — one small animated, genderless doll per Vita, acting out the Vita's overall state, with a line of text; live-updates as the knobs turn; not the skinned Vita; must read at thumbnail size. Supersedes the abstract status icon; refines the glance-figure. (Doug, 2026-09-02)
+- **the three-way outflow** — where a Vita's output goes: up to the pump / to yourself / as a gift. Generosity lives here. (Doug, 2026-09-02)
+- **a beautiful taxpayer** — the descriptor for a pump-heavy Vita. (Doug, 2026-09-02)
+- **two-way descriptors** — the row of plain-state words in the Georgeotron that reads out from the knobs and, picked from a pull-down, drives the knobs. (Doug, 2026-09-02)
+- **tutorial Georgeland library** — the series of Georgelands that are the tutorial's stages, bare islands first, richer terrain later. (Doug, 2026-09-02)
+- **Populous mode** — full god-hand terraforming of a tutorial world; parked. (Doug, 2026-09-02; the Builder itself is decision 31)
+- **play ↔ inspect toggle** — the effortless flip between watching the Vitas operate and looking at their internal states and connections. (Doug, 2026-09-02)
+- **glance-figure** — the 2026-08-31 sketch of the per-Vita status figure; became the state doll. (Doug, 2026-08-31)
+- **the critters** — the Vitas, in Doug's ride-word. (Doug, 2026-09-02)
+- **wages of superior ability / rent of ability** — George's term for the extra return to exceptional strength or skill; earned, and not the cause of poverty. (Ludo, 2026-09-02)

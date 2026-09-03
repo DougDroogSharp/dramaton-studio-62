@@ -22,6 +22,8 @@
 - Unifying the two Narraton metadata shapes (editor director vs theater runtime) — open decision.
 - Publishing the editor itself on Netlify.
 - Voice → animation loop exercised end to end.
+- **BIRO on the bridge** (Doug, 2026-09-02): "May experiment with hooking BIRO up to the editor" — BIRO, Doug's writing Familiar (Phrog-side), driving scene text through the DRAM bridge. Not started; cross-seam. → LOG, 2026-09-02.
+- **All Text panel, heavy-rewrite ergonomics** (Doug, 2026-09-02): the panel exists (see LOG, 2026-09-02); the standing ask is that seeing and editing every string in a scene stays low-friction for a lot of writing and rewriting. Verify against Doug's use before touching it.
 
 ## LOG (dated, additive)
 
@@ -34,3 +36,18 @@ Open threads it left: merge parked (later done 2026-09-01, `968bd9c`); runtime n
 
 ### 2026-09-02 — fold instruction (Doug, confirmed)
 Editor / Narraton / bridge / skin-library / Vita-instrumentation content from the three debrief files is captured in this record and `docs/editor/STATUS.md`. The two items the instruction asked to flag as parked (narraton-editor merge; asset-foundry studies onto main) had both already been performed on 2026-09-01 (`968bd9c`, `995583e`); they are recorded as resolved in both STATUS files and nothing was performed on 2026-09-02.
+
+### 2026-09-02 — ride note: see and edit all the strings in a scene; maybe hook up BIRO (Doug, scooter; folded 2026-09-02 12:13 PDT, additive)
+Source of record: Dropbox `Consolidated/Projects/AIPOTU/RIDE_NOTES_2026-09-02.md`, section "[DRAM / Editor]". The only editor item on a George World ride; the rest of that file folded into `docs/george-world/DESIGN.md`.
+- **The ask (Doug, 2026-09-02):** in the scene editor, an easy way to see ALL the strings (text lines) in a scene at once and edit them. Doug will be doing a lot of writing and rewriting, so it needs to be low-friction. Doug himself: "I may have said this before."
+- **He had.** Verified 2026-09-02 before folding: this is the **All Text panel**, already on main. `SceneEditor.tsx` carries an "All Text" button ("Every line of text in this scene, in one editable list") that opens `SceneTextPanel.tsx`: every string in the scene grouped as Scene / Script / Balloons on the stage / Button labels, a search box, a spoken-only filter, a spoken-word count, and growing textareas that edit in place (single-line slots refuse Enter; Escape closes). Collected and written back by `src/utils/sceneText.ts` (`collectSceneText`, `applySceneTextEdit`), 19 tests in `src/test/sceneText.test.ts`. It arrived as the base commit of the narraton-editor branch (`2b4a90d`, "carry over All Text panel work") and reached main in the 2026-09-01 merge (`968bd9c`). So the item folds as BUILT, and the George World record's "all-scene-text list feature in a separate session" line is now annotated to say so.
+- **What remains of the ask:** the ergonomics for heavy rewriting. Nothing in the ride says the built panel falls short; the right next step is for Doug to use it on a real rewrite and report. Listed under DIRECTIONS as a verify-before-touching item, not a build.
+- **BIRO (Doug, 2026-09-02):** "May experiment with hooking BIRO up to the editor" — BIRO, his writing Familiar, driving scene text. (C, plausible plumbing already exists:) the DRAM bridge (`GET`/`PUT /bridge/game`, localhost-only, contract in `docs/DRAM_BRIDGE.md`) lets any Claude or tool co-edit the live document through read-modify-write, so BIRO could ride that with no new API; the bridge's missing version guard (STATUS NEXT 1) matters more once two writers, Doug and BIRO, edit the same scene. Cross-seam: BIRO is Phrog-side, the editor is Dram-side; appended to `CrossProjectComm/TO_PHROG.md` per the routing rule, nothing marked handled on Phrog's behalf. Direction, not started.
+
+## Quotable lines (Doug, verbatim)
+- "I may have said this before" — on the all-strings view; he had, and it was already built. (Doug, 2026-09-02)
+
+## Glossary
+- **All Text panel** — the scene editor's one editable list of every string in a scene (scene, script, balloons, button labels), with search and a spoken-only filter. Built; on main since 2026-09-01. (Doug asked 2026-08-31 and again 2026-09-02)
+- **BIRO** — Doug's writing Familiar on the Phrog side; candidate co-editor of scene text through the DRAM bridge. (Doug, 2026-09-02)
+- **DRAM bridge** — `GET`/`PUT /bridge/game`, the editor's whole API for outside co-editors. (2026-08-31)
