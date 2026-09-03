@@ -15,7 +15,7 @@ export interface NarratonHistory {
 
 export const createNarratonHistory = (): NarratonHistory => ({ played: new Set() });
 
-interface KeyDelta {
+export interface KeyDelta {
   variable: string;
   current: number;
   target: number;
@@ -71,11 +71,33 @@ export function readAct(vars: WorldVars): NarratonAct | null {
   return Number.isFinite(n) ? (ACT_BY_NUMBER[n] ?? null) : null;
 }
 
+export interface SelectOptions {
+  // The editor ranks on every render; it does not want the console log.
+  quiet?: boolean;
+}
+
+// Every pool named by a scene, sorted, for the editor's pool pickers.
+export function narratonPools(scenes: Scene[]): string[] {
+  const pools = new Set<string>();
+  for (const s of scenes) if (s.narraton?.pool) pools.add(s.narraton.pool);
+  return [...pools].sort();
+}
+
+// Candidates the way the editor shows them: eligible first by weighted
+// score, then the excluded tail (kept, with reasons, so the board is legible).
+export function sortCandidates(candidates: NarratonCandidate[]): NarratonCandidate[] {
+  return [...candidates].sort((a, b) => {
+    if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+    return a.weightedScore - b.weightedScore;
+  });
+}
+
 export function selectNarratonScene(
   pool: string,
   scenes: Scene[],
   vars: WorldVars,
   history: NarratonHistory,
+  options: SelectOptions = {},
 ): NarratonSelection {
   const poolScenes = scenes.filter(s => s.narraton?.pool === pool);
   const candidates: NarratonCandidate[] = [];
@@ -163,7 +185,7 @@ export function selectNarratonScene(
       }
       eligible = inAct;
     } else {
-      console.warn(`[Narraton] pool "${pool}": no scene fits act ${currentAct}; ignoring the act gate`);
+      if (!options.quiet) console.warn(`[Narraton] pool "${pool}": no scene fits act ${currentAct}; ignoring the act gate`);
     }
   }
 
@@ -176,7 +198,7 @@ export function selectNarratonScene(
     winner = tied[Math.floor(Math.random() * tied.length)].scene;
   }
 
-  logSelection(pool, candidates, eligible.length, winner);
+  if (!options.quiet) logSelection(pool, candidates, eligible.length, winner);
   return { winner, candidates };
 }
 

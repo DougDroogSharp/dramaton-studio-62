@@ -1064,6 +1064,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ game, selection, onCha
               <NarratonEditor
                 meta={selectedScene.narraton}
                 worldStateVars={Object.keys(game.info.worldState)}
+                subplots={game.subplots ?? []}
                 onChange={(narraton) => updateScene(selectedScene.id, { narraton })}
               />
 

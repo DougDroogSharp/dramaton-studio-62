@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { GameData, Scene, ScenePhase, SelectionState, Subplot } from '@/types';
-import { narratonRank } from '@/utils/narratonDirector';
+import { DEFAULT_NARRATON_POOL, GameData, NarratonAct, NarratonMeta, Scene, SelectionState, Subplot } from '@/types';
+import { selectNarratonScene, createNarratonHistory, narratonPools, sortCandidates } from '@/utils/narraton';
 import { CyberInput } from '@/components/CyberInput';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, Drama, Video, Tag, Users, Globe, Pencil, Play } from 'lucide-react';
+import { ACTS, ACT_STYLES, ActBadge, reasonLabel } from '@/components/NarratonBadges';
 import { toast } from 'sonner';
 import { NarratonTestMode } from '@/components/NarratonTestMode';
+
+// The Narraton page: the story board seen through the THEATER's selector
+// (src/utils/narraton.ts), so the ranking here is exactly the ranking a
+// [NARRATON pool=x] would compute in a shipped game. One metadata shape,
+// Scene.narraton (decision #5, 2026-09-01).
 
 interface NarratonDirectorProps {
   game: GameData;
@@ -15,22 +21,7 @@ interface NarratonDirectorProps {
   onSelect: (type: SelectionState['type'], id: string | null) => void;
 }
 
-const PHASES: ScenePhase[] = ['BEGINNING', 'MIDDLE', 'END'];
-
-const PHASE_STYLES: Record<ScenePhase, string> = {
-  BEGINNING: 'border-diesel-green text-diesel-green',
-  MIDDLE: 'border-diesel-gold text-diesel-gold',
-  END: 'border-diesel-rust text-diesel-rust',
-};
-
-const PhaseBadge = ({ phase }: { phase?: ScenePhase }) => {
-  if (!phase) return null;
-  return (
-    <span className={`px-1.5 py-0.5 border rounded text-[9px] font-bold uppercase tracking-wider ${PHASE_STYLES[phase]}`}>
-      {phase}
-    </span>
-  );
-};
+const keyTarget = (k: number | { target: number }): number => (typeof k === 'number' ? k : k.target);
 
 const sectionLabel = 'text-[10px] text-diesel-steel uppercase tracking-widest mb-2 flex items-center gap-1';
 
@@ -42,6 +33,10 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
   const worldState = game.info.worldState ?? {};
   const scene = selection.id ? scenes.find(s => s.id === selection.id) : null;
 
+  const pools = narratonPools(scenes);
+  const [pickedPool, setPickedPool] = useState<string>('');
+  const pool = pools.includes(pickedPool) ? pickedPool : (pools[0] ?? DEFAULT_NARRATON_POOL);
+
   const updateScene = (id: string, updates: Partial<Scene>) => {
     onChange({
       ...game,
@@ -50,7 +45,8 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
   };
 
   // Tag a scene with a target value; creates the world variable when it does
-  // not exist yet (Doug's flow: tag and create in one move).
+  // not exist yet (Doug's flow: tag and create in one move). A scene tagged
+  // without a pool joins the board's current pool so it becomes selectable.
   const tagScene = (target: Scene, variable: string, value: number) => {
     const name = variable.trim();
     if (!name) return;
@@ -63,13 +59,23 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
       ...game,
       info: nextInfo,
       scenes: scenes.map(s =>
-        s.id === target.id ? { ...s, key: { ...(s.key || {}), [name]: value } } : s
+        s.id === target.id
+          ? {
+              ...s,
+              narraton: {
+                ...(s.narraton ?? {}),
+                pool: s.narraton?.pool || pool,
+                keys: { ...(s.narraton?.keys ?? {}), [name]: value },
+              },
+            }
+          : s
       ),
     });
   };
 
   // New scenes join the picked episode so they are immediately playable
   // within it (Doug's ask 8); with no episode picked they are project-only.
+  // They join the current pool so the selector can see them once keyed.
   const handleCreateScene = () => {
     const newScene: Scene = {
       id: `scene_${Date.now()}`,
@@ -78,7 +84,7 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
       stage: [],
       script: '',
       status: 'new',
-      key: {},
+      narraton: { pool },
     };
     const episode = (game.episodes ?? []).find(e => e.id === newSceneEpisodeId);
     onChange({
@@ -114,7 +120,11 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
     onChange({
       ...game,
       subplots: subplots.filter(sp => sp.id !== id),
-      scenes: scenes.map(s => (s.subplotId === id ? { ...s, subplotId: undefined } : s)),
+      scenes: scenes.map(s => {
+        if (s.narraton?.subplot !== id) return s;
+        const { subplot: _, ...rest } = s.narraton;
+        return { ...s, narraton: rest };
+      }),
     });
   };
 
@@ -129,6 +139,7 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
         <SceneDetail
           game={game}
           scene={scene}
+          pools={pools}
           onBack={() => onSelect('narraton', null)}
           onUpdate={(updates) => updateScene(scene.id, updates)}
           onTag={(variable, value) => tagScene(scene, variable, value)}
@@ -140,13 +151,14 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
     );
   }
 
-  // ── Master view: director ranking + unkeyed scenes + subplots + world state ──
-  // Empty history = the story's opening board: phase gating shows which
-  // scenes could START (MIDDLE/END wait for their subplot's earlier phases).
-  const ranked = narratonRank(scenes, worldState);
-  const keyedIds = new Set(ranked.map(m => m.scene.id));
-  const unkeyed = scenes.filter(s => !keyedIds.has(s.id));
-  const subplotName = (id?: string) => subplots.find(sp => sp.id === id)?.name;
+  // ── Master view: the pool's board + unpooled scenes + subplots + world state ──
+  // Fresh history = the story's opening board: subplot rotation shows which
+  // scene of each subplot is up first.
+  const ranked = sortCandidates(
+    selectNarratonScene(pool, scenes, worldState, createNarratonHistory(), { quiet: true }).candidates
+  );
+  const unpooled = scenes.filter(s => !s.narraton?.pool);
+  const subplotName = (id?: string) => (id ? subplots.find(sp => sp.id === id)?.name ?? id : undefined);
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -154,9 +166,21 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
         <div className="flex items-center gap-2">
           <Drama className="text-diesel-cyan" size={20} />
           <h2 className="text-lg font-bold text-diesel-paper uppercase tracking-wider">Narraton</h2>
-          <span className="text-diesel-steel text-xs">least-squares scene selector</span>
+          <span className="text-diesel-steel text-xs">the theater's selector, live</span>
         </div>
         <div className="flex items-center gap-1.5">
+          <select
+            value={pool}
+            onChange={e => setPickedPool(e.target.value)}
+            title="Pool on the board ([NARRATON pool=…])"
+            className="bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs text-diesel-paper focus:outline-none focus:border-diesel-cyan/50"
+          >
+            {(pools.length > 0 ? pools : [DEFAULT_NARRATON_POOL]).map(p => (
+              <option key={p} value={p}>
+                pool {p}
+              </option>
+            ))}
+          </select>
           {(game.episodes ?? []).length > 0 && (
             <select
               value={newSceneEpisodeId}
@@ -188,21 +212,22 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
         <div className="lg:col-span-2 flex flex-col min-h-0">
           <div className={sectionLabel}>
             <Tag size={11} />
-            Selector ranking — keyed scenes vs live world state
+            Pool {pool} — scenes ranked against the live world state
           </div>
           <ScrollArea className="flex-1 border border-diesel-border rounded bg-diesel-dark">
             <div className="p-2 space-y-1">
               {ranked.length === 0 ? (
                 <div className="text-center text-diesel-steel py-8 text-xs">
-                  No keyed scenes yet. Create a scene and tag it with target variables.
+                  No scenes in this pool yet. Create a scene and tag it with target variables.
                 </div>
               ) : (
-                ranked.map((match, i) => (
+                ranked.map((c, i) => (
                   <div
-                    key={match.scene.id}
-                    onClick={() => onSelect('narraton', match.scene.id)}
+                    key={c.scene.id}
+                    onClick={() => onSelect('narraton', c.scene.id)}
+                    title={c.eligible ? `score ${c.score.toFixed(4)}` : c.exclusionReasons.join('; ')}
                     className={`flex items-center gap-2 p-2 rounded cursor-pointer border transition-colors ${
-                      match.ineligible
+                      !c.eligible
                         ? 'border-transparent opacity-40 hover:opacity-60'
                         : i === 0
                           ? 'bg-diesel-cyan/10 border-diesel-cyan/40 hover:border-diesel-cyan'
@@ -211,26 +236,23 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
                   >
                     <span className="text-diesel-steel text-xs w-5 text-right">{i + 1}.</span>
                     <Video size={12} className="text-diesel-rust" />
-                    <span className="text-sm text-diesel-paper">{match.scene.name}</span>
-                    <PhaseBadge phase={match.scene.phase} />
-                    {subplotName(match.scene.subplotId) && (
-                      <span className="text-[10px] text-diesel-purple">{subplotName(match.scene.subplotId)}</span>
+                    <span className="text-sm text-diesel-paper">{c.scene.name}</span>
+                    <ActBadge act={c.scene.narraton?.act} />
+                    {subplotName(c.scene.narraton?.subplot) && (
+                      <span className="text-[10px] text-diesel-purple">{subplotName(c.scene.narraton?.subplot)}</span>
                     )}
                     <span className="ml-auto font-mono text-xs text-diesel-steel">
-                      {match.ineligible === 'big-miss' && 'BIG MISS'}
-                      {match.ineligible === 'wrong-phase' && 'WAITS FOR PHASE'}
-                      {match.ineligible === 'played' && 'PLAYED'}
-                      {!match.ineligible && `Δ² ${match.score}`}
+                      {c.eligible ? `score ${c.weightedScore.toFixed(3)}` : reasonLabel(c)}
                     </span>
-                    {Object.entries(match.scene.key || {}).map(([v, t]) => (
+                    {Object.entries(c.scene.narraton?.keys ?? {}).map(([v, t]) => (
                       <span key={v} className="text-[9px] font-mono text-diesel-gold/70 hidden xl:inline">
-                        {v}→{t}
+                        {v}→{keyTarget(t)}
                       </span>
                     ))}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setTestSceneId(match.scene.id);
+                        setTestSceneId(c.scene.id);
                       }}
                       className="text-diesel-green/70 hover:text-diesel-green"
                       title="Test play from this scene"
@@ -243,14 +265,14 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
             </div>
           </ScrollArea>
 
-          {unkeyed.length > 0 && (
+          {unpooled.length > 0 && (
             <>
               <div className={`${sectionLabel} mt-3`}>
                 <Video size={11} />
-                Unkeyed scenes — invisible to the selector
+                Unpooled scenes — invisible to the selector
               </div>
               <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-                {unkeyed.map(s => (
+                {unpooled.map(s => (
                   <div
                     key={s.id}
                     onClick={() => onSelect('narraton', s.id)}
@@ -258,7 +280,6 @@ export const NarratonDirector = ({ game, selection, onChange, onSelect }: Narrat
                   >
                     <Video size={12} className="text-diesel-steel" />
                     <span className="text-sm text-diesel-steel">{s.name}</span>
-                    <PhaseBadge phase={s.phase} />
                   </div>
                 ))}
               </div>
@@ -311,7 +332,7 @@ const SubplotPanel = ({
       </div>
       <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1">
         {subplots.map(sp => {
-          const count = scenes.filter(s => s.subplotId === sp.id).length;
+          const count = scenes.filter(s => s.narraton?.subplot === sp.id).length;
           return (
             <div key={sp.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-diesel-border/30">
               <span className="text-sm text-diesel-purple">{sp.name}</span>
@@ -395,7 +416,7 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
       <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1">
         {Object.entries(worldState).map(([name, value]) => {
           // What-if scrubber: numeric variables get a slider so Doug can
-          // drag a value and watch the director's ranking reorder live.
+          // drag a value and watch the selector's ranking reorder live.
           const numeric = typeof value === 'number' ? value : Number(value);
           const sliderable = typeof value !== 'boolean' && String(value).trim() !== '' && Number.isFinite(numeric);
           return (
@@ -409,7 +430,7 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
                       info: { ...game.info, worldState: { ...worldState, [name]: !value } },
                     })
                   }
-                  title="Toggle (booleans match keys as 0/100)"
+                  title="Toggle (booleans match keys as 0/1)"
                   className={`ml-auto px-2 py-0.5 border rounded text-[10px] font-bold uppercase ${
                     value
                       ? 'border-diesel-green text-diesel-green bg-diesel-green/10'
@@ -478,10 +499,11 @@ const WorldStatePanel = ({ game, onChange }: { game: GameData; onChange: (g: Gam
   );
 };
 
-// ── Scene detail: name, phase, subplot, key tags, in-scene variables ──
+// ── Scene detail: name, pool, act, subplot, keys, in-scene variables ──
 const SceneDetail = ({
   game,
   scene,
+  pools,
   onBack,
   onUpdate,
   onTag,
@@ -490,6 +512,7 @@ const SceneDetail = ({
 }: {
   game: GameData;
   scene: Scene;
+  pools: string[];
   onBack: () => void;
   onUpdate: (updates: Partial<Scene>) => void;
   onTag: (variable: string, value: number) => void;
@@ -502,9 +525,27 @@ const SceneDetail = ({
   const [localVal, setLocalVal] = useState('0');
 
   const worldState = game.info.worldState ?? {};
-  const key = scene.key || {};
+  const meta = scene.narraton;
+  const keys = meta?.keys ?? {};
   const localVars = scene.localVars || {};
-  const untaggedVars = Object.keys(worldState).filter(v => !(v in key));
+  const untaggedVars = Object.keys(worldState).filter(v => !(v in keys));
+
+  // Every Narraton edit goes through here so a scene can never carry keys
+  // without a pool (the theater would silently never pick it).
+  const updateMeta = (patch: Partial<NarratonMeta>) => {
+    const next: NarratonMeta = { ...(meta ?? {}), pool: meta?.pool || DEFAULT_NARRATON_POOL, ...patch };
+    onUpdate({ narraton: next });
+  };
+
+  const setPool = (raw: string) => {
+    const pool = raw.trim();
+    if (!pool) {
+      // No pool = not selectable; drop the whole block, as the Scene Editor does.
+      onUpdate({ narraton: undefined });
+      return;
+    }
+    updateMeta({ pool });
+  };
 
   const addTag = () => {
     const value = Number(tagVal);
@@ -514,9 +555,15 @@ const SceneDetail = ({
     setTagVal('50');
   };
 
+  const setTarget = (variable: string, target: number) => {
+    const prior = keys[variable];
+    const value = typeof prior === 'object' && prior.scale ? { ...prior, target } : target;
+    updateMeta({ keys: { ...keys, [variable]: value } });
+  };
+
   const removeTag = (variable: string) => {
-    const { [variable]: _, ...rest } = key;
-    onUpdate({ key: rest });
+    const { [variable]: _, ...rest } = keys;
+    updateMeta({ keys: rest });
   };
 
   const addLocal = () => {
@@ -567,20 +614,35 @@ const SceneDetail = ({
       />
 
       <div className="flex gap-4">
+        <div className="w-36">
+          <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Pool</label>
+          <input
+            value={meta?.pool ?? ''}
+            onChange={e => setPool(e.target.value)}
+            list={`narraton-pools-${scene.id}`}
+            placeholder="none (unselectable)"
+            className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs font-mono text-diesel-paper placeholder:text-diesel-steel/50 focus:outline-none focus:border-diesel-cyan/50"
+          />
+          <datalist id={`narraton-pools-${scene.id}`}>
+            {pools.map(p => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        </div>
         <div>
-          <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Phase</label>
+          <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Act</label>
           <div className="flex gap-1">
-            {PHASES.map(p => (
+            {ACTS.map(a => (
               <button
-                key={p}
-                onClick={() => onUpdate({ phase: scene.phase === p ? undefined : p })}
+                key={a}
+                onClick={() => updateMeta({ act: meta?.act === a ? undefined : a })}
                 className={`px-2 py-1 border rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  scene.phase === p
-                    ? PHASE_STYLES[p]
+                  meta?.act === a
+                    ? ACT_STYLES[a]
                     : 'border-diesel-border text-diesel-steel hover:text-diesel-paper'
                 }`}
               >
-                {p}
+                {a}
               </button>
             ))}
           </div>
@@ -588,8 +650,8 @@ const SceneDetail = ({
         <div className="flex-1">
           <label className="text-[10px] text-diesel-steel uppercase tracking-widest mb-1 block">Subplot</label>
           <select
-            value={scene.subplotId || ''}
-            onChange={e => onUpdate({ subplotId: e.target.value || undefined })}
+            value={meta?.subplot || ''}
+            onChange={e => updateMeta({ subplot: e.target.value || undefined })}
             className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-1.5 text-xs text-diesel-paper focus:outline-none focus:border-diesel-purple/50"
           >
             <option value="">— no subplot —</option>
@@ -599,37 +661,43 @@ const SceneDetail = ({
                 {sp.owner ? ` (${sp.owner})` : ''}
               </option>
             ))}
+            {meta?.subplot && !(game.subplots ?? []).some(sp => sp.id === meta.subplot) && (
+              <option value={meta.subplot}>{meta.subplot}</option>
+            )}
           </select>
         </div>
       </div>
 
-      {/* Key tags */}
+      {/* Keys */}
       <div>
         <div className={sectionLabel}>
           <Tag size={11} />
-          Key — target world-state values (0–100); the selector picks the closest match
+          Keys — target world-state values (0–100); the selector picks the closest match
         </div>
         <div className="border border-diesel-border rounded bg-diesel-dark p-2 space-y-1">
-          {Object.entries(key).map(([variable, target]) => (
+          {Object.entries(keys).map(([variable, k]) => (
             <div key={variable} className="flex items-center gap-2 p-1 font-mono text-xs">
               <span className="text-diesel-gold">{variable}</span>
               <span className="text-diesel-steel">→</span>
               <input
                 type="number"
-                value={target}
+                value={keyTarget(k)}
                 onChange={e => {
                   const v = Number(e.target.value);
-                  if (Number.isFinite(v)) onUpdate({ key: { ...key, [variable]: v } });
+                  if (Number.isFinite(v)) setTarget(variable, v);
                 }}
                 className="w-16 bg-diesel-panel border border-diesel-border rounded px-1.5 py-0.5 text-xs font-mono text-diesel-paper focus:outline-none focus:border-diesel-gold/50"
               />
+              {typeof k === 'object' && k.scale && k.scale !== 100 && (
+                <span className="text-diesel-steel/60 text-[10px]">÷{k.scale}</span>
+              )}
               <span className="text-diesel-steel/60 text-[10px] ml-auto">
                 now: {String(worldState[variable] ?? '—')}
               </span>
               <button
                 onClick={() => removeTag(variable)}
                 className="text-diesel-rust/60 hover:text-diesel-rust"
-                title="Remove tag"
+                title="Remove key"
               >
                 <Trash2 size={11} />
               </button>
@@ -667,6 +735,9 @@ const SceneDetail = ({
             </Button>
           </div>
         </div>
+        <p className="text-[10px] text-diesel-steel/70 mt-1">
+          Key scale, hard requirements, weight and repeatable live in the Scene Editor's Narraton panel.
+        </p>
       </div>
 
       {/* In-scene variables */}

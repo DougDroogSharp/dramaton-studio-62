@@ -417,7 +417,7 @@ const Index = () => {
       label: "Narraton",
       abbrev: "NA",
       color: "text-diesel-cyan",
-      count: game?.scenes?.filter((s) => s.key && Object.keys(s.key).length > 0).length ?? 0,
+      count: game?.scenes?.filter((s) => s.narraton?.pool).length ?? 0,
     },
     {
       type: "drop" as const,
