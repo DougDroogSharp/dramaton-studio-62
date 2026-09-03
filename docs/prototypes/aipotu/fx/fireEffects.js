@@ -45,7 +45,7 @@
 // ======================================================================
 import * as THREE from 'three';
 
-export const VERSION = '0.2';   // 0.2 (2026-09-02 21:40): stopBurst(); fire_fx.js adapter for the Effects page
+export const VERSION = '0.2';   // 0.2 (2026-09-02 21:28): stopBurst(); fire_fx.js adapter for the Effects page
 export const HEAT_LAYER = 7;   // heat masks live on this layer only
 
 // ---------------------------------------------------------------------

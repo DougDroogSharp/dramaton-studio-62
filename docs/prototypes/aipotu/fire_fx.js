@@ -1,6 +1,6 @@
 // ======================================================================
 // fire_fx.js — the Effects-page adapter for George World fire, v0.2
-// Filed 2026-09-02 21:40 (-07:00) on branch fire-effects.
+// Filed 2026-09-02 21:28 (-07:00) on branch fire-effects.
 //
 // This is the file effects_study.html lazily imports. It matches the
 // contract HvM published to the mailbox 2026-09-02 21:20:
