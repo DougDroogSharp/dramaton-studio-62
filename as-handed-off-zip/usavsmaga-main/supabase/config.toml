@@ -1,0 +1,25 @@
+project_id = "dxbbkvqhtwfioyrscjsv"
+
+[functions.generate-image]
+verify_jwt = false
+
+[functions.elevenlabs-voices]
+verify_jwt = false
+
+[functions.elevenlabs-sfx]
+verify_jwt = false
+
+[functions.scene-suggest]
+verify_jwt = false
+
+[functions.detect-mouth]
+verify_jwt = false
+
+[functions.place-balloon]
+verify_jwt = false
+
+[functions.generate-tags]
+verify_jwt = false
+
+[functions.check-tag-relevance]
+verify_jwt = false
