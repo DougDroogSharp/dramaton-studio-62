@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     FIRE EFFECTS STUDY — the preview for fx/fireEffects.js, v0.1
+     Filed 2026-09-02 21:05 (-07:00) on branch fire-effects.
+
+     Doug's brief: "have some fun experimenting with a shader particle for
+     all sorts of fires, from embers to Godzilla's greatest belch."
+
+     Eight fires on one night ground, smallest to largest: campfire embers ·
+     torch · a small fire · blazing campfire · blazing hearth · big roaring
+     flames · the gold dragon's belch · Godzilla's atomic belch. The dragon
+     is the Meshy gold dragon (vendor/models/dragon_meshy.glb) if it is
+     present, a primitive stand-in otherwise; Godzilla is a 9-unit stand-in
+     (the real one is godzilla_study.html). Everything the fire does comes
+     from the module — this page only builds props and a camera.
+
+     Stage remote control: #set=fx:<kind> · #click=<data-m>.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Effects Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e0d14; }
+  #chip {
+    position:fixed; top:12px; left:12px; z-index:10; max-width:min(560px, calc(100vw - 24px));
+    background:rgba(30,22,14,0.82); color:#f4ece0;
+    font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none;
+    backdrop-filter: blur(4px);
+  }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button {
+    margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#a8622a; color:#fff; font:12px system-ui; cursor:pointer;
+  }
+  #chip button:hover { background:#c2763a; }
+  #chip button.on { background:#ffb340; color:#241206; font-weight:700; }
+  #chip button.big { background:#c8341c; font-weight:700; }
+  #chip button.big:hover { background:#e6472b; }
+  #chip label { display:inline-block; margin:6px 12px 0 0; white-space:nowrap; }
+  #chip input[type=range] { width:110px; vertical-align:middle; }
+  #chip select { display:none; }
+  #hud { position:fixed; right:12px; bottom:10px; z-index:10; color:#cdbfa8; font:12px/1.4 system-ui, sans-serif;
+         text-align:right; opacity:0.85; text-shadow:0 1px 2px #000; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🔥 Fire Effects Study</b> — v0.1 · embers → Godzilla's greatest belch<br>
+  <span class="hint">drag to orbit · scroll to zoom · B = belch · 1–8 pick a fire</span><br>
+  <button data-m="embers">1 Embers</button><button data-m="torch">2 Torch</button><button
+    data-m="small">3 Small fire</button><button data-m="campfire">4 Campfire</button><button
+    data-m="hearth">5 Hearth</button><button data-m="roaring">6 Roaring</button><button
+    data-m="belch">7 Dragon belch</button><button data-m="atomic">8 Godzilla</button>
+  <select id="fx"></select><br>
+  <label>wind <input id="wind" type="range" min="0" max="100" value="0"></label>
+  <label>intensity <input id="inten" type="range" min="0" max="100" value="100"></label>
+  <label>scale <input id="scale" type="range" min="25" max="400" value="100"></label><br>
+  <label><input id="shimmer" type="checkbox" checked> heat shimmer</label>
+  <label><input id="loop" type="checkbox"> continuous (flamethrower)</label>
+  <label><input id="auto" type="checkbox" checked> auto-belch</label>
+  <button class="big" data-m="burst">BELCH (B)</button>
+</div>
+<div id="hud"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FireSystem, KINDS, PRESETS, VERSION } from './fx/fireEffects.js';
+
+let seed = 77177;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+
+// ---------- renderer / scene (the study rig, night band) ------------------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0x14121c), 40, 160);
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.05, 600);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+// sky dome, vertex-coloured night
+{
+  const g = new THREE.SphereGeometry(420, 24, 12);
+  const col = new Float32Array(g.attributes.position.count*3);
+  const top = new THREE.Color(0x06070f), hor = new THREE.Color(0x2a2540), c = new THREE.Color();
+  for(let i=0;i<g.attributes.position.count;i++){
+    const y = g.attributes.position.getY(i)/420;
+    c.copy(hor).lerp(top, THREE.MathUtils.smoothstep(y, -0.05, 0.6));
+    col.set([c.r, c.g, c.b], i*3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+// ground, flat-shaded with a little vertex mottle
+{
+  const g = new THREE.CircleGeometry(200, 96);
+  const col = new Float32Array(g.attributes.position.count*3);
+  const a = new THREE.Color(0x1d2519), b = new THREE.Color(0x2a3123), c = new THREE.Color();
+  for(let i=0;i<g.attributes.position.count;i++){ c.copy(a).lerp(b, rand()); col.set([c.r,c.g,c.b], i*3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors:true, flatShading:true }));
+  m.rotation.x = -Math.PI/2; m.receiveShadow = true; scene.add(m);
+}
+scene.add(new THREE.HemisphereLight(0x2b3358, 0x0d0d10, 0.55));
+const moon = new THREE.DirectionalLight(0x8fa8ff, 0.45);
+moon.position.set(-30, 40, -20); moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+Object.assign(moon.shadow.camera, { left:-40, right:40, top:40, bottom:-40, near:1, far:150 });
+scene.add(moon);
+
+// ---------- the fire system ------------------------------------------------
+const fx = new FireSystem(scene, renderer, { shimmer:true });
+window.FIRE_FX = fx;               // poke it from the console
+
+// ---------- props ----------------------------------------------------------
+const LAMB = (c) => new THREE.MeshLambertMaterial({ color:c, flatShading:true });
+const props = new THREE.Group(); scene.add(props);
+function sh(m){ m.castShadow = true; m.receiveShadow = true; return m; }
+
+function makeVita(color=0x6c8bd6){   // the meter-stick: crown at ~1.5
+  const g = new THREE.Group();
+  const body = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 4, 8), LAMB(color)));
+  body.position.y = 0.42 + 0.21 + 0.3; g.add(body);
+  const head = sh(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), LAMB(0xe9c9a5)));
+  head.position.y = 1.2; g.add(head);
+  for(const x of [-0.13, 0.13]){
+    const leg = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 3, 6), LAMB(0x3d3a4a)));
+    leg.position.set(x, 0.25, 0); g.add(leg);
+  }
+  return g;
+}
+function makeLogs(s=1){
+  const g = new THREE.Group();
+  const wood = LAMB(0x4a3524), char = LAMB(0x1a1512);
+  for(let i=0;i<3;i++){
+    const log = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.07*s, 0.09*s, 0.9*s, 7), i===1 ? char : wood));
+    log.rotation.z = Math.PI/2 - 0.5; log.rotation.y = i*2.09; log.position.y = 0.12*s;
+    g.add(log);
+  }
+  for(let i=0;i<7;i++){   // ring of stones
+    const st = sh(new THREE.Mesh(new THREE.DodecahedronGeometry(0.12*s, 0), LAMB(0x5d5a58)));
+    const a = i/7*Math.PI*2; st.position.set(Math.cos(a)*0.62*s, 0.08*s, Math.sin(a)*0.62*s);
+    st.rotation.set(rand(3), rand(3), 0); g.add(st);
+  }
+  return g;
+}
+function makeHearth(){
+  const g = new THREE.Group(), stone = LAMB(0x6f6a63), dark = LAMB(0x2b2724);
+  const back = sh(new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 0.3), dark)); back.position.set(0, 1.1, -0.55); g.add(back);
+  for(const x of [-1.0, 1.0]){ const p = sh(new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.7, 0.9), stone)); p.position.set(x, 0.85, -0.2); g.add(p); }
+  const lintel = sh(new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.4, 1.0), stone)); lintel.position.set(0, 1.9, -0.2); g.add(lintel);
+  const mantel = sh(new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.12, 1.2), LAMB(0x5a3d22))); mantel.position.set(0, 2.16, -0.2); g.add(mantel);
+  const chimney = sh(new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.5, 0.9), dark)); chimney.position.set(0, 3.3, -0.35); g.add(chimney);
+  const slab = sh(new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.6), LAMB(0x4c4844))); slab.position.set(0, 0.04, 0.2); g.add(slab);
+  const grate = new THREE.Group();
+  for(let i=0;i<4;i++){ const bar = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 5), LAMB(0x1c1c1e))); bar.rotation.x = Math.PI/2; bar.position.set(-0.45 + i*0.3, 0.16, -0.15); grate.add(bar); }
+  g.add(grate);
+  for(let i=0;i<3;i++){ const log = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.8, 7), i===1 ? LAMB(0x1a1512) : LAMB(0x4a3524))); log.rotation.z = Math.PI/2; log.position.set(0, 0.22 + i*0.05, -0.35 + i*0.18); g.add(log); }
+  return g;
+}
+function makeTorchPole(){
+  const g = new THREE.Group();
+  const pole = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1.35, 6), LAMB(0x5a3d22))); pole.position.y = 0.675; g.add(pole);
+  const wrap = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.22, 7), LAMB(0x2a1c12))); wrap.position.y = 1.3; g.add(wrap);
+  return g;
+}
+function makeGodzillaStandin(){   // ~9 units to the crown, as in godzilla_study
+  const g = new THREE.Group(), skin = LAMB(0x2f3d2e), belly = LAMB(0x4b5a48);
+  const torso = sh(new THREE.Mesh(new THREE.CapsuleGeometry(1.7, 3.4, 4, 10), skin)); torso.position.y = 4.6; torso.rotation.x = 0.15; g.add(torso);
+  const chest = sh(new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 2.6, 4, 8), belly)); chest.position.set(0, 4.5, 0.8); chest.rotation.x = 0.15; g.add(chest);
+  const neck = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 1.4, 4, 8), skin)); neck.position.set(0, 7.2, 0.5); neck.rotation.x = -0.4; g.add(neck);
+  const head = sh(new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 2.4), skin)); head.position.set(0, 8.2, 1.3); g.add(head);
+  const jaw = sh(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.45, 2.0), belly)); jaw.position.set(0, 7.45, 1.4); jaw.rotation.x = 0.35; g.add(jaw);
+  for(const x of [-1.1, 1.1]){ const leg = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 2.2, 4, 8), skin)); leg.position.set(x, 1.9, 0); g.add(leg); }
+  const tail = sh(new THREE.Mesh(new THREE.ConeGeometry(1.2, 9, 8), skin)); tail.rotation.x = Math.PI/2 + 0.25; tail.position.set(0, 2.6, -5.5); g.add(tail);
+  for(let i=0;i<6;i++){ const fin = sh(new THREE.Mesh(new THREE.ConeGeometry(0.35 + 0.1*(i%2), 1.2 - 0.1*i, 4), belly)); fin.position.set(0, 6.6 - i*0.5, -1.6 - i*0.45); fin.rotation.x = -0.6; g.add(fin); }
+  return g;
+}
+function makeDragonStandin(){   // used only when dragon_meshy.glb is absent
+  const g = new THREE.Group(), gold = new THREE.MeshStandardMaterial({ color:0xd8a12a, metalness:0.7, roughness:0.35, flatShading:true });
+  const body = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 2.4, 4, 10), gold)); body.rotation.x = Math.PI/2; body.position.set(0, 1.6, 0); g.add(body);
+  const neck = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.6, 4, 8), gold)); neck.position.set(0, 2.9, 1.6); neck.rotation.x = -0.5; g.add(neck);
+  const head = sh(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.4), gold)); head.position.set(0, 3.5, 2.4); g.add(head);
+  for(const x of [-1, 1]){ const wing = sh(new THREE.Mesh(new THREE.PlaneGeometry(3, 1.8), new THREE.MeshLambertMaterial({ color:0xb8801c, side:THREE.DoubleSide, flatShading:true }))); wing.position.set(x*1.8, 2.6, -0.2); wing.rotation.set(0, 0, x*0.5); g.add(wing); }
+  for(const [x,z] of [[-0.6,0.8],[0.6,0.8],[-0.6,-0.8],[0.6,-0.8]]){ const leg = sh(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.9, 3, 6), gold)); leg.position.set(x, 0.6, z); g.add(leg); }
+  const tail = sh(new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.5, 7), gold)); tail.rotation.x = Math.PI/2 + 0.3; tail.position.set(0, 1.4, -3.0); g.add(tail);
+  return { root: g, mouth: new THREE.Vector3(0, 3.35, 3.1), dir: new THREE.Vector3(0, -0.12, 1) };
+}
+
+// the Meshy gold dragon: loaded once, normalised to 4.5 units tall, +Z forward
+let dragonAsset = null, dragonMixer = null, dragonClips = {};
+const dragonReady = new Promise(res => {
+  new GLTFLoader().load('vendor/models/dragon_meshy.glb', gltf => {
+    const root = gltf.scene;
+    root.traverse(o => { if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+    const s = 4.5/size.y;
+    const wrap = new THREE.Group();
+    root.position.set(-ctr.x, -box.min.y, -ctr.z);
+    wrap.add(root); wrap.scale.setScalar(s);
+    // mouth guess in the wrapper's (unscaled model) space: front of the box, three-quarters up.
+    // Nudge with I/K/J/L/U/O; the HUD prints it.
+    const mouth = new THREE.Vector3(0, 0.74*size.y, (box.max.z - ctr.z) - 0.05*size.z);
+    if(gltf.animations && gltf.animations.length){
+      dragonMixer = new THREE.AnimationMixer(root);
+      for(const c of gltf.animations) dragonClips[c.name.toLowerCase()] = dragonMixer.clipAction(c);
+    }
+    dragonAsset = { root: wrap, mouth, dir: new THREE.Vector3(0, -0.15, 1), real:true };
+    res(dragonAsset);
+  }, undefined, () => { dragonAsset = makeDragonStandin(); dragonAsset.real = false; res(dragonAsset); });
+});
+
+// ---------- modes ----------------------------------------------------------
+const MODES = {
+  embers:   { cam:[2.6, 1.4, 2.8], tgt:[0, 0.4, 0], vita:[-1.3, 0, -1.5], build(){ props.add(makeLogs(0.9)); } },
+  torch:    { cam:[2.2, 1.6, 2.6], tgt:[0, 1.1, 0], vita:[-0.7, 0, -1.0], mount:[0, 1.42, 0], build(){ props.add(makeTorchPole()); } },
+  small:    { cam:[2.6, 1.5, 2.8], tgt:[0, 0.5, 0], vita:[-1.3, 0, -1.4], build(){ props.add(makeLogs(0.7)); } },
+  campfire: { cam:[3.6, 2.0, 3.8], tgt:[0, 0.8, 0], vita:[-1.7, 0, -1.8], build(){ props.add(makeLogs(1.1)); } },
+  hearth:   { cam:[3.0, 2.2, 5.0], tgt:[0, 1.1, -0.2], vita:[-2.2, 0, 1.0], mount:[0, 0.28, -0.2], build(){ props.add(makeHearth()); } },
+  roaring:  { cam:[7, 4, 9], tgt:[0, 2.2, 0], vita:[-3.4, 0, -3.0], build(){ props.add(makeLogs(2.6)); } },
+  belch:    { cam:[-11, 6, 16], tgt:[0, 3, 9], vita:[7, 0, 12], scale:1.6, dragon:true },
+  atomic:   { cam:[-30, 14, 34], tgt:[0, 6, 18], vita:[9, 0, 26], scale:3.2, mount:[0, 8.0, 2.5], dir:[0, -0.12, 1],
+              build(){ props.add(makeGodzillaStandin()); } },
+};
+let current = null, fire = null, mount = null, autoT = 0, mountOff = new THREE.Vector3();
+const fxSel = document.getElementById('fx');
+for(const k of KINDS){ const o = document.createElement('option'); o.value = k; o.textContent = PRESETS[k].label; fxSel.appendChild(o); }
+const buttons = [...document.querySelectorAll('#chip button[data-m]')];
+const ui = { wind:document.getElementById('wind'), inten:document.getElementById('inten'), scale:document.getElementById('scale'),
+             shimmer:document.getElementById('shimmer'), loop:document.getElementById('loop'), auto:document.getElementById('auto') };
+
+async function setMode(kind){
+  if(!MODES[kind]) return;
+  current = kind;
+  for(const b of buttons) b.classList.toggle('on', b.dataset.m === kind);
+  fxSel.value = kind;
+  if(fire){ fx.remove(fire); fire = null; }
+  if(mount && mount.parent) mount.parent.remove(mount);
+  props.clear();
+  mount = null;
+  const M = MODES[kind];
+  const isBelch = kind === 'belch' || kind === 'atomic';
+  if(M.dragon){
+    const d = await dragonReady;
+    if(current !== kind) return;               // user moved on while loading
+    props.add(d.root);
+    mount = new THREE.Object3D(); mount.position.copy(d.mouth); d.root.add(mount);
+    mountOff.set(0, 0, 0);
+    fire = fx.spawn(kind, { parent: mount, scale: (M.scale || 1)*ui.scale.value/100 / d.root.scale.x, loop: isBelch ? ui.loop.checked : undefined });
+    fire.aim(d.dir.clone());
+    if(d.real && dragonClips.hover){ for(const a of Object.values(dragonClips)) a.stop(); dragonClips.hover.reset().setLoop(THREE.LoopRepeat).play(); }
+  } else {
+    if(M.build) M.build();
+    const pos = new THREE.Vector3().fromArray(M.mount || [0, 0, 0]);
+    fire = fx.spawn(kind, { position: pos, scale: (M.scale || 1)*ui.scale.value/100, loop: isBelch ? ui.loop.checked : undefined });
+    if(M.dir) fire.aim(new THREE.Vector3().fromArray(M.dir));
+  }
+  fire.intensity = ui.inten.value/100;
+  const v = makeVita(); v.position.fromArray(M.vita); v.lookAt(0, 0.8, 0); props.add(v);
+  camera.position.fromArray(M.cam); controls.target.fromArray(M.tgt); controls.update();
+  ui.loop.disabled = !isBelch; ui.auto.disabled = !isBelch;
+  autoT = 0.4;
+  if(isBelch && !ui.loop.checked) belch();
+}
+function belch(){
+  if(!fire || fire.loop) return;
+  fire.burst();
+  if(current === 'belch' && dragonAsset && dragonAsset.real && dragonClips.pounce){
+    dragonClips.pounce.reset().setLoop(THREE.LoopOnce, 1).play();
+    if(dragonClips.hover) dragonClips.hover.stop();
+    setTimeout(() => { if(dragonClips.hover && current === 'belch') dragonClips.hover.reset().play(); }, 2500);
+  }
+}
+for(const b of buttons) b.addEventListener('click', () => { b.dataset.m === 'burst' ? belch() : setMode(b.dataset.m); });
+fxSel.addEventListener('change', () => setMode(fxSel.value));
+ui.wind.addEventListener('input', () => { const w = ui.wind.value/100; fx.wind.set(w*3.2, 0, w*0.6); });
+ui.inten.addEventListener('input', () => { if(fire) fire.intensity = ui.inten.value/100; });
+ui.scale.addEventListener('input', () => { if(!fire) return; const M = MODES[current]; const base = (M.scale || 1)*ui.scale.value/100;
+  fire.scale.setScalar(M.dragon && dragonAsset ? base/dragonAsset.root.scale.x : base); });
+ui.shimmer.addEventListener('change', () => { fx.shimmer = ui.shimmer.checked; });
+ui.loop.addEventListener('change', () => { if(fire){ fire.setLoop(ui.loop.checked); if(!fire.loop) belch(); } });
+addEventListener('keydown', e => {
+  if(e.target && e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if(k === 'b' || k === ' '){ belch(); e.preventDefault(); return; }
+  const n = parseInt(k); if(n >= 1 && n <= 8){ setMode(KINDS[n-1]); return; }
+  if(mount){   // nudge the mouth point
+    const d = 0.1/(dragonAsset ? dragonAsset.root.scale.x : 1);   // 0.1 world units, in model space
+    const m = { i:[0,0,d], k:[0,0,-d], j:[-d,0,0], l:[d,0,0], u:[0,d,0], o:[0,-d,0] }[k];
+    if(m){ mountOff.add(new THREE.Vector3().fromArray(m)); mount.position.copy(dragonAsset.mouth).add(mountOff); }
+  }
+});
+
+// ---------- loop -----------------------------------------------------------
+const hud = document.getElementById('hud');
+let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsShown = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  controls.update();
+  if(dragonMixer) dragonMixer.update(dt);
+  if(fire && !fire.loop && ui.auto.checked && !ui.auto.disabled){
+    autoT -= dt; if(autoT <= 0){ belch(); autoT = 4.5 + Math.random()*1.5; }
+  }
+  fx.update(dt);
+  fx.render(camera);
+  fpsAcc += dt; fpsN++;
+  if(fpsAcc >= 0.5){ fpsShown = Math.round(fpsN/fpsAcc); fpsAcc = 0; fpsN = 0;
+    const mp = mount ? ' · mouth ' + mount.position.toArray().map(v => v.toFixed(2)).join(', ') : '';
+    hud.textContent = (current ? PRESETS[current].label : '') + ' · ' + fx.particleCount + ' particles · ' + fpsShown + ' fps · fireEffects v' + VERSION + mp;
+  }
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+setMode('campfire');
+requestAnimationFrame(frame);
+
+// stage remote-control: #set=<selectId>:<value>[,...] · #click=<data-m>
+{
+  const _h = new URLSearchParams(location.hash.slice(1));
+  const _s = _h.get('set');
+  if(_s) for(const pair of _s.split(',')){
+    const [id, val] = pair.split(':');
+    const el = document.getElementById(id);
+    if(el){ el.value = val; el.dispatchEvent(new Event('change')); }
+  }
+  const _c = _h.get('click');
+  if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
+}
+</script>
+</body>
+</html>
