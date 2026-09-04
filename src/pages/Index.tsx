@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GameData, SelectionState, createDefaultGame, AssetStatus, migrateGameData } from "@/types";
 import { DramatonLogo } from "@/components/DramatonLogo";
+import { EDITOR_VERSION } from "@/constants";
 import { CostMeter } from "@/components/CostMeter";
 import { CyberInput } from "@/components/CyberInput";
 import { loadGameFromDB, saveGameToDB, clearGameFromDB, getRecentGames, addRecentGame, RecentGame } from "@/utils/db";
@@ -36,8 +37,11 @@ import {
   Layers,
   Drama,
   Shirt,
+  Egg,
 } from "lucide-react";
+import { newThing } from "@/utils/halo";
 import { SettingsEditor } from "@/components/editors/SettingsEditor";
+import { ThingEditor } from "@/components/editors/ThingEditor";
 import { ActorEditor } from "@/components/editors/ActorEditor";
 import { SceneEditor } from "@/components/editors/SceneEditor";
 import { DropEditor } from "@/components/editors/DropEditor";
@@ -388,6 +392,14 @@ const Index = () => {
   const navItems = [
     { type: "settings" as const, icon: Settings, label: "Settings", abbrev: "GA", color: "text-diesel-gold" },
     {
+      type: "thing" as const,
+      icon: Egg,
+      label: "Things",
+      abbrev: "TH",
+      color: "text-diesel-gold",
+      count: game?.things?.length ?? 0,
+    },
+    {
       type: "actor" as const,
       icon: User,
       label: "Actors",
@@ -579,7 +591,7 @@ const Index = () => {
 
           {/* Title - smaller */}
           <h1 className="text-2xl md:text-3xl font-bold text-diesel-rust tracking-widest mb-0.5 drop-shadow-[0_0_10px_hsl(15,70%,45%,0.8)]">
-            DRAMATON
+            DRAMATON <span className="text-xs font-mono text-diesel-steel tracking-normal align-middle">v{EDITOR_VERSION}</span>
           </h1>
           <p className="text-diesel-steel text-[9px] tracking-[0.3em] mb-2 uppercase font-mono">
             ▸ Legendary Interactive Narrative System ◂
@@ -737,9 +749,10 @@ const Index = () => {
       {/* Top Toolbar */}
       <div className="h-10 bg-diesel-dark border-b border-diesel-border flex items-center justify-between shrink-0">
         <div className="flex items-center h-full">
-          {/* Logo */}
-          <div className="flex items-center px-2 h-full border-r border-diesel-border">
+          {/* Logo + editor version (standing rule: version beside the title) */}
+          <div className="flex items-center gap-1.5 px-2 h-full border-r border-diesel-border" title={`Dramaton Editor v${EDITOR_VERSION}`}>
             <DramatonLogo className="w-5 h-5 text-diesel-rust" />
+            <span className="text-[9px] font-mono text-diesel-steel hidden sm:inline">v{EDITOR_VERSION}</span>
           </div>
 
           {/* New Game button */}
@@ -750,6 +763,20 @@ const Index = () => {
           >
             <FilePlus2 size={12} />
             <span className="hidden sm:inline">New</span>
+          </button>
+
+          {/* Speak a thing into existence: a typeless placeholder with the halo */}
+          <button
+            onClick={() => {
+              const t = newThing();
+              setGame({ ...game, things: [...(game.things ?? []), t] });
+              handleSelect("thing", t.id);
+            }}
+            className="h-full px-2 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors border-r border-diesel-border text-diesel-gold hover:bg-diesel-gold/20"
+            title="Speak something into existence (no type yet)"
+          >
+            <Egg size={12} />
+            <span className="hidden sm:inline">Thing</span>
           </button>
 
           {/* Navigation tabs - compact */}
@@ -879,6 +906,7 @@ const Index = () => {
           /* Full-width layout for all other editors */
           <div className="w-full bg-diesel-panel overflow-y-auto custom-scrollbar p-6" data-scroll-area>
             <h2 className="text-2xl font-bold text-diesel-gold border-b border-diesel-gold/30 pb-2 mb-6">
+              {selection.type === "thing" && "THINGS"}
               {selection.type === "actor" && "ACTOR EDITOR"}
               {selection.type === "scene" && "SCENE EDITOR"}
               {selection.type === "drop" && "DROP EDITOR"}
@@ -888,6 +916,9 @@ const Index = () => {
               {selection.type === "skin" && "SKIN LIBRARY"}
             </h2>
 
+            {selection.type === "thing" && (
+              <ThingEditor game={game} selection={selection} onChange={setGame} onSelect={handleSelect} />
+            )}
             {selection.type === "actor" && (
               <ActorEditor
                 game={game}

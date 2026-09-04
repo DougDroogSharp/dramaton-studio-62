@@ -1,6 +1,6 @@
 // Dramaton Editor Types
 
-export type SelectionType = 'settings' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin';
+export type SelectionType = 'settings' | 'thing' | 'actor' | 'scene' | 'drop' | 'item' | 'sfx' | 'button' | 'episode' | 'narraton' | 'skin';
 export type AssetStatus = 'new' | 'work' | 'done';
 
 export interface SelectionState {
@@ -41,6 +41,61 @@ export interface GameInfo {
   builtAt?: string;
 }
 
+// ============ THE HALO (object-centric editor, Doug 2026-09-02) ============
+// Every thing in the document carries the same six handles before it has a
+// type: Name (name), Place (place), Look (image), Talk (log), Become
+// (facets), Inspect (derived, src/utils/halo.ts). Becoming is ADDITIVE
+// (ruled 2026-09-02 22:35): a thing collects facets, an actor can hold
+// sprites and a 3-D body together. Absent fields = no place, empty log,
+// facets read from evidence, so every older project is already valid.
+
+// A type a thing can become. '2d' sprites · '3d' a rigged body · 'backdrop'
+// a drop · 'sound' an sfx · 'text' a scene · 'item' · 'button'.
+export type FacetKind = '2d' | '3d' | 'backdrop' | 'sound' | 'text' | 'item' | 'button';
+
+// Where a thing lives: a scene, a coarse stage position (percent), or a
+// named anchor in that scene's backdrop. All optional: "nowhere yet".
+export interface Place {
+  sceneId?: string;
+  x?: number;
+  y?: number;
+  anchor?: string;
+}
+
+// One knob the AI turned in reply to an utterance, by path
+// ("ivy.body.height"), so every change is auditable and undoable.
+export interface KnobTurn {
+  path: string;
+  from?: unknown;
+  to?: unknown;
+}
+
+// One line of the per-object conversation. Doug speaks, Phrog answers and
+// records what it turned.
+export interface Utterance {
+  at: string;                 // ISO timestamp
+  who: 'doug' | 'phrog';
+  text: string;
+  turned?: KnobTurn[];
+}
+
+export interface Handles {
+  place?: Place;
+  log?: Utterance[];
+  facets?: FacetKind[];
+}
+
+// A thing with no facet yet: a name and a conversation. Lives in
+// GameData.things until its first Become moves it into a typed array,
+// keeping id, name, image, note, status, place and log.
+export interface UrObject extends Handles {
+  id: string;
+  name: string;
+  image?: string;
+  note?: string;
+  status?: AssetStatus;
+}
+
 export interface ActorGraphic {
   id: string;
   pose: string;
@@ -54,7 +109,7 @@ export interface ActorGraphic {
   generatedPrompt?: string;  // Full prompt used to generate this graphic
 }
 
-export interface Actor {
+export interface Actor extends Handles {
   id: string;
   name: string;
   image?: string;
@@ -122,6 +177,29 @@ export interface AuthoredClip {
   note?: string;
 }
 
+// What kind of rig a skin carries, derived from its armature on import:
+// 'mixamorig' = all seven Mixamo leg bones present (it can walk on the asset
+// stage and take the shared clip library); 'static' = no joints at all (a
+// prop, or an unrigged Meshy export); 'other' = some rig, not Mixamo-named.
+export type RigKind = 'mixamorig' | 'static' | 'other';
+
+// A clip assigned from the shared clip library (the *_clip.glb files in the
+// model store): bones only, joins the wearer's rig by bone name at runtime.
+// `name` is the pose word Dramscript uses; `file` is the store file name.
+export interface ClipRef {
+  name: string;
+  file: string;
+}
+
+// Provenance of a 3-D body: how it was made and which Meshy tasks made it,
+// mirroring the `_note` field the model-store manifest carries.
+export interface SkinSource {
+  kind: 'meshy-text' | 'meshy-image' | 'import' | 'store';
+  prompt?: string;
+  taskIds?: Record<string, string>;
+  filedAt: string;
+}
+
 export interface Skin {
   id: string;
   name: string;
@@ -130,6 +208,15 @@ export interface Skin {
   animations: string[];
   armature?: ArmatureJoint[];
   authoredAnimations?: AuthoredClip[];
+  // 3-D body (actor-3d lane, 2026-09-02). The document keeps a POINTER into
+  // the one model store (docs/prototypes/aipotu/vendor/models/, served at
+  // /models/<file> in dev), never the binary. Absent = manifest-only skin,
+  // exactly the pre-2026-09-02 behaviour.
+  modelFile?: string;
+  rig?: RigKind;
+  heightM?: number;         // measured render height before auto-scaling
+  clipRefs?: ClipRef[];
+  source?: SkinSource;
   note?: string;
   status?: AssetStatus;
 }
@@ -212,7 +299,7 @@ export interface NarratonMeta {
   act?: NarratonAct;
 }
 
-export interface Scene {
+export interface Scene extends Handles {
   id: string;
   name: string;
   sceneType?: SceneType;
@@ -264,7 +351,7 @@ export interface DropAnchor {
   y: number;       // 0-100
 }
 
-export interface Drop {
+export interface Drop extends Handles {
   id: string;
   name: string;
   prompt: string;
@@ -298,7 +385,7 @@ export interface UnlockCondition {
   threshold: string | number;
 }
 
-export interface Item {
+export interface Item extends Handles {
   id: string;
   name: string;
   description?: string;
@@ -323,7 +410,7 @@ export interface SfxParams {
   audioPrompt?: string;    // Text prompt used to generate the audio
 }
 
-export interface Sfx {
+export interface Sfx extends Handles {
   id: string;
   name: string;
   type: SfxType;
@@ -343,7 +430,7 @@ export interface ButtonEffect {
 }
 
 // Button type for interactive elements in scenes
-export interface Button {
+export interface Button extends Handles {
   id: string;
   name: string;
   label: string;           // Text shown on the button
@@ -415,6 +502,8 @@ export interface GameData {
   subplots: Subplot[];
   skins: Skin[];
   vitaPresets: VitaPreset[];
+  // Things spoken into existence that have no facet yet (the halo).
+  things?: UrObject[];
   // What the world variables MEAN, for the live meter panel
   meters?: MeterMeaning[];
   quotes?: Quote[];
@@ -585,6 +674,11 @@ export const migrateGameData = (data: any): GameData => {
     migrated.skins = [];
   }
 
+  // Ur-objects (the halo, added 2026-09-02): things with no facet yet.
+  if (!Array.isArray(migrated.things)) {
+    migrated.things = [];
+  }
+
   // Seed the starter Vita presets (added 2026-08-31). Values are editable
   // starting points, not canon.
   if (!migrated.vitaPresets) {
@@ -657,4 +751,5 @@ export const createDefaultGame = (): GameData => ({
   subplots: [],
   skins: [],
   vitaPresets: createStarterVitaPresets(),
+  things: [],
 });

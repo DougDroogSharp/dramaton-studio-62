@@ -10,8 +10,10 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { estimateGenerationTokens } from '@/utils/tokenEstimate';
 import { TokenEstimateDisplay } from '@/components/TokenEstimateDisplay';
 import { loadLibraryFromDB, saveLibraryToDB, addActorToLibrary } from '@/utils/library';
-import { isSkinAllowed } from '@/utils/skins';
 import { vitaVariables } from '@/utils/vita';
+import { Body3DSection } from '@/components/editors/Body3DSection';
+import { HaloCard } from '@/components/HaloCard';
+import { facetsOf } from '@/utils/halo';
 import { VitaPanel } from '@/components/editors/VitaPanel';
 import { StatusSelector, StatusBadge } from '@/components/StatusBadge';
 import { NotesSection } from '@/components/NotesSection';
@@ -607,6 +609,7 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
                   <div className="text-diesel-paper font-bold">{actor.name}</div>
                   <div className="text-xs text-diesel-steel">
                     {actor.graphics.length} graphic{actor.graphics.length !== 1 ? 's' : ''}
+                    {actor.skinId && ` • 3-D body: ${(game.skins ?? []).find(s => s.id === actor.skinId)?.name ?? 'missing skin'}`}
                     {actor.voiceId && ' • Voice assigned'}
                   </div>
                 </div>
@@ -663,12 +666,15 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
           onChange={(e) => updateActor(selectedActor.id, { name: e.target.value })}
         />
         <div className="mt-3">
-          <NotesSection 
-            note={selectedActor.note || ''} 
-            onChange={(note) => updateActor(selectedActor.id, { note })} 
+          <NotesSection
+            note={selectedActor.note || ''}
+            onChange={(note) => updateActor(selectedActor.id, { note })}
           />
         </div>
       </section>
+
+      {/* The halo: Place, Become, Talk, Inspect (object-centric editor) */}
+      <HaloCard game={game} kind="actor" rec={selectedActor} onChange={onChange} onSelect={onSelect} />
 
       {/* Voice Browser Modal */}
       {showVoiceBrowser && (
@@ -1128,34 +1134,11 @@ NEGATIVE: No shading, no gradients, no 3D lighting.`;
         </div>
       </section>
 
-      {/* Skin Assignment (blocked types disabled under world lockdown) */}
-      <section>
-        <h3 className="text-sm font-bold text-diesel-gold uppercase tracking-widest mb-4 border-b border-diesel-border pb-2">
-          Skin
-        </h3>
-        <select
-          value={selectedActor.skinId || ''}
-          onChange={(e) => updateActor(selectedActor.id, { skinId: e.target.value || undefined })}
-          className="w-full bg-diesel-panel border border-diesel-border rounded px-2 py-2 text-sm text-diesel-paper focus:outline-none focus:border-diesel-gold/50"
-        >
-          <option value="">— no skin —</option>
-          {(game.skins ?? []).map((s) => {
-            const blocked = !isSkinAllowed(s, game.info.allowedSkinTypes);
-            return (
-              <option key={s.id} value={s.id} disabled={blocked}>
-                {s.name}
-                {s.skinType ? ` [${s.skinType}]` : ''} — {s.animations.length} anims
-                {blocked ? ' (blocked by lockdown)' : ''}
-              </option>
-            );
-          })}
-        </select>
-        {selectedActor.skinId && (
-          <p className="text-diesel-steel/60 text-[10px] mt-1">
-            The skin's animation clips are offered as poses in the Dramscript editor.
-          </p>
-        )}
-      </section>
+      {/* 3-D Body: skin assignment (lockdown-aware), model-store pick,
+          preview, rig badge, library clips, snapshot (actor-3d lane) */}
+      {facetsOf('actor', selectedActor, game).includes('3d') && (
+        <Body3DSection game={game} actor={selectedActor} onChange={onChange} />
+      )}
 
       {/* Vita instrumentation: gauges, knobs, presets */}
       <VitaPanel game={game} actor={selectedActor} onChange={onChange} />

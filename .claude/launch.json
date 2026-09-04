@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "actor-3d-editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\dougs\\actor-3d", "run", "dev", "--", "--port", "8089"],
+      "port": 8089
+    },
+    {
       "name": "studio-editor",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "8090"],

@@ -1,5 +1,10 @@
 // Dramaton Editor Constants
 
+// Editor version, shown beside the title in the toolbar and on the splash
+// (standing rule: every tool shows its version beside its on-screen title).
+// Bump on every commit that changes the editor's behaviour.
+export const EDITOR_VERSION = '1.03';
+
 export const POSES = [
   'Closeup',
   'Neutral',

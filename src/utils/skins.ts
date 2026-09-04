@@ -6,6 +6,7 @@
 // live in the glTF JSON, and a GLB is just a binary container around it.
 
 import { ArmatureJoint, Skin } from '../types';
+import { rigKindFromArmature } from './rigKind';
 
 const GLB_MAGIC = 0x46546c67; // 'glTF'
 const CHUNK_JSON = 0x4e4f534a; // 'JSON'
@@ -107,17 +108,47 @@ export const skinFromFile = (
     fileName,
     animations: animationsFromGltf(gltf),
     ...(armature.length > 0 ? { armature } : {}),
+    rig: rigKindFromArmature(armature),
     status: 'new',
   };
 };
 
-// A skin's full pose vocabulary: baked clips plus authored ones.
+// A skin's full pose vocabulary: baked clips, authored ones, and clips
+// assigned from the shared library (actor-3d lane). Duplicates collapse so
+// a library "walk" over a baked "walk" is one pose word.
 export const allSkinAnimations = (
-  skin: Pick<Skin, 'animations' | 'authoredAnimations'>,
-): string[] => [
-  ...skin.animations,
-  ...(skin.authoredAnimations ?? []).map(c => c.name),
-];
+  skin: Pick<Skin, 'animations' | 'authoredAnimations' | 'clipRefs'>,
+): string[] => {
+  const out: string[] = [];
+  for (const n of [
+    ...skin.animations,
+    ...(skin.authoredAnimations ?? []).map(c => c.name),
+    ...(skin.clipRefs ?? []).map(c => c.name),
+  ]) {
+    if (!out.includes(n)) out.push(n);
+  }
+  return out;
+};
+
+// A Skin that points at a file already in the model store (the asset stage's
+// manifest.json). Clip names and the armature are filled in by the 3-D
+// preview the first time the model loads, so nothing is parsed twice.
+export const skinFromStoreEntry = (
+  entry: { file: string; name: string },
+  filedAt: string = new Date().toISOString(),
+): Skin => ({
+  id: `skin_${Date.now()}`,
+  name: entry.name.replace(/\s*\(.*\)\s*$/, '').trim() || entry.name,
+  fileName: entry.file,
+  modelFile: entry.file,
+  animations: [],
+  source: { kind: 'store', filedAt },
+  status: 'new',
+});
+
+// The Dramscript pose word for a library clip: one token, no spaces.
+export const clipPoseName = (label: string): string =>
+  label.trim().toLowerCase().replace(/\s*\(.*\)\s*$/, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'clip';
 
 // Lockdown check: with a non-empty allowlist, only listed skin types pass.
 // Untyped skins are blocked under lockdown (lockdown means opt-in).

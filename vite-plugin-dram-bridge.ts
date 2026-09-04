@@ -29,6 +29,62 @@ export function dramBridgePlugin(): Plugin {
         lastDoc = data;
       });
 
+      // POST /bridge/say { thingId, text, who?: 'doug'|'phrog', turned?: KnobTurn[] }
+      // The per-object conversation channel (the halo's Talk handle,
+      // 2026-09-02): append one line to that thing's log in the live
+      // document and push it to the open editor. An outside voice client
+      // speaks through here; a Phrog session replies through here with
+      // who:'phrog' and the knobs it turned, after PUTting its edits.
+      server.middlewares.use('/bridge/say', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        if (!LOOPBACK.has(req.socket.remoteAddress ?? '')) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ ok: false, error: 'bridge is localhost-only' }));
+          return;
+        }
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ ok: false, error: 'POST only' }));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => { chunks.push(chunk); });
+        req.on('end', () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+              thingId?: string; text?: string; who?: 'doug' | 'phrog'; turned?: unknown[];
+            };
+            const doc = lastDoc as Record<string, unknown[]> | null;
+            if (!doc) throw new Error('no document open in the editor yet');
+            if (!body.thingId || !body.text?.trim()) throw new Error('thingId and text are required');
+            const line = {
+              at: new Date().toISOString(),
+              who: body.who === 'phrog' ? 'phrog' : 'doug',
+              text: body.text.trim(),
+              ...(Array.isArray(body.turned) && body.turned.length > 0 ? { turned: body.turned } : {}),
+            };
+            let hit = false;
+            for (const key of ['things', 'actors', 'scenes', 'drops', 'items', 'sfx', 'buttons']) {
+              const arr = doc[key];
+              if (!Array.isArray(arr)) continue;
+              doc[key] = arr.map((rec: unknown) => {
+                const r = rec as { id?: string; log?: unknown[] };
+                if (!r || r.id !== body.thingId) return rec;
+                hit = true;
+                return { ...r, log: [...(Array.isArray(r.log) ? r.log : []), line] };
+              });
+            }
+            if (!hit) throw new Error(`no thing with id ${body.thingId}`);
+            lastDoc = doc;
+            server.ws.send('dram:apply', doc);
+            res.end(JSON.stringify({ ok: true, line }));
+          } catch (err) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) }));
+          }
+        });
+      });
+
       server.middlewares.use('/bridge/game', (req, res) => {
         res.setHeader('Content-Type', 'application/json');
 
