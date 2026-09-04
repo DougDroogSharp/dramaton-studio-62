@@ -4,6 +4,9 @@ Rewritten as CHANGELOG.md 2026-09-01 17:40 from GEORGE_WORLD_BUGS.md (decision 3
 
 **Rules:** append-only · one entry per version · newest at top. Every entry carries the commit hash and the VERIFICATION notes (what was checked, the numbers, the root causes) — never a restated commit subject. The version + game commit hash also goes into docs/george-world/STATUS.md. Code-side edits only.
 
+## v0.80 — HvB title splash on first entry (built 2026-09-03; committed 2026-09-04 by the hygiene sweep, commit 0b9c9c1)
+**Unverified backfill by DISPATCH.** The v0.80 title/badge bump and a full-screen HvB title splash on first entry (`assets/hvb_title.png`) were built by the stage session on 2026-09-03 and served publicly for a day uncommitted; committed as found on 2026-09-04 after a `node --check` of the module. No verification notes exist for the splash itself. Same sweep committed HvB Asset Stage v8.40 (c593b7f: Meshy-first catalog, creature + scenes studies, pre-Meshy skins archived, low-poly dragon) and the fire-FX study, asset audit page and Doug's stage notes (9cb2bec).
+
 ## v0.79 — + THE STAGE: weather testing on the real island (2026-08-31 17:16, commit 399de7f)
 **Unverified backfill from the commit message.**
 - v0.79: a WX TEST menu beside NEW GAME forces the island's actual sky — fair / clear / overcast / STORM, the same states the daily roll uses, so storm work-dampening and palm-lean come with it; AUTO hands the sky back to the dice.

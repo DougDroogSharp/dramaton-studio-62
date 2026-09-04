@@ -3,7 +3,8 @@
 **Amended 2026-09-02 12:13 PDT by DISPATCH** (ride-notes fold, additive: DECIDE items 6–8, the RULED 2026-09-02 block, the BUILDER QUEUE note; no version change). **Rewritten 2026-09-02 08:45 PDT by DISPATCH** (debrief fold: THREAD_SUMMARIES, DECISIONS, IDEAS_DIGEST folded into the spine; editor lane got its own `docs/editor/STATUS.md` + `DESIGN.md`). Previous rewrite 2026-09-01 17:51 (consolidation step 2). This is the entry point. Rule: whoever holds the builder lock rewrites this file at every version commit, BEFORE the mailbox note, and the note cites the row added here. Repo copy is master (`docs/george-world/STATUS.md`); the Dropbox copy in `Consolidated/Projects/AIPOTU/` is a read-only mirror.
 
 ## NOW
-- **Game:** George World **v0.79**, commit `399de7f` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`).
+- **Game:** George World **v0.80**, commit `0b9c9c1` (`docs/prototypes/aipotu/georgeworld.html`, `<title>`; HvB title splash). Committed 2026-09-04 by DISPATCH's hygiene sweep after a day served uncommitted; the builder-lock holder should have rewritten this file at that bump.
+- **HvB Asset Stage v8.40** committed the same sweep at `c593b7f` (Meshy-first catalog); the public stage copy is still v6.02 and needs a redeploy.
 - **Repo:** `main` = `c26448a` (GitHub main merged in at `852ac98`; consolidation docs; `asset-foundry` merged at `995583e`; `gw-studies` merged at `2a70e58`; `narraton-editor` merged at `968bd9c`, 390 tests green, and again at `c26448a` for the one-Narraton-shape change, 372 tests green; skins/retargeting/stage v3 via `gw-studies` through `bc3f5c2`; debrief fold `857a881`; local and GitHub equal). Backup of the pre-merge line: `backup/george-world-main-2026-09-01` = `206dba3`. The HvB material now lives in its own repo `DougDroogSharp/hvb-design`.
 - **Branches:** `gw-studies` (merged; the GW STUDIES seat keeps working there) · `gw-dialogue` (the dialogue batch, in progress) · `narraton-editor` `ad780bd` (EDITOR lane merging main in now; DISPATCH fast-forwards main after) · `asset-foundry` (merged; foundry worktree now carries main).
 - **HvB Asset Stage** (renamed 2026-09-01; `stage.html`, v3): 91 entries; ◀ ▶ buttons and ← → keys step through every item whatever has focus; a NOTES box per item saves Doug's critiques to `docs/prototypes/aipotu/STAGE_NOTES.md` (+ `stage_notes.json`) through `serve_nocache.py`'s `POST /stage-notes`. **Sessions: read STAGE_NOTES.md for Doug's verdict on each asset.** Public copy redeployed with v3. Terrain Walk's blank-page crash (TDZ) fixed.
@@ -64,6 +65,7 @@ map loader → Georgeotron round trip (long-press entry; any-layer default; king
 ## VERSION LOG
 | Version | Commit | Date (PDT) | One line |
 |---|---|---|---|
+| v0.80 | `0b9c9c1` | built 09-03, committed 09-04 | HvB title splash on first entry (committed by the sweep, unverified) |
 | v0.79 | `399de7f` | 08-31 17:16 | WX TEST menu on the real island |
 | v0.78 | `dacc2a5` | 08-31 16:32 | berries 8 near / 20 far in clumps |
 | v0.77 | `c73a8c0` | 08-31 14:25 | steady palm shadows |
