@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ARTILLERY STUDY — a modern towed howitzer, for George World.
+     Filed 2026-09-01 09:19 by ASSET FOUNDRY. Standalone; vendored
+     three (r160), game importmap. No existing file touched.
+
+     Olive-drab split-trail carriage, rubber tires, shielded cradle,
+     long barrel with a muzzle brake. The firing is the study:
+
+     LAY — the barrel eases to a new elevation between rounds.
+     FIRE — muzzle FLASH and side-blast off the brake, and the barrel
+       JERKS straight back in its cradle (60 ms out) then creeps home
+       on the hydraulics (a second back), the whole carriage rocking
+       on its tires while dust kicks off the ground under the blast.
+     SMOKE — a hot ball at the muzzle rolling forward, thinning grey.
+     DOWNRANGE — two seconds later the round lands out in the field:
+       a far flash, a dirt column, a slow dark plume.
+     Chip: Fire, or let the auto battery pace itself. Exposure 1.05.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artillery Study</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#d8d6c4; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10;
+    background:rgba(24,24,18,0.78); color:#f0f0e2; font:13px/1.5 system-ui, sans-serif;
+    padding:10px 14px; border-radius:10px; user-select:none; backdrop-filter:blur(4px); }
+  #chip b { font-size:14px; }
+  #chip .hint { opacity:0.7; }
+  #chip button { margin:5px 5px 0 0; padding:4px 10px; border:0; border-radius:7px;
+    background:#565c40; color:#fff; font:12px system-ui; cursor:pointer; }
+  #chip button:hover { background:#6a7250; }
+  #chip button.on { background:#c9a12e; color:#241d06; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎖️ Artillery Study</b> — recoil + smoke, v1<br>
+  <span class="hint">drag to orbit · scroll to zoom</span><br>
+  <button data-m="fire">Fire</button><button data-m="auto">Auto battery</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let seed = 15515515;
+function rand(a=1, b){ seed = (seed*1103515245 + 12345) & 0x7fffffff;
+  const r = seed / 0x7fffffff; return b===undefined ? r*a : a + r*(b-a); }
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0xd4d2be), 40, 300);
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.2, 800);
+camera.position.set(4.5, 2.6, 6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 1.5; controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+{
+  const geo = new THREE.SphereGeometry(340, 24, 16);
+  const pos = geo.attributes.position, col = [];
+  const horizon = new THREE.Color(0xe8e4cc), zenith = new THREE.Color(0x8ca6ba),
+        below = new THREE.Color(0xc6c2ac), c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const h = pos.getY(i)/340;
+    c.copy(h >= 0 ? horizon.clone().lerp(zenith, Math.pow(h, 0.6)) : below);
+    col.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors:true, side:THREE.BackSide, fog:false })));
+}
+scene.add(new THREE.HemisphereLight(0xd4e0e8, 0x968e6c, 0.95));
+const sun = new THREE.DirectionalLight(0xf8e8cc, 2.1);
+sun.position.set(16, 22, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8;
+sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(300, 48),
+    new THREE.MeshLambertMaterial({ color:0xa09a6c }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; scene.add(g);
+  const tuftMat = new THREE.MeshLambertMaterial({ color:0x7e8a48, flatShading:true });
+  for(let i=0;i<18;i++){
+    const a = rand(0, Math.PI*2), r = rand(3, 24);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(rand(0.12,0.18), rand(0.3,0.55), 5), tuftMat);
+    tuft.position.set(Math.cos(a)*r, 0.14, Math.sin(a)*r);
+    scene.add(tuft);
+  }
+}
+
+// ==========================================================================
+//  THE GUN — fires along +Z. Barrel slides in the cradle for recoil.
+// ==========================================================================
+const OD = new THREE.MeshLambertMaterial({ color:0x5c6248, flatShading:true });
+const ODdk = new THREE.MeshLambertMaterial({ color:0x464c36, flatShading:true });
+const rubber = new THREE.MeshLambertMaterial({ color:0x26262a, flatShading:true });
+const gun = new THREE.Group();
+scene.add(gun);
+let cradle, barrel, wheels = [];
+{
+  // axle + tires
+  for(const s of [-1, 1]){
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.24, 14), rubber);
+    tire.rotation.z = Math.PI/2;
+    tire.position.set(s*0.75, 0.42, 0);
+    tire.castShadow = true;
+    gun.add(tire);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.26, 10), OD);
+    hub.rotation.z = Math.PI/2;
+    hub.position.set(s*0.75, 0.42, 0);
+    gun.add(hub);
+    wheels.push(tire, hub);
+  }
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.5, 8), ODdk);
+  axle.rotation.z = Math.PI/2;
+  axle.position.y = 0.42;
+  gun.add(axle);
+  // split trails, spread back
+  for(const s of [-1, 1]){
+    const trail = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 2.3), OD);
+    trail.position.set(s*0.55, 0.3, -1.25);
+    trail.rotation.y = s*0.28;
+    trail.castShadow = true;
+    gun.add(trail);
+    const spade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.1), ODdk);
+    spade.position.set(s*0.87, 0.16, -2.3);
+    spade.castShadow = true;
+    gun.add(spade);
+  }
+  // shield
+  for(const s of [-1, 1]){
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.6, 0.05), OD);
+    plate.position.set(s*0.45, 0.85, 0.15);
+    plate.rotation.x = -0.12;
+    plate.castShadow = true;
+    gun.add(plate);
+  }
+  // CRADLE (elevates) and the BARREL (slides within it)
+  cradle = new THREE.Group();
+  cradle.position.set(0, 0.75, 0);
+  gun.add(cradle);
+  const trunnion = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8), ODdk);
+  trunnion.rotation.z = Math.PI/2;
+  cradle.add(trunnion);
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.26, 1.1), ODdk);
+  sleeve.position.z = 0.1;
+  sleeve.castShadow = true;
+  cradle.add(sleeve);
+  // recoil cylinders above the sleeve
+  for(const s of [-1, 1]){
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 7), OD);
+    cyl.rotation.x = Math.PI/2;
+    cyl.position.set(s*0.1, 0.19, 0.15);
+    cradle.add(cyl);
+  }
+  barrel = new THREE.Group();
+  cradle.add(barrel);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 2.6, 10), OD);
+  tube.rotation.x = Math.PI/2;
+  tube.position.z = 1.3;
+  tube.castShadow = true;
+  barrel.add(tube);
+  const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 8), ODdk);
+  brake.rotation.x = Math.PI/2;
+  brake.position.z = 2.62;
+  brake.castShadow = true;
+  barrel.add(brake);
+  const breech = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.45), ODdk);
+  breech.position.z = -0.28;
+  breech.castShadow = true;
+  barrel.add(breech);
+  cradle.rotation.x = -0.28;                      // laid at a working elevation
+}
+
+// ---------- effect pools ---------------------------------------------------
+const flash = new THREE.Mesh(new THREE.SphereGeometry(0.28, 9, 7),
+  new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0 }));
+scene.add(flash);
+let flashT = 9;
+const sideflash = [];
+for(const s of [-1, 1]){
+  const sf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 7),
+    new THREE.MeshBasicMaterial({ color:0xffd890, transparent:true, opacity:0 }));
+  sf.rotation.z = s*Math.PI/2;
+  scene.add(sf);
+  sideflash.push(sf);
+}
+const smokes = [];
+for(let i=0;i<22;i++){
+  const s = new THREE.Mesh(new THREE.SphereGeometry(0.15, 7, 5),
+    new THREE.MeshLambertMaterial({ color:0x8c8880, transparent:true, opacity:0, flatShading:true }));
+  s.userData = { t: 9, v: new THREE.Vector3() };
+  scene.add(s);
+  smokes.push(s);
+}
+const dusts = [];
+for(let i=0;i<8;i++){
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 5),
+    new THREE.MeshLambertMaterial({ color:0xb0a678, transparent:true, opacity:0, flatShading:true }));
+  d.userData = { t: 9 };
+  scene.add(d);
+  dusts.push(d);
+}
+// downrange impact kit
+const impact = { t: 9, flash: null, col: null, pos: new THREE.Vector3() };
+impact.flash = new THREE.Mesh(new THREE.SphereGeometry(0.5, 9, 7),
+  new THREE.MeshBasicMaterial({ color:0xffd8a0, transparent:true, opacity:0 }));
+scene.add(impact.flash);
+impact.col = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 8),
+  new THREE.MeshLambertMaterial({ color:0x5c4e32, flatShading:true, transparent:true, opacity:0 }));
+scene.add(impact.col);
+
+// ==========================================================================
+//  FIRING
+// ==========================================================================
+let recoilT = 9, rockT = 9, autoFire = false, autoT = 2, layTarget = -0.28, flightT = -1;
+const _m = new THREE.Vector3(), _dir = new THREE.Vector3();
+function fire(){
+  if(recoilT < 1.2) return;                       // still in recoil
+  recoilT = 0; rockT = 0; flashT = 0;
+  // muzzle world position + direction
+  barrel.getWorldPosition(_m);
+  _dir.set(0, 0, 1).applyQuaternion(cradle.getWorldQuaternion(new THREE.Quaternion()));
+  _m.addScaledVector(_dir, 2.75);
+  flash.position.copy(_m);
+  flash.scale.setScalar(1);
+  for(const [i, sf] of sideflash.entries()){
+    sf.position.copy(_m);
+    sf.position.x += (i ? 0.3 : -0.3);
+    sf.material.opacity = 0.9;
+  }
+  // muzzle smoke thrown forward
+  for(let k=0;k<7;k++){
+    const s = smokes.find(s => s.userData.t > 1);
+    if(!s) break;
+    s.userData.t = -k*0.05;
+    s.material.color.set(0x8c8880);               // reclaim from any impact plume
+    s.position.copy(_m).addScaledVector(_dir, rand(-0.2, 0.4));
+    s.userData.v.copy(_dir).multiplyScalar(rand(2, 5));
+    s.userData.v.y += rand(0.2, 0.8);
+    s.scale.setScalar(rand(0.7, 1.4));
+  }
+  // ground dust under the blast
+  for(let k=0;k<4;k++){
+    const d = dusts.find(d => d.userData.t > 1);
+    if(!d) break;
+    d.userData.t = 0;
+    d.position.set(_m.x + rand(-0.5, 0.5), 0.15, _m.z + rand(0.3, 1.2));
+    d.scale.setScalar(rand(0.8, 1.5));
+  }
+  flightT = 0;
+  impact.pos.set(rand(-6, 6), 0, rand(22, 30));
+  layTarget = -0.2 - rand(0, 0.16);               // re-lay for the next round
+}
+const chipBtns = [...document.querySelectorAll('#chip button')];
+chipBtns.forEach(b => b.addEventListener('click', () => {
+  if(b.dataset.m === 'fire') fire();
+  else { autoFire = !autoFire; b.classList.toggle('on', autoFire); }
+}));
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if(autoFire){
+    autoT -= dt;
+    if(autoT <= 0){ autoT = rand(3.5, 5.5); fire(); }
+  }
+
+  // ---- recoil: 60ms jerk back, then the hydraulic creep home ----
+  recoilT += dt;
+  let slide = 0;
+  if(recoilT < 0.06) slide = recoilT/0.06 * -0.5;
+  else if(recoilT < 1.0) slide = -0.5 * (1 - smooth((recoilT - 0.06)/0.94));
+  barrel.position.z = slide;
+  // carriage rock on the tires
+  rockT += dt;
+  const rock = rockT < 1.4 ? Math.exp(-rockT*3.2)*Math.sin(rockT*24)*0.045 : 0;
+  gun.rotation.x = rock;
+  gun.position.z = rockT < 1.4 ? -Math.exp(-rockT*4)*0.06 : 0;
+
+  // ---- re-laying between rounds ----
+  cradle.rotation.x = lerp(cradle.rotation.x, layTarget, Math.min(1, dt*0.8));
+
+  // ---- effects ----
+  flashT += dt;
+  flash.material.opacity = flashT < 0.12 ? 0.95*(1 - flashT/0.12) : 0;
+  if(flashT < 0.12) flash.scale.multiplyScalar(1 + dt*20);
+  for(const sf of sideflash)
+    sf.material.opacity = Math.max(0, sf.material.opacity - dt*8);
+  for(const s of smokes){
+    if(s.userData.t > 1){ s.material.opacity = 0; continue; }
+    s.userData.t += dt*0.5;
+    if(s.userData.t < 0) continue;
+    s.position.addScaledVector(s.userData.v, dt);
+    s.userData.v.multiplyScalar(Math.max(0, 1 - dt*2.2));   // drag
+    s.userData.v.y += dt*0.7;                                // then buoyancy
+    s.scale.multiplyScalar(1 + dt*1.5);
+    s.material.opacity = 0.55*(1 - Math.max(0, s.userData.t));
+  }
+  for(const d of dusts){
+    if(d.userData.t > 1){ d.material.opacity = 0; continue; }
+    d.userData.t += dt*1.4;
+    d.position.y += dt*0.4;
+    d.scale.multiplyScalar(1 + dt*2);
+    d.material.opacity = 0.4*(1 - d.userData.t);
+  }
+  // ---- downrange ----
+  if(flightT >= 0){
+    flightT += dt;
+    if(flightT > 2){                              // the round arrives
+      impact.t = 0;
+      impact.flash.position.copy(impact.pos).setY(0.4);
+      impact.flash.scale.setScalar(1);
+      impact.col.position.copy(impact.pos).setY(0.6);
+      impact.col.scale.set(1, 0.4, 1);
+      impact.col.material.opacity = 1;
+      for(let k=0;k<4;k++){
+        const s = smokes.find(s => s.userData.t > 1);
+        if(!s) break;
+        s.userData.t = -k*0.1;
+        s.material.color.set(0x46423c);
+        s.position.copy(impact.pos).setY(0.6);
+        s.userData.v.set(rand(-0.4, 0.4), rand(0.8, 1.6), rand(-0.4, 0.4));
+        s.scale.setScalar(rand(1.4, 2.2));
+      }
+      flightT = -1;
+    }
+  }
+  impact.t += dt;
+  impact.flash.material.opacity = impact.t < 0.15 ? 0.9*(1 - impact.t/0.15) : 0;
+  if(impact.t < 0.15) impact.flash.scale.multiplyScalar(1 + dt*16);
+  if(impact.t < 1){
+    const u = impact.t;
+    impact.col.scale.y = u < 0.35 ? lerp(0.4, 2.6, u/0.35) : lerp(2.6, 0.5, (u-0.35)/0.65);
+    impact.col.position.y = 0.6 + impact.col.scale.y*0.4;
+    impact.col.material.opacity = 1 - u*0.8;
+  } else impact.col.material.opacity = Math.max(0, impact.col.material.opacity - dt*2);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
