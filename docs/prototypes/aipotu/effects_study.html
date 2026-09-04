@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     EFFECTS — the VFX page of the HvB Asset Stage.
+     Filed 2026-09-02 (Doug). v1.
+
+     WHAT THIS IS
+     A host page for visual effects, starting with FIRE. Another session is
+     building the fire as a self-contained importable module; this page is the
+     bench it plugs into. Until that file lands, the page runs and shows a
+     clear placeholder saying exactly what it is waiting for — it does not
+     error, and it does not pretend.
+
+     THE IMPORT CONTRACT (published to the mailbox 2026-09-02 21:20)
+       ./fire_fx.js   — an ES module, side-effect free, importable twice
+
+         export function createFire(scene, opts) -> {
+           group,                  // THREE.Group — parent/position it yourself
+           setPreset(name),        // see PRESETS below
+           aim(originVec3, dirVec3),   // optional; for the dragon belch
+           update(dt),             // called every frame
+           dispose()               // free geometry/textures
+         }
+
+       PRESETS, in the order Doug listed them:
+         'embers' · 'small' · 'campfire' · 'hearth' · 'big' · 'belch'
+
+     This is the same shape as `window.DRAGONFIRE` in dragon_study.html, which
+     already runs independent flame + smoke pools with an aimable origin. If
+     the fire session would rather reuse that, it drops in unchanged; if it
+     wants a different path or signature, it says so in the mailbox and this
+     page follows — the loader below is one line.
+
+     ADDING MORE EFFECTS LATER: append to the EFFECTS registry near the bottom.
+     Each entry is { key, name, module, factory, presets }.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Effects v1</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e1013; }
+  canvas { display:block; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:250px;
+    background:rgba(18,14,12,0.84); color:#f5ece2; font:13px/1.5 system-ui, sans-serif;
+    padding:11px 13px; border-radius:11px; user-select:none; backdrop-filter:blur(5px);
+    border:1px solid rgba(255,190,120,0.22); }
+  #chip b { font-size:14px; color:#ffcf8a; }
+  .rev { font:11px Consolas,monospace; color:#8fd9a8; background:#1d2a22;
+    border:1px solid #2f4a38; border-radius:6px; padding:1px 6px; }
+  /* high contrast on purpose: the stage's pale-grey labels were unreadable */
+  .lbl { font:10.5px system-ui,sans-serif; letter-spacing:1.2px; text-transform:uppercase;
+    color:#d3c4b4; margin-top:10px; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+  .btns button { background:#4a3a30; color:#f7efe6; border:1px solid #7a6151;
+    border-radius:7px; padding:5px 9px; font:12px system-ui; cursor:pointer; }
+  .btns button:hover { background:#6b5344; }
+  .btns button.on { background:#a33f14; border-color:#ffb173; font-weight:700; }
+  .btns button:disabled { opacity:0.4; cursor:not-allowed; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:7px; font-size:12px; }
+  label.rw input[type=range] { flex:1; min-width:0; accent-color:#ff9a52; }
+  #status { margin-top:10px; padding:8px 9px; border-radius:8px; font-size:12px;
+    line-height:1.45; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.16); color:#f0e4d8; }
+  #status.waiting { background:rgba(120,90,30,0.30); border-color:#c9a24a; }
+  #status.ok { background:rgba(40,110,60,0.28); border-color:#6fce8a; }
+  #status code { font:11px Consolas,monospace; color:#ffd9a8; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🔥 EFFECTS</b> <span class="rev" title="built 2026-09-02 21:20 -07:00">v1</span>
+  <div class="lbl">Effect</div>
+  <div class="btns" id="fx"></div>
+  <div class="lbl">Preset</div>
+  <div class="btns" id="presets"></div>
+  <label class="rw">scale <input id="scale" type="range" min="0.25" max="3" step="0.05" value="1"></label>
+  <label class="rw">wind <input id="wind" type="range" min="0" max="2" step="0.05" value="0.35"></label>
+  <div class="lbl">Stage</div>
+  <div class="btns">
+    <button id="ground" class="on">ground</button>
+    <button id="dark" class="on">night</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ======================================================================
+// THE REGISTRY — add an effect by adding a row here
+// ======================================================================
+const EFFECTS = [
+  { key:'fire', name:'Fire', module:'./fire_fx.js', factory:'createFire',
+    presets:['embers','small','campfire','hearth','big','belch'],
+    presetNames:{ embers:'Embers', small:'Small fire', campfire:'Campfire',
+                  hearth:'Blazing hearth', big:'Big flames', belch:'Dragon belch' } },
+];
+
+// ======================================================================
+// SCENE
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const NIGHT = new THREE.Color(0x0e1013), DAY = new THREE.Color(0x7d8496);
+scene.background = NIGHT;
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 500);
+camera.position.set(3.4, 2.1, 4.6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 0.6; controls.maxDistance = 40;
+// mouse-wheel zoom is OrbitControls' own; the stage slider drives STAGE_ZOOM below
+controls.enableZoom = true;
+
+scene.add(new THREE.HemisphereLight(0x4a5a74, 0x2a2018, 0.5));
+const key = new THREE.DirectionalLight(0xbfd0e8, 0.35);
+key.position.set(4, 8, 5); scene.add(key);
+
+const groundGrp = new THREE.Group(); scene.add(groundGrp);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
+    new THREE.MeshStandardMaterial({ color:0x2e2a24, roughness:1 }));
+  g.rotation.x = -Math.PI/2; groundGrp.add(g);
+  // a few logs so the fire has something to sit on and be judged against
+  const wood = new THREE.MeshStandardMaterial({ color:0x4a3524, roughness:0.9 });
+  for(let i=0;i<5;i++){
+    const a = i/5*Math.PI*2;
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.07,0.72,7), wood);
+    log.position.set(Math.cos(a)*0.19, 0.06, Math.sin(a)*0.19);
+    log.rotation.set(Math.PI/2 - 0.35, a, 0);
+    groundGrp.add(log);
+  }
+  // a 1.55-unit reference figure: the height every stage character is scaled to
+  const ref = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.0, 6, 12),
+    new THREE.MeshStandardMaterial({ color:0x39424e, roughness:0.85 }));
+  ref.position.set(1.5, 0.775, 0.4);
+  groundGrp.add(ref);
+}
+
+// ======================================================================
+// THE LOADER — lazy, and honest when the module is not there yet
+// ======================================================================
+const statusEl = document.getElementById('status');
+const fxEl = document.getElementById('presets');
+let active = null, activeDef = null;
+
+function say(html, cls){ statusEl.className = cls || ''; statusEl.innerHTML = html; }
+
+async function loadEffect(def){
+  if(active && active.dispose) { try { active.dispose(); } catch(e){} }
+  if(active && active.group) scene.remove(active.group);
+  active = null; activeDef = def;
+  renderPresets();
+  say('loading <code>' + def.module + '</code>…');
+  let mod;
+  try {
+    mod = await import(def.module);
+  } catch(err){
+    // EXPECTED until the fire session lands its file. Say precisely what is
+    // missing and what shape it must have — no stack trace theatre.
+    say('<b>' + def.name + ' module not here yet.</b><br>'
+      + 'Waiting on <code>' + def.module + '</code> exporting '
+      + '<code>' + def.factory + '(scene, opts)</code>.<br>'
+      + 'Presets expected: <code>' + def.presets.join(' · ') + '</code>.<br>'
+      + 'The bench is ready — drop the file in and reload.', 'waiting');
+    renderPresets();
+    return;
+  }
+  const factory = mod[def.factory] || mod.default;
+  if(typeof factory !== 'function'){
+    say('<b>' + def.module + ' loaded but has no <code>' + def.factory + '</code> export.</b><br>'
+      + 'Found: <code>' + Object.keys(mod).join(', ') + '</code>', 'waiting');
+    return;
+  }
+  try {
+    active = factory(scene, { scale: +scaleEl.value, wind: +windEl.value });
+    if(active && active.group && !active.group.parent) scene.add(active.group);
+    say('<b>' + def.name + '</b> loaded from <code>' + def.module + '</code>.', 'ok');
+    setPreset(def.presets[0]);
+  } catch(err){
+    say('<b>' + def.name + ' threw on create:</b><br><code>'
+      + String(err && err.message || err).slice(0, 160) + '</code>', 'waiting');
+  }
+  renderPresets();
+}
+
+let currentPreset = null;
+function setPreset(p){
+  currentPreset = p;
+  if(active && typeof active.setPreset === 'function'){
+    try { active.setPreset(p); } catch(err){ console.warn('setPreset failed', err); }
+  }
+  renderPresets();
+}
+function renderPresets(){
+  fxEl.innerHTML = '';
+  if(!activeDef) return;
+  for(const p of activeDef.presets){
+    const b = document.createElement('button');
+    b.textContent = (activeDef.presetNames && activeDef.presetNames[p]) || p;
+    b.disabled = !active;                       // greyed until the module lands
+    b.classList.toggle('on', p === currentPreset);
+    b.onclick = () => setPreset(p);
+    fxEl.appendChild(b);
+  }
+}
+
+// effect chooser
+const chooser = document.getElementById('fx');
+for(const def of EFFECTS){
+  const b = document.createElement('button');
+  b.textContent = def.name;
+  b.onclick = () => {
+    for(const x of chooser.children) x.classList.remove('on');
+    b.classList.add('on');
+    loadEffect(def);
+  };
+  chooser.appendChild(b);
+}
+
+const scaleEl = document.getElementById('scale'), windEl = document.getElementById('wind');
+scaleEl.addEventListener('input', () => {
+  if(active && active.group) active.group.scale.setScalar(+scaleEl.value);
+});
+windEl.addEventListener('input', () => {
+  if(active && typeof active.setWind === 'function') active.setWind(+windEl.value);
+});
+document.getElementById('ground').addEventListener('click', e => {
+  groundGrp.visible = !groundGrp.visible;
+  e.target.classList.toggle('on', groundGrp.visible);
+});
+document.getElementById('dark').addEventListener('click', e => {
+  const night = scene.background.equals(NIGHT);
+  scene.background = night ? DAY : NIGHT;
+  e.target.classList.toggle('on', !night);
+});
+
+// ======================================================================
+// STAGE ZOOM HOOK — same contract as the rig tools, so the stage bar's
+// slider and buttons drive this page too. The mouse wheel is OrbitControls'.
+// ======================================================================
+window.STAGE_ZOOM = {
+  get min(){ return controls.minDistance; },
+  get max(){ return Math.min(controls.maxDistance, 40); },
+  get(){ return camera.position.distanceTo(controls.target); },
+  set(d){
+    const lo = this.min, hi = this.max;
+    d = Math.max(lo, Math.min(hi, d));
+    const dir = camera.position.clone().sub(controls.target);
+    if(dir.lengthSq() < 1e-9) dir.set(0, 0, 1);
+    camera.position.copy(controls.target).add(dir.setLength(d));
+    controls.update();
+    return d;
+  },
+  by(f){ return this.set(this.get() * f); },
+};
+
+// ======================================================================
+// LOOP
+// ======================================================================
+const clock = new THREE.Clock();
+let T = 0;
+function step(dt){
+  T += dt;
+  if(active && typeof active.update === 'function'){
+    try { active.update(dt, T); } catch(err){ /* one bad frame must not kill the bench */ }
+  }
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+window.FX_STEP = (n, dt) => { n = n||60; dt = dt||1/60;
+  for(let i=0;i<n;i++) step(dt); renderer.render(scene, camera);
+  return { effect: activeDef && activeDef.name, preset: currentPreset, live: !!active }; };
+window.FX = { get active(){ return active; }, EFFECTS, loadEffect, setPreset, scene, camera, controls };
+
+// boot on the first effect
+chooser.children[0].classList.add('on');
+loadEffect(EFFECTS[0]);
+frame();
+console.log('[Effects] bench ready. Waiting on', EFFECTS.map(e => e.module).join(', '));
+</script>
+</body>
+</html>
