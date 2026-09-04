@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     ASSET AUDIT — what is in vendor/models, and where does each thing go?
+     Filed 2026-09-03. v1.
+
+     WHY
+     The Meshy session is landing batches of new assets overnight. Each one has
+     to be routed to the right place in the stage, and the routing rule is not
+     a matter of taste — it is a property of the file:
+
+       HUMANOID   a SkinnedMesh with all seven mixamorig leg bones. Only these
+                  can go through the terrain-walk pipeline, which measures leg
+                  lengths off that skeleton and retargets Xbot's walk onto it.
+       CREATURE   has a skeleton and/or its own clips, but NOT the seven bones.
+                  Goes to creature_study.html, whose mixer targets the root.
+       PROP       one or more meshes, no skeleton, no clips. Same page, static.
+       CLIP PACK  animations but no mesh — a clip library, not an asset.
+       BROKEN     will not load at all.
+
+     This page reads the directory listing that serve_nocache.py already emits,
+     loads every model, and prints the verdict plus clips, triangles, natural
+     size and whether it is registered in manifest.json. Sequential, with
+     progress, because some of these files are 70 MB.
+
+     USE: open it, hit AUDIT, read the table. Copy button gives markdown for
+     the mailbox.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Asset Audit v1</title>
+<style>
+  html,body{margin:0;height:100%;background:#141a1f;color:#eef4f8;
+    font:13px/1.5 system-ui,sans-serif;}
+  #wrap{padding:14px 18px;height:100%;box-sizing:border-box;overflow:auto;}
+  h1{font-size:16px;margin:0 0 2px;} h1 .rev{font:11px Consolas,monospace;color:#8fd9a8;
+    background:#1d2a22;border:1px solid #2f4a38;border-radius:6px;padding:1px 6px;}
+  .sub{opacity:.72;font-size:12px;margin-bottom:10px;}
+  button{background:#2f6f52;color:#fff;border:1px solid #5fb98c;border-radius:7px;
+    padding:6px 12px;font:13px system-ui;cursor:pointer;margin-right:6px;}
+  button:hover{background:#3d8c68;} button:disabled{opacity:.5;cursor:not-allowed;}
+  #prog{margin:9px 0;font:12px Consolas,monospace;color:#ffd98a;}
+  table{border-collapse:collapse;width:100%;margin-top:8px;font-size:12px;}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #2a333b;vertical-align:top;}
+  th{color:#dfe8ef;font-weight:700;position:sticky;top:0;background:#141a1f;}
+  td.v{font-weight:700;white-space:nowrap;}
+  .HUMANOID{color:#8fd9a8;} .CREATURE{color:#ffd98a;} .PROP{color:#9ec8ff;}
+  .CLIPS{color:#c9a0ff;} .BROKEN{color:#ff8f8f;}
+  .no{color:#ff9a9a;} .yes{color:#8fd9a8;}
+  code{font:11px Consolas,monospace;color:#cfe0ee;}
+</style>
+</head>
+<body><div id="wrap">
+<h1>🔎 ASSET AUDIT <span class="rev">v1</span></h1>
+<div class="sub">every model in <code>vendor/models/</code> — what it is, and which stage page can play it</div>
+<button id="go">AUDIT ALL</button>
+<button id="newonly">AUDIT UNREGISTERED ONLY</button>
+<button id="copy" disabled>Copy as markdown</button>
+<div id="prog"></div>
+<table id="tbl"><thead><tr>
+  <th>file</th><th>verdict</th><th>clips</th><th>bones</th><th>tris</th>
+  <th>natural size</th><th>manifest</th>
+</tr></thead><tbody></tbody></table>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js",
+               "three/addons/": "./vendor/three/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+const NEED = ['mixamorigHips','mixamorigLeftUpLeg','mixamorigLeftLeg','mixamorigLeftFoot',
+              'mixamorigRightUpLeg','mixamorigRightLeg','mixamorigRightFoot'];
+const GL = new GLTFLoader(), FL = new FBXLoader();
+const progEl = document.getElementById('prog');
+const body = document.querySelector('#tbl tbody');
+let rows = [];
+
+// serve_nocache.py is a SimpleHTTPRequestHandler, so a directory URL returns an
+// index page. Scrape it rather than maintaining a hand-written file list that
+// would drift the moment a batch lands.
+async function listModels(){
+  const html = await fetch('./vendor/models/?t=' + Date.now()).then(r => r.text());
+  const names = [...html.matchAll(/href="([^"]+\.(?:glb|gltf|fbx))"/gi)]
+    .map(m => decodeURIComponent(m[1].split('/').pop()));
+  return [...new Set(names)].sort();
+}
+async function manifestFiles(){
+  try {
+    const m = await fetch('./vendor/models/manifest.json?t=' + Date.now()).then(r => r.json());
+    return new Set((m.skins || []).map(s => s.file));
+  } catch(e){ return new Set(); }
+}
+function load(file){
+  const p = './vendor/models/' + file;
+  return new Promise((res, rej) => {
+    if(/\.fbx$/i.test(file)) FL.load(p, o => res({ scene:o, animations:o.animations || [] }), undefined, rej);
+    else GL.load(p, res, undefined, rej);
+  });
+}
+function classify(g){
+  const root = g.scene;
+  let bones = 0, skinned = 0, meshes = 0, tris = 0;
+  const B = {};
+  root.traverse(o => {
+    if(o.isBone){ bones++; const n = o.name.replace('mixamorig:', 'mixamorig');
+      if(n.startsWith('mixamorig')) B[n] = 1; }
+    if(o.isSkinnedMesh) skinned++; else if(o.isMesh) meshes++;
+    if(o.geometry && o.geometry.index) tris += o.geometry.index.count / 3;
+  });
+  const clips = (g.animations || []).map(c => c.name + ' ' + c.duration.toFixed(1) + 's');
+  root.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(root, true);
+  const sz = bb.getSize(new THREE.Vector3());
+  const humanoid = NEED.every(n => B[n]);
+  let verdict;
+  if(skinned + meshes === 0) verdict = clips.length ? 'CLIPS' : 'BROKEN';
+  else if(humanoid) verdict = 'HUMANOID';
+  else if(bones > 0 || clips.length) verdict = 'CREATURE';
+  else verdict = 'PROP';
+  return { verdict, clips, bones, mixamo:Object.keys(B).length, skinned, meshes,
+           tris: Math.round(tris),
+           size: (sz.x||0).toFixed(2) + ' × ' + (sz.y||0).toFixed(2) + ' × ' + (sz.z||0).toFixed(2) };
+}
+function addRow(r){
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><code>' + r.file + '</code></td>'
+    + '<td class="v ' + r.verdict + '">' + r.verdict + '</td>'
+    + '<td>' + (r.clips && r.clips.length ? r.clips.join('<br>') : '—') + '</td>'
+    + '<td>' + (r.bones === undefined ? '—' : r.bones + (r.mixamo ? ' (' + r.mixamo + ' mx)' : '')) + '</td>'
+    + '<td>' + (r.tris === undefined ? '—' : r.tris.toLocaleString()) + '</td>'
+    + '<td>' + (r.size || (r.err ? '<span class="no">' + r.err + '</span>' : '—')) + '</td>'
+    + '<td class="' + (r.inManifest ? 'yes' : 'no') + '">' + (r.inManifest ? 'yes' : 'NO') + '</td>';
+  body.appendChild(tr);
+}
+async function audit(onlyUnregistered){
+  document.getElementById('go').disabled = true;
+  document.getElementById('newonly').disabled = true;
+  body.innerHTML = ''; rows = [];
+  const files = await listModels();
+  const inMan = await manifestFiles();
+  const todo = onlyUnregistered ? files.filter(f => !inMan.has(f)) : files;
+  for(let i = 0; i < todo.length; i++){
+    const f = todo[i];
+    progEl.textContent = 'auditing ' + (i+1) + ' / ' + todo.length + '  —  ' + f;
+    let r = { file:f, inManifest: inMan.has(f) };
+    try { Object.assign(r, classify(await load(f))); }
+    catch(err){ r.verdict = 'BROKEN'; r.err = String(err && err.message || err).slice(0, 60); }
+    rows.push(r); addRow(r);
+  }
+  const tally = {};
+  for(const r of rows) tally[r.verdict] = (tally[r.verdict] || 0) + 1;
+  progEl.textContent = 'done — ' + rows.length + ' files · '
+    + Object.entries(tally).map(([k,v]) => k + ' ' + v).join(' · ');
+  document.getElementById('go').disabled = false;
+  document.getElementById('newonly').disabled = false;
+  document.getElementById('copy').disabled = false;
+  window.AUDIT = rows;
+}
+document.getElementById('go').onclick = () => audit(false);
+document.getElementById('newonly').onclick = () => audit(true);
+document.getElementById('copy').onclick = async () => {
+  const md = ['| file | verdict | clips | bones | tris | size | manifest |',
+              '|---|---|---|---|---|---|---|']
+    .concat(rows.map(r => '| `' + r.file + '` | ' + r.verdict + ' | '
+      + (r.clips && r.clips.length ? r.clips.join(', ') : '—') + ' | '
+      + (r.bones ?? '—') + ' | ' + (r.tris ? r.tris.toLocaleString() : '—') + ' | '
+      + (r.size || r.err || '—') + ' | ' + (r.inManifest ? 'yes' : 'NO') + ' |')).join('\n');
+  try { await navigator.clipboard.writeText(md); progEl.textContent = 'copied as markdown'; }
+  catch(e){ console.log(md); progEl.textContent = 'clipboard blocked — dumped to console'; }
+};
+// scriptable for a headless pass
+window.AUDIT_RUN = audit;
+console.log('[Asset audit] ready.');
+</script>
+</body></html>

@@ -2,69 +2,156 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "actor-3d-editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\dougs\\actor-3d", "run", "dev", "--", "--port", "8089"],
+      "port": 8089
+    },
+    {
+      "name": "fire-effects",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8221",
+        "--directory",
+        "C:\\Users\\dougs\\fire-effects\\docs\\prototypes\\aipotu"
+      ],
+      "port": 8221,
+      "url": "http://localhost:8221"
+    },
+    {
+      "name": "hvm3d-stage",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8215"
+      ],
+      "port": 8215
+    },
+    {
+      "name": "facing-alligators-editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "C:\\Users\\dougs\\facing-alligators",
+        "--",
+        "--port",
+        "8088"
+      ],
+      "port": 8088
+    },
+    {
+      "name": "narraton-unify-editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "C:\\Users\\dougs\\narraton-unify",
+        "--",
+        "--port",
+        "8091"
+      ],
+      "port": 8091
+    },
+    {
       "name": "studio-editor",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "8090"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "8090"
+      ],
       "port": 8090
     },
     {
       "name": "dramaton-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\dev8080.mjs"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\dev8080.mjs"
+      ],
       "port": 8080
     },
     {
       "name": "georgeworld",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8201"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8201"
+      ],
       "port": 8201
     },
     {
       "name": "georgeland2",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8209"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8209"
+      ],
       "port": 8209,
       "url": "http://localhost:8209"
     },
     {
       "name": "atoll",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8210"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8210"
+      ],
       "port": 8210,
       "url": "http://localhost:8210"
     },
     {
       "name": "honu",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8213"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8213"
+      ],
       "port": 8213,
       "url": "http://localhost:8213"
     },
     {
       "name": "crab",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8211"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8211"
+      ],
       "port": 8211,
       "url": "http://localhost:8211"
     },
     {
       "name": "delta",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8212"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8212"
+      ],
       "port": 8212,
       "url": "http://localhost:8212"
     },
     {
       "name": "caldera",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py", "8214"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\dramaton-studio-62\\docs\\prototypes\\aipotu\\serve_nocache.py",
+        "8214"
+      ],
       "port": 8214,
       "url": "http://localhost:8214"
     },
     {
       "name": "william-run-demo",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\serve8123.mjs"],
+      "runtimeArgs": [
+        "C:\\Users\\dougs\\Dropbox\\____2025 Projects\\_USA VS MAGA\\App Source\\Dramaton 2.0 Git\\dramaton-studio-62\\art-demo\\run-demo\\serve8123.mjs"
+      ],
       "port": 8123
     }
   ]
