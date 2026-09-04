@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     CREATURES & PROPS — the NON-HUMANOID viewer, for George World.
+     Filed 2026-09-02 (Doug: "put the gold dragon on the stage"). v1.
+
+     WHY THIS EXISTS — i.e. why it is not the terrain walk
+     The walker pipeline (terrainwalk_study.html) is a HUMANOID pipeline. It
+     requires a SkinnedMesh with seven mixamorig leg bones, measures leg
+     lengths off that skeleton, and retargets Xbot's walk onto it. The Meshy
+     dragon has NO SKELETON AT ALL — 0 bones, 0 skinned meshes, one rigid mesh
+     of 70,820 triangles — and its three clips carry only 3 tracks each, so
+     they are ROOT TRANSFORMS (the whole model moves), not deformation.
+     Routing it through the walker would fail the seven-bone check and, even
+     if it passed, there would be nothing to plant. So: separate path.
+
+     WHAT THIS PAGE IS
+     A bench for any rigid or self-animated GLB: pick a model, pick one of its
+     OWN embedded clips, spin it, scale it, and judge it against a Vita-height
+     reference rod. The mixer targets the ROOT OBJECT, not a SkinnedMesh, which
+     is the one line that differs from every other player in this project.
+
+     GOTCHA THIS PAGE EXISTS TO AVOID (learned on dragon_study.html):
+     a GOLD model is metallic, and a fully-metallic PBR material with NO
+     environment map renders BLACK — it reflects surroundings and there are
+     none. A procedural equirect through PMREMGenerator is therefore not
+     decoration here, it is the difference between a gold dragon and a
+     silhouette.
+
+     ADDING A CREATURE: one line in MODELS below.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Creatures &amp; Props v4</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#1b1f26; }
+  canvas { display:block; }
+  /* EMBEDDED IN THE STAGE (?embed=1): hide this page's own panel entirely.
+     The stage already offers the asset list and the big Play / Animation /
+     zoom buttons; leaving the chip visible gave two ways to do the same
+     thing, which is the exact confusion the v8 stage was built to remove.
+     Opened on its own the page keeps every control it ever had. */
+  body.embed #chip { display:none; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:246px;
+    background:rgba(18,20,26,0.84); color:#f2f6fa; font:13px/1.5 system-ui, sans-serif;
+    padding:11px 13px; border-radius:11px; user-select:none; backdrop-filter:blur(5px);
+    border:1px solid rgba(255,215,140,0.22); }
+  #chip b { font-size:14px; color:#ffd98a; }
+  .rev { font:11px Consolas,monospace; color:#8fd9a8; background:#1d2a22;
+    border:1px solid #2f4a38; border-radius:6px; padding:1px 6px; }
+  /* high contrast — the stage's pale labels were unreadable for Doug */
+  .lbl { font:10.5px system-ui,sans-serif; letter-spacing:1.2px; text-transform:uppercase;
+    color:#dfe8ef; font-weight:600; margin-top:10px; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+  .btns button { background:#39414d; color:#f2f6fa; border:1px solid #5d6875;
+    border-radius:7px; padding:5px 9px; font:12px system-ui; cursor:pointer; }
+  .btns button:hover { background:#4d5865; }
+  .btns button.on { background:#a8791b; border-color:#ffd98a; color:#1c1608; font-weight:700; }
+  .btns button:disabled { opacity:0.45; cursor:not-allowed; }
+  label.rw { display:flex; align-items:center; gap:7px; margin-top:7px; font-size:12px; }
+  label.rw input[type=range] { flex:1; min-width:0; accent-color:#ffd98a; }
+  #info { margin-top:9px; font:11px Consolas,monospace; color:#cfe0ee;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+    border-radius:8px; padding:7px 8px; white-space:pre-line; }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🐉 CREATURES &amp; PROPS</b> <span class="rev" title="built 2026-09-03 01:14 -07:00">v4</span>
+  <div class="lbl">Model</div>
+  <div class="btns" id="models"></div>
+  <div class="lbl">Animation</div>
+  <div class="btns" id="clips"></div>
+  <label class="rw">size <input id="size" type="range" min="0.3" max="20" step="0.05" value="2.2"></label>
+  <label class="rw">speed <input id="speed" type="range" min="0.1" max="2.5" step="0.05" value="1"></label>
+  <div class="lbl">Stage</div>
+  <div class="btns">
+    <button id="spin">turntable</button>
+    <button id="refbtn" class="on">Vita for scale</button>
+    <button id="gridbtn" class="on">ground</button>
+  </div>
+  <div id="info">loading…</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script>
+  // set before the module runs so the panel never flashes on screen
+  if(new URLSearchParams(location.search).has('embed'))
+    document.body.classList.add('embed');
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ======================================================================
+// THE ROSTER — one line per creature/prop
+// ======================================================================
+const MODELS = [
+  { key:'dragon',  name:'Gold dragon',    file:'dragon_meshy.glb',        height:2.2 },
+  // LOW-POLY TRIAL 2026-09-04 (Doug approved the credits). Meshy remesh of the
+  // same refine task down to 15,603 tris from 70,820, textures re-encoded and
+  // the three hand-authored clips re-applied. Same height as the original so
+  // the two sit at identical scale for an honest side-by-side.
+  { key:'dragonlow',name:'Dragon LOW-POLY',file:'dragon_lowpoly.glb',      height:2.2 },
+  { key:'hoard',   name:'Dragon + hoard', file:'dragon_hoard_meshy.glb',  height:1.5 },
+  { key:'dragonS', name:'Dragon (static)',file:'dragon_meshy_static.glb', height:2.2 },
+  // 2026-09-03 Meshy intake. Poppy is a DOG — no mixamorig skeleton, so she
+  // cannot walk the terrain pipeline, but she ships five of her own clips.
+  { key:'poppy',   name:'Poppy (Meshy)',  file:'poppy_meshy.glb',         height:0.75 },
+  { key:'poppyS',  name:'Poppy (static)', file:'poppy_meshy_static.glb',  height:0.75 },
+  { key:'fire',    name:'Campfire',       file:'fire_small_meshy.glb',    height:0.6 },
+  // ---- overnight Meshy batch, 2026-09-03. All static meshes with whole-object
+  // clips on a wrapper root (HonuRoot, CrabRoot, ...) — the dragon pattern.
+  // FLAT AND LONG THINGS ARE FITTED BY THEIR LONGEST AXIS, not their height: an
+  // orca is 7 m long and 1.5 m tall, so height-normalising it would produce a
+  // 30-metre whale. Sizes below are roughly life-size against the 1.55 rod
+  // (1 unit ~ 1.1 m).
+  { key:'honu',    name:'Sea turtle',     file:'honu_meshy.glb',     fit:'long', size:0.95 },
+  { key:'crab',    name:'Coconut crab',   file:'crab_meshy.glb',     fit:'long', size:0.85 },
+  { key:'gull',    name:'Gull',           file:'gull_meshy.glb',     fit:'long', size:1.30 },
+  { key:'orca',    name:'Orca',           file:'orca_meshy.glb',     fit:'long', size:6.40 },
+  { key:'rowboat', name:'Rowboat',        file:'rowboat_meshy.glb',  fit:'long', size:3.20 },
+  { key:'balloon', name:'Hot air balloon',file:'balloon_meshy.glb',  height:9.0 },
+  { key:'castle',  name:'Castle',         file:'castle_meshy.glb',   height:8.0 },
+  { key:'throne',  name:'Throne',         file:'throne_meshy.glb',   height:1.55 },
+  // ---- THE PEOPLE, 2026-09-03. These ARE full mixamorig humanoids, so the
+  // terrain walk can also walk them over contours — but until now that was the
+  // ONLY way to see them: they lived in the walk's skin dropdown and appeared
+  // nowhere in the stage's own list. A mixer on the root plays their embedded
+  // clip perfectly well, so they get a plain viewer entry like everything else.
+  // Each entry loads the _walking build: one clip, the character on its feet
+  // and moving, which is what you want when you tap a name to look at someone.
+  // All are normalised to 1.55, the stage's Vita height.
+  { key:'vita',    name:'Vita 1',         file:'vita_meshy_walking.glb',      height:1.55 },
+  { key:'vita2',   name:'Vita 2',         file:'vita_meshy_2_walking.glb',    height:1.55 },
+  { key:'vita2b',  name:'Vita 2b',        file:'vita_meshy_2b_walking.glb',   height:1.55 },
+  { key:'vita2c',  name:'Vita 2c',        file:'vita_meshy_2c_walking.glb',   height:1.55 },
+  { key:'ivy',     name:'Ivy',            file:'ivy_meshy_walking.glb',       height:1.55 },
+  { key:'alien',   name:'Alien',          file:'alien_meshy_walking.glb',     height:1.55 },
+  { key:'legion',  name:'Legionary',      file:'legionary_meshy_walking.glb', height:1.55 },
+];
+// the stage addresses one model directly: creature_study.html?m=<key>
+const WANT = new URLSearchParams(location.search).get('m');
+
+// ======================================================================
+// SCENE
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b1f26);
+
+// GOLD NEEDS SOMETHING TO REFLECT. Without this the dragon is a black shape.
+scene.environment = (() => {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 128);
+  grd.addColorStop(0,    '#e7f0ff');
+  grd.addColorStop(0.46, '#93a4bb');
+  grd.addColorStop(0.54, '#6b5b48');
+  grd.addColorStop(1,    '#2e2822');
+  g.fillStyle = grd; g.fillRect(0, 0, 256, 128);
+  g.fillStyle = 'rgba(255,248,228,0.98)';
+  g.beginPath(); g.arc(86, 28, 16, 0, Math.PI*2); g.fill();
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.PMREMGenerator(renderer);
+  const rt = pm.fromEquirectangular(tex);
+  pm.dispose(); tex.dispose();
+  return rt.texture;
+})();
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.05, 400);
+camera.position.set(3.6, 2.3, 5.0);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.minDistance = 0.8; controls.maxDistance = 40;
+controls.maxPolarAngle = 1.54;
+
+scene.add(new THREE.HemisphereLight(0xcfe0f5, 0x50442f, 0.85));
+const key = new THREE.DirectionalLight(0xfff0d4, 2.1);
+key.position.set(6, 9, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+key.shadow.camera.far = 30; key.shadow.bias = -0.0007;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x9db8e8, 0.7);
+rim.position.set(-6, 3, -6); scene.add(rim);
+
+// ---- ground + a Vita-height reference rod --------------------------------
+const groundGrp = new THREE.Group(); scene.add(groundGrp);
+{
+  const g = new THREE.Mesh(new THREE.CircleGeometry(24, 56),
+    new THREE.MeshStandardMaterial({ color:0x39362f, roughness:0.97 }));
+  g.rotation.x = -Math.PI/2; g.receiveShadow = true; groundGrp.add(g);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.98, 3.02, 64),
+    new THREE.MeshBasicMaterial({ color:0x5d6875, side:THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI/2; ring.position.y = 0.002; groundGrp.add(ring);
+}
+const TARGET_H = 1.55;                 // the height every stage character is scaled to
+const refGrp = new THREE.Group(); scene.add(refGrp);
+{
+  // deliberately a plain capsule, not a Vita: it is a RULER, and it should not
+  // be mistaken for an asset under review
+  const m = new THREE.MeshStandardMaterial({ color:0x4a5563, roughness:0.85 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, TARGET_H - 0.34, 6, 14), m);
+  body.position.set(1.9, TARGET_H/2, 0.6);
+  body.castShadow = true;
+  refGrp.add(body);
+}
+
+// ======================================================================
+// THE LOADER — mixer on the ROOT, because there is no skeleton
+// ======================================================================
+const loader = new GLTFLoader();
+const infoEl = document.getElementById('info');
+const clipsEl = document.getElementById('clips');
+let current = null;      // { def, root, mixer, clips, action, baseScale }
+let spinning = false;
+
+function frameModel(root, targetH, fit){
+  root.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(root, true);
+  const size = b.getSize(new THREE.Vector3());
+  // 'long' fits the LONGEST horizontal axis instead of the height — correct for
+  // anything flatter than it is long (turtle, orca, gull, boat)
+  const ref = fit === 'long' ? Math.max(size.x, size.z, size.y) : size.y;
+  const s = targetH / Math.max(0.001, ref);
+  root.scale.setScalar(s);
+  root.updateMatrixWorld(true);
+  const b2 = new THREE.Box3().setFromObject(root, true);
+  root.position.y -= b2.min.y;                     // sit it on the ground
+  return { scale:s, size, footed:true };
+}
+
+async function loadModel(def, keepSize){
+  // the per-model default size lives HERE, not in the caller. It used to be set
+  // by the button handler before calling in, which meant any other caller
+  // (the ?m= boot path, a script, a future playlist) silently inherited
+  // whatever the slider happened to be showing.
+  if(!keepSize) sizeEl.value = def.size || def.height || 2.2;
+  if(current){ scene.remove(current.root); current = null; }
+  clipsEl.innerHTML = '';
+  infoEl.textContent = 'loading ' + def.file + ' …';
+  let g;
+  try {
+    g = await new Promise((res, rej) => loader.load('./vendor/models/' + def.file, res, undefined, rej));
+  } catch(err){
+    infoEl.textContent = def.file + '\nFAILED: ' + String(err && err.message || err).slice(0, 90);
+    return;
+  }
+  const root = g.scene;
+  let tris = 0, bones = 0, skinned = 0;
+  root.traverse(o => {
+    if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; o.receiveShadow = true;
+      o.frustumCulled = false;
+      if(o.geometry && o.geometry.index) tris += o.geometry.index.count/3; }
+    if(o.isBone) bones++;
+    if(o.isSkinnedMesh) skinned++;
+  });
+  const fit = frameModel(root, +sizeEl.value, def.fit);
+  scene.add(root);
+
+  // THE ONE LINE THAT DIFFERS FROM THE WALKER PIPELINE: the mixer's root is
+  // the loaded object, not a SkinnedMesh. These clips animate the node itself.
+  const mixer = new THREE.AnimationMixer(root);
+  current = { def, root, mixer, clips: g.animations || [], action: null, baseScale: fit.scale };
+
+  infoEl.textContent =
+    def.file + '\n'
+    + tris.toLocaleString() + ' tris · ' + (g.animations || []).length + ' clips\n'
+    + 'bones ' + bones + ' · skinned ' + skinned
+    + (bones === 0 ? '  (rigid — no skeleton)' : '') + '\n'
+    + 'natural ' + fit.size.x.toFixed(2) + ' × ' + fit.size.y.toFixed(2)
+    + ' × ' + fit.size.z.toFixed(2) + ' → ×' + fit.scale.toFixed(2)
+    + (def.fit === 'long' ? '  (fitted by longest axis)' : '');
+
+  if(!keepSize) frameCamera(root);
+  renderClips();
+  if(current.clips.length) playClip(0);
+}
+
+// Pull the camera back to suit the thing on the deck. The start position was
+// tuned for a ~2 m creature, so the 8 m balloon and the 12 m castle booted with
+// the near plane already inside the masonry — you opened the Castle and saw a
+// wall. Only fires on a fresh load: dragging the size slider keeps whatever
+// viewpoint you had chosen.
+function frameCamera(root){
+  root.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(root, true);
+  const size = b.getSize(new THREE.Vector3());
+  const c = b.getCenter(new THREE.Vector3());
+  const span = Math.max(size.x, size.y, size.z);
+  // distance that puts `span` inside the vertical FOV, with a little air
+  const d = (span / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.5 + span * 0.25;
+  const dir = new THREE.Vector3(0.58, 0.42, 0.80).normalize();
+  controls.target.set(c.x, size.y * 0.45, c.z);
+  camera.position.copy(controls.target).add(dir.multiplyScalar(d));
+  camera.near = Math.max(0.01, d / 500);
+  camera.far  = Math.max(200, d * 12);
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+function playClip(i){
+  if(!current || !current.clips[i]) return;
+  if(current.action) current.action.fadeOut(0.25);
+  const a = current.mixer.clipAction(current.clips[i]);
+  a.reset().setEffectiveTimeScale(+speedEl.value).fadeIn(0.25).play();
+  current.action = a;
+  current.clipIndex = i;
+  renderClips();
+}
+// Meshy exports clips as "Armature|walking_man|baselayer". That is an exporter
+// artefact, not a name for a person to read off a button.
+function niceClip(n){
+  const s = String(n).split('|').filter(p => p && !/^armature$/i.test(p)
+                                          && !/^baselayer$/i.test(p)).pop() || String(n);
+  return s.replace(/_/g, ' ').replace(/\bman\b/, '').trim() || String(n);
+}
+function renderClips(){
+  clipsEl.innerHTML = '';
+  if(!current) return;
+  if(!current.clips.length){
+    const s = document.createElement('span');
+    s.style.cssText = 'font-size:11.5px;opacity:.75';
+    s.textContent = 'no embedded clips — static prop';
+    clipsEl.appendChild(s);
+    return;
+  }
+  current.clips.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = niceClip(c.name) + '  ' + c.duration.toFixed(1) + 's';
+    b.classList.toggle('on', i === current.clipIndex);
+    b.onclick = () => playClip(i);
+    clipsEl.appendChild(b);
+  });
+}
+
+// ---- UI ------------------------------------------------------------------
+const modelsEl = document.getElementById('models');
+MODELS.forEach((def, i) => {
+  const b = document.createElement('button');
+  b.textContent = def.name;
+  b.onclick = () => {
+    for(const x of modelsEl.children) x.classList.remove('on');
+    b.classList.add('on');
+    loadModel(def);
+  };
+  modelsEl.appendChild(b);
+});
+const sizeEl = document.getElementById('size'), speedEl = document.getElementById('speed');
+sizeEl.addEventListener('input', () => {
+  if(current) frameModel(current.root, +sizeEl.value, current.def.fit);
+});
+speedEl.addEventListener('input', () => {
+  if(current && current.action) current.action.setEffectiveTimeScale(+speedEl.value);
+});
+document.getElementById('spin').addEventListener('click', e => {
+  spinning = !spinning; e.target.classList.toggle('on', spinning);
+});
+document.getElementById('refbtn').addEventListener('click', e => {
+  refGrp.visible = !refGrp.visible; e.target.classList.toggle('on', refGrp.visible);
+});
+document.getElementById('gridbtn').addEventListener('click', e => {
+  groundGrp.visible = !groundGrp.visible; e.target.classList.toggle('on', groundGrp.visible);
+});
+
+// the stage bar's zoom slider/buttons drive this, same contract as the rig tools
+window.STAGE_ZOOM = {
+  get min(){ return controls.minDistance; },
+  get max(){ return Math.min(controls.maxDistance, 40); },
+  get(){ return camera.position.distanceTo(controls.target); },
+  set(d){
+    const lo = this.min, hi = this.max;
+    d = Math.max(lo, Math.min(hi, d));
+    const dir = camera.position.clone().sub(controls.target);
+    if(dir.lengthSq() < 1e-9) dir.set(0, 0, 1);
+    camera.position.copy(controls.target).add(dir.setLength(d));
+    controls.update(); return d;
+  },
+  by(f){ return this.set(this.get() * f); },
+};
+
+// ---- loop ----------------------------------------------------------------
+const clock = new THREE.Clock();
+function step(dt){
+  if(current){
+    current.mixer.update(dt);
+    if(spinning) current.root.rotation.y += dt * 0.5;
+  }
+  controls.update();
+}
+function frame(){
+  requestAnimationFrame(frame);
+  step(Math.min(0.05, clock.getDelta()));
+  renderer.render(scene, camera);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+// hidden tabs suspend rAF — drive it by hand for captures
+window.CRE_STEP = (n, dt) => { n = n||60; dt = dt||1/60;
+  for(let i=0;i<n;i++) step(dt); renderer.render(scene, camera);
+  return { model: current && current.def.name, clip: current && current.clips[current.clipIndex]
+    ? current.clips[current.clipIndex].name : null }; };
+window.CRE = { MODELS, loadModel, playClip, scene, camera, controls,
+               get current(){ return current; } };
+
+// ---------------------------------------------------------------------------
+// STAGE_API — the small, stable surface the simplified stage drives from its
+// big buttons. The stage must not need to know anything about this page's own
+// controls; it asks for play/pause/next-animation/zoom/reset and gets them.
+// Any other study that wants the big buttons to light up implements this same
+// six-method shape; studies that do not simply have those buttons greyed out.
+// ---------------------------------------------------------------------------
+window.STAGE_API = {
+  clipCount(){ return current && current.clips ? current.clips.length : 0; },
+  clipName(){
+    if(!current || !current.clips || !current.clips.length) return '';
+    const c = current.clips[current.clipIndex || 0];
+    return c ? niceClip(c.name) : '';
+  },
+  isPlaying(){ return !!(current && current.action && current.action.paused === false); },
+  play(){ if(current && current.action) current.action.paused = false; },
+  pause(){ if(current && current.action) current.action.paused = true; },
+  toggle(){ this.isPlaying() ? this.pause() : this.play(); return this.isPlaying(); },
+  nextClip(){
+    if(!current || !current.clips || current.clips.length < 2) return this.clipName();
+    playClip(((current.clipIndex || 0) + 1) % current.clips.length);
+    return this.clipName();
+  },
+  spin(on){ spinning = (on === undefined) ? !spinning : !!on;
+            const b = document.getElementById('spin');
+            if(b) b.classList.toggle('on', spinning);
+            return spinning; },
+  zoom(f){ const z = window.STAGE_ZOOM; if(z) z.by(f); },
+  reset(){ if(current) frameCamera(current.root); },
+  title(){ return current ? current.def.name : ''; }
+};
+
+{
+  let i = MODELS.findIndex(m => m.key === WANT);
+  if(i < 0) i = 0;
+  modelsEl.children[i].classList.add('on');
+  loadModel(MODELS[i]);
+}
+frame();
+console.log('[Creatures] bench ready.', MODELS.map(m => m.file));
+</script>
+</body>
+</html>

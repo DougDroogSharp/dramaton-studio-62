@@ -16,7 +16,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Skin Gallery</title>
+<title>Skin Gallery v5</title>
 <style>
   html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
   #chip { position:fixed; top:12px; left:12px; z-index:10;
@@ -33,7 +33,7 @@
 </head>
 <body>
 <div id="chip">
-  <b>👥 Skin Gallery</b> — one skeleton, many bodies, v2<br>
+  <b>👥 Skin Gallery</b> <span style="font:11px Consolas,monospace;color:#8fd9a8;background:#1d2a22;border:1px solid #2f4a38;border-radius:6px;padding:1px 6px" title="built 2026-09-02 20:45 -07:00">v5</span> — one skeleton, many bodies<br>
   <span class="hint">every clip plays on the chosen skin AND Xbot, bound by
   bone name · quaternions travel, positions stay home</span>
   <div class="lbl">SKIN (the body — same skeleton underneath)</div>
@@ -288,10 +288,11 @@ function buildAlien(pal){
   return new THREE.SkinnedMesh(mergeGeometries(parts, false),
     new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.7 }));
 }
+// 2026-09-02 (Doug): the three Vita palettes (blue / red / royal) were removed
+// from the gallery — the Vita is being replaced. buildChibi() is LEFT IN PLACE
+// and unused, ready for the new body. The aliens still bind to the same one
+// canonical skeleton, so the gallery and its authored clips are unaffected.
 const SKINLIB = [
-  { name:'Vita — blue',  build: () => buildChibi({ shirt:0x2e6fd8, pants:0x4c5666, skin:0xeab98f, hair:0x54402e }) },
-  { name:'Vita — red',   build: () => buildChibi({ shirt:0xc0392b, pants:0x4c5666, skin:0xeab98f, hair:0x2e2620 }) },
-  { name:'Vita — royal', build: () => buildChibi({ shirt:0x7d3fa8, pants:0x3c3050, skin:0xf2c299, hair:0x8a5a28 }) },
   { name:'Alien — green', build: () => buildAlien({ body:0x9cb87c, dark:0x7a9660, glow:0xd8e848 }) },
   { name:'Alien — gray',  build: () => buildAlien({ body:0xb2bab4, dark:0x8a948c, glow:0x6ce4e8 }) },
 ];
@@ -426,6 +427,18 @@ function quatsOnly(clip){
   return new THREE.AnimationClip(clip.name, clip.duration,
     clip.tracks.filter(tr => !tr.name.endsWith('.position') && !tr.name.endsWith('.scale')));
 }
+// v4 (2026-09-02, Doug: "the Meshy Vitas import LARGER"): a skin's OWN clip may
+// keep its position tracks — that is legitimate root motion in its own units —
+// but a bone must never RESIZE mid-clip. Meshy's auto-rig exports 24 .scale
+// tracks per clip alongside 24 position and 24 quaternion, and playing those raw
+// re-scaled the skeleton after import, which is what made the Vita read as
+// oversized. Import scaling was never the problem: every skin, Meshy included,
+// already lands at TARGET_H on load (measured).
+function noScale(clip){
+  const kept = clip.tracks.filter(tr => !tr.name.endsWith('.scale'));
+  return kept.length === clip.tracks.length
+    ? clip : new THREE.AnimationClip(clip.name, clip.duration, kept);
+}
 function normNames(clip){
   for(const tr of clip.tracks) tr.name = tr.name.replace('mixamorig:', 'mixamorig');
   return clip;
@@ -444,7 +457,7 @@ function playAll(clip, src, si = -1){
   } else {
     const d = DL[activeDL];
     if(d.mesh){   // an unrigged import (a static Meshy/Fab mesh) just stands there
-      d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? clip : ((src === 'ours' || xbotMesh) ? retargetFor(d, clip, src) : quatsOnly(clip)));
+      d.action = d.mixer.clipAction(src === 'skin' && si === activeDL ? noScale(clip) : ((src === 'ours' || xbotMesh) ? retargetFor(d, clip, src) : quatsOnly(clip)));
       d.action.reset().play();
     }
   }
@@ -504,12 +517,44 @@ dlHint.disabled = true;
 dlHint.textContent = '(none yet — drag a .glb or Mixamo .fbx here, or Dropbox AIPOTU/skins_inbox + say "skins")';
 ogDL.appendChild(dlHint);
 
+// TARGET_H: the one height every imported character is scaled to on load.
+const TARGET_H = 1.55;
+
+// ---- measuredHeight: the ONLY reliable way to size an imported character ----
+// Box3.setFromObject() measures a SkinnedMesh from cached BIND-POSE geometry
+// bounds. For a GLB rig whose mesh hangs under an Armature node scaled 0.01
+// that does not describe what is actually drawn, and it lies CONSISTENTLY —
+// it reported a tidy 1.55 for characters that were rendering at 4.1 to 4.9.
+// (2026-09-02: verifying the old code with the same call is how the bug got
+// signed off the first time. Measure the render, not the loader's opinion.)
+// SkinnedMesh.computeBoundingBox() IS skinning-aware, so union per mesh.
+function measuredHeight(node){
+  node.updateMatrixWorld(true);
+  let box = null;
+  node.traverse(o => {
+    if(!o.isMesh && !o.isSkinnedMesh) return;
+    let b;
+    if(o.isSkinnedMesh && typeof o.computeBoundingBox === 'function'){
+      o.computeBoundingBox();
+      b = o.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    } else {
+      if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    }
+    box = box ? box.union(b) : b;
+  });
+  return box ? { h: box.max.y - box.min.y, minY: box.min.y }
+             : { h: 0, minY: 0 };
+}
+
 function groundAndScale(obj, x){
-  const box = new THREE.Box3().setFromObject(obj);
-  const h = Math.max(0.01, box.max.y - box.min.y);
-  const s = 1.55/h;                // every guest stands Vita-height
-  obj.scale.setScalar(s);
-  obj.position.set(x, -box.min.y*s, 0);
+  // v5: same correction as the terrain walk — measure the render, not the
+  // loader's bind-pose box, or GLB rigs come in ~3x too tall
+  const m0 = measuredHeight(obj);
+  obj.scale.setScalar(TARGET_H / Math.max(0.001, m0.h));
+  obj.position.set(x, 0, 0);
+  const m1 = measuredHeight(obj);
+  obj.position.y = -m1.minY;
 }
 function registerSkin(name, gltf){
   const obj = gltf.scene;
@@ -637,6 +682,29 @@ addEventListener('resize', () => {
   const _c = _h.get('click');
   if(_c){ const b = document.querySelector('[data-m="' + _c + '"]'); if(b) b.click(); }
 }
+
+window.SKIN = { scene, camera, controls, get DL(){ return DL; }, TARGET_H };
+
+// ---- STAGE ZOOM HOOK -------------------------------------------------------
+// The stage bar drives this when the study is framed. Absolute dolly along the
+// camera->target axis, clamped to OrbitControls' own limits, so the stage's
+// slider is a real position and not a pile of wheel pulses.
+window.STAGE_ZOOM = {
+  get min(){ return controls.minDistance; },
+  get max(){ return Math.min(controls.maxDistance, 24); },
+  get(){ return camera.position.distanceTo(controls.target); },
+  set(d){
+    const lo = this.min, hi = this.max;
+    d = Math.max(lo, Math.min(hi, d));
+    const dir = camera.position.clone().sub(controls.target);
+    if(dir.lengthSq() < 1e-9) dir.set(0, 0, 1);
+    camera.position.copy(controls.target).add(dir.setLength(d));
+    controls.update();
+    return d;
+  },
+  by(f){ return this.set(this.get() * f); },
+};
+
 </script>
 </body>
 </html>

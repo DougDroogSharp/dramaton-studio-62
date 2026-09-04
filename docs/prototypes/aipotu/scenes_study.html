@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<!-- ======================================================================
+     SCENES — the Meshy assets doing things TO EACH OTHER.
+     Filed 2026-09-03 17:40 -07:00 (Doug). v1.
+     v2 2026-09-03 19:33 -07:00 — Doug watched Standoff on the phone: a long dead
+     stretch before the gull ever arrived. The script clock said 4.15 s, so the
+     wait was wall-clock, not choreography: (a) 15 MB of models download with
+     nothing on screen (the server is no-store), (b) the frame loop clamped each
+     frame to 50 ms, so a phone rendering slowly ran the whole play in slow
+     motion. Fixed: models fetch in parallel with a loading line on the stage,
+     the clamp is 250 ms, and the opening is tightened — the camera pushes in
+     WITH the gull's dive and the crab rears at ~3.1 s. Crab scuttle, half-sunk
+     crab and the turtle's crossing are untouched (Doug likes them as they are).
+     v3 2026-09-03 19:41 -07:00 — Doug's iPad screenshots + his own read on the
+     load. MEASURED: per scene 15-21 MB of GLBs, every texture 2048², ~55k tris
+     each; the server does 70+ MB/s so the cost is bytes over Wi-Fi, re-paid on
+     every visit because models were no-store (serve_nocache.py now lets them
+     revalidate). The page times fetch / parse+decode / first-frame upload and
+     shows it on #loadstat. DRAGON: home camera pulled back to hold the whole
+     castle + dragon (v1 was 15 units from a castle sunk to its waist); scripted
+     CAMERA moves stop the moment Doug touches the camera. WHALE WATCH: the boat
+     floats (?v=menacing keeps the sunk look he liked); the gull flies nose-first
+     with a bank and a roll wobble (v1 yaw was 90° off). Standoff untouched
+     beyond v2. ENTER/MOVE y is the model ORIGIN — a convention the editor lane
+     should rule on (base-of-model would have avoided all three sinkings).
+
+     WHAT THIS IS
+     Three little plays, each with three or more animated assets that react to
+     one another rather than turning on the spot in isolation:
+
+       standoff   a gull drops in on a coconut crab's patch of beach; the crab
+                  rears and brandishes; a sea turtle glides through the middle
+                  of the argument entirely unbothered.
+       dragon     a legionary marches on the castle; the dragon drops off the
+                  battlements and belches fire across his path.
+       whalewatch Poppy is out in the rowboat; an orca glides alongside, dives
+                  under the hull and surfaces on the far side; a gull circles.
+
+     AUTHORED IN DRAMSCRIPT
+     The choreography below is not JavaScript — it is DRAM Script text (see
+     docs/DRAM_SCRIPT.md), parsed and run by the small runner at the bottom of
+     this file. That is deliberate: these scenes are the house language's first
+     3-D outing, and writing them in it is what turns "Dramscript should handle
+     this" into a concrete list of what it is missing.
+
+     WHAT DRAMSCRIPT ALREADY DID FOR FREE
+       MOVE · FACE · CAMERA · WAIT · NARRATE · LABEL/GOTO · SET · COMMENT
+     Those needed no changes at all. The timing, the entrances, the camera work
+     and the narration are all stock commands.
+
+     THE FOUR EXTENSIONS THESE SCENES NEEDED  (requested, NOT merged — the
+     editor lane owns the language; see the mailbox note of 2026-09-03 17:52)
+       1. [CLIP actor name ...]      play a named glTF AnimationClip. ANIMATE
+                                     cycles 2-D pose frames and cannot reach a
+                                     clip inside a GLB. This is the big one:
+                                     without it a 3-D asset cannot act at all.
+       2. a THIRD COORDINATE on ENTER/MOVE. Stock takes x,y as percentages of a
+                                     2-D stage. A 3-D scene needs x,y,z, and
+                                     needs them in WORLD UNITS, not percent.
+       3. [ATTACH fx to actor ...]   pin an effect to a point on a model, so
+                                     the dragon's fire leaves its mouth wherever
+                                     the head is pointing. EFFECT targets a
+                                     whole element and has no socket concept.
+       4. [ORBIT actor around target ...]  circle one thing around another. Can
+                                     be faked with a chain of MOVEs; a circling
+                                     bird is common enough to deserve the verb.
+     Everything marked EXT below is one of those four. They are implemented in
+     THIS PAGE'S RUNNER ONLY, as a working proposal for the editor lane.
+
+     HOUSE NOTES
+       · gold is metallic; a fully-metallic PBR material with no environment map
+         renders BLACK, so the PMREM below is load-bearing, not decoration.
+       · ?s=<key> picks a scene; ?embed=1 hides the panel for the stage.
+     ====================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Scenes v3</title>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e1319; }
+  canvas { display:block; }
+  body.embed #chip { display:none; }
+  #chip { position:fixed; top:12px; left:12px; z-index:10; width:250px;
+    background:rgba(16,20,26,0.86); color:#f2f6fa; font:13px/1.5 system-ui, sans-serif;
+    padding:11px 13px; border-radius:11px; user-select:none; backdrop-filter:blur(5px);
+    border:1px solid rgba(140,200,255,0.22); }
+  #chip b { font-size:14px; color:#9ed0ff; }
+  .rev { font:11px Consolas,monospace; color:#8fd9a8; background:#1d2a22;
+    border:1px solid #2f4a38; border-radius:6px; padding:1px 6px; }
+  .lbl { font:10.5px system-ui,sans-serif; letter-spacing:1.2px; text-transform:uppercase;
+    color:#dfe8ef; font-weight:600; margin-top:10px; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+  .btns button { background:#33404d; color:#f2f6fa; border:1px solid #55677a;
+    border-radius:7px; padding:5px 9px; font:12px system-ui; cursor:pointer; }
+  .btns button:hover { background:#455666; }
+  .btns button.on { background:#2f6f9e; border-color:#9ed0ff; font-weight:700; }
+  #info { margin-top:9px; font:11px Consolas,monospace; color:#cfe0ee;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+    border-radius:8px; padding:7px 8px; white-space:pre-line; }
+  /* NARRATE lands here — the foot of the stage, per the language reference */
+  #narr { position:fixed; left:50%; transform:translateX(-50%); bottom:22px; z-index:9;
+    max-width:min(720px, 88vw); text-align:center; pointer-events:none;
+    font:600 17px/1.45 system-ui, sans-serif; color:#f4f8fb;
+    text-shadow:0 2px 10px rgba(0,0,0,.85), 0 0 3px rgba(0,0,0,.9);
+    opacity:0; transition:opacity .35s ease; }
+  #narr.show { opacity:1; }
+  /* v3: the load measurement, readable on the stage and on a phone */
+  #loadstat { position:fixed; left:10px; bottom:6px; z-index:9; pointer-events:none;
+    font:10.5px Consolas,monospace; color:rgba(244,248,251,0.72);
+    text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  @media (prefers-reduced-motion: reduce){ #narr{ transition:none; } }
+</style>
+</head>
+<body>
+<div id="chip">
+  <b>🎭 SCENES</b> <span class="rev" title="built 2026-09-03 19:41 -07:00">v3</span>
+  <div class="lbl">Scene</div>
+  <div class="btns" id="scenes"></div>
+  <div class="lbl">Playback</div>
+  <div class="btns">
+    <button id="replay">restart</button>
+    <button id="pausebtn">pause</button>
+  </div>
+  <div id="info">loading…</div>
+</div>
+<div id="narr"></div>
+<div id="loadstat"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script>
+  if(new URLSearchParams(location.search).has('embed'))
+    document.body.classList.add('embed');
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ======================================================================
+// THE CAST — every actor a scene can name. `fit:'long'` fits by longest
+// axis, the rule the creature bench already uses: an orca height-normalised
+// would be a 30-metre whale.
+// ======================================================================
+const CAST = {
+  crab:    { file:'crab_meshy.glb',      fit:'long', size:0.85 },
+  gull:    { file:'gull_meshy.glb',      fit:'long', size:1.30 },
+  honu:    { file:'honu_meshy.glb',      fit:'long', size:0.95 },
+  orca:    { file:'orca_meshy.glb',      fit:'long', size:6.40 },
+  rowboat: { file:'rowboat_meshy.glb',   fit:'long', size:3.20 },
+  poppy:   { file:'poppy_meshy.glb',     height:0.75 },
+  dragon:  { file:'dragon_meshy.glb',    height:2.60 },
+  castle:  { file:'castle_meshy.glb',    height:8.00 },
+  legion:  { file:'legionary_meshy_walking.glb', height:1.55 },
+};
+
+// ======================================================================
+// THE SCRIPTS — DRAM Script text. Stock commands are unmarked; the four
+// proposed extensions are marked EXT where first used in each scene.
+// ======================================================================
+const SCENES = {
+
+standoff: { name:'Standoff', ground:'sand', sky:0x8fb6cf, fog:0x9db9c9,
+  cam:{ pos:[4.6,2.4,5.6], target:[0,0.5,0] }, script:
+`# STANDOFF — the crab, the gull and the turtle.
+# A gull drops in on a crab's patch of beach. It does not go well for the gull.
+
+[ENTER crab at -0.7,0,0.3]          # EXT 2: three coordinates, world units
+[ENTER gull at 3.4,2.4,-2.2]
+[ENTER honu at -5.2,0,-1.9]
+[CLIP crab scuttle]                  # EXT 1: play a named glTF clip
+[CLIP gull soar]
+[CLIP honu glide]
+[FACE honu toward 9,0,-1.9]
+[FACE crab toward 3,0,0]
+
+[LABEL top]
+# --- the turtle simply crosses, all scene long, regardless of the argument
+[MOVE honu to 5.4,0,-1.9 over 34s]
+
+# --- v2: the gull is on the crab inside three seconds, and the camera goes
+# --- in WITH the dive, so the opening is a push-in, not a static wide
+[NARRATE "A gull drops in on the crab's patch of beach." for 4s]
+[MOVE gull to 1.15,0.42,0.15 over 2.6s]
+[FACE gull toward crab]
+[CAMERA zoom 1.7 at 0.2,0.55,0.2 over 2.6s]
+[WAIT 2.6s]
+[CLIP gull circle]
+
+[FACE crab toward gull]
+[WAIT 0.5s]
+[CLIP crab rear]                     # up on the back legs, claws out
+[NARRATE "The crab rears up and brandishes both claws." for 4s]
+[WAIT 2.4s]
+
+# --- the gull tries its luck anyway
+[NARRATE "The gull tries its luck." for 3s]
+[MOVE gull to 0.34,0.30,0.14 over 1.1s]
+[WAIT 1.1s]
+[MOVE gull to 2.5,1.5,-0.6 over 1.0s]
+[NARRATE "It reconsiders." for 3s]
+[WAIT 1.0s]
+[CLIP gull soar]
+[MOVE gull to 5.6,3.1,-3.0 over 4.5s]
+[CAMERA zoom 1.0 at 0,0.6,0 over 2.5s]
+[WAIT 3.0s]
+
+[CLIP crab scuttle]
+[FACE crab toward -3,0,0.6]
+[MOVE crab to -1.6,0,0.55 over 3.0s]
+[NARRATE "The beach is the crab's again. The turtle never looked up." for 5s]
+[WAIT 4.5s]
+
+# --- reset the cast off-stage and run it again
+[MOVE gull to 3.4,2.4,-2.2 over 0.01s]
+[MOVE honu to -5.2,0,-1.9 over 0.01s]
+[MOVE crab to -0.7,0,0.3 over 0.01s]
+[FACE crab toward 3,0,0]
+[FACE honu toward 9,0,-1.9]
+[WAIT 1.2s]
+[GOTO top]
+` },
+
+dragon: { name:'The Dragon and the Castle', ground:'grass', sky:0x2b3550, fog:0x39435c,
+  fogRange:[55,220],
+  // v3: the home framing holds the WHOLE castle (12 wide, 8 tall) and the
+  // dragon on its wall, 36 units out — checked against a portrait iPad's
+  // narrow frame, not just a laptop. v1 sat 15 units from a castle sunk to
+  // its waist (ENTER y is the model ORIGIN and the castle's origin is at
+  // mid-height), so an iPad saw one blue roof and a red banner filling the
+  // frame — Doug's "blue high-top sneaker with red drapes".
+  cam:{ pos:[20,11.5,26.5], target:[0,3.8,-2.5] }, script:
+`# THE DRAGON AND THE CASTLE — a legionary marches; the dragon objects.
+# ENTER/MOVE y is the model's ORIGIN. The castle's origin is mid-height, so
+# 4.08 up puts its base on the grass; the dragon's is 1.3 above its feet.
+
+[ENTER castle at 0,4.08,-3.5]
+[ENTER dragon at 0.4,7.9,-2.2]         # perched on the upper works
+[ENTER legion at -9.5,0,3.6]
+[CLIP dragon hover]
+[CLIP legion walking]
+[FACE legion toward 9,0,3.6]
+[FACE dragon toward legion]
+[ATTACH fire to dragon mouth]        # EXT 3: pin an effect to a point on a model
+
+[LABEL top]
+[NARRATE "A legionary marches on the castle." for 4s]
+[MOVE legion to -1.4,0,3.6 over 12s]
+[CAMERA zoom 2.2 at -4,1.2,3.6 over 4s]
+[WAIT 6s]
+
+[NARRATE "Something on the battlements turns its head." for 4s]
+[CAMERA zoom 2.0 at 0.4,7.6,-2.2 over 3s]
+[WAIT 4s]
+
+[CLIP dragon pounce once]
+[MOVE dragon to 0.8,2.3,5.2 over 2.2s]   # lands in front of the gate, across his path
+[FACE dragon toward legion]
+[CAMERA zoom 1.8 at -0.3,1.8,4.4 over 2.2s]
+[NARRATE "It drops off the wall." for 3s]
+[WAIT 2.4s]
+
+[CLIP dragon hover]
+[WAIT 0.5s]
+[BREATHE dragon 2.4s]                # EXT 3 again: fire, from the mouth, aimed
+[NARRATE "Fire, straight across his path." for 4s]
+[WAIT 3.0s]
+
+[FACE legion toward dragon]
+[NARRATE "The legionary stops. He has read about this." for 5s]
+[WAIT 2.5s]
+[FACE legion toward -9,0,3.6]
+[MOVE legion to -9.5,0,3.6 over 9s]
+[NARRATE "He remembers an errand elsewhere." for 4s]
+
+[CLIP dragon hover]
+[MOVE dragon to 0.4,7.9,-2.2 over 6s]
+[CAMERA zoom 1.0 at 0,3.8,-2.5 over 5s]
+[WAIT 9s]
+[FACE legion toward 9,0,3.6]
+[WAIT 1.5s]
+[GOTO top]
+` },
+
+whalewatch: { name:'Whale Watch', ground:'water', sky:0x9fc4dc, fog:0x9dbccd,
+  cam:{ pos:[6.2,2.9,7.4], target:[0,0.5,0] },
+  // v3: the boat FLOATS. v1 had it sunk to the gunwales — ENTER y is the model
+  // origin and the hull's origin is mid-depth, so y=0 put the waterline at the
+  // oarlocks. Doug liked the accident ("very menacing"), so it survives as
+  // ?v=menacing, which swaps ONLY these two ENTER points.
+  variants:{ menacing:{ rowboat:'0,0,0', poppy:'0,0.42,-0.15' } }, script:
+`# WHALE WATCH — Poppy is out in the rowboat. She is not alone.
+
+[ENTER rowboat at 0,0.41,0]          # keel 0.12 under the surface (origin is mid-hull)
+[ENTER poppy at 0,0.6,-0.15]         # standing in the hull
+[ENTER orca at -8.5,-0.55,-3.2]
+[ENTER gull at 2.8,3.0,1.5]
+[CLIP rowboat float]
+[CLIP poppy idle_bounce]
+[CLIP orca glide]
+[CLIP gull soar]                     # v3: soar (a bob). circle spins the gull in place
+                                     # and fought the orbit's own heading
+[ORBIT gull around rowboat radius 3.0 height 2.6 over 9s]   # EXT 4
+
+[LABEL top]
+[NARRATE "Poppy is out in the rowboat. A gull keeps her company." for 5s]
+[WAIT 4s]
+
+[FACE orca toward 9,0,-1.2]
+[MOVE orca to -1.9,-0.5,-2.4 over 8s]
+[NARRATE "Something long and black comes alongside." for 4s]
+[CAMERA zoom 1.35 at -1,0.3,-1 over 4s]
+[WAIT 8s]
+
+[FACE poppy toward orca]
+[CLIP poppy play_bow once]
+[NARRATE "Poppy makes her position clear." for 4s]
+[WAIT 2.2s]
+[CLIP poppy idle_bounce]
+
+[CLIP orca dive]
+[NARRATE "The orca goes under the boat." for 4s]
+[MOVE orca to 0,-1.5,-0.2 over 3.0s]
+[WAIT 3.0s]
+[MOVE orca to 2.6,-0.5,2.0 over 3.2s]
+[FACE orca toward 9,0,5]
+[WAIT 2.0s]
+[CLIP orca glide]
+
+[FACE poppy toward orca]
+[CLIP poppy spin once]
+[NARRATE "Poppy considers this a personal victory." for 5s]
+[WAIT 2.4s]
+[CLIP poppy idle_bounce]
+[MOVE orca to 9.5,-0.6,6.5 over 9s]
+[CAMERA zoom 1.0 at 0,0.5,0 over 5s]
+[WAIT 8s]
+
+[MOVE orca to -8.5,-0.55,-3.2 over 0.01s]
+[FACE poppy toward 3,0,3]
+[WAIT 1.5s]
+[GOTO top]
+` },
+
+};
+
+// ======================================================================
+// SCENE PLUMBING
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 400);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 1.2; controls.maxDistance = 90;
+controls.target.set(0, 0.6, 0);
+
+scene.add(new THREE.HemisphereLight(0xbcd6ee, 0x4a4436, 0.85));
+const sun = new THREE.DirectionalLight(0xfff2dc, 1.5);
+sun.position.set(7, 12, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+sun.shadow.camera.top = 18;   sun.shadow.camera.bottom = -18;
+sun.shadow.camera.far = 60;
+scene.add(sun);
+
+// gold is metallic and a metallic PBR material with no envMap renders BLACK
+{
+  const c = document.createElement('canvas'); c.width = 8; c.height = 64;
+  const g = c.getContext('2d').createLinearGradient(0, 0, 0, 64);
+  g.addColorStop(0.00, '#9fc6e8'); g.addColorStop(0.48, '#dfe8ee');
+  g.addColorStop(0.52, '#8d8474'); g.addColorStop(1.00, '#41403c');
+  const x = c.getContext('2d'); x.fillStyle = g; x.fillRect(0, 0, 8, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromEquirectangular(tex).texture;
+  pm.dispose(); tex.dispose();
+}
+
+let groundMesh = null, waterY = 0;
+function buildGround(kind){
+  if(groundMesh){ scene.remove(groundMesh); groundMesh.geometry.dispose(); groundMesh = null; }
+  const COL = { sand:0xcbb78d, grass:0x54703f, water:0x2d6f8e };
+  const m = new THREE.Mesh(
+    new THREE.CircleGeometry(70, 64),
+    new THREE.MeshStandardMaterial({ color: COL[kind] || 0x6a6a6a,
+      roughness: kind === 'water' ? 0.28 : 0.98,
+      metalness: kind === 'water' ? 0.15 : 0.0 }));
+  m.rotation.x = -Math.PI/2;
+  m.receiveShadow = true;
+  scene.add(m); groundMesh = m;
+}
+
+const loader = new GLTFLoader();
+const cacheGltf = {};
+// v3: fetch and parse are timed separately, so "where does the load go" has a
+// real answer on the device itself — bytes over the air vs decode vs the GPU
+// upload on the first frame. Numbers land in LOAD (window.SC.load), on the
+// #loadstat line at the foot of the page, in the chip and on the console.
+const LOAD = { models: [], wallMs: null, firstFrameMs: null };
+const MODELS_PATH = './vendor/models/';
+async function loadOnce(file){
+  if(!cacheGltf[file]) cacheGltf[file] = (async () => {
+    const t0 = performance.now();
+    const res = await fetch(MODELS_PATH + file);
+    if(!res.ok) throw new Error(file + ': HTTP ' + res.status);
+    const buf = await res.arrayBuffer();
+    const t1 = performance.now();
+    const g = await new Promise((ok, bad) => loader.parse(buf, MODELS_PATH, ok, bad));
+    const t2 = performance.now();
+    const rec = { file, mb: buf.byteLength / 1e6, fetchMs: t1 - t0, parseMs: t2 - t1 };
+    LOAD.models.push(rec);
+    console.log('[Scenes] ' + file + ' ' + rec.mb.toFixed(1) + ' MB: fetch '
+      + rec.fetchMs.toFixed(0) + ' ms, parse+decode ' + rec.parseMs.toFixed(0) + ' ms');
+    return g;
+  })();
+  return cacheGltf[file];
+}
+function loadSummary(){
+  const m = LOAD.models;
+  if(!m.length) return '';
+  const mb = m.reduce((s, r) => s + r.mb, 0);
+  const f = m.reduce((s, r) => s + r.fetchMs, 0), p = m.reduce((s, r) => s + r.parseMs, 0);
+  return m.length + ' models · ' + mb.toFixed(1) + ' MB'
+    + (LOAD.wallMs != null ? ' · this visit ' + (LOAD.wallMs/1000).toFixed(1) + ' s' : '')
+    + ' · fetch Σ' + (f/1000).toFixed(1) + ' s (' + (mb / Math.max(0.001, f/1000)).toFixed(1)
+    + ' MB/s) · parse+decode Σ' + (p/1000).toFixed(1) + ' s'
+    + (LOAD.firstFrameMs != null ? ' · first frame ' + LOAD.firstFrameMs.toFixed(0) + ' ms' : '');
+}
+const loadstatEl = document.getElementById('loadstat');
+function showLoadStat(){ loadstatEl.textContent = loadSummary(); }
+
+// ======================================================================
+// AN ACTOR — a loaded model plus its mixer and its own clip table
+// ======================================================================
+class Actor {
+  constructor(id, root, clips){
+    this.id = id; this.root = root;
+    this.mixer = new THREE.AnimationMixer(root);
+    this.clips = {}; this.action = null;
+    for(const c of clips) this.clips[this.norm(c.name)] = c;
+    this.orbit = null;
+    this.move = null;
+  }
+  // Meshy writes "Armature|walking_man|baselayer"; scripts should say "walking"
+  norm(n){
+    const s = String(n).split('|').filter(p => p && !/^armature$/i.test(p)
+                                             && !/^baselayer$/i.test(p)).pop() || String(n);
+    return s.replace(/_?man$/,'').replace(/\s+/g,'_').toLowerCase();
+  }
+  clipNames(){ return Object.keys(this.clips); }
+  play(name, once){
+    const key = this.norm(name);
+    const c = this.clips[key] || this.clips[Object.keys(this.clips)[0]];
+    if(!c) return false;
+    const a = this.mixer.clipAction(c);
+    if(this.action && this.action !== a) this.action.fadeOut(0.3);
+    a.reset();
+    a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, once ? 1 : Infinity);
+    a.clampWhenFinished = !!once;
+    a.fadeIn(0.3).play();
+    this.action = a; this.playing = key;
+    return true;
+  }
+  faceToward(v){
+    const d = new THREE.Vector3().subVectors(v, this.root.position);
+    if(d.lengthSq() < 1e-6) return;
+    // house convention: models face +Z
+    this.targetYaw = Math.atan2(d.x, d.z);
+  }
+  update(dt){
+    this.mixer.update(dt);
+    if(this.targetYaw !== undefined){
+      let d = this.targetYaw - this.root.rotation.y;
+      while(d >  Math.PI) d -= Math.PI*2;
+      while(d < -Math.PI) d += Math.PI*2;
+      this.root.rotation.y += d * Math.min(1, dt * 4.5);
+    }
+    if(this.move){
+      const m = this.move; m.t += dt;
+      const k = Math.min(1, m.t / m.dur);
+      const e = k * k * (3 - 2*k);                    // ease in-out
+      this.root.position.lerpVectors(m.from, m.to, e);
+      if(k >= 1) this.move = null;
+    }
+    if(this.orbit){
+      const o = this.orbit; o.t += dt;
+      const a = o.t / o.period * Math.PI * 2;
+      const c = o.around.root.position;
+      this.root.position.set(c.x + Math.cos(a)*o.r, c.y + o.h, c.z + Math.sin(a)*o.r);
+      // v3: nose along the velocity — models face +Z, so yaw = atan2(vx, vz);
+      // v1 added a stray +90° and the bird flew sideways. The ring runs
+      // clockwise seen from above, so it banks right into the turn, with a slow
+      // roll wobble so a rigid wings-spread mesh reads as riding the air.
+      const yaw = Math.atan2(-Math.sin(a), Math.cos(a));
+      this.targetYaw = yaw; this.root.rotation.y = yaw;
+      this.root.rotation.z = 0.38 + Math.sin(o.t * 3.4) * 0.07;
+    }
+  }
+}
+
+function frameModel(root, target, fit){
+  root.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(root, true);
+  const size = b.getSize(new THREE.Vector3());
+  const ref = fit === 'long' ? Math.max(size.x, size.y, size.z) : size.y;
+  const s = target / Math.max(0.001, ref);
+  root.scale.setScalar(s);
+  root.updateMatrixWorld(true);
+  const b2 = new THREE.Box3().setFromObject(root, true);
+  root.position.y -= b2.min.y;                        // sit on the ground
+  return s;
+}
+
+// ======================================================================
+// FIRE (EXT 3) — the dragon's breath, attached to a point on the model
+// ======================================================================
+let fireFx = null, fireHost = null, fireOn = 0;
+async function ensureFire(){
+  if(fireFx !== null) return fireFx;
+  try {
+    const mod = await import('./fire_fx.js');
+    const make = mod.createFire || mod.default;
+    fireFx = make(scene, { scale: 1.0, wind: 0.25 });
+    if(fireFx && fireFx.group && !fireFx.group.parent) scene.add(fireFx.group);
+    if(fireFx && fireFx.setPreset) fireFx.setPreset('belch');
+  } catch(err){
+    console.warn('[Scenes] fire_fx.js not available:', err && err.message);
+    fireFx = false;                                    // remember the failure
+  }
+  return fireFx;
+}
+
+// ======================================================================
+// THE DRAMSCRIPT RUNNER
+// Stock commands plus the four marked extensions. Deliberately small: it is a
+// demonstration of what the language needs, not a second engine.
+// ======================================================================
+const narrEl = document.getElementById('narr');
+const infoEl = document.getElementById('info');
+let narrTimer = null;
+function narrate(text, secs){
+  narrEl.textContent = text;
+  narrEl.classList.add('show');
+  clearTimeout(narrTimer);
+  narrTimer = setTimeout(() => narrEl.classList.remove('show'), (secs || 4) * 1000);
+}
+function secondsOf(tok, dflt){
+  if(!tok) return dflt;
+  const m = /^([\d.]+)\s*(ms|s)?$/.exec(String(tok).trim());
+  if(!m) return dflt;
+  return m[2] === 'ms' ? parseFloat(m[1]) / 1000 : parseFloat(m[1]);
+}
+function vec3(tok){
+  const p = String(tok).split(',').map(Number);
+  return new THREE.Vector3(p[0] || 0, p[1] || 0, p[2] || 0);
+}
+
+class Runner {
+  constructor(def){
+    this.def = def;
+    this.actors = {};
+    this.lines = def.script.split('\n')
+      .map(l => l.replace(/\s+#.*$/, '').replace(/^\s*(#|\/\/).*$/, '').trim())
+      .map(l => l.trim());
+    this.labels = {};
+    this.lines.forEach((l, i) => {
+      const m = /^\[LABEL\s+(\w+)\]$/i.exec(l);
+      if(m) this.labels[m[1]] = i;
+    });
+    this.pc = 0; this.waitFor = 0; this.paused = false; this.dead = false;
+    this.camTween = null;
+    this.userCam = false;              // v3: set the moment Doug touches the camera
+    this.variant = (def.variants || {})[VARIANT] || null;   // v3: ?v=<name>
+  }
+  async boot(){
+    // pre-load every actor the script ENTERs, so the scene starts whole
+    const wanted = [...new Set(this.lines
+      .map(l => /^\[ENTER\s+(\w+)/i.exec(l)).filter(Boolean).map(m => m[1]))]
+      .filter(id => CAST[id] || (console.warn('[Scenes] no cast member', id), false));
+    // v2: every model fetches AT ONCE (the server is no-store, so a phone pulls
+    // ~15 MB per visit) and the stage shows a loading line meanwhile — the
+    // alternative was a blank sand disk for as long as the download took.
+    const t0 = performance.now();
+    let landed = 0, landedMb = 0;
+    const loading = () => {
+      if(this.dead) return;
+      narrEl.textContent = 'Loading ' + this.def.name + ' — '
+        + landed + ' of ' + wanted.length + ' models · ' + landedMb.toFixed(1) + ' MB · '
+        + ((performance.now() - t0) / 1000).toFixed(1) + ' s';
+      narrEl.classList.add('show');
+    };
+    loading();
+    const tick = setInterval(loading, 250);              // the seconds visibly tick
+    const fetches = wanted.map(id => loadOnce(CAST[id].file)
+      .then(g => { landed++;
+        const rec = LOAD.models.find(r => r.file === CAST[id].file);
+        landedMb += rec ? rec.mb : 0; loading(); return g; }));
+    let g;
+    try {
+      for(let i = 0; i < wanted.length; i++){
+        g = await fetches[i];
+        if(this.dead) return;                            // scene switched mid-load
+        this.addActor(wanted[i], g);
+      }
+    } finally { clearInterval(tick); }
+    LOAD.wallMs = performance.now() - t0;
+    showLoadStat();
+    if(this.def.cam){
+      camera.position.fromArray(this.def.cam.pos);
+      controls.target.fromArray(this.def.cam.target);
+      controls.update();
+    }
+    this.home = { pos: camera.position.clone(), tgt: controls.target.clone() };
+    clearTimeout(narrTimer); narrEl.classList.remove('show');   // the script's own NARRATE takes over
+    infoEl.textContent = this.def.name + (this.variant ? ' (' + VARIANT + ')' : '') + '\n'
+      + Object.keys(this.actors).length + ' actors · '
+      + this.lines.filter(l => l.startsWith('[')).length + ' script commands\n'
+      + 'authored in DRAM Script\n' + loadSummary();
+  }
+  addActor(id, g){
+    const def = CAST[id];
+    const root = g.scene.clone(true);
+    root.traverse(o => { if(o.isMesh || o.isSkinnedMesh){
+      o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    frameModel(root, def.size || def.height, def.fit);
+    root.visible = false;
+    scene.add(root);
+    this.actors[id] = new Actor(id, root, g.animations || []);
+  }
+  actor(id){ return this.actors[id]; }
+  // resolve "gull" (an actor) or "1.2,0,3" (a point) to a world position
+  point(tok){
+    const a = this.actor(tok);
+    if(a) return a.root.position.clone();
+    return vec3(tok);
+  }
+  step(dt){
+    if(this.paused || this.dead) return;
+    if(this.waitFor > 0){ this.waitFor -= dt; return; }
+    let guard = 0;
+    while(this.waitFor <= 0 && !this.dead && guard++ < 400){
+      if(this.pc >= this.lines.length){ this.pc = 0; this.waitFor = 1; break; }
+      const line = this.lines[this.pc++];
+      if(line) this.exec(line);
+    }
+  }
+  exec(line){
+    const m = /^\[(\w+)\s*(.*)\]$/.exec(line);
+    if(!m) return;
+    const cmd = m[1].toUpperCase();
+    const a = m[2].trim();
+    const t = a.match(/"[^"]*"|\S+/g) || [];
+    const unq = s => String(s || '').replace(/^"|"$/g, '');
+
+    switch(cmd){
+      // ---------------- stock DRAM Script ----------------
+      case 'LABEL': return;
+      case 'GOTO': {
+        const at = this.labels[t[0]];
+        if(at === undefined){ console.warn('[Scenes] no label', t[0]); return; }
+        this.pc = at; this.waitFor = 0.01; return;      // yield a frame
+      }
+      case 'WAIT': this.waitFor = secondsOf(t[0], 1); return;
+      case 'NARRATE': {
+        const forI = t.findIndex(x => x.toLowerCase() === 'for');
+        narrate(unq(t[0]), forI > 0 ? secondsOf(t[forI+1], 4) : 4);
+        return;
+      }
+      case 'ENTER': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const at = t.findIndex(x => x.toLowerCase() === 'at');
+        const v = this.variant && this.variant[t[0]];    // v3: a variant's own point
+        if(v) ac.root.position.copy(vec3(v));
+        else if(at >= 0) ac.root.position.copy(vec3(t[at+1]));   // EXT 2: x,y,z
+        ac.root.visible = true;
+        return;
+      }
+      case 'EXIT': { const ac = this.actor(t[0]); if(ac) ac.root.visible = false; return; }
+      case 'MOVE': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const to = t.findIndex(x => x.toLowerCase() === 'to');
+        const ov = t.findIndex(x => x.toLowerCase() === 'over');
+        if(to < 0) return;
+        if(ac.orbit) ac.root.rotation.z = 0;             // level out when the orbit ends
+        ac.orbit = null;
+        ac.move = { from: ac.root.position.clone(), to: this.point(t[to+1]),
+                    t: 0, dur: Math.max(0.01, ov > 0 ? secondsOf(t[ov+1], 1) : 1) };
+        return;                                          // non-blocking, like TWEEN
+      }
+      case 'FACE': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const tw = t.findIndex(x => x.toLowerCase() === 'toward');
+        if(tw >= 0) ac.faceToward(this.point(t[tw+1]));
+        else if(t[1] !== undefined) ac.targetYaw = THREE.MathUtils.degToRad(+t[1]);
+        return;
+      }
+      case 'CAMERA': {
+        // v3: once Doug has touched the camera (pinch, drag, the stage's zoom
+        // buttons) the script keeps its hands off it until restart or Reset.
+        // v1's scripted zooms kept dollying against his pinch.
+        if(this.userCam) return;
+        if((t[0] || '').toLowerCase() === 'reset'){
+          this.camTween = { from:camera.position.clone(), to:this.home.pos.clone(),
+            ft:controls.target.clone(), tt:this.home.tgt.clone(), t:0, dur:1 };
+          return;
+        }
+        if((t[0] || '').toLowerCase() === 'zoom'){
+          const z = parseFloat(t[1]) || 1;
+          const at = t.findIndex(x => x.toLowerCase() === 'at');
+          const ov = t.findIndex(x => x.toLowerCase() === 'over');
+          const tgt = at > 0 ? vec3(t[at+1]) : controls.target.clone();
+          // zoom factor 1 = the scene's home framing; larger pushes in
+          const dir = new THREE.Vector3().subVectors(this.home.pos, this.home.tgt);
+          const pos = tgt.clone().add(dir.multiplyScalar(1 / Math.max(0.05, z)));
+          this.camTween = { from:camera.position.clone(), to:pos,
+            ft:controls.target.clone(), tt:tgt, t:0,
+            dur: ov > 0 ? secondsOf(t[ov+1], 1) : 1 };
+        }
+        return;
+      }
+      case 'SET': return;                                // parsed, unused here
+
+      // ---------------- EXT 1: play a glTF clip ----------------
+      case 'CLIP': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const once = t.some(x => x.toLowerCase() === 'once');
+        if(!ac.play(t[1], once))
+          console.warn('[Scenes] ' + t[0] + ' has no clip ' + t[1] + ' (has: '
+                       + ac.clipNames().join(', ') + ')');
+        return;
+      }
+      // ---------------- EXT 3: effect attached to a model point ----------------
+      case 'ATTACH': {
+        if((t[0] || '').toLowerCase() !== 'fire') return;
+        const ac = this.actor(t[2]); if(!ac) return;
+        fireHost = { actor: ac, socket: t[3] || 'mouth' };
+        ensureFire();
+        return;
+      }
+      case 'BREATHE': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const secs = secondsOf(t[1], 2);
+        ensureFire().then(fx => {
+          if(!fx) return;
+          fireHost = fireHost || { actor: ac, socket:'mouth' };
+          fireOn = secs;
+          if(fx.setPreset) fx.setPreset('belch');
+          if(fx.breathe) fx.breathe(secs, 1.0);
+        });
+        return;
+      }
+      // ---------------- EXT 4: orbit ----------------
+      case 'ORBIT': {
+        const ac = this.actor(t[0]); if(!ac) return;
+        const ar = t.findIndex(x => x.toLowerCase() === 'around');
+        const rr = t.findIndex(x => x.toLowerCase() === 'radius');
+        const hh = t.findIndex(x => x.toLowerCase() === 'height');
+        const ov = t.findIndex(x => x.toLowerCase() === 'over');
+        const around = this.actor(t[ar+1]); if(!around) return;
+        ac.orbit = { around, r: rr > 0 ? +t[rr+1] : 3, h: hh > 0 ? +t[hh+1] : 2,
+                     period: ov > 0 ? secondsOf(t[ov+1], 8) : 8, t: 0 };
+        return;
+      }
+      default:
+        console.warn('[Scenes] unsupported command', cmd, '- this runner is a subset');
+    }
+  }
+  update(dt){
+    this.step(dt);
+    for(const id in this.actors) this.actors[id].update(dt);
+    if(this.camTween){
+      const c = this.camTween; c.t += dt;
+      const k = Math.min(1, c.t / c.dur), e = k*k*(3 - 2*k);
+      camera.position.lerpVectors(c.from, c.to, e);
+      controls.target.lerpVectors(c.ft, c.tt, e);
+      if(k >= 1) this.camTween = null;
+    }
+    // keep the fire on the host's mouth. The Meshy models carry no named
+    // sockets, so the mouth is a measured offset in the actor's own space —
+    // which is exactly why ATTACH needs real socket support in the language.
+    if(fireFx && fireHost && fireHost.actor){
+      const ac = fireHost.actor;
+      const box = new THREE.Box3().setFromObject(ac.root, true);
+      const size = box.getSize(new THREE.Vector3());
+      const local = new THREE.Vector3(0, size.y * 0.62, size.z * 0.46);
+      const origin = local.applyAxisAngle(new THREE.Vector3(0,1,0), ac.root.rotation.y)
+                          .add(ac.root.position);
+      const dir = new THREE.Vector3(Math.sin(ac.root.rotation.y), -0.08,
+                                    Math.cos(ac.root.rotation.y)).normalize();
+      if(fireFx.aim) fireFx.aim(origin, dir);
+      else if(fireFx.group) fireFx.group.position.copy(origin);
+    }
+    if(fireOn > 0) fireOn -= dt;
+    if(fireFx && fireFx.update) fireFx.update(dt);
+  }
+  dispose(){
+    this.dead = true;
+    for(const id in this.actors) scene.remove(this.actors[id].root);
+    narrEl.classList.remove('show');
+  }
+}
+
+// ======================================================================
+// BOOT
+// ======================================================================
+const KEYS = Object.keys(SCENES);
+const WANT = new URLSearchParams(location.search).get('s');
+const VARIANT = new URLSearchParams(location.search).get('v') || '';   // v3
+let runner = null, currentKey = null;
+
+const scenesEl = document.getElementById('scenes');
+const buttons = {};
+for(const k of KEYS){
+  const b = document.createElement('button');
+  b.textContent = SCENES[k].name;
+  b.onclick = () => go(k);
+  scenesEl.appendChild(b);
+  buttons[k] = b;
+}
+
+async function go(key){
+  if(runner) runner.dispose();
+  if(fireFx && fireFx.stop) fireFx.stop();
+  currentKey = key;
+  for(const k in buttons) buttons[k].classList.toggle('on', k === key);
+  const def = SCENES[key];
+  infoEl.textContent = 'loading ' + def.name + ' …';
+  scene.background = new THREE.Color(def.sky);
+  const fr = def.fogRange || [30, 130];
+  scene.fog = new THREE.Fog(def.fog, fr[0], fr[1]);
+  buildGround(def.ground);
+  const r = new Runner(def);
+  await r.boot();
+  if(r.dead) return;                   // a later go() replaced us mid-load
+  runner = r;
+  firstFramePending = true;            // v3: time the first render (GPU upload)
+}
+// v3: any touch on the camera hands it to Doug for the rest of the run
+controls.addEventListener('start', () => {
+  if(runner){ runner.userCam = true; runner.camTween = null; }
+});
+
+const clock = new THREE.Clock();
+let firstFramePending = false;
+function step(dt){
+  if(runner) runner.update(dt);
+  controls.update();
+}
+function render(){
+  if(firstFramePending){
+    // the models were added invisible, so this is the frame that uploads
+    // every texture and buffer to the GPU — the third leg of the load
+    firstFramePending = false;
+    const t = performance.now();
+    renderer.render(scene, camera);
+    LOAD.firstFrameMs = performance.now() - t;
+    showLoadStat();
+    if(runner) infoEl.textContent = infoEl.textContent.replace(/\n[^\n]*$/, '\n' + loadSummary());
+    console.log('[Scenes] first frame (GPU upload) ' + LOAD.firstFrameMs.toFixed(0) + ' ms');
+    return;
+  }
+  renderer.render(scene, camera);
+}
+function frame(){
+  requestAnimationFrame(frame);
+  // v2: 250 ms clamp, not the studies' usual 50 ms. This page is a timed
+  // play, not a simulation: with a 50 ms clamp a phone that renders at 8 fps
+  // ran the script at 40% speed and the "4 second" standoff arrived in 10+.
+  // Anything up to 4 fps now keeps real time; only a tab switch is swallowed.
+  step(Math.min(0.25, clock.getDelta()));
+  render();
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+document.getElementById('replay').onclick = () => go(currentKey);
+document.getElementById('pausebtn').onclick = (e) => {
+  if(!runner) return;
+  runner.paused = !runner.paused;
+  e.target.classList.toggle('on', runner.paused);
+  e.target.textContent = runner.paused ? 'resume' : 'pause';
+};
+
+// hidden tabs suspend rAF — drive it by hand for captures and checks
+window.SC_STEP = (n, dt) => { n = n||60; dt = dt||1/60;
+  for(let i=0;i<n;i++) step(dt); renderer.render(scene, camera);
+  return { scene: currentKey, pc: runner && runner.pc,
+           actors: runner ? Object.keys(runner.actors) : [] }; };
+window.SC = { SCENES, go, get runner(){ return runner; }, scene, camera, controls,
+              load: LOAD };
+
+// the stage's big buttons drive this the same way they drive the other viewers
+window.STAGE_API = {
+  clipCount(){ return KEYS.length; },
+  clipName(){ return currentKey ? SCENES[currentKey].name : ''; },
+  isPlaying(){ return !!(runner && !runner.paused); },
+  play(){ if(runner) runner.paused = false; },
+  pause(){ if(runner) runner.paused = true; },
+  toggle(){ this.isPlaying() ? this.pause() : this.play(); return this.isPlaying(); },
+  nextClip(){ const i = KEYS.indexOf(currentKey);
+              go(KEYS[(i + 1 + KEYS.length) % KEYS.length]); return this.clipName(); },
+  spin(){ return false; },
+  zoom(f){ const z = window.STAGE_ZOOM; if(z) z.by(f);
+           if(runner){ runner.userCam = true; runner.camTween = null; } },
+  reset(){ if(runner && runner.home){ camera.position.copy(runner.home.pos);
+             controls.target.copy(runner.home.tgt); controls.update();
+             runner.userCam = false; } },       // Reset gives the camera back to the script
+  title(){ return currentKey ? SCENES[currentKey].name : 'Scenes'; }
+};
+window.STAGE_ZOOM = {
+  get min(){ return controls.minDistance; }, get max(){ return controls.maxDistance; },
+  get(){ return camera.position.distanceTo(controls.target); },
+  by(f){ return this.set(this.get() * f); },
+  set(d){
+    d = Math.max(controls.minDistance, Math.min(controls.maxDistance, d));
+    const dir = camera.position.clone().sub(controls.target);
+    camera.position.copy(controls.target).add(dir.setLength(d));
+    controls.update(); return d;
+  }
+};
+
+go(SCENES[WANT] ? WANT : KEYS[0]);
+frame();
+console.log('[Scenes] ready:', KEYS.join(', '));
+</script>
+</body>
+</html>

@@ -1,2 +1,5 @@
 # unrigged Meshy/Fab meshes are served but NOT committed (150 MB; replaced once rigged through Mixamo)
 *_static.glb
+# untouched Meshy exports kept for re-deriving variants without re-spending
+# credits; large and reproducible from the recorded task id, so not committed
+*_raw.glb

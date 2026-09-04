@@ -37,11 +37,24 @@ def write_notes_md(notes):
         f.write('\n'.join(lines))
 
 
+MODEL_EXT = ('.glb', '.gltf', '.bin', '.fbx')
+
+
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
-        self.send_header('Pragma', 'no-cache')
-        self.send_header('Expires', '0')
+        # 2026-09-03 19:55 -07:00: MODEL files revalidate instead of never caching.
+        # no-store made every stage visit re-download 15-21 MB of GLBs per scene
+        # over the phone's Wi-Fi. no-cache still asks the server every time
+        # (If-Modified-Since -> 304 when the file is unchanged, which
+        # SimpleHTTPRequestHandler already answers), so a fresh build is never
+        # missed, but an unchanged model costs one round trip, not 8 MB.
+        # Pages, scripts and JSON keep no-store exactly as before.
+        if self.command in ('GET', 'HEAD') and self.path.split('?')[0].lower().endswith(MODEL_EXT):
+            self.send_header('Cache-Control', 'no-cache, must-revalidate')
+        else:
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
         super().end_headers()
 
     def do_POST(self):

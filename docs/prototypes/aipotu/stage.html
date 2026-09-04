@@ -1,419 +1,685 @@
 <!DOCTYPE html>
 <!-- ======================================================================
-     HvB ASSET STAGE v3 — one screen for every George World object & animation,
-     with a CASCADING menu: pick the ITEM, then pick its ANIMATION /
-     scene / skin from the second pulldown (populated per item). The
-     second menu drives the study through the #set=/#click= hash the
-     studies understand (the "stage remote-control" snippet).
-     v3 (2026-09-01, Doug): ◀ ▶ buttons and ← → keys step through every item
-     no matter what has focus (the iframe's keydown is hooked, same-origin);
-     a NOTES box per item saves as you type — to localStorage, and through
-     POST /stage-notes on serve_nocache.py to stage_notes.json + STAGE_NOTES.md
-     beside the studies, so the sessions can read Doug's critiques.
-     Serve from the aipotu folder (serve_nocache.py :8201/stage.html).
+     HvB ASSET STAGE v8.30 — THE SIMPLE ONE.
+
+     WHY THIS WAS REBUILT (Doug, 2026-09-03: "it's really confusing")
+     v7 had four dropdowns (category, item, view, skin), a zoom cluster, a rig
+     tools cluster, an item counter, a notes cluster and a George World button
+     spread across a wrapping bar. Browsing one asset meant understanding which
+     of four menus drove which. On an iPad, for a tired or disabled person, that
+     is not a browsing interface — it is a control panel.
+
+     THE RULE NOW: pick an asset from ONE list, and look at it.
+       · ONE list, left, grouped in plain language, tap a row to load it.
+       · SIX big controls along the bottom: Back, Next, Play, Animation,
+         zoom out, zoom in — plus Reset view. 56px minimum tap targets.
+       · The name of what you are looking at is the biggest text on screen.
+       · Drag to rotate. Pinch or the +/- buttons to zoom.
+
+     WHAT WENT (all of it redundant or dev-only):
+       · the category + item cascade   -> one list
+       · the VIEW menu                 -> already dead in v6, markup now gone
+       · the SKIN dropdown             -> dev-only; the terrain walk loads its own
+       · the RIG TOOLS cluster         -> its two entries live in the list
+       · the item counter "22 / 98"    -> noise
+       · the zoom slider               -> two big buttons; drag/pinch still work
+
+     v8.10 adds the MESHY ONLY switch at the top of the list: the catalog holds
+     19 Meshy-pipeline models among ~85 procedural studies, and this hides
+     everything that did not come out of Meshy. A third element of 1 on a
+     catalog row is the Meshy tag. The choice is remembered per device.
+
+     WHAT STAYED: the version stamp (house rule), the George World button (house
+     rule), and Doug's per-asset NOTES — that is his feedback channel to the
+     sessions, not a debug panel, so it survives as one clearly-labelled button.
+
+     THE BIG BUTTONS talk to the study through window.STAGE_API — a six-method
+     shape (clipCount/clipName/play/pause/nextClip/zoom/reset). creature_study
+     and effects_study implement it. Studies that do not still load and still
+     zoom (synthetic wheel events); their Play and Animation buttons grey out
+     rather than lying about what they do.
      ====================================================================== -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HvB Asset Stage</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HvB Asset Stage v8.40</title>
+<!-- VERSION STAMP (Doug's standing rule: every piece of software under
+     development shows its version beside its title). Bump REV on EVERY save
+     and set REV_BUILT from the real clock — never guess the time. -->
+<script>
+  const REV = '8.40';
+  const REV_BUILT = '2026-09-04 11:19 -07:00';
+</script>
 <style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#14181c; }
-  #bar {
-    position:fixed; top:0; left:0; right:0; height:44px; z-index:20;
-    display:flex; align-items:center; gap:10px; padding:0 12px;
-    background:linear-gradient(180deg,#232a30,#1a2025);
-    border-bottom:1px solid #3a444c; color:#e8f0f4;
-    font:13px system-ui, sans-serif; overflow-x:auto;
+  :root{
+    --top: 52px;          /* header height */
+    --ctl: 78px;          /* big control bar height */
+    --list: 260px;        /* asset list width on a wide screen */
+    --ink:#eef4f8; --dim:#c3cfd8;
+    --panel:#1b2228; --panel2:#141a1f; --line:#333e47;
+    --hot:#3f8f52; --hot2:#4aa862;
   }
-  #bar b { font-size:14px; letter-spacing:0.5px; white-space:nowrap; }
-  #bar select {
-    padding:6px 10px; border:0; border-radius:8px;
-    background:#3f7040; color:#fff; font:13px system-ui; cursor:pointer;
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; overflow:hidden; background:#10151a; color:var(--ink);
+    font:15px/1.45 system-ui,-apple-system,sans-serif;
+    -webkit-text-size-adjust:100%; }
+
+  /* ---------- header: what am I looking at ---------- */
+  #top{ position:fixed; top:0; left:0; right:0; height:var(--top); z-index:30;
+    display:flex; align-items:center; gap:10px; padding:0 10px;
+    background:linear-gradient(180deg,#242c33,#1a2126); border-bottom:1px solid var(--line); }
+  #top .brand{ font-size:13px; font-weight:800; letter-spacing:.6px; white-space:nowrap;
+    opacity:.9; }
+  #rev{ font:11px Consolas,monospace; color:#8fd9a8; background:#1d2a22;
+    border:1px solid #2f4a38; border-radius:6px; padding:2px 6px; white-space:nowrap; }
+  /* the single most important text on the page */
+  #now{ flex:1; min-width:0; font-size:19px; font-weight:700; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  #gwbtn{ background:linear-gradient(180deg,#4a9d4e,#2e7a38); color:#fff; border:0;
+    border-radius:9px; font:800 13px system-ui; letter-spacing:.5px; padding:9px 13px;
+    cursor:pointer; white-space:nowrap; }
+
+  /* ---------- the one list ---------- */
+  #listbtn{ display:none; }
+  #list{ position:fixed; top:var(--top); bottom:var(--ctl); left:0; width:var(--list);
+    z-index:25; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    background:var(--panel2); border-right:1px solid var(--line); padding:6px 0 14px; }
+  #list .grp{ font:700 11px system-ui; letter-spacing:1.4px; text-transform:uppercase;
+    color:#93a4b2; padding:14px 14px 5px; }
+  #list button{ display:block; width:100%; text-align:left; border:0; background:none;
+    color:var(--ink); font:15px system-ui; padding:12px 14px; min-height:46px;
+    cursor:pointer; border-left:4px solid transparent; }
+  /* THE v8.30 BUG, fixed in v8.31. applyFilter() hides a row with
+     `row.hidden = true`, which sets the attribute correctly — but the browser's
+     own [hidden]{display:none} lives in the UA stylesheet, and the AUTHOR rule
+     `#list button{display:block}` two lines up beats it. So every row kept
+     rendering and the switch looked dead. (The group headings DID hide, because
+     `#list .grp` sets no display property for [hidden] to lose to — which is
+     why it failed in a way that looked like nothing happening at all.)
+     Stated explicitly here so no future display rule silently re-breaks it. */
+  #list button[hidden], #list .grp[hidden]{ display:none !important; }
+  #list button:hover{ background:#1e262d; }
+  #list button.on{ background:#24402c; border-left-color:var(--hot2); font-weight:700; }
+  #list button .note{ color:#ffcf7a; margin-right:5px; }
+
+  /* the Meshy-only switch: full width, 56px, unmistakably on or off */
+  #meshybar{ position:sticky; top:0; z-index:2; padding:8px 10px 9px;
+    background:var(--panel2); border-bottom:1px solid var(--line); }
+  /* Specificity trap, same family as the [hidden] one above: the switch is a
+     <button> inside #list, so `#list button{display:block}` (one id + one type)
+     OUTRANKS a bare `#meshybtn` (one id) and would flatten this flex row —
+     collapsing the toggle track to nothing and leaving what looks like plain
+     text. #meshybar #meshybtn is two ids, so it wins outright. */
+  #meshybar #meshybtn{ display:flex; align-items:center; gap:10px; width:100%;
+    min-height:56px; padding:0 12px; border:1px solid var(--line);
+    border-radius:12px; background:#222b32; color:var(--ink);
+    font:700 15px system-ui; cursor:pointer; text-align:left; }
+  #meshybtn .sw{ flex:0 0 46px; height:27px; border-radius:14px; background:#48535e;
+    position:relative; transition:background .15s ease; }
+  #meshybtn .knob{ position:absolute; top:3px; left:3px; width:21px; height:21px;
+    border-radius:50%; background:#dfe8ef; transition:transform .15s ease; }
+  #meshybtn .txt{ flex:1; }
+  #meshybtn .cnt{ font:600 12px Consolas,monospace; color:var(--dim); }
+  #meshybtn.on{ background:#24402c; border-color:var(--hot2); }
+  #meshybtn.on .sw{ background:var(--hot2); }
+  #meshybtn.on .knob{ transform:translateX(19px); }
+  #meshybtn.on .cnt{ color:#bfe6cb; }
+  @media (prefers-reduced-motion: reduce){
+    #meshybtn .sw, #meshybtn .knob{ transition:none; }
   }
-  #pick { min-width:230px; }
-  #anim { min-width:170px; background:#3d6f96; }
-  #anim:disabled { opacity:0.45; }
-  #frame { position:fixed; top:44px; left:0; right:0; bottom:0;
-    width:100%; height:calc(100% - 44px); border:0; }
-  body.notes-open #frame { bottom:150px; height:calc(100% - 44px - 150px); }
-  /* prev / next / notes controls (v3, 2026-09-01) */
-  #bar button {
-    padding:6px 11px; border:0; border-radius:8px; cursor:pointer;
-    background:#4d545d; color:#fff; font:13px system-ui; white-space:nowrap;
+
+  /* ---------- the stage itself ---------- */
+  /* an iframe is a REPLACED element: with width:auto it takes its intrinsic
+     300x150 instead of resolving from left/right, so the size must be stated. */
+  #frame{ position:fixed; top:var(--top); left:var(--list); border:0; background:#0f1418;
+    width:calc(100% - var(--list)); height:calc(100% - var(--top) - var(--ctl)); }
+  #scrim{ display:none; position:fixed; inset:0; z-index:24; background:rgba(0,0,0,.45); }
+
+  /* ---------- six big controls ---------- */
+  #ctl{ position:fixed; left:0; right:0; bottom:0; height:var(--ctl); z-index:30;
+    display:flex; align-items:center; gap:8px; padding:0 10px;
+    padding-bottom:env(safe-area-inset-bottom);
+    background:linear-gradient(0deg,#242c33,#1a2126); border-top:1px solid var(--line); }
+  #ctl button{ flex:1 1 0; min-width:0; height:58px; border:0; border-radius:12px;
+    background:#38424c; color:#fff; cursor:pointer;
+    font:700 15px system-ui; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px; }
+  #ctl button:hover:not(:disabled){ background:#465260; }
+  #ctl button:active:not(:disabled){ transform:translateY(1px); }
+  #ctl button .ico{ font-size:20px; line-height:1; }
+  #ctl button .cap{ font-size:11px; font-weight:600; opacity:.9; letter-spacing:.3px; }
+  /* disabled must still be READABLE — it means "not for this item", not "gone" */
+  #ctl button:disabled{ opacity:.45; cursor:not-allowed; }
+  #playbtn{ background:var(--hot); } #playbtn:hover:not(:disabled){ background:var(--hot2); }
+  #ctl .small{ flex:0 0 60px; }
+
+  /* ---------- notes: Doug's feedback channel, one button ---------- */
+  #notes{ position:fixed; left:0; right:0; bottom:var(--ctl); height:190px; z-index:29;
+    display:none; flex-direction:column; gap:7px; padding:10px 12px;
+    background:#1a2126; border-top:1px solid var(--line); }
+  body.notes-open #notes{ display:flex; }
+  #notes .row{ display:flex; align-items:center; gap:10px; }
+  #notes .row b{ font-size:15px; }
+  #notestat{ font:11px Consolas,monospace; color:var(--dim); margin-left:auto; }
+  #notes textarea{ flex:1; resize:none; border:1px solid var(--line); border-radius:9px;
+    padding:9px; background:#0f1316; color:#f2f6fa; font:15px system-ui; }
+  #notes button{ border:0; border-radius:8px; background:#4d545d; color:#fff;
+    font:13px system-ui; padding:8px 12px; cursor:pointer; min-height:38px; }
+
+  /* someone who has asked their device for less motion gets the drawer
+     snapping open instead of sliding */
+  @media (prefers-reduced-motion: reduce){
+    #list{ transition:none !important; }
+    #ctl button:active:not(:disabled){ transform:none; }
   }
-  #bar button:hover { background:#5d656f; }
-  #count { font:12px Consolas, monospace; color:#aab4be; white-space:nowrap; }
-  #notesbtn.has { background:#8a6d1f; }
-  #notes {
-    position:fixed; left:0; right:0; bottom:0; height:150px; z-index:20;
-    display:none; flex-direction:column; gap:6px; padding:8px 12px;
-    background:linear-gradient(0deg,#232a30,#1a2025); border-top:1px solid #3a444c;
-    color:#e8f0f4; font:13px system-ui, sans-serif;
+
+  /* ---------- narrow / iPad portrait: the list becomes a drawer ---------- */
+  @media (max-width: 820px){
+    #listbtn{ display:flex; align-items:center; justify-content:center;
+      background:#38424c; color:#fff; border:0; border-radius:9px;
+      font:700 14px system-ui; padding:9px 12px; cursor:pointer; white-space:nowrap; }
+    #list{ transform:translateX(-100%); transition:transform .18s ease;
+      box-shadow:6px 0 22px rgba(0,0,0,.5); width:80vw; max-width:320px; }
+    body.list-open #list{ transform:none; }
+    body.list-open #scrim{ display:block; }
+    #frame{ left:0; width:100%; }
+    #top .brand{ display:none; }          /* the asset name matters more */
+    #gwbtn{ padding:9px 10px; font-size:12px; }
   }
-  body.notes-open #notes { display:flex; }
-  #notes .row { display:flex; align-items:center; gap:10px; }
-  #notes .row b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #notestat { font:11px Consolas, monospace; color:#aab4be; margin-left:auto; white-space:nowrap; }
-  #note {
-    flex:1; resize:none; border:1px solid #3a444c; border-radius:8px; padding:8px;
-    background:#0f1316; color:#f2f6fa; font:14px system-ui, sans-serif;
-  }
-  #notes button { padding:4px 9px; border:0; border-radius:7px; cursor:pointer;
-    background:#4d545d; color:#fff; font:12px system-ui; }
 </style>
 </head>
 <body>
-<div id="bar">
-  <b>🎬 HvB ASSET STAGE</b>
-  <select id="pick">
-    <optgroup label="Creatures & characters">
-      <option value="vita_anim_study.html">Vita — 30 behavior prototypes (OLD body)</option>
-      <option value="vita_study.html">Vita — the hero body</option>
-      <option value="poppy_study.html">Poppy — the real girl (9 anims)</option>
-      <option value="horse_study.html">Appaloosa horse — gaits, rear, treat</option>
-      <option value="barnyard_study.html">Barnyard — goats, shearing, chickens, donkey</option>
-      <option value="fish_study.html">Fish — silversides, flying fish, mullet</option>
-      <option value="seagull_study.html">Seagull</option>
-      <option value="orca_study.html">Orcas</option>
-      <option value="godzilla_study.html">Godzilla — the leviathan (full range)</option>
-      <option value="cat_study.html">Cat — slink, groom, pounce, loaf</option>
-      <option value="pterodactyl_study.html">Pteranodon — soar, land, perch, launch</option>
-      <option value="brontosaurus_study.html">Brontosaurus — the plod, the browse, the swallow</option>
-      <option value="triceratops_study.html">Triceratops — graze, guard, lunge</option>
-      <option value="pachycephalosaurus_study.html">Pachycephalosaurus — the duel</option>
-      <option value="ankylosaurus_study.html">Ankylosaurus — fortress and club</option>
-      <option value="crab_study.html">Coconut crab — scuttle, brandish</option>
-      <option value="turtle_study.html">Sea turtle (honu) — crawl, swim, bask</option>
-      <option value="dragon_study.html">The Dragon — idle, fly, rage, fire</option>
-    </optgroup>
-    <optgroup label="The armature pipeline">
-      <option value="vita_rig_study.html">★ Vita RIG — THE NEW BODY</option>
-      <option value="skin_test_study.html">Skin gallery — skins × clips + imports</option>
-      <option value="anim_viewer.html">Animation viewer — drop .glb, audit clips</option>
-      <option value="terrainwalk_study.html">Terrain walk — FULL LEG IK, any skin</option>
-      <option value="formation_study.html">Formation — marching the contours</option>
-      <option value="duo_study.html">Duo — hug, hand in hand, the Frug</option>
-      <option value="army_study.html">Army — archers, the duel, the march</option>
-      <option value="roman_study.html">Romans — the charge &amp; the testudo</option>
-      <option value="landingcraft_study.html">Landing craft — ramp down, six ashore</option>
-    </optgroup>
-    <optgroup label="Transport">
-      <option value="tradeboat_study.html">Trading boat — load, hoist, reach, return</option>
-      <option value="dock_study.html">Dock — quay, pier, jib crane</option>
-      <option value="chariot_study.html">Celtic chariot — gallop, whip, skid</option>
-      <option value="train_study.html">Train — loco, boxcars, hoppers, caboose</option>
-      <option value="hotair_study.html">Hot air balloon — blast, rise, drift</option>
-      <option value="flyer_study.html">Wright Flyer — the twelve-second hop</option>
-      <option value="p51_study.html">P-51 Mustang — aerobatics + FLAK</option>
-      <option value="jet_study.html">Passenger jet — the circuit</option>
-      <option value="rocket_study.html">Rocket — ignition, staging</option>
-    </optgroup>
-    <optgroup label="Objects & builds">
-      <option value="wagon_study.html">Wagon — smooth & bumpy rolling</option>
-      <option value="rowboat_study.html">Rowboat — row, get in, get out</option>
-      <option value="surfboard_study.html">Surfboards — log, thruster, fish</option>
-      <option value="throne_study.html">Throne — the king sits</option>
-      <option value="castle_study.html">Castle — the Norman keep</option>
-      <option value="bank_study.html">Bank — deposits in, paper out</option>
-      <option value="plantation_study.html">Plantation — product flows one way</option>
-      <option value="houses_study.html">Houses — Wright vs the McMansion</option>
-      <option value="tools_study.html">Tools — hammer, axe, saw + fence posts</option>
-      <option value="windmill_study.html">Windmill — the mill grinds</option>
-      <option value="market_study.html">Market stall — haggle &amp; handshake</option>
-      <option value="bell_study.html">Bell tower — heads turn when it rings</option>
-      <option value="beehive_study.html">Beehives — smoke, honey, the sting</option>
-      <option value="bridge_study.html">Footbridge — planks bounce, Poppy dashes</option>
-      <option value="signpost_study.html">Signpost — read, scratch, point, go</option>
-      <option value="drum_study.html">Drum — steps lock to the beat</option>
-      <option value="spinningwheel_study.html">Spinning wheel — treadle, draft, wind on</option>
-      <option value="scythe_study.html">Scythe — sweep, step, sweep</option>
-      <option value="plow_study.html">Oxen & plow — the soil curls</option>
-      <option value="kite_study.html">Kites — four sails + the dragon</option>
-      <option value="fire_study.html">Fire — campfire & the king's hearth</option>
-      <option value="balloon_study.html">Balloon — the gift and the toddle</option>
-      <option value="well_study.html">Well — crank, haul, carry, drink</option>
-      <option value="clocktower_study.html">Clock tower — geared hands, pendulum, the toll</option>
-      <option value="watertower_study.html">Water tower — valve, pour, gauge</option>
-      <option value="bulldozer_study.html">Bulldozer — tracks, blade, the heap</option>
-      <option value="reader_study.html">Reader — a Vita with a book</option>
-      <option value="printingpress_study.html">Printing press — ink, lay, pull, peel</option>
-      <option value="sculptor_study.html">Sculptor — gravestone, figure, ovoid</option>
-      <option value="explosions_study.html">Explosions — grenade, shell, barrage</option>
-    </optgroup>
-    <optgroup label="Flora & growth">
-      <option value="palm_study.html">Palm</option>
-      <option value="fir_study.html">Firs — six realistic specimens</option>
-      <option value="berrybush_study.html">Berry bush — the study</option>
-      <option value="bushgrowth_study.html">Berry bush — growth stages + wilt</option>
-      <option value="corn_study.html">Corn — 3 cultivars × 4 stages, in wind</option>
-      <option value="wind_study.html">Wind — palm, bush & fir in four winds</option>
-      <option value="baobab_study.html">Baobab — bottle trunk, pods on the wind</option>
-      <option value="jungle_study.html">Jungle — gibbon brachiation, monkey circuit</option>
-      <option value="flora_study.html">Ground flora — 10 weeds + 6 wildflowers</option>
-    </optgroup>
-    <optgroup label="World & atmosphere">
-      <option value="sky_study.html">Sky — clouds, storm, moon</option>
-      <option value="weather_study.html">Weather — rain follows the wind</option>
-      <option value="waves_study.html">Waves — surf on an undulating coast</option>
-      <option value="volcano_study.html">Volcano — the eruption</option>
-      <option value="tornado_study.html">Tornado — twisting, rising, dust</option>
-      <option value="inlandwater_study.html">Inland water — spring, creek, river, lake</option>
-      <option value="fireflies_study.html">Fireflies — the night set, catch &amp; release</option>
-      <option value="easteregg_study.html">Easter egg chamber — the hidden room</option>
-      <option value="bigbang_study.html">Big Bang — the dragon's egg at the origin</option>
-      <option value="caldera_study.html">The Caldera — island map study</option>
-      <option value="atoll_study.html">Ring Atoll — the lagoon-necklace map</option>
-      <option value="delta_study.html">The River Delta — the branching-river map</option>
-      <option value="terrain_study.html">Aipotu terrain — realism pass (REV 6)</option>
-      <option value="georgeland2_study.html">Georgeland 2 — the big island (Rev 5)</option>
-    </optgroup>
-    <optgroup label="The machine">
-      <option value="georgeotron_parts_study.html">Georgeotron parts — the kit in 3D + anchors</option>
-    </optgroup>
-    <optgroup label="The game">
-      <option value="georgeworld.html">▶ GEORGE WORLD — the live game</option>
-    </optgroup>
-  </select>
-  <select id="anim"></select>
-  <button id="prev" title="previous item (← key)">◀</button>
-  <span id="count"></span>
-  <button id="next" title="next item (→ key)">▶</button>
-  <button id="notesbtn" title="your notes on this item">✎ Notes</button>
-  <button id="skinsbtn" title="jump to the Skin Gallery">🧍 Skins</button>
-  <button id="walkbtn" title="jump to the Terrain Walk">🚶 Walk</button>
-  <select id="skin" title="pick a skin for studies that take one (gallery, terrain walk)"><option value="">skin…</option></select>
-</div>
-<iframe id="frame" src="vita_anim_study.html"></iframe>
-<div id="notes">
-  <div class="row">
-    <b id="notelabel"></b>
-    <span id="notestat"></span>
-    <button id="copyall" title="copy every note as markdown">Copy all notes</button>
-    <button id="notesclose">✕</button>
-  </div>
-  <textarea id="note" placeholder="Your reaction to this item. Saved as you type; ← → still move to the next item."></textarea>
-</div>
-<script>
-  // Second-level menus: file → [[hash, label], ...]. The hash rides the
-  // iframe URL; the study's stage-remote-control snippet applies it.
-  const MODES = {
-    'vita_anim_study.html': [
-      ['set=animsel:dance', 'Dance'], ['set=animsel:idle', 'Idle'], ['set=animsel:walk', 'Walk'],
-      ['set=animsel:run', 'Run'], ['set=animsel:skip', 'Skip'], ['set=animsel:crawl', 'Crawl'],
-      ['set=animsel:pick', 'Pick fruit'], ['set=animsel:give', 'Pick & hand a berry'],
-      ['set=animsel:celebrate', 'Celebrate'], ['set=animsel:jumptriumph', 'Triumphant jumps'],
-      ['set=animsel:cartwheel', 'Cartwheel'], ['set=animsel:point', 'Point'],
-      ['set=animsel:headturn', 'Head turn'], ['set=animsel:jump', 'Jump (peering)'],
-      ['set=animsel:bow', 'Bow'], ['set=animsel:kneel', 'Kneel'],
-      ['set=animsel:prostrate', 'Full prostrate bow'], ['set=animsel:haul', 'Haul the crate'],
-      ['set=animsel:yes', 'Nod YES'], ['set=animsel:no', 'Shake NO'],
-      ['set=animsel:talk', 'Talk (expressions)'], ['set=animsel:shout', 'Shout'],
-      ['set=animsel:threaten', 'Threaten'], ['set=animsel:crouch', 'Defensive crouch'],
-      ['set=animsel:tantrum', 'TANTRUM'], ['set=animsel:sitdown', 'Sit down'],
-      ['set=animsel:sit', 'Sit (pose)'], ['set=animsel:sleep', 'Sleep — back'],
-      ['set=animsel:sleepside', 'Sleep — side'], ['set=animsel:sleeptummy', 'Sleep — tummy'],
-      ['set=animsel:ride', 'Mount → ride → dismount'],
-    ],
-    'poppy_study.html': [
-      ['click=happy', 'Happy'], ['click=walk', 'Walk (terrain-following)'],
-      ['click=sit', 'Sit'], ['click=curl', 'CURL UP to sleep'], ['click=sleep', 'Sleep — sprawled'],
-      ['click=pawup', 'Paw-up'], ['click=rearup', 'Rear-up'],
-      ['click=tailchase', 'Tail-chase'], ['click=sad', 'Sad'],
-    ],
-    'duo_study.html': [
-      ['set=duet:hug', 'The hug'], ['set=duet:hand', 'Hand in hand'], ['set=duet:frug', 'The Frug'],
-    ],
-    'army_study.html': [
-      ['set=scene:archery', 'Archery — the volley'], ['set=scene:duel', 'The duel'],
-      ['set=scene:march', 'The march'],
-    ],
-    'roman_study.html': [
-      ['set=scene:charge', 'The charge — volley & gladius'], ['set=scene:testudo', 'The TESTUDO'],
-    ],
-    'formation_study.html': [
-      ['set=weapon:rifle', 'Garands — 12'], ['set=weapon:pike', 'Swiss pikes — 12'],
-      ['set=size:6', 'Six — column of twos'], ['set=size:24', 'Twenty-four — of fours'],
-    ],
-    'skin_test_study.html': [
-      ['set=skinsel:0', 'Skin: Vita — blue'], ['set=skinsel:1', 'Skin: Vita — red'],
-      ['set=skinsel:2', 'Skin: Vita — royal'], ['set=skinsel:3', 'Skin: Alien — green'],
-      ['set=skinsel:4', 'Skin: Alien — gray'],
-    ],
-    'terrainwalk_study.html': [
-      ['set=skinsel:-1', 'Walker: Vita — THE NEW BODY'],
-    ],
-    'p51_study.html': [
-      ['set=mnv:display', 'The airshow display'], ['set=mnv:level', 'Straight & level'],
-      ['set=mnv:loop', 'Loop'], ['set=mnv:barrel', 'Barrel roll'],
-      ['set=mnv:immelmann', 'Immelmann'], ['set=mnv:stall', 'Stall & recover'],
-      ['set=mnv:hardleft', 'Violent turn LEFT'], ['set=mnv:hardright', 'Violent turn RIGHT'],
-      ['set=mnv:dive', 'Dive & pull-out'],
-    ],
-    'houses_study.html': [
-      ['set=house:wright', 'The Wright house'], ['set=house:mcmansion', 'The McMansion'],
-    ],
-  };
-  const pick = document.getElementById('pick');
-  const anim = document.getElementById('anim');
-  const frame = document.getElementById('frame');
-  function fillAnim(){
-    const modes = MODES[pick.value];
-    anim.innerHTML = '';
-    if(!modes){
-      const o = document.createElement('option');
-      o.textContent = '— one continuous scene —';
-      anim.appendChild(o);
-      anim.disabled = true;
-      return;
-    }
-    anim.disabled = false;
-    for(const [hash, label] of modes){
-      const o = document.createElement('option');
-      o.value = hash;
-      o.textContent = label;
-      anim.appendChild(o);
-    }
-  }
-  let loadN = 0;
-  // studies that take a skin through the stage's SKIN menu (#set=skinsel:file~<name>)
-  const SKINNABLE = { 'skin_test_study.html': 1, 'terrainwalk_study.html': 1 };
-  const skinSel = document.getElementById('skin');
-  function load(){
-    // the ?n= buster forces a real reload even when only the hash changed
-    let sets = (!anim.disabled && anim.value) ? anim.value : '';
-    if(skinSel.value && SKINNABLE[pick.value]){
-      const s = 'skinsel:file~' + skinSel.value;
-      sets = sets ? (sets.startsWith('set=') ? sets + ',' + s : sets + '&set=' + s) : 'set=' + s;
-    }
-    frame.src = pick.value + '?n=' + (++loadN) + (sets ? '#' + sets : '');
-    updateCount();
-    showNote();
-  }
-  document.getElementById('skinsbtn').addEventListener('click', () => { pick.value = 'skin_test_study.html'; fillAnim(); load(); });
-  document.getElementById('walkbtn').addEventListener('click', () => { pick.value = 'terrainwalk_study.html'; fillAnim(); load(); });
-  skinSel.addEventListener('change', () => {
-    if(!SKINNABLE[pick.value]){ countEl.textContent = 'no skin slot in this study yet'; return; }
-    load();
-  });
-  fetch('vendor/models/manifest.json?n=' + Date.now()).then(r => r.ok ? r.json() : null).then(man => {
-    for(const it of ((man && man.skins) || [])){
-      if(it.file === 'Xbot.glb') continue;
-      const o = document.createElement('option');
-      o.value = it.file; o.textContent = it.name || it.file;
-      skinSel.appendChild(o);
-    }
-  }).catch(() => {});
-  pick.addEventListener('change', () => { fillAnim(); load(); });
-  anim.addEventListener('change', load);
 
-  // ---- v3 (2026-09-01): step through EVERY item with ← → or the ◀ ▶ buttons,
-  // no matter what has focus (the iframe, a button, the page) ----
-  const items = Array.from(pick.options);           // flat list across optgroups
-  const countEl = document.getElementById('count');
-  function updateCount(){ countEl.textContent = (pick.selectedIndex+1) + ' / ' + items.length; }
+<header id="top">
+  <span class="brand">🎬 ASSET STAGE</span><span id="rev"></span>
+  <button id="listbtn">☰ Assets</button>
+  <span id="now">Loading…</span>
+  <!-- house rule: ONE button into the game itself -->
+  <button id="gwbtn" title="enter George World — the game itself">🌴 GEORGE WORLD</button>
+</header>
+
+<nav id="list">
+  <!-- the filter belongs WITH the list it filters, sticky at its top, so it is
+       on screen exactly when you are browsing — and on iPad portrait it comes
+       along inside the Assets drawer. -->
+  <div id="meshybar">
+    <button id="meshybtn" role="switch" aria-pressed="false"
+            title="show only the models built through the Meshy pipeline">
+      <span class="sw"><span class="knob"></span></span>
+      <span class="txt">Meshy only</span>
+      <span class="cnt" id="meshycount"></span>
+    </button>
+  </div>
+</nav>
+<div id="scrim"></div>
+<iframe id="frame" title="the asset on stage"></iframe>
+
+<footer id="ctl">
+  <button id="prev"    title="previous asset"><span class="ico">◀</span><span class="cap">Back</span></button>
+  <button id="next"    title="next asset"><span class="ico">▶</span><span class="cap">Next</span></button>
+  <button id="playbtn" title="play or pause the animation"><span class="ico">⏸</span><span class="cap">Pause</span></button>
+  <button id="animbtn" title="show the next animation"><span class="ico">🎞</span><span class="cap">Animation</span></button>
+  <button id="zout" class="small" title="zoom out"><span class="ico">−</span><span class="cap">Out</span></button>
+  <button id="zin"  class="small" title="zoom in"><span class="ico">＋</span><span class="cap">In</span></button>
+  <button id="reset" class="small" title="reset the view"><span class="ico">⟲</span><span class="cap">Reset</span></button>
+  <button id="notesbtn" class="small" title="notes on this asset"><span class="ico">✎</span><span class="cap">Notes</span></button>
+</footer>
+
+<div id="notes">
+  <div class="row"><b id="notelabel"></b>
+    <span id="notestat"></span>
+    <button id="copyall">Copy all</button>
+    <button id="notesclose">Close</button></div>
+  <textarea id="note" placeholder="What do you think of this one? Typed here, it reaches the sessions."></textarea>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // =====================================================================
+  // THE LIST — grouped in plain language, newest 3-D assets FIRST in each
+  // group. An entry is [file, label]; the file may carry its own query
+  // (creature_study.html?m=orca) and that survives the cache-buster below.
+  // =====================================================================
+  const CATALOG = [
+    // v8.20 (Doug): three little plays in which the Meshy assets act on each
+    // other rather than turning on the spot alone. One page, ?s=<key> picks
+    // the scene, choreography authored in DRAM Script. Tagged Meshy (1)
+    // because that is what they are built out of — they stay under the filter.
+    ['Scenes', [
+      ['scenes_study.html?s=standoff',   'Standoff', 1],
+      ['scenes_study.html?s=dragon',     'Dragon & castle', 1],
+      ['scenes_study.html?s=whalewatch', 'Whale watch', 1],
+    ]],
+    // Every one of these is a Meshy build with its own clips, played by the
+    // one viewer. The people are full mixamorig humanoids and can ALSO be
+    // walked over terrain from Tools > Terrain walk.
+    ['People', [
+      ['creature_study.html?m=vita2b', 'Vita 2b', 1],
+      ['creature_study.html?m=vita2c', 'Vita 2c', 1],
+      ['creature_study.html?m=vita2',  'Vita 2', 1],
+      ['creature_study.html?m=vita',   'Vita 1', 1],
+      ['creature_study.html?m=ivy',    'Ivy', 1],
+      ['creature_study.html?m=alien',  'Alien', 1],
+      ['creature_study.html?m=legion', 'Legionary', 1],
+    ]],
+    ['Animals', [
+      ['creature_study.html?m=dragon', 'Dragon', 1],
+      // side-by-side for the low-poly-default trial: same dragon, 22% of the
+      // triangles and 12% of the download. Sits directly under the original so
+      // Back/Next flips between the two.
+      ['creature_study.html?m=dragonlow', 'Dragon (low-poly)', 1],
+      ['creature_study.html?m=poppy',  'Poppy the dog', 1],
+      ['creature_study.html?m=honu',   'Sea turtle', 1],
+      ['creature_study.html?m=crab',   'Coconut crab', 1],
+      ['creature_study.html?m=gull',   'Gull', 1],
+      ['creature_study.html?m=orca',   'Orca', 1],
+      ['horse_study.html', 'Horse'],
+      ['barnyard_study.html', 'Barnyard'],
+      ['cat_study.html', 'Cat'],
+      ['fish_study.html', 'Fish'],
+      ['seagull_study.html', 'Seagull'],
+      ['orca_study.html', 'Orcas (drawn)'],
+      ['crab_study.html', 'Crab (drawn)'],
+      ['turtle_study.html', 'Turtle (drawn)'],
+      ['jungle_study.html', 'Gibbons'],
+      ['pterodactyl_study.html', 'Pteranodon'],
+      ['brontosaurus_study.html', 'Brontosaurus'],
+      ['triceratops_study.html', 'Triceratops'],
+      ['pachycephalosaurus_study.html', 'Pachycephalosaur'],
+      ['ankylosaurus_study.html', 'Ankylosaurus'],
+      ['godzilla_study.html', 'Godzilla'],
+    ]],
+    ['Things', [
+      ['creature_study.html?m=castle',  'Castle', 1],
+      ['creature_study.html?m=throne',  'Throne', 1],
+      ['creature_study.html?m=balloon', 'Hot air balloon', 1],
+      ['creature_study.html?m=rowboat', 'Rowboat', 1],
+      ['creature_study.html?m=hoard',   'Dragon hoard', 1],
+      ['creature_study.html?m=fire',    'Campfire', 1],
+      ['castle_study.html', 'Castle (drawn)'],
+      ['throne_study.html', 'Throne (drawn)'],
+      ['bank_study.html', 'Bank'],
+      ['plantation_study.html', 'Plantation'],
+      ['houses_study.html', 'Houses'],
+      ['windmill_study.html', 'Windmill'],
+      ['bell_study.html', 'Bell tower'],
+      ['clocktower_study.html', 'Clock tower'],
+      ['watertower_study.html', 'Water tower'],
+      ['dock_study.html', 'Dock'],
+      ['wagon_study.html', 'Wagon'],
+      ['rowboat_study.html', 'Rowboat (drawn)'],
+      ['tradeboat_study.html', 'Trading boat'],
+      ['surfboard_study.html', 'Surfboards'],
+      ['chariot_study.html', 'Chariot'],
+      ['train_study.html', 'Train'],
+      ['bulldozer_study.html', 'Bulldozer'],
+      ['hotair_study.html', 'Balloon (drawn)'],
+      ['flyer_study.html', 'Wright Flyer'],
+      ['p51_study.html', 'P-51 Mustang'],
+      ['jet_study.html', 'Passenger jet'],
+      ['rocket_study.html', 'Rocket'],
+    ]],
+    ['Fire & effects', [
+      // opens on the campfire, not the default embers: embers is a few faint
+      // sparks and reads as "nothing loaded" to someone just looking
+      ['effects_study.html?p=campfire', 'Fire'],
+      ['bigbang_study.html', 'Big Bang'],
+      ['explosions_study.html', 'Explosions'],
+      ['fire_study.html', 'Fire (drawn)'],
+      ['fireflies_study.html', 'Fireflies'],
+      ['volcano_study.html', 'Volcano'],
+      ['tornado_study.html', 'Tornado'],
+      ['weather_study.html', 'Weather'],
+      ['sky_study.html', 'Sky'],
+      ['waves_study.html', 'Waves'],
+    ]],
+    ['Places', [
+      ['georgeland2_study.html', 'Georgeland 2'],
+      ['terrain_study.html', 'Aipotu terrain'],
+      ['caldera_study.html', 'The Caldera'],
+      ['atoll_study.html', 'Ring Atoll'],
+      ['delta_study.html', 'River Delta'],
+      ['inlandwater_study.html', 'Inland water'],
+      ['easteregg_study.html', 'Crystal grotto'],
+    ]],
+    ['Plants', [
+      ['palm_study.html', 'Palm'],
+      ['fir_study.html', 'Firs'],
+      ['baobab_study.html', 'Baobab'],
+      ['corn_study.html', 'Corn'],
+      ['berrybush_study.html', 'Berry bush'],
+      ['bushgrowth_study.html', 'Berry bush growth'],
+      ['flora_study.html', 'Weeds & wildflowers'],
+      ['wind_study.html', 'Wind'],
+    ]],
+    ['Vignettes', [
+      ['duo_study.html', 'Duo'],
+      ['army_study.html', 'Army'],
+      ['roman_study.html', 'Romans'],
+      ['landingcraft_study.html', 'Landing craft'],
+      ['formation_study.html', 'Formation'],
+      ['market_study.html', 'Market stall'],
+      ['reader_study.html', 'Reader'],
+      ['plow_study.html', 'Oxen & plow'],
+      ['scythe_study.html', 'Scythe'],
+      ['sculptor_study.html', 'Sculptor'],
+      ['printingpress_study.html', 'Printing press'],
+      ['spinningwheel_study.html', 'Spinning wheel'],
+      ['kite_study.html', 'Kites'],
+      ['balloon_study.html', 'Balloon scene'],
+      ['well_study.html', 'Well'],
+      ['bridge_study.html', 'Footbridge'],
+      ['signpost_study.html', 'Signpost'],
+      ['drum_study.html', 'Drum'],
+      ['beehive_study.html', 'Beehives'],
+      ['tools_study.html', 'Tools'],
+    ]],
+    ['Tools', [
+      ['terrainwalk_study.html', 'Terrain walk'],
+      ['anim_viewer.html', 'Animation viewer'],
+      ['georgeotron_parts_study.html', 'Georgeotron parts'],
+    ]],
+  ];
+
+  const frame    = document.getElementById('frame');
+  const listEl   = document.getElementById('list');
+  const nowEl    = document.getElementById('now');
+  const playBtn  = document.getElementById('playbtn');
+  const animBtn  = document.getElementById('animbtn');
+  const meshyBtn = document.getElementById('meshybtn');
+  const meshyCount = document.getElementById('meshycount');
+
+  const BY_FILE = {}, ALL = [];
+  for(const [gname, items] of CATALOG){
+    for(const [file, label, meshy] of items){
+      BY_FILE[file] = { file, label, grp:gname, meshy: !!meshy };
+      ALL.push(BY_FILE[file]);
+    }
+  }
+
+  // MESHY ONLY (Doug, 2026-09-03). The list carries both the Meshy-pipeline
+  // models and ~85 procedural studies; this hides everything that did not come
+  // out of Meshy. Remembered per device, because someone who works in one mode
+  // wants it still set tomorrow — and the switch sits at the top of the list,
+  // lit when it is on, so a filtered list can never look like a lost one.
+  // v8.30: the DEFAULT is now ON. The pre-Meshy skins were archived out of the
+  // store entirely on 2026-09-03 (vendor/models/_archive_pre_meshy/), so what
+  // this switch hides is no longer old junk — it is the ~85 procedural studies,
+  // which are legitimate but are not what the stage is for day to day. Opening
+  // clean and letting the switch REVEAL the rest is one mechanism, not two.
+  // Only an explicit stored '0' turns it off, so a first visit gets the clean view.
+  let meshyOnly = true;
+  try { const v = localStorage.getItem('hvb-stage-meshy-only'); if(v === '0') meshyOnly = false; }
+  catch(err){}
+  // the items you can actually reach right now — Back and Next walk THIS
+  function visible(){ return meshyOnly ? ALL.filter(i => i.meshy) : ALL; }
+
+  // Boot on a real asset, framed and moving. v6 opened on the terrain walk
+  // because the old placeholder Vitas were "very uninviting"; the dragon is a
+  // finished asset that answers the same objection and is what this page is
+  // actually for. The terrain walk is one tap away under Tools.
+  let current = 'creature_study.html?m=dragon';
+
+  // ?item=<file> still deep-links, e.g. ?item=creature_study.html%3Fm%3Dorca
+  {
+    const hit = /(?:^|[?&])item=(.*)$/.exec(location.search.replace(/^\?/, ''));
+    if(hit){
+      const want = decodeURIComponent(hit[1]);
+      if(BY_FILE[want]) current = want;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // the list
+  // ---------------------------------------------------------------------
+  let wantScroll = false;
+  const rowOf = {};
+  const groupEls = [];
+  for(const [gname, items] of CATALOG){
+    const h = document.createElement('div');
+    h.className = 'grp'; h.textContent = gname;
+    listEl.appendChild(h);
+    const mine = [];
+    for(const [file, label] of items){
+      const b = document.createElement('button');
+      b.dataset.file = file;
+      b.innerHTML = '<span class="note"></span>' + label;
+      b.addEventListener('click', () => { current = file; wantScroll = true; load(); closeList(); });
+      listEl.appendChild(b);
+      rowOf[file] = b;
+      mine.push(file);
+    }
+    groupEls.push({ head:h, files:mine });
+  }
+
+  // show/hide rows for the current filter, and drop a group heading whose
+  // every row is hidden so the list never shows an empty "PLANTS"
+  function applyFilter(){
+    for(const f in rowOf) rowOf[f].hidden = meshyOnly && !BY_FILE[f].meshy;
+    for(const g of groupEls) g.head.hidden = g.files.every(f => rowOf[f].hidden);
+    meshyBtn.classList.toggle('on', meshyOnly);
+    meshyBtn.setAttribute('aria-pressed', meshyOnly ? 'true' : 'false');
+    meshyCount.textContent = visible().length;
+  }
+  function markList(){
+    for(const f in rowOf){
+      rowOf[f].classList.toggle('on', f === current);
+      const n = NOTES[f] && (NOTES[f].text || '').trim();
+      rowOf[f].querySelector('.note').textContent = n ? '✎' : '';
+    }
+    // Only scroll the list when the USER moved to another asset. markList also
+    // runs on boot and whenever notes arrive from the server, and scrolling
+    // then just yanks the list out from under whoever is reading it.
+    const row = rowOf[current];
+    if(wantScroll && row && row.scrollIntoView){ row.scrollIntoView({ block:'nearest' }); }
+    wantScroll = false;
+  }
+
+  meshyBtn.addEventListener('click', () => {
+    meshyOnly = !meshyOnly;
+    try { localStorage.setItem('hvb-stage-meshy-only', meshyOnly ? '1' : '0'); } catch(err){}
+    applyFilter();
+    // Turning the filter ON while looking at, say, the palm tree would leave a
+    // hidden asset on stage and a list with nothing selected. Move to the first
+    // Meshy model instead. Turning it OFF never moves you.
+    if(meshyOnly && !BY_FILE[current].meshy){
+      const first = visible()[0];
+      if(first){ current = first.file; wantScroll = true; load(); return; }
+    }
+    wantScroll = true; markList();
+  });
+
+  function openList(){ document.body.classList.add('list-open'); }
+  function closeList(){ document.body.classList.remove('list-open'); }
+  document.getElementById('listbtn').addEventListener('click',
+    () => document.body.classList.toggle('list-open'));
+  document.getElementById('scrim').addEventListener('click', closeList);
+
+  // ---------------------------------------------------------------------
+  // loading
+  // ---------------------------------------------------------------------
+  let loadN = 0;
+  function load(){
+    const rec = BY_FILE[current];
+    nowEl.textContent = rec ? rec.label : current;
+    // a catalog entry may carry its own query, so the cache-buster joins with
+    // & in that case — otherwise the second '?' swallows the first
+    // embed=1 tells a study that understands it to hide its own control panel,
+    // so there is exactly ONE way to pick an asset and ONE set of buttons.
+    // Studies that do not know the flag simply ignore it.
+    const sep = current.indexOf('?') >= 0 ? '&' : '?';
+    frame.src = current + sep + 'embed=1&n=' + (++loadN);
+    markList();
+    showNote();
+    setControls(null);                 // until the new page reports in
+  }
+
+  // the study's control surface, if it has one
+  function api(){
+    try { return (frame.contentWindow && frame.contentWindow.STAGE_API) || null; }
+    catch(err){ return null; }         // not loaded yet
+  }
+  function setControls(a){
+    const has = !!a;
+    const clips = has ? a.clipCount() : 0;
+    playBtn.disabled = !has || clips === 0;
+    animBtn.disabled = !has || clips < 2;
+    if(has && clips){
+      const playing = a.isPlaying();
+      playBtn.querySelector('.ico').textContent = playing ? '⏸' : '▶';
+      playBtn.querySelector('.cap').textContent = playing ? 'Pause' : 'Play';
+      const n = a.clipName();
+      animBtn.querySelector('.cap').textContent = (clips > 1 && n) ? n : 'Animation';
+    } else {
+      playBtn.querySelector('.ico').textContent = '▶';
+      playBtn.querySelector('.cap').textContent = 'Play';
+      animBtn.querySelector('.cap').textContent = 'Animation';
+    }
+  }
+  // STAGE_API exists the moment the study's module runs — which is BEFORE its
+  // multi-megabyte model has arrived, when the clip count is still zero. Waiting
+  // only for the object therefore froze Play and Animation greyed out on a page
+  // that was about to have three clips. So keep the buttons in sync on a light
+  // heartbeat instead: it costs nothing, survives a slow model, and also tracks
+  // changes made inside the study itself.
+  // ONE timer, not two. A second faster poll layered on top bought about a
+  // third of a second of button responsiveness and cost far more than it was
+  // worth: two repeating timers keep the task queue busy enough to starve a
+  // headless capture of the idle time it needs to fetch an 8 MB model, so the
+  // stage screenshotted empty. 250ms is imperceptible and leaves the page idle.
+  setInterval(() => setControls(api()), 250);
+
+  // ---------------------------------------------------------------------
+  // the six big buttons
+  // ---------------------------------------------------------------------
   function step(d){
-    const n = items.length;
-    pick.selectedIndex = ((pick.selectedIndex + d) % n + n) % n;
-    fillAnim(); load();
+    const list = visible();
+    if(!list.length) return;
+    const i = list.findIndex(x => x.file === current);
+    // if the asset on stage is filtered out, step lands on the first visible
+    // one rather than jumping somewhere arbitrary
+    const j = (i < 0) ? (d > 0 ? 0 : list.length - 1) : (i + d + list.length) % list.length;
+    current = list[j].file; wantScroll = true; load();
   }
   document.getElementById('prev').addEventListener('click', () => step(-1));
   document.getElementById('next').addEventListener('click', () => step(1));
-  function isTyping(t){
-    return t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.isContentEditable);
+
+  playBtn.addEventListener('click', () => { const a = api(); if(!a) return;
+    a.toggle(); setControls(a); });
+  animBtn.addEventListener('click', () => { const a = api(); if(!a) return;
+    a.nextClip(); setControls(a); });
+
+  // zoom: STAGE_API where it exists, synthetic wheel everywhere else, so the
+  // buttons do something on all ~90 studies rather than only the new ones
+  function wheelPulse(dir){
+    try {
+      const doc = frame.contentDocument;
+      const el = doc && (doc.querySelector('canvas') || doc.body);
+      if(el) el.dispatchEvent(new WheelEvent('wheel',
+        { deltaY: dir * 120, bubbles:true, cancelable:true }));
+    } catch(err){}
   }
-  function onKey(e){
-    if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    if(isTyping(e.target)) return;          // the pulldowns and the notes box keep their own arrows
-    e.preventDefault();
-    step(e.key === 'ArrowRight' ? 1 : -1);
-  }
-  window.addEventListener('keydown', onKey);
-  // the studies are same-origin: hook the iframe's own document on every load,
-  // so arrows work after you've clicked a button INSIDE a study
-  frame.addEventListener('load', () => {
-    try { frame.contentWindow.addEventListener('keydown', onKey); } catch(err) {}
+  function zoom(f, dir){ const a = api(); if(a && a.zoom) a.zoom(f); else wheelPulse(dir); }
+  document.getElementById('zin').addEventListener('click',  () => zoom(1/1.25, -1));
+  document.getElementById('zout').addEventListener('click', () => zoom(1.25,    1));
+  document.getElementById('reset').addEventListener('click', () => {
+    const a = api(); if(a && a.reset) a.reset(); else load();
   });
 
-  // ---- v3: per-item NOTES. Saved as you type to localStorage AND, when the
-  // local server is serving (serve_nocache.py), POSTed to /stage-notes so it
-  // writes stage_notes.json + STAGE_NOTES.md beside the studies for the
-  // sessions to read. On the public Netlify copy there is no server: notes
-  // stay in this browser, and "Copy all notes" hands them over as markdown. ----
-  const KEY = 'hvb_stage_notes';
+  // arrow keys still step, including when the iframe has focus
+  function onKey(e){
+    if(e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if(e.key === 'ArrowLeft')  step(-1);
+    if(e.key === 'ArrowRight') step(1);
+  }
+  addEventListener('keydown', onKey);
+  frame.addEventListener('load', () => {
+    try { frame.contentDocument.addEventListener('keydown', onKey); } catch(err){}
+  });
+
+  document.getElementById('gwbtn').addEventListener('click',
+    () => { location.href = 'georgeworld.html'; });
+
+  // ---------------------------------------------------------------------
+  // notes — Doug's channel to the sessions. localStorage plus, when the local
+  // server is there, POST /stage-notes -> stage_notes.json + STAGE_NOTES.md
+  // ---------------------------------------------------------------------
+  const KEY = 'hvb-stage-notes';
   let NOTES = {};
-  try { NOTES = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch(err) { NOTES = {}; }
-  const notesEl = document.getElementById('notes');
+  try { NOTES = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(err){ NOTES = {}; }
   const noteEl = document.getElementById('note');
-  const noteLabel = document.getElementById('notelabel');
   const noteStat = document.getElementById('notestat');
+  const noteLabel = document.getElementById('notelabel');
   const notesBtn = document.getElementById('notesbtn');
-  for(const o of items) o.dataset.label = o.textContent;
-  function markOptions(){
-    let n = 0;
-    for(const o of items){
-      const has = !!(NOTES[o.value] && (NOTES[o.value].text || '').trim());
-      o.textContent = (has ? '✎ ' : '') + o.dataset.label;
-      if(has) n++;
-    }
-    notesBtn.textContent = '✎ Notes' + (n ? ' (' + n + ')' : '');
-    notesBtn.classList.toggle('has', !!(NOTES[pick.value] && (NOTES[pick.value].text || '').trim()));
-  }
-  function showNote(){
-    const o = items[pick.selectedIndex];
-    noteLabel.textContent = o ? o.dataset.label : '';
-    noteEl.value = (NOTES[pick.value] && NOTES[pick.value].text) || '';
-    noteStat.textContent = NOTES[pick.value] && NOTES[pick.value].ts ? 'saved ' + NOTES[pick.value].ts : '';
-    markOptions();
-  }
+
   function stamp(){
     const d = new Date(), p = x => String(x).padStart(2, '0');
-    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate())
+         + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function showNote(){
+    const o = BY_FILE[current];
+    noteLabel.textContent = o ? o.label : '';
+    noteEl.value = (NOTES[current] && NOTES[current].text) || '';
+    noteStat.textContent = (NOTES[current] && NOTES[current].ts) ? 'saved ' + NOTES[current].ts : '';
+    markList();
   }
   let saveT = null;
   async function saveNotes(){
-    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err) {}
+    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err){}
     try {
-      const r = await fetch('/stage-notes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(NOTES) });
+      const r = await fetch('/stage-notes', { method:'POST',
+        headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(NOTES) });
       noteStat.textContent = r.ok ? 'saved to STAGE_NOTES.md ' + stamp() : 'saved in this browser only';
-    } catch(err) {
-      noteStat.textContent = 'saved in this browser only (no local server)';
-    }
-    markOptions();
+    } catch(err){ noteStat.textContent = 'saved in this browser only (no local server)'; }
+    markList();
   }
   noteEl.addEventListener('input', () => {
-    const o = items[pick.selectedIndex];
-    NOTES[pick.value] = { label: o ? o.dataset.label : pick.value, text: noteEl.value, ts: stamp() };
+    const o = BY_FILE[current];
+    NOTES[current] = { label: o ? o.label : current, text: noteEl.value, ts: stamp() };
     noteStat.textContent = 'saving…';
     clearTimeout(saveT); saveT = setTimeout(saveNotes, 600);
   });
-  function toggleNotes(open){
-    document.body.classList.toggle('notes-open', open);
-    if(open) noteEl.focus();
-  }
-  notesBtn.addEventListener('click', () => toggleNotes(!document.body.classList.contains('notes-open')));
-  document.getElementById('notesclose').addEventListener('click', () => toggleNotes(false));
+  notesBtn.addEventListener('click',
+    () => { document.body.classList.toggle('notes-open');
+            if(document.body.classList.contains('notes-open')) noteEl.focus(); });
+  document.getElementById('notesclose').addEventListener('click',
+    () => document.body.classList.remove('notes-open'));
   document.getElementById('copyall').addEventListener('click', async () => {
     const lines = ['# HvB Asset Stage notes — ' + stamp(), ''];
-    for(const o of items){
-      const n = NOTES[o.value];
-      if(n && (n.text || '').trim()){ lines.push('## ' + o.dataset.label + '  `' + o.value + '`', '_' + n.ts + '_', '', n.text.trim(), ''); }
+    for(const it of ALL){
+      const n = NOTES[it.file];
+      if(n && (n.text || '').trim())
+        lines.push('## ' + it.grp + ' > ' + it.label + '  (' + it.file + ')',
+                   n.ts, '', n.text.trim(), '');
     }
     const md = lines.join('\n');
-    try { await navigator.clipboard.writeText(md); noteStat.textContent = 'all notes copied as markdown'; }
-    catch(err) { noteEl.value = md; noteEl.select(); noteStat.textContent = 'select-all + copy from the box'; }
+    try { await navigator.clipboard.writeText(md); noteStat.textContent = 'all notes copied'; }
+    catch(err){ noteEl.value = md; noteEl.select(); noteStat.textContent = 'select all and copy'; }
   });
-  // merge notes the local server already holds (typed on another device on the LAN)
   fetch('stage_notes.json?n=' + Date.now()).then(r => r.ok ? r.json() : null).then(srv => {
     if(!srv) return;
-    for(const k in srv){ if(!NOTES[k] || (srv[k].ts || '') >= (NOTES[k].ts || '')) NOTES[k] = srv[k]; }
-    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err) {}
+    for(const k in srv) if(!NOTES[k] || (srv[k].ts || '') >= (NOTES[k].ts || '')) NOTES[k] = srv[k];
+    try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err){}
     showNote();
   }).catch(() => {});
 
-  fillAnim();
-  updateCount();
-  showNote();
+  // ---------------------------------------------------------------------
+  applyFilter();
+  // a remembered filter must not leave a hidden asset on stage at boot
+  if(meshyOnly && BY_FILE[current] && !BY_FILE[current].meshy){
+    const first = visible()[0];
+    if(first) current = first.file;
+  }
+  document.getElementById('rev').textContent = 'v' + REV;
+  document.getElementById('rev').title = 'built ' + REV_BUILT;
+  load();
+  window.STAGE = { get current(){ return current; }, ALL, CATALOG, load,
+                   go(f){ current = f; load(); }, api };
+})();
 </script>
 </body>
 </html>

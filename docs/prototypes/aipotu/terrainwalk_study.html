@@ -12,12 +12,19 @@
      offsets are MEASURED from each skin's actual skeleton at load.
      The map carries NORMALS (analytic heightfield — height and normal
      exact everywhere). Toggles: LEG IK · ANKLE LAYER · show normals.
+     KNOWN ISSUES (logged 2026-09-02, Doug — not fixed yet):
+       · the first Vita's walk clip clips its ELBOWS THROUGH THE TORSO
+         slightly. Cosmetic; the arm swing needs a little more abduction
+         (or the torso a slightly narrower collision profile).
+       · feet can hover ~1 inch above the ground on some skins — the IK
+         ground offset is measured from the rest ankle height and a few
+         rigs sit their ankle differently.
      ====================================================================== -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Terrain Walk Study</title>
+<title>Terrain Walk Study v8</title>
 <style>
   html, body { margin:0; height:100%; overflow:hidden; background:#dff0f7; }
   #chip { position:fixed; top:12px; left:12px; z-index:10;
@@ -29,6 +36,10 @@
   #chip button { margin:5px 4px 0 0; padding:4px 11px; border:0; border-radius:7px;
     background:#3d6f96; color:#fff; font:12px system-ui; cursor:pointer; }
   #chip button.on { background:#e8963c; color:#241d06; font-weight:700; }
+  #chip .lbl { opacity:0.62; font-size:10.5px; letter-spacing:1.1px; margin-top:9px; }
+  #chip .row { display:flex; align-items:center; gap:8px; margin-top:5px; }
+  #chip button.load { background:#2f7a4d; font-weight:700; }
+  #chip button.load:hover { background:#3d9963; }
   #chip select { display:block; margin-top:6px; padding:5px 8px; border:0;
     border-radius:7px; background:#3d6f96; color:#fff; font:12px system-ui;
     cursor:pointer; min-width:240px; }
@@ -36,11 +47,23 @@
 </head>
 <body>
 <div id="chip">
-  <b>⛰️ Terrain Walk Study</b> — full leg IK, any skin, v3<br>
+  <b>⛰️ Terrain Walk Study</b> <span style="font:11px Consolas,monospace;color:#8fd9a8;
+    background:#1d2a22;border:1px solid #2f4a38;border-radius:6px;padding:1px 6px"
+    title="built 2026-09-02 21:45 -07:00">v8</span> — full leg IK, any skin<br>
   <span class="hint">two-bone IK plants each foot on its own ground sample;
   ankles roll onto the slope · import a walker below, or drag a .glb
   (mixamorig bones) onto the page</span><br>
-  <select id="skinsel"><option value="-1">Vita — THE NEW BODY (built in)</option></select>
+  <!-- 2026-09-02 (Doug): the built-in placeholder Vita is gone; our Meshy Vita
+       is the walker on opening. Xbot still loads as the retarget source. -->
+  <div class="lbl">WALKER — pick one, or load your own</div>
+  <select id="skinsel"></select>
+  <!-- v7: loading a skin used to mean knowing you could drag a file onto the
+       page. Now there is a real button. Both still work. -->
+  <div class="row">
+    <button id="loadskin" class="load">📂 Load skin…</button>
+    <span class="hint" id="loadhint">or drag a .glb / .fbx anywhere</span>
+  </div>
+  <input id="skinfile" type="file" accept=".glb,.gltf,.fbx" multiple hidden>
   <button id="legik" class="on">LEG IK: ON</button>
   <button id="ankle" class="on">ANKLE LAYER: ON</button>
   <button id="normals">show normals</button>
@@ -127,10 +150,37 @@ function terrainNormal(x, z){
   const { hx, hz } = terrainGrad(x, z);
   return new THREE.Vector3(-hx, 1, -hz).normalize();
 }
+// ==========================================================================
+//  THE GROUND MESH  (v8, 2026-09-02 — Doug: denser mesh + denser normals)
+//
+//  WHAT THIS DOES AND DOES NOT FIX, stated plainly:
+//  The foot IK does NOT sample this mesh. It samples terrainH()/terrainNormal()
+//  analytically (see legIK/ankleLayer), which are exact everywhere at any
+//  density. So planting was never limited by triangle count.
+//  What WAS limited is the surface you SEE. At 100 segments a cell was 0.36
+//  units while the highest-frequency term of the heightfield has a 3.3-unit
+//  wavelength — only ~9 samples across it — so rendered ridges were clipped
+//  below the true surface and a correctly-planted foot could appear to hover
+//  over a hill the mesh had flattened. Denser cells close that gap.
+//
+//  AND the normals: the old build computed exact analytic normals, used them
+//  for the colour ramp, then threw them away by calling computeVertexNormals()
+//  — replacing exactness with averaged face normals. We now write the analytic
+//  normal straight into the attribute. That is not an approximation of smooth
+//  shading, it IS the true surface normal at every vertex, and it costs
+//  nothing.
+//
+//  DENSITY: 220x220 by default = 48.4k verts / 96.8k triangles, cell 0.164.
+//  Static geometry, built once, one draw call — an iPad eats this. Override
+//  with ?seg=N to A/B it (?seg=100 is the old mesh).
+// ==========================================================================
+const GROUND_SPAN = 36;
+const GROUND_SEG = Math.max(16, Math.min(600,
+  +(new URLSearchParams(location.search).get('seg')) || 220));
 {
-  const geo = new THREE.PlaneGeometry(36, 36, 100, 100);
+  const geo = new THREE.PlaneGeometry(GROUND_SPAN, GROUND_SPAN, GROUND_SEG, GROUND_SEG);
   geo.rotateX(-Math.PI/2);
-  const pos = geo.attributes.position, col = [];
+  const pos = geo.attributes.position, nrm = geo.attributes.normal, col = [];
   const grass = new THREE.Color(0x7da45c), dry = new THREE.Color(0xb8a86a),
         steep = new THREE.Color(0x8a7a58), c = new THREE.Color();
   for(let i = 0; i < pos.count; i++){
@@ -138,15 +188,20 @@ function terrainNormal(x, z){
     const y = terrainH(x, z);
     pos.setY(i, y);
     const n = terrainNormal(x, z);
+    nrm.setXYZ(i, n.x, n.y, n.z);          // EXACT — no computeVertexNormals()
     c.copy(grass).lerp(dry, clamp((y + 0.4)/1.6, 0, 1));
     c.lerp(steep, clamp((1 - n.y)*3.2, 0, 1));
     col.push(c.r, c.g, c.b);
   }
-  geo.computeVertexNormals();
+  pos.needsUpdate = nrm.needsUpdate = true;
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeBoundingSphere();
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
   ground.receiveShadow = true;
   scene.add(ground);
+  window.TW_MESH = { seg:GROUND_SEG, span:GROUND_SPAN,
+    verts: pos.count, tris: GROUND_SEG*GROUND_SEG*2,
+    cell: +(GROUND_SPAN/GROUND_SEG).toFixed(4), analyticNormals: true };
 }
 {
   let s2 = 977;
@@ -380,15 +435,52 @@ function registerRig(name, node, B, foreign = false, anims = []){
 }
 let pelvisDrop = 0;   // declared here: activate(0) below runs before the IK block that uses it (TDZ fix 2026-09-01)
 function activate(i){
-  for(const r of rigs) r.node.visible = false;
-  active = rigs[i];
+  // guarded: with the Vita gone there is no synchronously-registered rig, so
+  // a stray activate() before Xbot lands must be a no-op rather than a crash
+  const r = rigs[i];
+  if(!r) return;
+  for(const x of rigs) x.node.visible = false;
+  active = r;
   active.node.visible = true;
   pelvisDrop = 0;
 }
-{
-  const c = buildCanonical();
-  registerRig(c.name, c.node, c.B);
-  activate(0);
+// 2026-09-02 (Doug): the built-in Vita used to be registered here as rigs[0]
+// and activated on boot. It has been removed from the stage pending its
+// replacement. buildCanonical() is LEFT IN PLACE and unused — it is the
+// canonical-skeleton reference the new body will be built against, and the
+// walk clip's bone naming is authored to match it. The retarget SOURCE for
+// imported skins was always Xbot (xbotMesh/xbotWalk), never the Vita, so
+// nothing in the walk pipeline depends on this removal.
+
+// TARGET_H: every imported character is auto-scaled to this height on load,
+// so a Meshy export and a Mixamo FBX stand shoulder to shoulder. One knob.
+const TARGET_H = 1.55;
+
+// ---- measuredHeight: the ONLY reliable way to size an imported character ----
+// Box3.setFromObject() measures a SkinnedMesh from cached BIND-POSE geometry
+// bounds. For a GLB rig whose mesh hangs under an Armature node scaled 0.01
+// that does not describe what is actually drawn, and it lies CONSISTENTLY —
+// it reported a tidy 1.55 for characters that were rendering at 4.1 to 4.9.
+// (2026-09-02: verifying the old code with the same call is how the bug got
+// signed off the first time. Measure the render, not the loader's opinion.)
+// SkinnedMesh.computeBoundingBox() IS skinning-aware, so union per mesh.
+function measuredHeight(node){
+  node.updateMatrixWorld(true);
+  let box = null;
+  node.traverse(o => {
+    if(!o.isMesh && !o.isSkinnedMesh) return;
+    let b;
+    if(o.isSkinnedMesh && typeof o.computeBoundingBox === 'function'){
+      o.computeBoundingBox();
+      b = o.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    } else {
+      if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    }
+    box = box ? box.union(b) : b;
+  });
+  return box ? { h: box.max.y - box.min.y, minY: box.min.y }
+             : { h: 0, minY: 0 };
 }
 
 // ---------- imported skins: manifest + drag-drop ---------------------------
@@ -414,11 +506,12 @@ const skinSel = document.getElementById('skinsel');
 function adoptGltf(name, gltf){
   const node = gltf.scene;
   // scale to Vita height, feet on the ground
-  const box = new THREE.Box3().setFromObject(node);
-  const h = Math.max(0.01, box.max.y - box.min.y);
-  const s = 1.55/h;
+  // v6: measure the RENDER, scale, then re-measure to put the feet on y=0
+  const m0 = measuredHeight(node);
+  const s = TARGET_H / Math.max(0.001, m0.h);
   node.scale.setScalar(s);
-  node.position.y = -box.min.y*s;
+  const m1 = measuredHeight(node);
+  node.position.y -= m1.minY;
   node.traverse(o => { if(o.isMesh || o.isSkinnedMesh){ o.castShadow = true; o.frustumCulled = false; } });
   // (frustumCulled off: an imported SkinnedMesh's bounding sphere is its bind
   //  pose at the origin, so parts of a walker vanish once the bones carry it away)
@@ -461,8 +554,66 @@ skinSel.addEventListener('change', () => {
   if(v === '' || isNaN(+v)) return;       // a stage hash for a not-yet-listed skin lands here first
   activate(+v);
 });
-window.TW = { rigs, get active(){ return active; }, scene, activate };   // debug handle
-loadAny('./vendor/models/Xbot.glb', g => adoptGltf('Xbot', g), err => console.warn('Xbot load failed', err));
+window.TW = { rigs, get active(){ return active; }, scene, camera, controls, renderer,
+              activate, TARGET_H, terrainH, terrainNormal,
+              get mesh(){ return window.TW_MESH; } };   // debug handle
+// synchronous cost probe — a hidden tab suspends rAF, so timing the real loop
+// is impossible from a script; render N frames back to back instead
+window.TW_PERF = (n)=>{
+  n = n || 40;
+  renderer.render(scene, camera);
+  const t0 = performance.now();
+  for(let i=0;i<n;i++) renderer.render(scene, camera);
+  const ms = (performance.now()-t0)/n;
+  const r = renderer.info.render;
+  return { msPerFrame:+ms.toFixed(2), impliedFps:Math.round(1000/ms),
+           drawCalls:r.calls, triangles:r.triangles, mesh:window.TW_MESH };
+};
+
+// ---- STAGE ZOOM HOOK -------------------------------------------------------
+// The stage bar drives this when the study is framed. Absolute dolly along the
+// camera->target axis, clamped to OrbitControls' own limits, so the stage's
+// slider is a real position and not a pile of wheel pulses.
+window.STAGE_ZOOM = {
+  get min(){ return controls.minDistance; },
+  get max(){ return Math.min(controls.maxDistance, 30); },
+  get(){ return camera.position.distanceTo(controls.target); },
+  set(d){
+    const lo = this.min, hi = this.max;
+    d = Math.max(lo, Math.min(hi, d));
+    const dir = camera.position.clone().sub(controls.target);
+    if(dir.lengthSq() < 1e-9) dir.set(0, 0, 1);
+    camera.position.copy(controls.target).add(dir.setLength(d));
+    controls.update();
+    return d;
+  },
+  by(f){ return this.set(this.get() * f); },
+};
+
+// v7 (2026-09-02, Doug): OUR VITA is the walker you meet on opening — not Xbot,
+// and certainly not the old placeholder. Xbot still loads (it is the retarget
+// SOURCE every imported skin's walk is built from) but it loads hidden and the
+// Meshy Vita takes the stage as soon as it lands.
+const BOOT_WALKER = ['vita_meshy_2b.glb', 'vita_meshy.glb'];   // newest first
+loadAny('./vendor/models/Xbot.glb',
+  g => {
+    const i = adoptGltf('Xbot', g);
+    // only fall back to Xbot if no Vita has arrived (or ever arrives)
+    if(i >= 0 && !active){ skinSel.value = i; activate(i); }
+    bootVita(0);
+  },
+  err => { console.warn('Xbot load failed', err); bootVita(0); });
+
+function bootVita(n){
+  if(n >= BOOT_WALKER.length) return;          // no Vita available; Xbot stays
+  const file = BOOT_WALKER[n];
+  loadAny('./vendor/models/' + file, g => {
+    const label = (file.match(/vita_meshy_?(\d*[a-z]?)/) || [])[1];
+    const i = adoptGltf('Vita' + (label ? ' ' + label : ''), g);
+    if(i >= 0){ skinSel.value = i; activate(i); }
+    else bootVita(n + 1);
+  }, () => bootVita(n + 1));                   // missing or broken -> next one
+}
 fetch('./vendor/models/manifest.json')
   .then(r => r.ok ? r.json() : null)
   .then(man => {
@@ -479,16 +630,28 @@ fetch('./vendor/models/manifest.json')
       .map(p => p.split(/:(.*)/)).find(p => p[0] === 'skinsel' && String(p[1]).startsWith('file~'));
     if(want){ skinSel.value = want[1]; skinSel.dispatchEvent(new Event('change')); }
   }).catch(() => {});
-addEventListener('dragover', e => e.preventDefault());
-addEventListener('drop', e => {
-  e.preventDefault();
-  for(const f of e.dataTransfer.files){
+// v7: the file button and drag-drop share one path
+function ingestFiles(files){
+  for(const f of files){
     f.arrayBuffer().then(buf => parseAny(f.name, buf, g => {
       const idx = adoptGltf(f.name.replace(/\.(glb|gltf|fbx)$/i, ''), g);
-      if(idx >= 0){ skinSel.value = idx; activate(idx); }
-    }, err => console.warn('drop parse failed', err)));
+      const hint = document.getElementById('loadhint');
+      if(idx >= 0){ skinSel.value = idx; activate(idx); if(hint) hint.textContent = 'loaded ' + f.name; }
+      else if(hint) hint.textContent = f.name + ' — no mixamorig bones, cannot walk';
+    }, err => {
+      const hint = document.getElementById('loadhint');
+      if(hint) hint.textContent = f.name + ' — failed to parse';
+      console.warn('parse failed', f.name, err);
+    }));
   }
-});
+}
+{
+  const btn = document.getElementById('loadskin'), inp = document.getElementById('skinfile');
+  btn.addEventListener('click', () => inp.click());
+  inp.addEventListener('change', () => { ingestFiles(inp.files); inp.value = ''; });
+}
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); ingestFiles(e.dataTransfer.files); });
 
 // ==========================================================================
 //  FULL LEG IK — rest-pose-agnostic. World-space DELTA rotations on top
@@ -595,6 +758,12 @@ const clock = new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
+
+  // 2026-09-02: with the built-in Vita removed there is no rig registered
+  // synchronously, so the first few frames run before Xbot's async load
+  // lands. Draw the empty terrain until a walker exists rather than
+  // dereferencing a null active.
+  if(!active){ controls.update(); renderer.render(scene, camera); return; }
 
   const px = Math.sin(pathA)*RING, pz = Math.cos(pathA)*RING;
   const heading = Math.atan2(Math.cos(pathA), -Math.sin(pathA));

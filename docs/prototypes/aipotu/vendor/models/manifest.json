@@ -1,85 +1,268 @@
 {
-  "_readme": "Skins for the Skin Gallery (skin_test_study.html) and the Terrain Walk. Drop a .glb/.gltf or a Mixamo .fbx (T-pose, With Skin) here and add a line to skins[]; the studies list every entry and LOAD IT ONLY WHEN PICKED (some are 60 MB). Bone names must be Mixamo's (mixamorig:*). Xbot.glb is the standing right-side reference and is loaded separately. 2026-09-01: all 13 of Doug's skins_inbox exports installed.",
+  "_readme": "Skins for the Skin Gallery (skin_test_study.html) and the Terrain Walk. Drop a .glb/.gltf or a Mixamo .fbx (T-pose, With Skin) here and add a line to skins[]; the studies list every entry and LOAD IT ONLY WHEN PICKED (some are 60 MB). Bone names must be Mixamo's (mixamorig:*). Xbot.glb is the standing right-side reference and is loaded separately. 2026-09-02 CULL (Doug): 5 entries removed - every one audited in the running page against the stage's own rule (adoptGltf fails unless all 7 mixamorig leg bones are present). 11 of 16 passed. REMOVED, and WHY, so nobody re-adds them blindly: Ch19_nonPBR.fbx - rig is COMPLETE but its bones are named mixamorig1* (Mixamo appends a digit on re-rig) and normalizeBones() only strips 'mixamorig:'; widening it to /^mixamorig\\d*/ would likely recover this skin outright. character.fbx - three r160 cannot open it at all: 'FBX version not supported, FileVersion: 6100'; needs a re-export from source. boy_static.glb / charlotte_static.glb / wanderer_static.glb - Meshy exports, 0 bones, already flagged rig:false; they were never going to walk. All five FILES REMAIN ON DISK - only the manifest lines are gone. 2026-09-02 RENAMES (Doug): Ch14->Mouse, Ch34->Elf Girl, Ch46->Young Girl, Character 2 (character_1.fbx)->Creepy Mummy. Ch19 and Character 1 confirmed removed in the earlier cull.",
   "skins": [
     {
-      "file": "Eve_By_J.Gonzales.fbx",
-      "name": "Eve (J. Gonzales)"
+      "file": "vita_meshy.glb",
+      "name": "Vita (Meshy text-to-3D, auto-rigged 2026-09-02)",
+      "mb": 5.6,
+      "_note": "Meshy's rig renamed to mixamorig:* in the GLB JSON (Spine02/Spine01/Spine -> Spine/Spine1/Spine2, neck -> Neck, head_end -> HeadTop_End; all 7 leg bones present). Raw Meshy names kept in vita_meshy_raw.glb. Meshy walk/run clips: vita_meshy_walking.glb / vita_meshy_running.glb (+ *_armature.glb = clip only, drop on the anim viewer). Meshy tasks: preview 01a0653c-3d4f-744c-b43b-85a45695ec99, refine 01a0653d-a52a-756b-91c8-69c07522b1b0, rig 01a0653e-9807-7713-9d6d-d75b39ea8897."
     },
     {
-      "file": "akai_e_espiritu.fbx",
-      "name": "Akai e Espiritu"
+      "file": "vita_meshy_walking.glb",
+      "name": "Vita (Meshy) — bundled Meshy walking clip",
+      "mb": 5.6
     },
     {
-      "file": "Peasant_Girl.fbx",
-      "name": "Peasant Girl"
+      "file": "vita_meshy_running.glb",
+      "name": "Vita (Meshy) — bundled Meshy running clip",
+      "mb": 5.6
     },
     {
-      "file": "Aj.fbx",
-      "name": "Aj",
-      "mb": 6.7
+      "file": "vita_meshy_2.glb",
+      "name": "Vita 2 colorful (Meshy text-to-3D, auto-rigged 2026-09-02)",
+      "mb": 6.9,
+      "_note": "Same treatment as vita_meshy.glb: Meshy rig renamed to mixamorig:*; raw names in vita_meshy_2_raw.glb; Meshy clips in vita_meshy_2_walking.glb / vita_meshy_2_running.glb (+ *_armature.glb clip-only). Meshy tasks: preview 01a0654a-a97b-77f0-a6bd-d8697a91429f, refine 01a0654c-4cfd-76b0-858b-fc44f3fde6d8, rig 01a0654d-405d-7066-8d25-f119ef6c3158."
     },
     {
-      "file": "Ch14_nonPBR.fbx",
-      "name": "Ch14",
-      "mb": 28.4
+      "file": "vita_meshy_2_walking.glb",
+      "name": "Vita 2 (Meshy) — bundled Meshy walking clip",
+      "mb": 6.9
     },
     {
-      "file": "Ch19_nonPBR.fbx",
-      "name": "Ch19",
-      "mb": 51.4
+      "file": "vita_meshy_2_running.glb",
+      "name": "Vita 2 (Meshy) — bundled Meshy running clip",
+      "mb": 6.9
     },
     {
-      "file": "Ch34_nonPBR.fbx",
-      "name": "Ch34",
-      "mb": 26.8
+      "file": "vita_meshy_2b.glb",
+      "name": "Vita 2b colorful, revised (older, androgynous, darker skin; Meshy auto-rigged 2026-09-02)",
+      "mb": 4.6,
+      "_note": "Doug's revision of Vita 2: young adult ~19, more androgynous, dark brown skin, no rosy cheeks. Same treatment: Meshy rig renamed to mixamorig:*; raw names in vita_meshy_2b_raw.glb; Meshy clips in vita_meshy_2b_walking.glb / vita_meshy_2b_running.glb (+ *_armature.glb clip-only). Meshy tasks: preview 01a06563-2089-76fb-a619-36131723fdfa, refine 01a06564-89f2-75b6-8e24-129e404f058a, rig 01a06565-7ddd-7526-946c-548e50bdd9de."
     },
     {
-      "file": "Ch46_nonPBR.fbx",
-      "name": "Ch46",
-      "mb": 27.6
+      "file": "vita_meshy_2b_walking.glb",
+      "name": "Vita 2b (Meshy) — bundled Meshy walking clip",
+      "mb": 4.6
     },
     {
-      "file": "Mutant.fbx",
-      "name": "Mutant",
-      "mb": 18.9
+      "file": "vita_meshy_2b_running.glb",
+      "name": "Vita 2b (Meshy) — bundled Meshy running clip",
+      "mb": 4.6
     },
     {
-      "file": "Peasant_Man.fbx",
-      "name": "Peasant Man",
-      "mb": 3.5
+      "file": "vita_meshy_2c.glb",
+      "name": "Vita 2c colorful, cleanup (adult proportions, no blush; Meshy auto-rigged 2026-09-02)",
+      "mb": 5.1,
+      "_note": "Doug's cleanup of 2b: age 20 with adult proportions, no blush at all, keeps the dark complexion, androgynous read and colorblock outfit. Same treatment: Meshy rig renamed to mixamorig:*; raw names in vita_meshy_2c_raw.glb; Meshy clips in vita_meshy_2c_walking.glb / vita_meshy_2c_running.glb (+ *_armature.glb clip-only); the shared vita_anim_* clips apply. Meshy tasks: preview 01a065ad-e7d9-71e6-b1a4-8af778d84405, refine 01a065af-51cf-765f-8124-730fb9cdfdcb, rig 01a065b0-46c8-702f-a99a-4c30d15c32ff."
     },
     {
-      "file": "character_1.fbx",
-      "name": "Character 2",
-      "mb": 59.4
+      "file": "vita_meshy_2c_walking.glb",
+      "name": "Vita 2c (Meshy) — bundled Meshy walking clip",
+      "mb": 5.2
     },
     {
-      "file": "character.fbx",
-      "name": "Character 1",
-      "mb": 4.7
+      "file": "vita_meshy_2c_running.glb",
+      "name": "Vita 2c (Meshy) — bundled Meshy running clip",
+      "mb": 5.2
     },
     {
-      "file": "kaya.fbx",
-      "name": "Kaya",
-      "mb": 8.4
+      "file": "alien_meshy.glb",
+      "name": "Friendly alien (Meshy text-to-3D from skin_test buildAlien, auto-rigged 2026-09-03)",
+      "mb": 4.5,
+      "_note": "Overnight batch 2026-09-03. Meshy 24-joint rig renamed to mixamorig:*; raw names in alien_meshy_raw.glb; Meshy walk/run in alien_meshy_walking.glb / alien_meshy_running.glb; the shared vita_anim_* clips apply. Static mesh: alien_meshy_static.glb (gitignored). Meshy tasks: preview 01a06618-b11c-707b-bb56-df9d79739381, refine 01a0661a-9fa4-76aa-bab9-81f8cf04eaf1, rig 01a0661c-13ef-7693-a047-3e2e9313a981 (35 credits)."
     },
     {
-      "file": "boy_static.glb",
-      "name": "Boy (Meshy) — static, no rig",
-      "mb": 27.4,
-      "rig": false
+      "file": "legionary_meshy.glb",
+      "name": "Roman legionary (Meshy text-to-3D from roman_study makeLegionary, auto-rigged 2026-09-03)",
+      "mb": 6.1,
+      "_note": "Overnight batch 2026-09-03. Meshy 24-joint rig renamed to mixamorig:*; raw names in legionary_meshy_raw.glb; Meshy walk/run in legionary_meshy_walking.glb / legionary_meshy_running.glb; shared vita_anim_* clips apply. Shield and gladius are baked into the mesh. Static: legionary_meshy_static.glb (gitignored). Meshy tasks: preview 01a06618-b79b-7279-91e7-dfb99ac6dac7, refine 01a0661a-a34f-72eb-947d-0b80a33794cd, rig 01a0661c-3f0d-7173-8800-c2be0999e5fd (35 credits)."
     },
     {
-      "file": "charlotte_static.glb",
-      "name": "Charlotte (Meshy) — static, no rig",
-      "mb": 73.1,
-      "rig": false
-    },
-    {
-      "file": "wanderer_static.glb",
-      "name": "Wanderer (Meshy) — static, no rig",
-      "mb": 52.7,
-      "rig": false
+      "file": "ivy_meshy.glb",
+      "name": "Ivy (Meshy text-to-3D, auto-rigged 2026-09-03)",
+      "mb": 7.4,
+      "_note": "Made from the Dramaton editor's 3-D BODY card. Meshy's rig renamed to mixamorig:* in the GLB JSON (Spine02/Spine01/Spine -> Spine/Spine1/Spine2, neck -> Neck, head_end -> HeadTop_End); raw names in ivy_meshy_raw.glb; untouched export ivy_meshy_static.glb (gitignored); bundled Meshy clips ivy_meshy_walking.glb / ivy_meshy_running.glb (+ *_armature.glb clip-only). Prompt: Ivy: a single humanoid character, full body, standing in an A-pose, facing forward, on a plain background.\na small green person who waves a lot\nHand-painted stylized 3D game art, friendly and bright,  Meshy tasks: preview 01a0665a-a5a1-73a8-ab86-502a2af4b4dd, refine 01a0665b-9970-7063-84aa-b1605cf0efc8, rig 01a0665c-dba9-71e5-a022-5e2272d3a71e."
     }
-  ]
+  ],
+  "_props_readme": "Non-walker creatures and props. NOT in skins[] (they have no biped rig and would fail the 7-leg-bone rule); the studies ignore this list. Drop them on anim_viewer.html.",
+  "props": [
+    {
+      "file": "dragon_meshy.glb",
+      "name": "Gold dragon (Meshy text-to-3D from the title poster look, 2026-09-02)",
+      "mb": 8.4,
+      "_note": "Static mesh, no skeleton (Meshy rigging + animation library are biped-only; the rig attempt on the poster-crop model was rejected: 'Pose estimation failed'). Three whole-object clips were hand-authored into the GLB on a wrapper node DragonRoot: hover (3 s bob), turntable (8 s yaw), pounce (2.4 s crouch-lunge, +Z forward). Untouched Meshy export: dragon_meshy_static.glb (gitignored). Meshy tasks: preview 01a06554-9902-7157-acf5-c3f96944eec4, refine 01a06556-0199-720d-ac1f-9da026497346."
+    },
+    {
+      "file": "dragon_lowpoly.glb",
+      "name": "Gold dragon, LOW-POLY trial (Meshy remesh of the same refine task, 2026-09-04)",
+      "_note": "LOW-POLY-DEFAULT TRIAL, Doug approved the credits. Meshy remesh task 01a06d97-3792-77e0-ae3f-4feb15f31069, input_task_id 01a06556-0199-720d-ac1f-9da026497346 (the original refine), topology triangle, target_polycount 15000. Cost 5 credits; balance 2484 -> 2479. RESULT: 70,820 -> 15,603 tris (22%), surface area and volume both 99.6% of the original, mean surface deviation 0.009% of the model diagonal. TWO THINGS THE REMESH DOES NOT DO, both handled here and both needed by any low-poly pipeline: (1) it returns PNG textures at 2048 base colour and 4096 metallic-roughness, so the raw output is 15.5 MB - BIGGER than the 8.04 MB original; re-encoded to 1024/512 JPEG here, after dilating the UV gutter, which Meshy leaves pure black and which would otherwise bleed dark seams along every UV edge when downscaled. (2) it drops animations; the three hand-authored DragonRoot clips (hover, turntable, pounce) were re-applied from dragon_meshy.glb. Final 0.96 MB, 12% of the original download. Untouched Meshy output kept locally as dragon_lowpoly_raw.glb (gitignored, 15.5 MB) so other texture budgets can be derived without spending credits again."
+    },
+    {
+      "file": "dragon_hoard_meshy.glb",
+      "name": "Gold dragon on its hoard, diorama (Meshy image-to-3D from gold_dragon_ref.png, 2026-09-02)",
+      "mb": 12.4,
+      "_note": "Image-to-3D kept the poster's coin pile as a solid gold bowl with the dragon lying on it: one static mesh, PBR textures, no skeleton. Reference: Dropbox Consolidated/Generated_Images/HvB_Title/gold_dragon_ref.png. Meshy task 01a0654f-5f7e-70e1-866c-e8ca0d1ae331."
+    },
+    {
+      "file": "poppy_meshy.glb",
+      "name": "Poppy, Doug's dog (Meshy image-to-3D from IMG_2010 standing photo, 2026-09-02)",
+      "mb": 6.5,
+      "_note": "Static mesh, no skeleton (Meshy rigging is biped-only). Nose points -X. Five whole-object clips hand-authored on wrapper node PoppyRoot: idle_bounce (1.6 s), trot (1.2 s, out and back along -X), play_bow (2.0 s), spin (1.2 s), turntable (8 s). The blue harness is baked into the mesh geometry; the texture paints it fur-toned. Texture = 2nd retexture pass (bold brindle stripes). Gitignored siblings: poppy_meshy_static.glb (raw image-to-3D, blue harness, pale coat), poppy_meshy_retex_static.glb (1st retexture, faint stripes), poppy_meshy_retex2_static.glb (final texture, no clips). Meshy tasks: image-to-3d 01a0655a-592f-7602-864b-d4e0ff88c23d, then two retexture passes on it (30 + 10 + 10 credits)."
+    },
+    {
+      "file": "fire_small_meshy.glb",
+      "name": "Small campfire (Meshy text-to-3D feasibility test, 2026-09-02)",
+      "mb": 4.4,
+      "_note": "FIRE TEST RESULT: Meshy outputs a STATIC sculpted flame (one solid orange teardrop over logs and stones), no motion of any kind; Meshy has no VFX, particle, shader or vertex animation and its animation system is biped-rig only. Usable as a stylized prop only. Real fire (small fire, embers, blazing campfire, hearth, dragon breath) should be three.js particle/shader VFX in the engine. Meshy tasks: preview 01a0656b-34eb-7128-866f-4f88b496be81, refine 01a0656c-9bc0-774f-b9c7-5d8efb4b6fa6 (30 credits)."
+    },
+    {
+      "file": "honu_meshy.glb",
+      "name": "Honu green sea turtle (Meshy text-to-3D from turtle_study, 2026-09-03)",
+      "mb": 5.6,
+      "_note": "Overnight batch. Static mesh, nose +Z, whole-object clips on HonuRoot: glide (4 s), dive (5 s), turntable. Untouched export: honu_meshy_static.glb (gitignored). Meshy preview 01a06618-bf16-7019-a14a-0a18b3667d19, refine 01a0661a-a6f5-7212-adbd-9abdbdc89d1c (30 credits)."
+    },
+    {
+      "file": "crab_meshy.glb",
+      "name": "Coconut crab (Meshy text-to-3D from crab_study, 2026-09-03)",
+      "mb": 5.5,
+      "_note": "Overnight batch. Came out as a generic crab with equal claws (Meshy ignored the oversized-left-claw field mark). Static mesh, faces +Z, clips on CrabRoot: scuttle (1.6 s), rear (2.5 s), turntable. Static: crab_meshy_static.glb. Meshy preview 01a06618-c620-760b-9c90-b4dc4f455372, refine 01a0661a-ab82-7273-bc27-718992502d54 (30 credits)."
+    },
+    {
+      "file": "gull_meshy.glb",
+      "name": "Herring gull in flight (Meshy text-to-3D from seagull_study, 2026-09-03)",
+      "mb": 4.4,
+      "_note": "Overnight batch. Wings spread, static mesh, faces +Z, clips on GullRoot: soar (3 s), circle (8 s), turntable. Static: gull_meshy_static.glb. Meshy preview 01a06618-cee2-73f4-84a8-6fec2deadefe, refine 01a0661a-af28-7243-8798-68d45f850e03 (30 credits)."
+    },
+    {
+      "file": "orca_meshy.glb",
+      "name": "Orca (Meshy text-to-3D from orca_study, 2026-09-03)",
+      "mb": 3.6,
+      "_note": "Overnight batch. Static mesh, nose +Z, clips on OrcaRoot: glide (4 s), dive (5 s), turntable. Static: orca_meshy_static.glb. Meshy preview 01a06618-d435-755e-9673-e260cf82dffb, refine 01a0661a-b2fa-7550-8b5b-9f417a82b78e (30 credits)."
+    },
+    {
+      "file": "rowboat_meshy.glb",
+      "name": "Yellow rowboat (Meshy text-to-3D from rowboat_study, 2026-09-03)",
+      "mb": 4.1,
+      "_note": "Overnight batch. Hull runs along X. Static mesh, clip on RowboatRoot: float (6.4 s bob and rock), turntable. Static: rowboat_meshy_static.glb. Meshy preview 01a06618-d8c5-7537-9ac6-307b230538db, refine 01a0661a-b7b6-77ee-8119-99720ea46c12 (30 credits)."
+    },
+    {
+      "file": "balloon_meshy.glb",
+      "name": "Hot air balloon (Meshy text-to-3D from hotair_study, 2026-09-03)",
+      "mb": 7.1,
+      "_note": "Overnight batch, SECOND attempt: the first envelope came back with holes torn through the gores (kept as balloon_meshy_v1_holes_static.glb, gitignored; Meshy preview 01a06618-ddba-74b9-a29f-94a33087500d, refine 01a0661a-bb1f-75e6-a2e9-d23c31bfc8bf, 30 credits). Redo with a closed-envelope prompt: preview 01a0661f-c475-773a-9f85-462738eaf4bb, refine 01a06621-2c47-776e-9d87-69a8e0701680 (30 credits); stripes came out as horizontal bands, not vertical gores. Static mesh, clip on BalloonRoot: drift (10 s rise, sway, settle), turntable. Static: balloon_meshy_v2_static.glb."
+    },
+    {
+      "file": "castle_meshy.glb",
+      "name": "Norman castle (Meshy text-to-3D from castle_study, 2026-09-03)",
+      "mb": 7.1,
+      "_note": "Overnight batch. Static building, turntable clip only on CastleRoot. Static: castle_meshy_static.glb. Meshy preview 01a06618-e30e-72c8-809b-7338f71259e9, refine 01a0661a-bf42-74f3-9742-8bd9076cd509 (30 credits)."
+    },
+    {
+      "file": "throne_meshy.glb",
+      "name": "Ornate throne (Meshy text-to-3D from throne_study, 2026-09-03)",
+      "mb": 6.9,
+      "_note": "Overnight batch. Static prop, turntable clip only on ThroneRoot. Static: throne_meshy_static.glb. Meshy preview 01a06618-e831-7320-b7d3-488953e365c7, refine 01a0661a-c2e7-76b4-83a3-3ba807593df7 (30 credits)."
+    }
+  ],
+  "_archived_readme": "Pre-Meshy skins and the retired Vita motion library were archived 2026-09-03 to vendor/models/_archive_pre_meshy/ . They are intact and loadable from there; see _archive_pre_meshy/PRE_MESHY_ARCHIVE.md for what each one was. Removed from the lists above so nothing resolves to a moved file.",
+  "archived_pre_meshy": {
+    "folder": "vendor/models/_archive_pre_meshy/",
+    "manifest": "_archive_pre_meshy/PRE_MESHY_ARCHIVE.md",
+    "skins": [
+      {
+        "file": "Eve_By_J.Gonzales.fbx",
+        "name": "Eve (J. Gonzales)"
+      },
+      {
+        "file": "akai_e_espiritu.fbx",
+        "name": "Akai e Espiritu"
+      },
+      {
+        "file": "Peasant_Girl.fbx",
+        "name": "Peasant Girl"
+      },
+      {
+        "file": "Aj.fbx",
+        "name": "Aj"
+      },
+      {
+        "file": "Ch14_nonPBR.fbx",
+        "name": "Mouse"
+      },
+      {
+        "file": "Ch34_nonPBR.fbx",
+        "name": "Elf Girl"
+      },
+      {
+        "file": "Ch46_nonPBR.fbx",
+        "name": "Young Girl"
+      },
+      {
+        "file": "Mutant.fbx",
+        "name": "Mutant"
+      },
+      {
+        "file": "Peasant_Man.fbx",
+        "name": "Peasant Man"
+      },
+      {
+        "file": "character_1.fbx",
+        "name": "Creepy Mummy"
+      },
+      {
+        "file": "kaya.fbx",
+        "name": "Kaya"
+      }
+    ],
+    "vita_animations": [
+      {
+        "file": "vita_anim_idle.glb",
+        "name": "idle (Idle, action 0)"
+      },
+      {
+        "file": "vita_anim_walk.glb",
+        "name": "walk (action 1)"
+      },
+      {
+        "file": "vita_anim_run.glb",
+        "name": "run (Run_02, action 14)"
+      },
+      {
+        "file": "vita_anim_jump.glb",
+        "name": "jump (Regular_Jump, action 466)"
+      },
+      {
+        "file": "vita_anim_wave.glb",
+        "name": "wave hello (Big_Wave_Hello, action 28)"
+      },
+      {
+        "file": "vita_anim_cheer.glb",
+        "name": "cheer (Victory_Cheer, action 59)"
+      },
+      {
+        "file": "vita_anim_sit.glb",
+        "name": "sit idle (Chair_Sit_Idle, action 32)"
+      },
+      {
+        "file": "vita_anim_dance_funny.glb",
+        "name": "dance 1 (FunnyDancing_01, action 22)"
+      },
+      {
+        "file": "vita_anim_dance_allnight.glb",
+        "name": "dance 2 (All_Night_Dance, action 64)"
+      },
+      {
+        "file": "vita_anim_talk.glb",
+        "name": "talk (Talk_Passionately, action 308)"
+      },
+      {
+        "file": "vita_anim_bow.glb",
+        "name": "bow (Formal_Bow, action 41)"
+      },
+      {
+        "file": "vita_anim_think.glb",
+        "name": "think (Confused_Scratch, action 36)"
+      }
+    ]
+  }
 }
