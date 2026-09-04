@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>George World v0.79</title>
+<title>George World v0.80</title>
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#a5ddf5;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -390,7 +390,7 @@
 </head>
 <body>
 <div id="hud">
-  <div id="title">GEORGE WORLD <span id="ver">v0.79</span></div>
+  <div id="title">GEORGE WORLD <span id="ver">v0.80</span></div>
   <div id="dayclock" title="the world's clock — which day this is, and total time elapsed">DAY 1 · 0:00</div>
   <!-- v0.47: the STATS drawer — mirrored twin of the right LOG drawer -->
   <div id="ldrawer">
@@ -12306,6 +12306,41 @@ document.addEventListener('visibilitychange', async () => {
     if(m && m[1] !== document.title) location.reload();
   }catch(_){ /* offline blip: keep playing */ }
 });
+</script>
+<!-- ==== HvB TITLE SPLASH (v0.80): first entry shows the title art full-screen;
+     click anywhere to enter. The art is loaded from assets/hvb_title.png — swap
+     that FILE to update it with no code change (the three billionaires are
+     intentionally headless until Doug + Alex composite the caricature heads).
+     Dismissal is remembered per-browser (localStorage); force it back with
+     ?splash=1 on the URL. Standalone block: touches nothing in the sim. ==== -->
+<style>
+  #hvbsplash { position:fixed; inset:0; z-index:200; background:#0b0e12;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:opacity .6s; }
+  #hvbsplash img { max-width:100%; max-height:100%; object-fit:contain; }
+  #hvbsplash .enterhint { position:absolute; bottom:26px; left:50%;
+    transform:translateX(-50%); color:#ffd94a; white-space:nowrap;
+    font:800 15px "Segoe UI", system-ui, sans-serif; letter-spacing:2px;
+    text-shadow:0 2px 8px #000; animation:hvbpulse 1.6s ease infinite; }
+  @keyframes hvbpulse { 50% { opacity:.4; } }
+  #hvbsplash.gone { opacity:0; pointer-events:none; }
+</style>
+<div id="hvbsplash">
+  <img src="assets/hvb_title.png" alt="Humans vs Billionaires">
+  <div class="enterhint">CLICK ANYWHERE TO ENTER GEORGE WORLD</div>
+</div>
+<script>
+(function(){
+  var sp = document.getElementById('hvbsplash');
+  var seen = false;
+  try { seen = localStorage.getItem('hvb_splash_seen') === '1'; } catch(e){}
+  if(seen && !/[?&]splash=1/.test(location.search)){ sp.remove(); return; }
+  sp.addEventListener('click', function(){
+    try { localStorage.setItem('hvb_splash_seen', '1'); } catch(e){}
+    sp.classList.add('gone');
+    setTimeout(function(){ sp.remove(); }, 700);
+  });
+})();
 </script>
 </body>
 </html>
