@@ -43,12 +43,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HvB Asset Stage v8.40</title>
+<title>HvB Asset Stage v8.41</title>
 <!-- VERSION STAMP (Doug's standing rule: every piece of software under
      development shows its version beside its title). Bump REV on EVERY save
      and set REV_BUILT from the real clock — never guess the time. -->
 <script>
-  const REV = '8.40';
+  const REV = '8.41';
   const REV_BUILT = '2026-09-04 11:19 -07:00';
 </script>
 <style>
@@ -633,6 +633,16 @@
     try {
       const r = await fetch('/stage-notes', { method:'POST',
         headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(NOTES) });
+      // 2026-09-04: the server MERGES (newer ts per item) and answers with the
+      // whole set, so notes made on the other device arrive here instead of
+      // being erased. Adopt them; leave the box alone while it is being typed in.
+      let merged = null;
+      try { merged = r.ok ? (await r.json()).notes : null; } catch(err){ merged = null; }
+      if(merged && typeof merged === 'object'){
+        NOTES = merged;
+        try { localStorage.setItem(KEY, JSON.stringify(NOTES)); } catch(err){}
+        if(document.activeElement !== noteEl) showNote();
+      }
       noteStat.textContent = r.ok ? 'saved to STAGE_NOTES.md ' + stamp() : 'saved in this browser only';
     } catch(err){ noteStat.textContent = 'saved in this browser only (no local server)'; }
     markList();

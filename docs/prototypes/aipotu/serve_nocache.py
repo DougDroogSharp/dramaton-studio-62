@@ -1,21 +1,28 @@
-# George World prototype server (default port 8201) — filed 2026-08-30; notes endpoint added 2026-09-01 19:05 PDT
+# George World prototype server (default port 8201) — filed 2026-08-30; notes endpoint added 2026-09-01 19:05 PDT;
+# notes MERGE + lock + cap 2026-09-04 18:5x PDT (code dive: stage notes were last-writer-wins across devices).
 # Same as `python -m http.server` but sends no-store headers on every response,
 # so a plain browser refresh ALWAYS fetches the latest build. Stale-cache-proof.
 #
 # POST /stage-notes  — the HvB Asset Stage sends Doug's per-item critique notes
-# (a JSON object {file: {label, text, ts}}); the server writes stage_notes.json
-# (the data) and STAGE_NOTES.md (readable) next to the studies so any session
-# can read what Doug thought of each asset. GET /stage_notes.json is served by
-# the static handler like any other file.
+# (a JSON object {file: {label, text, ts}}). The server MERGES them into
+# stage_notes.json item by item (the newer `ts` wins; items the sender never
+# saw are kept, so the phone's notes and the laptop's notes converge instead
+# of erasing each other), rewrites STAGE_NOTES.md (readable), and answers with
+# the merged object so the page can adopt it. One lock around the
+# read-merge-write; bodies over 1 MB refused; the JSON is written whole then
+# swapped in. GET /stage_notes.json is served by the static handler as before.
 import http.server
 import json
 import os
 import sys
+import threading
 from datetime import datetime
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8201
 NOTES_JSON = 'stage_notes.json'
 NOTES_MD = 'STAGE_NOTES.md'
+NOTES_LOCK = threading.Lock()
+MAX_NOTES_BYTES = 1 << 20
 
 
 def write_notes_md(notes):
@@ -35,6 +42,38 @@ def write_notes_md(notes):
         lines.append('')
     with open(NOTES_MD, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines))
+
+
+def read_notes():
+    try:
+        with open(NOTES_JSON, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def clean_entry(v):
+    """One note as the stage writes it: label, text, ts — strings, bounded."""
+    if not isinstance(v, dict):
+        return None
+    return {'label': str(v.get('label') or '')[:200],
+            'text': str(v.get('text') or '')[:20000],
+            'ts': str(v.get('ts') or '')[:40]}
+
+
+def merge_notes(have, incoming):
+    """Per item, the newer stamp wins (a tie goes to the sender, who is
+    typing now); items the sender never saw stay as they are."""
+    out = dict(have)
+    for k, v in incoming.items():
+        e = clean_entry(v)
+        if e is None or not isinstance(k, str) or not k or len(k) > 300:
+            continue
+        cur = out.get(k)
+        if not isinstance(cur, dict) or e['ts'] >= str(cur.get('ts') or ''):
+            out[k] = e
+    return out
 
 
 MODEL_EXT = ('.glb', '.gltf', '.bin', '.fbx')
@@ -62,14 +101,23 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404)
             return
         try:
-            n = int(self.headers.get('Content-Length', 0))
-            notes = json.loads(self.rfile.read(n).decode('utf-8'))
-            if not isinstance(notes, dict):
+            n = int(self.headers.get('Content-Length') or 0)
+            if n <= 0:
+                raise ValueError('no body')
+            if n > MAX_NOTES_BYTES:
+                raise ValueError('notes body too large')
+            incoming = json.loads(self.rfile.read(n).decode('utf-8'))
+            if not isinstance(incoming, dict):
                 raise ValueError('notes must be an object')
-            with open(NOTES_JSON, 'w', encoding='utf-8', newline='\n') as f:
-                json.dump(notes, f, ensure_ascii=False, indent=1)
-            write_notes_md(notes)
-            body = json.dumps({'ok': True, 'count': len(notes)}).encode('utf-8')
+            with NOTES_LOCK:
+                notes = merge_notes(read_notes(), incoming)
+                tmp = NOTES_JSON + '.tmp'
+                with open(tmp, 'w', encoding='utf-8', newline='\n') as f:
+                    json.dump(notes, f, ensure_ascii=False, indent=1)
+                os.replace(tmp, NOTES_JSON)
+                write_notes_md(notes)
+            body = json.dumps({'ok': True, 'count': len(notes), 'notes': notes},
+                              ensure_ascii=False).encode('utf-8')
             self.send_response(200)
         except Exception as e:  # report, never crash the server
             body = json.dumps({'ok': False, 'error': str(e)}).encode('utf-8')
@@ -82,5 +130,5 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    print(f'serving {os.getcwd()} on 0.0.0.0:{PORT} (no-cache; POST /stage-notes writes {NOTES_JSON} + {NOTES_MD})')
+    print(f'serving {os.getcwd()} on 0.0.0.0:{PORT} (no-cache; POST /stage-notes merges into {NOTES_JSON} + {NOTES_MD})')
     http.server.ThreadingHTTPServer(('0.0.0.0', PORT), NoCacheHandler).serve_forever()
