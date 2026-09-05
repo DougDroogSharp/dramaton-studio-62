@@ -24,7 +24,14 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { writeFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { join } from 'path';
-import { StoredBody, freeStem, readBody, resolveModelsDir, storeRiggedGlb, storeSlug } from './vite-plugin-models';
+import { StoredBody, freeStem, isLoopback, readBody, resolveModelsDir, storeRiggedGlb, storeSlug } from './vite-plugin-models';
+
+// Spend guard (code dive 2026-09-04): every Meshy route is localhost-only, and
+// one dev-server run may CREATE at most MESHY_TASK_BUDGET tasks (preview,
+// refine, image, rig each count one; polling and saving are free). Default 12
+// is about three characters. Raise it in .env.local for a long session;
+// restarting the dev server resets the count.
+const DEFAULT_TASK_BUDGET = 12;
 
 const MESHY_BASE = 'https://api.meshy.ai';
 export const STANDARD_HEIGHT_M = 1.55;
@@ -95,12 +102,20 @@ const windowsUserEnv = (name: string): string => {
 export function meshyPlugin(env: Record<string, string> = {}): Plugin {
   let dir = resolveModelsDir(process.cwd(), env);
   const key = () => env.MESHY_API_KEY || process.env.MESHY_API_KEY || windowsUserEnv('MESHY_API_KEY');
+  const budget = Math.max(0, Number(env.MESHY_TASK_BUDGET || process.env.MESHY_TASK_BUDGET) || DEFAULT_TASK_BUDGET);
+  let created = 0;
+  // Every task creation goes through here, so the budget cannot be bypassed.
+  const createBudgeted = async (k: string, kind: TaskKind, body: unknown): Promise<string> => {
+    if (created >= budget) throw new Error(`Meshy task budget spent (${created}/${budget} this dev-server run). Set MESHY_TASK_BUDGET in .env.local or restart the dev server.`);
+    created += 1;
+    return create(k, kind, body);
+  };
   return {
     name: 'meshy-bridge',
     apply: 'serve',
     configResolved(config) {
       dir = resolveModelsDir(config.root, env);
-      config.logger.info(`🧱 Meshy bridge: ${key() ? 'key present' : 'NO KEY — set MESHY_API_KEY in .env.local'}; store ${dir}`);
+      config.logger.info(`🧱 Meshy bridge: ${key() ? 'key present' : 'NO KEY — set MESHY_API_KEY in .env.local'}; store ${dir}; localhost-only; budget ${budget} tasks/run`);
     },
     configureServer(server) {
       const json = (res: ServerResponse, status: number, payload: unknown) => {
@@ -109,6 +124,7 @@ export function meshyPlugin(env: Record<string, string> = {}): Plugin {
         res.end(JSON.stringify(payload));
       };
       const guard = (req: IncomingMessage, res: ServerResponse, method: string): string | null => {
+        if (!isLoopback(req)) { json(res, 403, { error: 'Meshy bridge is localhost-only' }); return null; }
         if (req.method !== method) { json(res, 405, { error: `${method} only` }); return null; }
         const k = key();
         if (!k) { json(res, 500, { error: 'No Meshy key. Add MESHY_API_KEY=your-key to .env.local in the checkout and restart the dev server.' }); return null; }
@@ -123,7 +139,7 @@ export function meshyPlugin(env: Record<string, string> = {}): Plugin {
           const body = JSON.parse(await readBody(req)) as { prompt?: string };
           if (!body.prompt?.trim()) return json(res, 400, { error: 'prompt is required' });
           console.log(`🧱 Meshy text-to-3D preview: ${body.prompt.slice(0, 80)}…`);
-          const taskId = await create(k, 'text', {
+          const taskId = await createBudgeted(k, 'text', {
             mode: 'preview',
             prompt: body.prompt.trim().slice(0, 800),
             ai_model: 'latest',
@@ -141,7 +157,7 @@ export function meshyPlugin(env: Record<string, string> = {}): Plugin {
         wrap(async () => {
           const body = JSON.parse(await readBody(req)) as { previewTaskId?: string };
           if (!body.previewTaskId) return json(res, 400, { error: 'previewTaskId is required' });
-          const taskId = await create(k, 'text', { mode: 'refine', preview_task_id: body.previewTaskId, enable_pbr: false, ai_model: 'latest' });
+          const taskId = await createBudgeted(k, 'text', { mode: 'refine', preview_task_id: body.previewTaskId, enable_pbr: false, ai_model: 'latest' });
           json(res, 200, { taskId });
         }, res);
       });
@@ -152,7 +168,7 @@ export function meshyPlugin(env: Record<string, string> = {}): Plugin {
           const body = JSON.parse(await readBody(req)) as { imageDataUrl?: string };
           if (!body.imageDataUrl?.startsWith('data:image/')) return json(res, 400, { error: 'imageDataUrl (a data: URL) is required' });
           console.log('🧱 Meshy image-to-3D');
-          const taskId = await create(k, 'image', {
+          const taskId = await createBudgeted(k, 'image', {
             image_url: body.imageDataUrl,
             ai_model: 'latest',
             pose_mode: 'a-pose',
@@ -171,7 +187,7 @@ export function meshyPlugin(env: Record<string, string> = {}): Plugin {
         wrap(async () => {
           const body = JSON.parse(await readBody(req)) as { inputTaskId?: string; heightMeters?: number };
           if (!body.inputTaskId) return json(res, 400, { error: 'inputTaskId is required' });
-          const taskId = await create(k, 'rig', { input_task_id: body.inputTaskId, height_meters: body.heightMeters ?? STANDARD_HEIGHT_M });
+          const taskId = await createBudgeted(k, 'rig', { input_task_id: body.inputTaskId, height_meters: body.heightMeters ?? STANDARD_HEIGHT_M });
           json(res, 200, { taskId });
         }, res);
       });

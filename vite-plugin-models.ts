@@ -28,6 +28,13 @@ import { rigKindFromNames } from './src/utils/rigKind';
 
 const toArrayBuffer = (b: Buffer): ArrayBuffer => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 
+// Write and spend surfaces are localhost-only (code dive 2026-09-04): the dev
+// server listens on every interface, so without this any device on the wifi
+// could write into the model store or run Meshy on Doug's key. Same gate the
+// DRAM bridge has used since 2026-08-31.
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+export const isLoopback = (req: IncomingMessage): boolean => LOOPBACK.has(req.socket.remoteAddress ?? '');
+
 export const readBody = (req: IncomingMessage, maxBytes = 256 * 1024 * 1024): Promise<string> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -258,6 +265,7 @@ export function modelsPlugin(env: Record<string, string> = {}): Plugin {
       // names; .fbx/.gltf/.vrm are stored as-is (the stage's FBX loader
       // normalises Mixamo names at load). Registered only if humanoid.
       server.middlewares.use('/api/models/import', (req: IncomingMessage, res: ServerResponse) => {
+        if (!isLoopback(req)) return json(res, 403, { error: 'model import is localhost-only' });
         if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
         (async () => {
           const body = JSON.parse(await readBody(req)) as { name?: string; fileName?: string; dataBase64?: string; note?: string };
