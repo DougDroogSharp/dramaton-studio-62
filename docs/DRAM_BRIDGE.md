@@ -9,13 +9,26 @@ running, so an AI collaborator can co-edit the open project.
 
 | Route | Method | Meaning |
 |---|---|---|
-| `/bridge/game` | GET | The live GameData as last pushed by the open editor |
-| `/bridge/game` | PUT | Replace the document; the open editor applies it immediately |
+| `/bridge/game` | GET | The live GameData as last pushed by the open editor. The `ETag` header is its revision, e.g. `"17"` |
+| `/bridge/game` | PUT | Replace the document; the open editor applies it immediately. **Must carry `If-Match: "<rev>"`** from the GET you edited: `428` without it, `409` if the document moved since your read (Doug changed something in the editor). Body must be a JSON object. Answers `{ ok, rev }` with the new `ETag` |
 
 The editor mirrors its state over Vite's HMR websocket (`dram:push` out,
 `dram:apply` in, debounced 300 ms). Inbound documents pass through
 `migrateGameData`, so partial/older shapes are tolerated; a toast announces
 each applied update. Not compiled into production builds.
+
+**Revision guard (2026-09-04).** The rev is a counter that bumps on every
+change to the mirrored document: an editor push, a PUT, a `/bridge/say`. So
+the loop is always read → edit that document → write with the rev you read.
+A 409 means somebody (usually Doug, in the editor) changed the document
+after your GET: read again, redo your edit on the fresh copy, PUT again.
+Never retry a 409 with the same If-Match, and never PUT without one.
+
+```
+curl -si localhost:8080/bridge/game            # ETag: "17" + the document
+# ...edit game.json...
+curl -si -X PUT -H 'If-Match: "17"' --data-binary @game.json localhost:8080/bridge/game
+```
 
 ## Collaboration loop
 
@@ -23,8 +36,8 @@ each applied update. Not compiled into production builds.
 2. The AI reads the document: `GET /bridge/game` — world variables, Vita
    gauges/knobs, scenes + scripts, Narraton keys, skins with **armature**
    (joint hierarchy) and animation manifests.
-3. The AI edits the JSON and `PUT`s it back. The change appears in the open
-   editor instantly.
+3. The AI edits the JSON and `PUT`s it back with `If-Match` set to the
+   `ETag` it read. The change appears in the open editor instantly.
 
 ## Voice-driven animation authoring
 
@@ -72,7 +85,8 @@ pointing into the model store (`/models/<file>`, `/api/models/list`).
 ## Safety notes
 
 - PUT replaces the whole document — read-modify-write, never construct from
-  scratch, or you'll erase the rest of the project.
+  scratch, or you'll erase the rest of the project. The `If-Match` rev is
+  what makes read-modify-write safe against the editor's own edits.
 - The autosave (IndexedDB) picks up applied changes on the editor's normal
   debounce, so bridge edits persist like hand edits.
 - Localhost only; the bridge is a dev-collaboration surface, not an API for
